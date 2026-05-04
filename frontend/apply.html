@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apply for Job | Hunters for HR Solutions</title>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script>
+        // Global Error Watchdog
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            alert("System Error: " + msg + "\nLine: " + lineNo + "\nFile: " + url);
+            return false;
+        };
+    </script>
+    <style>
+        :root {
+            --primary: #10367a;
+            --secondary: #6c5ce7;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+            --text: #2d3436;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .apply-card {
+            background: var(--white);
+            padding: 40px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header i {
+            font-size: 50px;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: var(--primary);
+        }
+
+        .header p {
+            color: #636e72;
+            margin-top: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-submit:hover {
+            background: #0d2c63;
+            transform: translateY(-2px);
+        }
+
+        .success-message {
+            display: none;
+            text-align: center;
+            color: #27ae60;
+        }
+
+        .success-message i {
+            font-size: 60px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="apply-card" id="form-container">
+        <div class="header">
+            <i class='bx bx-briefcase-alt-2'></i>
+            <h1 id="job-title">Loading Job...</h1>
+            <p>Complete the form below to apply</p>
+        </div>
+        <form id="public-apply-form" onsubmit="handleApply(event)">
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="name" placeholder="Enter your full name" required>
+            </div>
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" id="email" placeholder="example@mail.com" required>
+            </div>
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" id="phone" placeholder="+123 456 7890" required>
+            </div>
+            <div class="form-group">
+                <label>Expected Salary (Monthly/Yearly)</label>
+                <input type="text" id="expected_salary" placeholder="e.g. $5,000 / month" required>
+            </div>
+            <div class="form-group">
+                <label>Upload CV (PDF or Word)</label>
+                <input type="file" id="cv-file" accept=".pdf,.doc,.docx" required>
+            </div>
+            <button type="submit" class="btn-submit" id="submit-btn">
+                Submit Application
+            </button>
+        </form>
+    </div>
+
+    <div class="apply-card success-message" id="success-container">
+        <i class='bx bx-check-circle'></i>
+        <h1>Application Submitted!</h1>
+        <p>Our AI screening agent will review your profile shortly. Good luck!</p>
+    </div>
+
+    <script>
+        const API_URL = "";
+        const urlParams = new URLSearchParams(window.location.search);
+        const jobId = urlParams.get('job_id');
+
+        if (!jobId) {
+            document.getElementById('form-container').innerHTML = "<h1>Error: Invalid Job Link</h1>";
+        }
+
+        // Fetch Job Details
+        async function fetchJob() {
+            try {
+                const res = await fetch(`${API_URL}/public/job/${jobId}`);
+                if (!res.ok) throw new Error();
+                const job = await res.json();
+                document.getElementById('job-title').innerText = job.job_title;
+            } catch (err) {
+                document.getElementById('job-title').innerText = "Job Not Found";
+            }
+        }
+        fetchJob();
+
+        async function handleApply(event) {
+            event.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Submitting...";
+
+            const formData = new FormData();
+            formData.append("name", document.getElementById('name').value);
+            formData.append("email", document.getElementById('email').value);
+            formData.append("phone", document.getElementById('phone').value);
+            formData.append("expected_salary", document.getElementById('expected_salary').value);
+            formData.append("file", document.getElementById('cv-file').files[0]);
+
+            try {
+                const response = await fetch(`${API_URL}/public/apply/${jobId}`, {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (response.ok) {
+                    document.getElementById('form-container').style.display = 'none';
+                    document.getElementById('success-container').style.display = 'block';
+                } else {
+                    const errData = await response.json().catch(() => ({}));
+                    alert(`Submission Failed: ${errData.detail || "Please check your file size and try again."}`);
+                }
+            } catch (err) {
+                console.error("Apply crash:", err);
+                alert(`Connection Error: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = "Submit Application";
+            }
+        }
+    </script>
+</body>
+</html>

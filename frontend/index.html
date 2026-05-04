@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hunters for HR Solutions - AI Recruitment System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        // Global Error Watchdog
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            alert("System Error: " + msg + "\nLine: " + lineNo + "\nFile: " + url);
+            return false;
+        };
+    </script>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-overlay" class="login-overlay active">
+        <div class="login-card">
+            <div class="logo">
+                <i class='bx bx-target-lock'></i>
+                <h2>Hunters for HR Solutions<br><span>AI Recruitment System</span></h2>
+            </div>
+            <p>Sign in to your recruitment dashboard</p>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div class="input-with-icon">
+                        <i class='bx bx-envelope'></i>
+                        <input type="email" id="login-email" placeholder="admin@example.com" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-with-icon">
+                        <i class='bx bx-lock-alt'></i>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <div class="form-options">
+                    <label class="remember-me">
+                        <input type="checkbox" id="login-remember"> Remember me
+                    </label>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
+                    Login to Dashboard
+                </button>
+            </form>
+            <div class="login-footer">
+                <small>Default Access: admin@example.com / admin123</small>
+            </div>
+        </div>
+    </div>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="logo">
+                <img src="logo.png" alt="Logo" id="brand-logo" onerror="this.style.display='none'; document.getElementById('brand-icon').style.display='block';">
+                <i class='bx bx-target-lock' id="brand-icon" style="display:none;"></i>
+                <h2>Hunters for HR Solutions<br><span style="font-size: 10px; color: var(--gold);">AI Recruitment System</span></h2>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-view="dashboard-view"><i class='bx bx-grid-alt'></i> Dashboard</li>
+                <li data-view="jobs-view"><i class='bx bx-briefcase'></i> Jobs</li>
+                <li data-view="candidates-view"><i class='bx bx-user-pin'></i> Candidates</li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <header>
+                <div class="search-bar">
+                    <i class='bx bx-search'></i>
+                    <input type="text" placeholder="Search candidates...">
+                </div>
+                <div class="user-profile">
+                    <span id="user-display-name" style="margin-right: 12px; font-weight: 500; color: var(--navy);">Admin</span>
+                    <img src="https://ui-avatars.com/api/?name=Admin&background=6c5ce7&color=fff" alt="User" onclick="handleLogout()" title="Click to Logout" style="cursor:pointer;">
+                </div>
+            </header>
+
+            <div class="views">
+                <!-- Dashboard Overview -->
+                <div id="dashboard-view" class="view active">
+                    <h1>Overview</h1>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class='bx bx-briefcase'></i></div>
+                            <div class="stat-details">
+                                <h3>Total Jobs</h3>
+                                <p id="total-jobs">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class='bx bx-user'></i></div>
+                            <div class="stat-details">
+                                <h3>Total Candidates</h3>
+                                <p id="total-candidates">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class='bx bx-check-circle'></i></div>
+                            <div class="stat-details">
+                                <h3>Shortlisted</h3>
+                                <p id="total-accepted">0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2>Recent Candidates</h2>
+                    <div class="table-container">
+                        <table id="recent-candidates-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Job Applied</th>
+                                    <th>AI Score</th>
+                                    <th>Decision</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Jobs View -->
+                <div id="jobs-view" class="view">
+                    <div class="view-header">
+                        <h1>Manage Jobs</h1>
+                        <button class="btn-primary" onclick="openNewJobModal()"><i class='bx bx-plus'></i> New Job</button>
+                    </div>
+                    <div class="jobs-grid" id="jobs-grid">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- Candidates View -->
+                <div id="candidates-view" class="view">
+                    <div class="view-header">
+                        <h1>Candidates Pipeline</h1>
+                        <div class="header-actions">
+                            <button class="btn-outline" style="color:var(--red); border-color:var(--red);" onclick="deleteAllCandidates()"><i class='bx bx-trash'></i> Delete All</button>
+                            <button class="btn-outline" onclick="importFromSheets()"><i class='bx bx-import'></i> Import from Sheets</button>
+                            <button class="btn-outline" onclick="exportToCSV()"><i class='bx bx-download'></i> Export to CSV</button>
+                            <button class="btn-primary" onclick="openCandidateModal()"><i class='bx bx-plus'></i> Add Candidate</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="all-candidates-table">
+                            <thead>
+                                <tr>
+                                    <th>Candidate</th>
+                                    <th>Experience</th>
+                                    <th>Expected Salary</th>
+                                    <th>AI Score</th>
+                                    <th>Decision</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Candidate Detail Modal -->
+    <div class="modal" id="candidate-detail-modal">
+        <div class="modal-content large">
+            <span class="close-btn" onclick="closeModals()">&times;</span>
+            <h2 id="modal-candidate-name">Candidate Details</h2>
+            <div class="modal-body">
+                    <div class="eval-card">
+                        <div class="eval-header">
+                            <div class="score-circle" id="modal-candidate-score">0.0</div>
+                            <div class="decision-badge" id="modal-candidate-decision">Pending</div>
+                        </div>
+                        <div class="candidate-info-summary" style="margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; background: var(--bg-hover); border-radius: 12px;">
+                            <div><i class='bx bx-phone'></i> <strong>Phone:</strong> <span id="modal-candidate-phone">-</span></div>
+                            <div><i class='bx bx-money'></i> <strong>Expected:</strong> <span id="modal-candidate-expected-salary">-</span></div>
+                        </div>
+                        <div class="eval-reason">
+                            <h3>AI Reasoning</h3>
+                            <p id="modal-candidate-reason">Loading...</p>
+                        </div>
+                    <div class="eval-strengths-weaknesses">
+                        <div class="strengths">
+                            <h3><i class='bx bx-up-arrow-circle'></i> Strengths</h3>
+                            <p id="modal-candidate-strengths">-</p>
+                        </div>
+                        <div class="weaknesses">
+                            <h3><i class='bx bx-down-arrow-circle'></i> Weaknesses</h3>
+                            <p id="modal-candidate-weaknesses">-</p>
+                        </div>
+                    </div>
+                    <div class="eval-questions">
+                        <h3><i class='bx bx-question-mark'></i> Suggested Interview Questions</h3>
+                        <ul id="modal-candidate-questions">
+                            <!-- Questions loaded dynamically -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="margin-top:20px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:20px;">
+                <button class="btn-secondary" onclick="closeModals()">Close</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-outline" style="border-color: var(--navy); color: var(--navy);" onclick="exportScreeningCard(currentCandidateId)"><i class='bx bx-printer'></i> Premium Export</button>
+                    <button class="btn-primary" id="edit-eval-btn" onclick="toggleEditEvaluation()"><i class='bx bx-edit'></i> Edit Report</button>
+                    <button class="btn-primary" id="save-eval-btn" style="display:none; background:var(--green);" onclick="saveManualEvaluation()"><i class='bx bx-check'></i> Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Job Modal -->
+    <div class="modal" id="job-add-modal">
+        <div class="modal-content large">
+            <span class="close-btn" onclick="closeModals()">&times;</span>
+            <h2>Add New Job</h2>
+            <div class="modal-scroll-area">
+                <div class="modal-tabs">
+                    <button class="tab-btn active" onclick="switchJobTab(event, 'upload-tab')">Upload File</button>
+                    <button class="tab-btn" onclick="switchJobTab(event, 'manual-tab')">Write Manually</button>
+                </div>
+                <div id="upload-tab" class="tab-content active">
+                    <form id="job-upload-form" onsubmit="handleJobUpload(event)">
+                        <div class="form-group">
+                            <label>Upload Job Description (Excel or PDF)</label>
+                            <input type="file" id="job-file" accept=".xlsx, .xls, .pdf" required>
+                        </div>
+                        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 20px;">
+                            <i class='bx bx-upload'></i> Process & Import
+                        </button>
+                    </form>
+                </div>
+                <div id="manual-tab" class="tab-content">
+                    <form id="job-manual-form" onsubmit="handleJobManualCreate(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Job Title</label>
+                                <input type="text" id="manual-job-title" placeholder="e.g. english head of department" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Min Experience (Years)</label>
+                                <input type="number" id="manual-job-exp" placeholder="5" required>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Job Description (General Overview)</label>
+                                <textarea id="manual-job-desc" placeholder="Briefly describe the role..."></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Required Skills</label>
+                                <textarea id="manual-job-skills" placeholder="to fill manually" required></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Nice to Have Skills</label>
+                                <textarea id="manual-job-nice" placeholder="to fill manually"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Education Level</label>
+                                <input type="text" id="manual-job-edu" placeholder="to fill manually" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Salary Range</label>
+                                <input type="text" id="manual-job-salary" placeholder="$80k - $100k">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Behavioral Skills</label>
+                                <textarea id="manual-job-behavioral" placeholder="creativity, communication, results-driven"></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Industry Experience Preference</label>
+                                <textarea id="manual-job-industry" placeholder="education or schools preferred"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Weight: Experience</label>
+                                <input type="number" step="0.1" id="manual-job-w-exp" value="0.3" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Weight: Skills</label>
+                                <input type="number" step="0.1" id="manual-job-w-skills" value="0.4" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Weight: Education</label>
+                                <input type="number" step="0.1" id="manual-job-w-edu" value="0.1" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Weight: Behavioral</label>
+                                <input type="number" step="0.1" id="manual-job-w-behavioral" value="0.2" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 20px;">
+                            <i class='bx bx-save'></i> Save Job
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Candidate Modal -->
+    <div class="modal" id="candidate-add-modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModals()">&times;</span>
+            <h2>Add Candidate(s)</h2>
+            <form id="candidate-add-form" onsubmit="handleCandidateUpload(event)">
+                <div class="form-group">
+                    <label>Apply to Job</label>
+                    <select id="candidate-job-id" required>
+                        <!-- Jobs loaded dynamically -->
+                    </select>
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Upload CV (PDF, Word) or Excel list</label>
+                    <input type="file" id="candidate-file" accept=".pdf, .docx, .xlsx, .xls" required>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 20px;">
+                    <i class='bx bx-upload'></i> Process & Screen
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js?v=1.2"></script>
+</body>
+</html>

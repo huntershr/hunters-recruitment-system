@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.env
+recruitment.db
+*.log
+.vscode/
+.idea/
+*.xlsx
+*.pdf
+*.docx
+temp/
+uploads/
+node_modules/
+dist/
+audit_jobs.py
+migrate_db.py

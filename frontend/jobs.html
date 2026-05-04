@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Openings | Hunters for HR Solutions</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #10367a;
+            --navy: #10367a;
+            --gold: #c5a059;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); line-height: 1.6; }
+
+        .header {
+            background: var(--white);
+            padding: 20px 40px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--navy); }
+        .logo i { font-size: 32px; color: var(--gold); }
+        .logo h1 { font-size: 20px; font-weight: 700; letter-spacing: 1px; line-height: 1; }
+        .logo span { font-size: 10px; color: var(--gold); text-transform: uppercase; }
+
+        .hero {
+            padding: 80px 20px;
+            text-align: center;
+            background: linear-gradient(135deg, var(--navy) 0%, #1e4ea1 100%);
+            color: white;
+        }
+        .hero h2 { font-size: 42px; margin-bottom: 10px; }
+        .hero p { opacity: 0.9; font-size: 18px; max-width: 600px; margin: 0 auto; }
+
+        .container { max-width: 1200px; margin: -50px auto 80px; padding: 0 20px; }
+
+        .jobs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+        }
+
+        .job-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #f1f5f9;
+        }
+
+        .job-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .job-card h3 { font-size: 22px; color: var(--navy); margin-bottom: 15px; }
+        
+        .meta-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .tag {
+            padding: 6px 12px;
+            background: #f1f5f9;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .tag i { font-size: 14px; color: var(--gold); }
+
+        .description {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .btn-apply {
+            margin-top: auto;
+            background: var(--navy);
+            color: white;
+            text-decoration: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-apply:hover { background: #1e4ea1; }
+
+        .loader { text-align: center; padding: 50px; font-size: 18px; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="#" class="logo">
+            <i class='bx bx-target-lock'></i>
+            <div>
+                <h1>Hunters for HR Solutions</h1>
+                <span>AI Recruitment System</span>
+            </div>
+        </a>
+    </header>
+
+    <div class="hero">
+        <h2>Join Our Team</h2>
+        <p>Explore our current openings and start your journey with Hunters AI.</p>
+    </div>
+
+    <div class="container">
+        <div id="jobs-list" class="jobs-grid">
+            <div class="loader">Loading active openings...</div>
+        </div>
+    </div>
+
+    <script>
+        async function loadJobs() {
+            try {
+                const response = await fetch('/public/jobs');
+                const jobs = await response.json();
+                const container = document.getElementById('jobs-list');
+                
+                if (jobs.length === 0) {
+                    container.innerHTML = '<div class="loader">No active openings at the moment. Check back later!</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                jobs.forEach(job => {
+                    container.innerHTML += `
+                        <div class="job-card">
+                            <h3>${job.job_title}</h3>
+                            <div class="meta-tags">
+                                <div class="tag"><i class='bx bx-time'></i> ${job.min_experience}+ yrs</div>
+                                <div class="tag"><i class='bx bx-book'></i> ${job.education_level}</div>
+                                <div class="tag"><i class='bx bx-money'></i> ${job.salary_range || 'Competitive'}</div>
+                            </div>
+                            <div class="description">${job.job_description || 'Click apply to view full details and requirements for this role.'}</div>
+                            <a href="/apply.html?job_id=${job.id}" class="btn-apply">
+                                Apply Now <i class='bx bx-right-arrow-alt'></i>
+                            </a>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                document.getElementById('jobs-list').innerHTML = '<div class="loader">Failed to load jobs. Please refresh the page.</div>';
+            }
+        }
+
+        loadJobs();
+    </script>
+</body>
+</html>
