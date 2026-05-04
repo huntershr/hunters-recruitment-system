@@ -7,10 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Set environment variables
-ENV PORT=8000
-ENV GOOGLE_API_KEY=""
-
+# Expose default port (Railway overrides with $PORT at runtime)
 EXPOSE 8000
 
-CMD ["python", "-m", "app.main"]
+CMD gunicorn -w 2 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:${PORT:-8000} --timeout 120
