@@ -927,15 +927,20 @@
             event.preventDefault();
             const token = localStorage.getItem('token');
 
+            const salaryMin = parseInt(document.getElementById('job-salary-min').value);
+            const salaryMax = parseInt(document.getElementById('job-salary-max').value);
+
             const jobData = {
                 job_title: document.getElementById('job-title').value,
                 job_location: document.getElementById('job-location').value,
-                salary_range_min: parseInt(document.getElementById('job-salary-min').value),
-                salary_range_max: parseInt(document.getElementById('job-salary-max').value),
+                salary_range: `${salaryMin} - ${salaryMax}`,
                 min_experience: parseInt(document.getElementById('job-experience').value),
-                employment_type: document.getElementById('job-type').value,
+                education_level: "Not specified",
                 job_description: document.getElementById('job-description').value,
-                required_skills: document.getElementById('job-skills').value
+                required_skills: document.getElementById('job-skills').value,
+                nice_to_have_skills: "",
+                behavioral_skills: "",
+                industry_experience: ""
             };
 
             try {

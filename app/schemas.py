@@ -122,3 +122,10 @@ class EvaluationResponse(EvaluationBase):
 
     class Config:
         from_attributes = True
+
+# Approval/Rejection Schemas
+class ApprovalData(BaseModel):
+    approval_notes: Optional[str] = None
+
+class RejectionData(BaseModel):
+    rejection_reason: str

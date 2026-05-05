@@ -129,7 +129,7 @@ def get_pending_jobs(db: Session = Depends(get_db), current_user: models.User = 
 @router.post("/admin/approve/{job_id}")
 def approve_job(
     job_id: int,
-    approval_data: dict = None,
+    approval_data: schemas.ApprovalData,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -144,8 +144,7 @@ def approve_job(
     from datetime import datetime
     job.is_approved = True
     job.approval_date = datetime.utcnow()
-    if approval_data:
-        job.approval_notes = approval_data.get("approval_notes")
+    job.approval_notes = approval_data.approval_notes
     db.commit()
     
     return {"message": f"Job '{job.job_title}' approved successfully"}
@@ -153,7 +152,7 @@ def approve_job(
 @router.post("/admin/reject/{job_id}")
 def reject_job(
     job_id: int,
-    rejection_data: dict = None,
+    rejection_data: schemas.RejectionData,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -165,9 +164,8 @@ def reject_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    reason = rejection_data.get("rejection_reason") if rejection_data else "No reason provided"
     db.delete(job)
     db.commit()
     
-    return {"message": f"Job rejected and deleted", "reason": reason}
+    return {"message": f"Job rejected and deleted", "reason": rejection_data.rejection_reason}
 
