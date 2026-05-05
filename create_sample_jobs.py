@@ -26,6 +26,7 @@ def create_sample_jobs():
         jobs = [
             {
                 "job_title": "Senior Python Developer",
+                "job_location": "San Francisco, CA",
                 "job_description": "We're looking for an experienced Python developer to join our AI team. You'll work on scalable backend systems, FastAPI applications, and contribute to our core product.",
                 "min_experience": 5,
                 "required_skills": "Python, FastAPI, SQL, Docker",
@@ -37,6 +38,7 @@ def create_sample_jobs():
             },
             {
                 "job_title": "Frontend Developer (React)",
+                "job_location": "New York, NY",
                 "job_description": "Join our frontend team to build beautiful and responsive user interfaces. You'll work with modern JavaScript frameworks, collaborate with designers, and optimize performance.",
                 "min_experience": 3,
                 "required_skills": "React, JavaScript, HTML/CSS, Git",
@@ -48,6 +50,7 @@ def create_sample_jobs():
             },
             {
                 "job_title": "Data Scientist - AI/ML",
+                "job_location": "Remote",
                 "job_description": "Help us build intelligent AI systems. You'll develop machine learning models, work with large datasets, and optimize algorithms for production environments.",
                 "min_experience": 4,
                 "required_skills": "Python, Machine Learning, TensorFlow, SQL",
@@ -59,6 +62,7 @@ def create_sample_jobs():
             },
             {
                 "job_title": "DevOps Engineer",
+                "job_location": "Austin, TX",
                 "job_description": "Manage and optimize our cloud infrastructure. You'll handle CI/CD pipelines, containerization, monitoring, and ensure system reliability and performance.",
                 "min_experience": 3,
                 "required_skills": "Docker, Kubernetes, CI/CD, Cloud (AWS/GCP/Azure)",
@@ -70,6 +74,7 @@ def create_sample_jobs():
             },
             {
                 "job_title": "Product Manager",
+                "job_location": "Seattle, WA",
                 "job_description": "Lead our product strategy and vision. You'll work cross-functionally with engineers and design, manage roadmap, and drive product adoption.",
                 "min_experience": 4,
                 "required_skills": "Product strategy, Analytics, Communication",

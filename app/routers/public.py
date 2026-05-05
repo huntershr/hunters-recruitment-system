@@ -73,7 +73,41 @@ async def public_apply(
     from .candidates import SessionLocal # Import here to avoid circular
     background_tasks.add_task(run_evaluation_task, new_candidate.id, SessionLocal())
 
-    return {"message": "Application submitted successfully", "candidate_id": new_candidate.id}
+    return {
+        "message": "Application submitted successfully",
+        "candidate_id": new_candidate.id,
+        "job_id": job_id
+    }
+
+@router.get("/evaluation/{candidate_id}")
+def get_candidate_evaluation(candidate_id: int, db: Session = Depends(get_db)):
+    """
+    Public endpoint to fetch candidate evaluation score.
+    Called by candidates to see their results after applying.
+    """
+    candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    evaluation = db.query(models.Evaluation).filter(models.Evaluation.candidate_id == candidate_id).first()
+    if not evaluation:
+        return {
+            "candidate_id": candidate_id,
+            "name": candidate.name,
+            "status": "pending",
+            "message": "Your application is being evaluated. Please check back shortly."
+        }
+    
+    return {
+        "candidate_id": candidate_id,
+        "name": candidate.name,
+        "status": "completed",
+        "score": evaluation.score,
+        "decision": evaluation.decision,
+        "reason": evaluation.reason,
+        "strengths": evaluation.strengths,
+        "weaknesses": evaluation.weaknesses
+    }
 
 @router.get("/jobs", response_model=List[schemas.JobResponse])
 def get_public_jobs(db: Session = Depends(get_db)):

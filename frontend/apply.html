@@ -162,8 +162,28 @@
 
     <div class="apply-card success-message" id="success-container">
         <i class='bx bx-check-circle'></i>
-        <h1>Application Submitted!</h1>
-        <p>Our AI screening agent will review your profile shortly. Good luck!</p>
+        <h1>Thank You!</h1>
+        <p style="margin-bottom: 30px;">Your application has been received and is being evaluated by our AI screening system.</p>
+        
+        <div id="score-display" style="display: none; padding: 20px; background: #f0f4f8; border-radius: 10px; margin-bottom: 20px;">
+            <h3 style="margin-bottom: 15px; color: var(--primary);">Your Evaluation Results</h3>
+            <div style="display: flex; align-items: center; justify-content: center; margin: 15px 0;">
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; font-weight: 700; color: var(--primary); margin-bottom: 5px;" id="score-value">-</div>
+                    <div style="font-size: 14px; color: #636e72;">Overall Score</div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; padding: 10px; background: white; border-radius: 8px;">
+                <div style="font-weight: 600; color: var(--primary); margin-bottom: 5px;">Decision: <span id="decision-value">-</span></div>
+                <div style="font-size: 14px; color: #636e72;">Reason: <span id="reason-value">-</span></div>
+            </div>
+        </div>
+        
+        <div id="pending-message" style="padding: 15px; background: #fffbf0; border-radius: 8px; border-left: 4px solid var(--secondary); margin-bottom: 20px;">
+            <p style="font-size: 14px; color: #636e72;"><strong>Evaluation in progress...</strong> We'll show your results here as soon as they're ready. Typically takes 1-2 minutes.</p>
+        </div>
+        
+        <a href="/jobs.html" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Back to Job Listings</a>
     </div>
 
     <script>
@@ -208,8 +228,12 @@
                 });
 
                 if (response.ok) {
+                    const result = await response.json();
                     document.getElementById('form-container').style.display = 'none';
                     document.getElementById('success-container').style.display = 'block';
+                    
+                    // Poll for evaluation results
+                    pollEvaluation(result.candidate_id);
                 } else {
                     const errData = await response.json().catch(() => ({}));
                     alert(`Submission Failed: ${errData.detail || "Please check your file size and try again."}`);
@@ -220,6 +244,40 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = "Submit Application";
+            }
+        }
+
+        // Poll for evaluation results every 2 seconds (max 30 attempts = 60 seconds)
+        let pollAttempts = 0;
+        const maxAttempts = 30;
+
+        async function pollEvaluation(candidateId) {
+            if (pollAttempts >= maxAttempts) {
+                console.log("Polling timeout - evaluation not ready yet");
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/public/evaluation/${candidateId}`);
+                const result = await response.json();
+
+                if (result.status === 'completed') {
+                    // Show evaluation results
+                    document.getElementById('pending-message').style.display = 'none';
+                    document.getElementById('score-display').style.display = 'block';
+                    document.getElementById('score-value').innerText = Math.round(result.score) + '%';
+                    document.getElementById('decision-value').innerText = result.decision;
+                    document.getElementById('reason-value').innerText = result.reason || 'See details above';
+                } else {
+                    // Still pending - poll again in 2 seconds
+                    pollAttempts++;
+                    setTimeout(() => pollEvaluation(candidateId), 2000);
+                }
+            } catch (err) {
+                console.error("Polling error:", err);
+                // Retry on error
+                pollAttempts++;
+                setTimeout(() => pollEvaluation(candidateId), 2000);
             }
         }
     </script>

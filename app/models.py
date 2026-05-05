@@ -20,6 +20,7 @@ class Job(Base):
     id = Column(Integer, primary_key=True, index=True)
     job_title = Column(String, index=True)
     job_description = Column(Text, nullable=True)
+    job_location = Column(String, nullable=True)
     min_experience = Column(Integer)
     required_skills = Column(Text) # Stored as JSON or comma separated
     nice_to_have_skills = Column(Text)
