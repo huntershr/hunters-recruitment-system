@@ -57,8 +57,11 @@ app.include_router(sheets.router)
 def health_check():
     return {"status": "healthy"}
 
+from pathlib import Path
+
 # Mount the frontend directory to serve HTML/JS/CSS
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+frontend_path = Path(__file__).parent.parent / "frontend"
+app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn
