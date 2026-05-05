@@ -335,6 +335,7 @@ async function handleJobManualCreate(event) {
     event.preventDefault();
     const payload = {
         job_title: document.getElementById("manual-job-title").value,
+        job_location: document.getElementById("manual-job-location").value,
         min_experience: parseInt(document.getElementById("manual-job-exp").value),
         required_skills: document.getElementById("manual-job-skills").value,
         nice_to_have_skills: document.getElementById("manual-job-nice").value,
@@ -534,6 +535,7 @@ function editJob(id) {
 
     // Fill form
     document.getElementById("manual-job-title").value = job.job_title;
+    document.getElementById("manual-job-location").value = job.job_location || '';
     document.getElementById("manual-job-exp").value = job.min_experience;
     document.getElementById("manual-job-desc").value = job.job_description || '';
     document.getElementById("manual-job-skills").value = job.required_skills;
@@ -568,6 +570,7 @@ async function handleJobManualCreate(event) {
     try {
         const payload = {
             job_title: safeGet("manual-job-title"),
+            job_location: safeGet("manual-job-location"),
             job_description: safeGet("manual-job-desc"),
             min_experience: parseInt(safeGet("manual-job-exp")) || 0,
             required_skills: safeGet("manual-job-skills"),
