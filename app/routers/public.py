@@ -111,5 +111,22 @@ def get_candidate_evaluation(candidate_id: int, db: Session = Depends(get_db)):
 
 @router.get("/jobs", response_model=List[schemas.JobResponse])
 def get_public_jobs(db: Session = Depends(get_db)):
-    # Only show jobs belonging to the main admin (Owner ID 1)
-    return db.query(models.Job).filter(models.Job.owner_id == 1).all()
+    """
+    Get all approved public job postings.
+    Only shows jobs from approved companies.
+    """
+    # Get approved companies
+    approved_companies = db.query(models.Company).filter(
+        models.Company.is_approved == True
+    ).all()
+    approved_company_ids = [c.id for c in approved_companies]
+    
+    # Get approved jobs from approved companies
+    jobs = db.query(models.Job).join(
+        models.User, models.Job.owner_id == models.User.id
+    ).filter(
+        models.Job.is_approved == True,
+        models.User.company_id.in_(approved_company_ids)
+    ).all()
+    
+    return jobs

@@ -96,3 +96,57 @@ def delete_job(job_id: int, db: Session = Depends(get_db), current_user: models.
     db.delete(db_job)
     db.commit()
     return {"message": "Job deleted successfully"}
+
+# Admin endpoints for job approval
+@router.get("/admin/pending")
+def get_pending_jobs(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Get all jobs pending approval (Admin only)"""
+    if not current_user or not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    pending = db.query(models.Job).filter(models.Job.is_approved == False).all()
+    return pending
+
+@router.post("/admin/approve/{job_id}")
+def approve_job(
+    job_id: int,
+    notes: str = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Approve a job posting (Admin only)"""
+    if not current_user or not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    from datetime import datetime
+    job.is_approved = True
+    job.approval_date = datetime.utcnow()
+    job.approval_notes = notes
+    db.commit()
+    
+    return {"message": f"Job '{job.job_title}' approved successfully"}
+
+@router.post("/admin/reject/{job_id}")
+def reject_job(
+    job_id: int,
+    reason: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Reject a job posting (Admin only)"""
+    if not current_user or not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    db.delete(job)
+    db.commit()
+    
+    return {"message": f"Job rejected and deleted", "reason": reason}
+
