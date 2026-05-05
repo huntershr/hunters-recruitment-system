@@ -562,7 +562,7 @@
 
             try {
                 // Get user profile
-                const userResponse = await fetch(`${API_URL}/users/me`, {
+                const userResponse = await fetch(`${API_URL}/auth/me`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 

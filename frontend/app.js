@@ -505,7 +505,7 @@ async function handleLogin(event) {
         
         // Check if user is company or admin and route accordingly
         try {
-            const userResponse = await fetch(`${API_URL}/users/me`, {
+            const userResponse = await fetch(`${API_URL}/auth/me`, {
                 headers: { 'Authorization': `Bearer ${data.access_token}` }
             });
             
@@ -514,7 +514,7 @@ async function handleLogin(event) {
                 
                 if (user.is_admin) {
                     // Admin user - go to admin dashboard
-                    window.location.href = 'index.html';
+                    checkAuth();
                 } else if (user.company_id) {
                     // Company user - go to company dashboard
                     window.location.href = 'company-dashboard.html';

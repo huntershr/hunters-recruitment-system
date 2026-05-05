@@ -97,7 +97,26 @@ def delete_job(job_id: int, db: Session = Depends(get_db), current_user: models.
     db.commit()
     return {"message": "Job deleted successfully"}
 
+@router.get("/{job_id}/candidates", response_model=List[schemas.CandidateResponse])
+def get_job_candidates(job_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Get all candidates for a specific job"""
+    job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    candidates = db.query(models.Candidate).filter(models.Candidate.applied_job_id == job_id).all()
+    return candidates
+
 # Admin endpoints for job approval
+@router.get("/admin/all")
+def get_all_jobs(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Get all jobs (Admin only)"""
+    if not current_user or not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    all_jobs = db.query(models.Job).all()
+    return all_jobs
+
 @router.get("/admin/pending")
 def get_pending_jobs(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """Get all jobs pending approval (Admin only)"""
@@ -110,7 +129,7 @@ def get_pending_jobs(db: Session = Depends(get_db), current_user: models.User = 
 @router.post("/admin/approve/{job_id}")
 def approve_job(
     job_id: int,
-    notes: str = None,
+    approval_data: dict = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -125,7 +144,8 @@ def approve_job(
     from datetime import datetime
     job.is_approved = True
     job.approval_date = datetime.utcnow()
-    job.approval_notes = notes
+    if approval_data:
+        job.approval_notes = approval_data.get("approval_notes")
     db.commit()
     
     return {"message": f"Job '{job.job_title}' approved successfully"}
@@ -133,7 +153,7 @@ def approve_job(
 @router.post("/admin/reject/{job_id}")
 def reject_job(
     job_id: int,
-    reason: str,
+    rejection_data: dict = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -145,6 +165,7 @@ def reject_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
+    reason = rejection_data.get("rejection_reason") if rejection_data else "No reason provided"
     db.delete(job)
     db.commit()
     
