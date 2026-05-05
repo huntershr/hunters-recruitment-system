@@ -502,7 +502,34 @@ async function handleLogin(event) {
         }
 
         localStorage.setItem("token", data.access_token);
-        checkAuth();
+        
+        // Check if user is company or admin and route accordingly
+        try {
+            const userResponse = await fetch(`${API_URL}/users/me`, {
+                headers: { 'Authorization': `Bearer ${data.access_token}` }
+            });
+            
+            if (userResponse.ok) {
+                const user = await userResponse.json();
+                
+                if (user.is_admin) {
+                    // Admin user - go to admin dashboard
+                    window.location.href = 'index.html';
+                } else if (user.company_id) {
+                    // Company user - go to company dashboard
+                    window.location.href = 'company-dashboard.html';
+                } else {
+                    // Regular user (shouldn't happen in current setup)
+                    checkAuth();
+                }
+            } else {
+                // Fallback to admin dashboard
+                checkAuth();
+            }
+        } catch (error) {
+            console.error('Error checking user type:', error);
+            checkAuth();
+        }
     } catch (err) {
         alert("Login failed: " + err.message);
     } finally {

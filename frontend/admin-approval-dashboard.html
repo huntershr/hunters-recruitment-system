@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Approval Dashboard - Hunters for HR Solutions</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background: #f5f7fa;
+        }
+
+        .approval-dashboard {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: 100vh;
+        }
+
+        .approval-sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 250px;
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .sidebar-logo i {
+            font-size: 40px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .sidebar-logo h3 {
+            font-size: 16px;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .sidebar-menu a:hover,
+        .sidebar-menu a.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .sidebar-menu i {
+            font-size: 20px;
+            min-width: 20px;
+        }
+
+        .badge {
+            background: rgba(255, 193, 7, 0.8);
+            color: #333;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-left: auto;
+        }
+
+        .sidebar-footer {
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 30px;
+            padding-top: 20px;
+        }
+
+        .sidebar-footer button {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .sidebar-footer button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .approval-main {
+            margin-left: 250px;
+            padding: 30px;
+        }
+
+        .header-bar {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .header-title h1 {
+            margin: 0;
+            font-size: 28px;
+            color: #333;
+        }
+
+        .header-title p {
+            margin: 5px 0 0 0;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .content-area {
+            display: none;
+        }
+
+        .content-area.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th {
+            background: #f5f7fa;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .approval-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: white;
+            transition: all 0.3s;
+        }
+
+        .approval-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .item-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .item-subtitle {
+            font-size: 13px;
+            color: #999;
+            margin-top: 3px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .item-details {
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .detail-row {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .detail-col {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .detail-label {
+            color: #999;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .detail-value {
+            color: #333;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .btn-approve {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #28a745;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            flex: 1;
+        }
+
+        .btn-approve:hover {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-reject {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #dc3545;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            flex: 1;
+        }
+
+        .btn-reject:hover {
+            background: #dc3545;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            color: #ddd;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .empty-state p {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-card i {
+            font-size: 32px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .reason-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-top: 5px;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        @media (max-width: 768px) {
+            .approval-dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .approval-sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: 20px;
+            }
+
+            .approval-main {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .sidebar-menu {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .sidebar-menu li {
+                margin-bottom: 0;
+                flex: 1 1 calc(50% - 5px);
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .header-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="approval-dashboard">
+        <!-- Sidebar Navigation -->
+        <div class="approval-sidebar">
+            <div class="sidebar-logo">
+                <i class='bx bx-shield-alt-2'></i>
+                <h3>Admin Panel</h3>
+            </div>
+
+            <ul class="sidebar-menu">
+                <li><a href="#" class="nav-link active" data-page="overview"><i class='bx bx-home'></i> Overview</a></li>
+                <li><a href="#" class="nav-link" data-page="companies"><i class='bx bx-building'></i> Companies <span class="badge" id="pending-companies-badge">0</span></a></li>
+                <li><a href="#" class="nav-link" data-page="jobs"><i class='bx bx-briefcase'></i> Jobs <span class="badge" id="pending-jobs-badge">0</span></a></li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <button onclick="handleLogout()">
+                    <i class='bx bx-log-out'></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="approval-main">
+            <!-- Overview Section -->
+            <div id="overview" class="content-area active">
+                <div class="header-bar">
+                    <div class="header-title">
+                        <h1>Admin Dashboard</h1>
+                        <p>Approve companies and job postings</p>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class='bx bx-building'></i>
+                        <div class="stat-value" id="stat-total-companies">0</div>
+                        <div class="stat-label">Total Companies</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class='bx bx-time'></i>
+                        <div class="stat-value" id="stat-pending-companies">0</div>
+                        <div class="stat-label">Pending Companies</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class='bx bx-briefcase'></i>
+                        <div class="stat-value" id="stat-total-jobs">0</div>
+                        <div class="stat-label">Total Jobs</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class='bx bx-time'></i>
+                        <div class="stat-value" id="stat-pending-jobs">0</div>
+                        <div class="stat-label">Pending Jobs</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <i class='bx bx-alert'></i> Action Required
+                    </div>
+                    <p id="action-summary" style="color: #666; font-size: 14px;">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Companies Section -->
+            <div id="companies" class="content-area">
+                <div class="header-bar">
+                    <div class="header-title">
+                        <h1>Company Approvals</h1>
+                        <p>Review and approve company registrations</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <i class='bx bx-building'></i> Pending Companies
+                    </div>
+                    <div id="companies-alert" class="alert"></div>
+                    <div id="companies-list-container"></div>
+                </div>
+            </div>
+
+            <!-- Jobs Section -->
+            <div id="jobs" class="content-area">
+                <div class="header-bar">
+                    <div class="header-title">
+                        <h1>Job Approvals</h1>
+                        <p>Review and approve job postings</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <i class='bx bx-briefcase'></i> Pending Jobs
+                    </div>
+                    <div id="jobs-alert" class="alert"></div>
+                    <div id="jobs-list-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let currentUser = null;
+
+        // Initialize dashboard
+        async function initializeDashboard() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                // Get user profile
+                const userResponse = await fetch(`${API_URL}/users/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!userResponse.ok || userResponse.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                currentUser = await userResponse.json();
+
+                // Check if user is admin
+                if (!currentUser.is_admin) {
+                    alert('Admin access required');
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                setupNavigation();
+                loadOverviewData();
+            } catch (error) {
+                console.error('Error initializing dashboard:', error);
+                localStorage.removeItem('token');
+                window.location.href = 'index.html';
+            }
+        }
+
+        function setupNavigation() {
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = e.target.closest('a').dataset.page;
+                    navigateTo(page);
+                });
+            });
+        }
+
+        function navigateTo(page) {
+            document.querySelectorAll('.content-area').forEach(area => area.classList.remove('active'));
+            document.getElementById(page).classList.add('active');
+
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            document.querySelector(`[data-page="${page}"]`).classList.add('active');
+
+            if (page === 'companies') loadCompaniesList();
+            if (page === 'jobs') loadJobsList();
+        }
+
+        async function loadOverviewData() {
+            const token = localStorage.getItem('token');
+            try {
+                // Get all companies
+                const companiesResponse = await fetch(`${API_URL}/companies/`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const allCompanies = companiesResponse.ok ? await companiesResponse.json() : [];
+
+                // Get pending companies
+                const pendingCompaniesResponse = await fetch(`${API_URL}/companies/pending`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const pendingCompanies = pendingCompaniesResponse.ok ? await pendingCompaniesResponse.json() : [];
+
+                // Get all jobs
+                const jobsResponse = await fetch(`${API_URL}/jobs/admin/all`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const allJobs = jobsResponse.ok ? await jobsResponse.json() : [];
+
+                // Get pending jobs
+                const pendingJobsResponse = await fetch(`${API_URL}/jobs/admin/pending`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const pendingJobs = pendingJobsResponse.ok ? await pendingJobsResponse.json() : [];
+
+                // Update stats
+                document.getElementById('stat-total-companies').textContent = allCompanies.length;
+                document.getElementById('stat-pending-companies').textContent = pendingCompanies.length;
+                document.getElementById('stat-total-jobs').textContent = allJobs.length;
+                document.getElementById('stat-pending-jobs').textContent = pendingJobs.length;
+
+                // Update badge counts
+                document.getElementById('pending-companies-badge').textContent = pendingCompanies.length;
+                document.getElementById('pending-jobs-badge').textContent = pendingJobs.length;
+
+                // Update action summary
+                const actionSummary = `
+                    <strong>${pendingCompanies.length} companies</strong> waiting for approval and 
+                    <strong>${pendingJobs.length} jobs</strong> waiting for review.
+                `;
+                document.getElementById('action-summary').innerHTML = actionSummary;
+
+            } catch (error) {
+                console.error('Error loading overview:', error);
+            }
+        }
+
+        async function loadCompaniesList() {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch(`${API_URL}/companies/pending`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const companies = await response.ok ? await response.json() : [];
+
+                const container = document.getElementById('companies-list-container');
+                
+                if (companies.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><i class="bx bx-check-circle"></i><p>No pending company approvals</p></div>';
+                    return;
+                }
+
+                let html = '';
+                companies.forEach(company => {
+                    const createdDate = new Date(company.created_at).toLocaleDateString();
+                    html += `
+                        <div class="approval-item">
+                            <div class="item-header">
+                                <div>
+                                    <div class="item-title">${company.company_name}</div>
+                                    <div class="item-subtitle">Applied: ${createdDate}</div>
+                                </div>
+                                <span class="status-badge status-pending">Pending</span>
+                            </div>
+                            <div class="item-details">
+                                <div class="detail-row">
+                                    <div class="detail-col">
+                                        <div class="detail-label">Email</div>
+                                        <div class="detail-value">${company.company_email}</div>
+                                    </div>
+                                    <div class="detail-col">
+                                        <div class="detail-label">Website</div>
+                                        <div class="detail-value"><a href="${company.company_website}" target="_blank">${company.company_website}</a></div>
+                                    </div>
+                                </div>
+                                <div class="detail-row">
+                                    <div class="detail-col">
+                                        <div class="detail-label">Registration Number</div>
+                                        <div class="detail-value">${company.registration_number}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="item-actions">
+                                <button class="btn-approve" onclick="approveCompany(${company.id})">
+                                    <i class='bx bx-check'></i> Approve
+                                </button>
+                                <button class="btn-reject" onclick="showRejectCompanyForm(${company.id})">
+                                    <i class='bx bx-x'></i> Reject
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading companies:', error);
+                showAlert('Error loading companies list', 'error', 'companies-alert');
+            }
+        }
+
+        async function loadJobsList() {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch(`${API_URL}/jobs/admin/pending`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const jobs = await response.ok ? await response.json() : [];
+
+                const container = document.getElementById('jobs-list-container');
+                
+                if (jobs.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><i class="bx bx-check-circle"></i><p>No pending job approvals</p></div>';
+                    return;
+                }
+
+                let html = '';
+                jobs.forEach(job => {
+                    const createdDate = new Date(job.created_at).toLocaleDateString();
+                    html += `
+                        <div class="approval-item">
+                            <div class="item-header">
+                                <div>
+                                    <div class="item-title">${job.job_title}</div>
+                                    <div class="item-subtitle">Posted: ${createdDate} | Location: ${job.job_location}</div>
+                                </div>
+                                <span class="status-badge status-pending">Pending</span>
+                            </div>
+                            <div class="item-details">
+                                <div class="detail-row">
+                                    <div class="detail-col">
+                                        <div class="detail-label">Experience Required</div>
+                                        <div class="detail-value">${job.min_experience} years</div>
+                                    </div>
+                                    <div class="detail-col">
+                                        <div class="detail-label">Employment Type</div>
+                                        <div class="detail-value">${job.employment_type}</div>
+                                    </div>
+                                    <div class="detail-col">
+                                        <div class="detail-label">Salary Range</div>
+                                        <div class="detail-value">$${job.salary_range_min} - $${job.salary_range_max}</div>
+                                    </div>
+                                </div>
+                                <div class="detail-row">
+                                    <div class="detail-col">
+                                        <div class="detail-label">Description</div>
+                                        <div class="detail-value">${job.job_description.substring(0, 100)}...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="item-actions">
+                                <button class="btn-approve" onclick="approveJob(${job.id})">
+                                    <i class='bx bx-check'></i> Approve
+                                </button>
+                                <button class="btn-reject" onclick="showRejectJobForm(${job.id})">
+                                    <i class='bx bx-x'></i> Reject
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading jobs:', error);
+                showAlert('Error loading jobs list', 'error', 'jobs-alert');
+            }
+        }
+
+        async function approveCompany(companyId) {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch(`${API_URL}/companies/approve/${companyId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    showAlert('Company approved successfully!', 'success', 'companies-alert');
+                    setTimeout(() => {
+                        loadCompaniesList();
+                        loadOverviewData();
+                    }, 1000);
+                } else {
+                    const error = await response.json();
+                    showAlert(`Error: ${error.detail || 'Failed to approve'}`, 'error', 'companies-alert');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error', 'companies-alert');
+            }
+        }
+
+        function showRejectCompanyForm(companyId) {
+            const reason = prompt('Enter rejection reason:');
+            if (reason) {
+                rejectCompany(companyId, reason);
+            }
+        }
+
+        async function rejectCompany(companyId, reason) {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch(`${API_URL}/companies/reject/${companyId}?reason=${encodeURIComponent(reason)}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    showAlert('Company rejected', 'success', 'companies-alert');
+                    setTimeout(() => {
+                        loadCompaniesList();
+                        loadOverviewData();
+                    }, 1000);
+                } else {
+                    const error = await response.json();
+                    showAlert(`Error: ${error.detail || 'Failed to reject'}`, 'error', 'companies-alert');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error', 'companies-alert');
+            }
+        }
+
+        async function approveJob(jobId) {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch(`${API_URL}/jobs/admin/approve/${jobId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ approval_notes: "Approved by admin" })
+                });
+
+                if (response.ok) {
+                    showAlert('Job approved successfully!', 'success', 'jobs-alert');
+                    setTimeout(() => {
+                        loadJobsList();
+                        loadOverviewData();
+                    }, 1000);
+                } else {
+                    const error = await response.json();
+                    showAlert(`Error: ${error.detail || 'Failed to approve'}`, 'error', 'jobs-alert');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error', 'jobs-alert');
+            }
+        }
+
+        function showRejectJobForm(jobId) {
+            const reason = prompt('Enter rejection reason:');
+            if (reason) {
+                rejectJob(jobId, reason);
+            }
+        }
+
+        async function rejectJob(jobId, reason) {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch(`${API_URL}/jobs/admin/reject/${jobId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ rejection_reason: reason })
+                });
+
+                if (response.ok) {
+                    showAlert('Job rejected', 'success', 'jobs-alert');
+                    setTimeout(() => {
+                        loadJobsList();
+                        loadOverviewData();
+                    }, 1000);
+                } else {
+                    const error = await response.json();
+                    showAlert(`Error: ${error.detail || 'Failed to reject'}`, 'error', 'jobs-alert');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error', 'jobs-alert');
+            }
+        }
+
+        function showAlert(message, type, elementId) {
+            const alert = document.getElementById(elementId);
+            alert.textContent = message;
+            alert.className = `alert show alert-${type}`;
+            
+            if (type === 'success') {
+                setTimeout(() => alert.classList.remove('show'), 3000);
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('token');
+            window.location.href = 'index.html';
+        }
+
+        // Initialize on page load
+        initializeDashboard();
+    </script>
+</body>
+</html>

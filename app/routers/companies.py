@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
+from jose import JWTError, jwt
 import logging
 
 from .. import models, schemas, database, auth_utils
+from ..auth_utils import SECRET_KEY, ALGORITHM
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +16,8 @@ router = APIRouter(
     tags=["Companies"]
 )
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
 def get_db():
     db = database.SessionLocal()
     try:
@@ -20,10 +25,24 @@ def get_db():
     finally:
         db.close()
 
-def get_current_user(db: Session = Depends(get_db)):
-    """Get current authenticated user"""
-    # This will be imported from auth router - for now just placeholder
-    return None
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """Get current authenticated user from token"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user is None:
+        raise credentials_exception
+    return user
 
 @router.post("/register", response_model=schemas.CompanyResponse)
 def register_company(
@@ -217,3 +236,20 @@ def get_approved_companies(db: Session = Depends(get_db)):
     return db.query(models.Company).filter(
         models.Company.is_approved == True
     ).all()
+
+@router.get("/{company_id}", response_model=schemas.CompanyResponse)
+def get_company(company_id: int, db: Session = Depends(get_db)):
+    """
+    Get company details by ID.
+    """
+    company = db.query(models.Company).filter(
+        models.Company.id == company_id
+    ).first()
+    
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    
+    return company
