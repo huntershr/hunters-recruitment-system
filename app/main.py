@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .database import engine, Base, SessionLocal
-from .routers import jobs, candidates, evaluations, sheets, auth, public
+from .routers import jobs, candidates, evaluations, sheets, auth, public, companies
 from . import models, auth_utils
 import logging
 import os
@@ -45,7 +45,9 @@ def startup_populate_db():
                 admin = models.User(
                     email="admin@example.com",
                     hashed_password=hashed_pw,
-                    full_name="Administrator"
+                    full_name="Administrator",
+                    is_admin=True,
+                    is_active=True
                 )
                 db.add(admin)
                 db.commit()
@@ -57,6 +59,7 @@ def startup_populate_db():
         db.close()
 
 app.include_router(auth.router)
+app.include_router(companies.router)
 app.include_router(public.router)
 
 app.include_router(jobs.router)

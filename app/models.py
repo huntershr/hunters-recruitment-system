@@ -1,6 +1,21 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, JSON, Boolean
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, JSON, Boolean, DateTime
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from .database import Base
+
+class Company(Base):
+    __tablename__ = "companies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_name = Column(String, index=True, unique=True)
+    company_email = Column(String, index=True, unique=True)
+    company_website = Column(String, nullable=True)
+    registration_number = Column(String, nullable=True)
+    is_approved = Column(Boolean, default=False)
+    approval_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    users = relationship("User", back_populates="company")
 
 class User(Base):
     __tablename__ = "users"
@@ -10,7 +25,10 @@ class User(Base):
     hashed_password = Column(String)
     full_name = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
 
+    company = relationship("Company", back_populates="users")
     jobs = relationship("Job", back_populates="owner")
     candidates = relationship("Candidate", back_populates="owner")
 
@@ -22,7 +40,7 @@ class Job(Base):
     job_description = Column(Text, nullable=True)
     job_location = Column(String, nullable=True)
     min_experience = Column(Integer)
-    required_skills = Column(Text) # Stored as JSON or comma separated
+    required_skills = Column(Text)
     nice_to_have_skills = Column(Text)
     education_level = Column(String)
     salary_range = Column(String, nullable=True)
@@ -33,6 +51,10 @@ class Job(Base):
     weight_education = Column(Float, default=0.1)
     weight_behavioral = Column(Float, default=0.2)
     owner_id = Column(Integer, ForeignKey("users.id"))
+    is_approved = Column(Boolean, default=False)
+    approval_date = Column(DateTime, nullable=True)
+    approval_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="jobs")
     candidates = relationship("Candidate", back_populates="job")

@@ -1,10 +1,36 @@
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List
+from datetime import datetime
+
+# Company Schemas
+class CompanyBase(BaseModel):
+    company_name: str
+    company_email: EmailStr
+    company_website: Optional[str] = None
+    registration_number: Optional[str] = None
+
+class CompanyRegister(CompanyBase):
+    contact_person: str
+    contact_email: EmailStr
+    password: str
+
+class CompanyResponse(CompanyBase):
+    id: int
+    is_approved: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class CompanyApprovalResponse(CompanyResponse):
+    approval_date: Optional[datetime] = None
+    approval_notes: Optional[str] = None
 
 # Auth Schemas
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user_type: str  # "admin" or "company"
 
 class TokenData(BaseModel):
     email: Optional[str] = None
@@ -19,6 +45,8 @@ class UserCreate(UserBase):
 class UserResponse(UserBase):
     id: int
     is_active: bool
+    is_admin: bool
+    company_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -27,6 +55,7 @@ class UserResponse(UserBase):
 class JobBase(BaseModel):
     job_title: str
     job_description: Optional[str] = None
+    job_location: Optional[str] = None
     min_experience: int
     required_skills: str
     nice_to_have_skills: Optional[str] = None
@@ -44,9 +73,15 @@ class JobCreate(JobBase):
 
 class JobResponse(JobBase):
     id: int
+    is_approved: bool
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+class JobApprovalResponse(JobResponse):
+    approval_date: Optional[datetime] = None
+    approval_notes: Optional[str] = None
 
 # Candidate Schemas
 class CandidateBase(BaseModel):
