@@ -35,15 +35,22 @@ def startup_populate_db():
     try:
         # Create default user if none exists
         if db.query(models.User).count() == 0:
-            logging.info("Creating default admin user...")
-            hashed_pw = auth_utils.get_password_hash("admin123")
-            admin = models.User(
-                email="admin@example.com",
-                hashed_password=hashed_pw,
-                full_name="Administrator"
-            )
-            db.add(admin)
-            db.commit()
+            try:
+                logging.info("Creating default admin user...")
+                hashed_pw = auth_utils.get_password_hash("admin123")
+                admin = models.User(
+                    email="admin@example.com",
+                    hashed_password=hashed_pw,
+                    full_name="Administrator"
+                )
+                db.add(admin)
+                db.commit()
+                logging.info("Default admin user created successfully")
+            except Exception as e:
+                logging.error(f"Failed to create default user: {e}")
+                db.rollback()
+    except Exception as e:
+        logging.error(f"Database startup error: {e}")
     finally:
         db.close()
 
