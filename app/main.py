@@ -32,11 +32,29 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_populate_db():
     """
-    Initialize database on startup.
-    Note: Default user creation is skipped due to bcrypt initialization issues.
-    Create admin user manually via /auth/register endpoint if needed.
+    Initialize database on startup and create default admin user.
     """
-    logging.info("Application startup - database ready")
+    db = SessionLocal()
+    try:
+        logging.info("Application startup - initializing database")
+        # Create default admin user if none exists
+        try:
+            if db.query(models.User).count() == 0:
+                logging.info("Creating default admin user...")
+                hashed_pw = auth_utils.get_password_hash("admin123")
+                admin = models.User(
+                    email="admin@example.com",
+                    hashed_password=hashed_pw,
+                    full_name="Administrator"
+                )
+                db.add(admin)
+                db.commit()
+                logging.info("Default admin user created: admin@example.com / admin123")
+        except Exception as e:
+            logging.warning(f"Could not create default admin user: {e}")
+            db.rollback()
+    finally:
+        db.close()
 
 app.include_router(auth.router)
 app.include_router(public.router)
