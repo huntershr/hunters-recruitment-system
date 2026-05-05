@@ -5,6 +5,8 @@ from .database import engine, Base, SessionLocal
 from .routers import jobs, candidates, evaluations, sheets, auth, public
 from . import models, auth_utils
 import logging
+import os
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -57,11 +59,16 @@ app.include_router(sheets.router)
 def health_check():
     return {"status": "healthy"}
 
-from pathlib import Path
-
 # Mount the frontend directory to serve HTML/JS/CSS
-frontend_path = Path(__file__).parent.parent / "frontend"
-app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
+try:
+    frontend_path = Path(__file__).parent.parent / "frontend"
+    if frontend_path.exists():
+        app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
+        logging.info(f"Frontend mounted from: {frontend_path}")
+    else:
+        logging.warning(f"Frontend directory not found at: {frontend_path}")
+except Exception as e:
+    logging.warning(f"Failed to mount frontend: {e}")
 
 if __name__ == "__main__":
     import uvicorn
