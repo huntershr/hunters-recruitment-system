@@ -3,340 +3,490 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hunters for HR Solutions - AI Recruitment System</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Hunters AI — Recruitment System</title>
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script>
-        // Global Error Watchdog
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            alert("System Error: " + msg + "\nLine: " + lineNo + "\nFile: " + url);
-            return false;
-        };
-    </script>
 </head>
 <body>
-    <!-- Login Screen -->
-    <div id="login-overlay" class="login-overlay active">
-        <div class="login-card">
-            <div class="logo">
-                <i class='bx bx-target-lock'></i>
-                <h2>Hunters for HR Solutions<br><span>AI Recruitment System</span></h2>
+
+<!-- ══════════════════════════════════════════════
+     LOGIN OVERLAY
+═══════════════════════════════════════════════ -->
+<div id="login-overlay" class="login-overlay active">
+    <div class="login-card">
+
+        <div class="login-logo">
+            <svg class="logo-icon" viewBox="0 0 54 54" fill="none">
+                <circle cx="27" cy="27" r="24" stroke="#CC2B2B" stroke-width="2"/>
+                <circle cx="27" cy="27" r="12" stroke="#CC2B2B" stroke-width="1.5"/>
+                <circle cx="27" cy="27" r="3" fill="#CC2B2B"/>
+                <line x1="27" y1="3"  x2="27" y2="15" stroke="#CC2B2B" stroke-width="1.5"/>
+                <line x1="27" y1="39" x2="27" y2="51" stroke="#CC2B2B" stroke-width="1.5"/>
+                <line x1="3"  y1="27" x2="15" y2="27" stroke="#CC2B2B" stroke-width="1.5"/>
+                <line x1="39" y1="27" x2="51" y2="27" stroke="#CC2B2B" stroke-width="1.5"/>
+                <circle cx="27" cy="22" r="4" fill="#1B2A4A"/>
+                <path d="M18 38c0-4.97 4.03-9 9-9s9 4.03 9 9" fill="#1B2A4A"/>
+                <rect x="25" y="23" width="4" height="3" fill="#C9A84C"/>
+            </svg>
+        </div>
+
+        <div class="brand-name">Hunters</div>
+        <div class="brand-sub">FOR HR TRANSFORMATION &amp; EXECUTION</div>
+        <div class="tagline">Sign in to your recruitment dashboard</div>
+
+        <form id="login-form" onsubmit="handleLogin(event)">
+
+            <label class="field-label" for="login-email">Email Address</label>
+            <div class="input-wrap">
+                <svg class="input-icon" viewBox="0 0 20 20" fill="none">
+                    <rect x="2" y="5" width="16" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M2 7l8 5 8-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <input type="email" id="login-email" class="field-input" placeholder="you@company.com" required>
             </div>
-            <p>Sign in to your recruitment dashboard</p>
-            <form id="login-form" onsubmit="handleLogin(event)">
-                <div class="form-group">
-                    <label>Email Address</label>
-                    <div class="input-with-icon">
-                        <i class='bx bx-envelope'></i>
-                        <input type="email" id="login-email" placeholder="admin@example.com" required>
-                    </div>
+
+            <label class="field-label" for="login-password">Password</label>
+            <div class="input-wrap">
+                <svg class="input-icon" viewBox="0 0 20 20" fill="none">
+                    <rect x="4" y="9" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M7 9V7a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <input type="password" id="login-password" class="field-input" placeholder="••••••••" required>
+            </div>
+
+            <div class="remember-row">
+                <label class="remember-me">
+                    <input type="checkbox" id="login-remember"> Remember me
+                </label>
+            </div>
+
+            <button type="submit" class="btn-primary btn-full">Login to Dashboard</button>
+        </form>
+
+        <a href="register-company.html" class="btn-secondary btn-full" style="text-align:center; display:flex;">
+            <svg viewBox="0 0 16 16" fill="none" width="13" height="13" style="stroke:currentColor;flex-shrink:0;">
+                <rect x="1" y="7" width="14" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Register Your Company
+        </a>
+
+        <div class="sec-note">
+            <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+                <path d="M8 1L2 4v4c0 3.31 2.58 6.41 6 7 3.42-.59 6-3.69 6-7V4L8 1z"
+                      stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+            Your data is encrypted and secure
+        </div>
+
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     MAIN APP
+═══════════════════════════════════════════════ -->
+<div class="app-wrapper">
+
+    <!-- ── GLOBAL NAV ─────────────────────────── -->
+    <nav class="global-nav">
+        <div class="nav-logo">
+            <svg class="nav-logo-icon" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="#CC2B2B" stroke-width="1.5"/>
+                <circle cx="12" cy="12" r="5"  stroke="#CC2B2B" stroke-width="1.5"/>
+                <circle cx="12" cy="12" r="1.5" fill="#CC2B2B"/>
+                <line x1="12" y1="2"    x2="12" y2="7"  stroke="#CC2B2B" stroke-width="1.5"/>
+                <line x1="12" y1="17"   x2="12" y2="22" stroke="#CC2B2B" stroke-width="1.5"/>
+                <line x1="2"  y1="12"   x2="7"  y2="12" stroke="#CC2B2B" stroke-width="1.5"/>
+                <line x1="17" y1="12"   x2="22" y2="12" stroke="#CC2B2B" stroke-width="1.5"/>
+            </svg>
+            <div class="nav-brand">
+                <span class="nav-brand-name">Hunters</span>
+                <span class="nav-brand-sub">FOR HR TRANSFORMATION</span>
+            </div>
+        </div>
+
+        <ul class="nav-links">
+            <li class="active" data-view="dashboard-view">
+                <svg viewBox="0 0 16 16" fill="none">
+                    <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    <rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    <rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    <rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                Dashboard
+            </li>
+            <li data-view="jobs-view">
+                <svg viewBox="0 0 16 16" fill="none">
+                    <rect x="1" y="4" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M5 4V3a2 2 0 014 0v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Jobs
+            </li>
+            <li data-view="candidates-view">
+                <svg viewBox="0 0 16 16" fill="none">
+                    <circle cx="6" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M1 14c0-2.76 2.24-5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <circle cx="12" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M9 14c0-1.66 1.34-3 3-3s3 1.34 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Candidates
+            </li>
+        </ul>
+
+        <div class="nav-right">
+            <a href="admin-approval-dashboard.html" class="nav-approvals-link" title="Approval Dashboard">
+                <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+                    <path d="M3 8l3 3 7-7" stroke="currentColor" stroke-width="1.5"
+                          stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                Approvals
+            </a>
+            <span id="user-display-name" class="nav-username"></span>
+            <div class="nav-avatar" onclick="handleLogout()" title="Logout">
+                <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+                    <path d="M10 11l3-3-3-3M13 8H6M6 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3"
+                          stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ── PAGE BODY ──────────────────────────── -->
+    <div class="page-body">
+
+        <!-- ─── DASHBOARD VIEW ─────────────────── -->
+        <div id="dashboard-view" class="view active">
+
+            <div class="page-title">
+                <svg viewBox="0 0 16 16" fill="none">
+                    <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    <rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    <rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    <rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                Overview
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-jobs">0</div>
+                    <div class="stat-label">Total Jobs</div>
                 </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <div class="input-with-icon">
-                        <i class='bx bx-lock-alt'></i>
-                        <input type="password" id="login-password" placeholder="••••••••" required>
-                    </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-candidates">0</div>
+                    <div class="stat-label">Total Candidates</div>
                 </div>
-                <div class="form-options">
-                    <label class="remember-me">
-                        <input type="checkbox" id="login-remember"> Remember me
-                    </label>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-accepted">0</div>
+                    <div class="stat-label">Shortlisted</div>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
-                    Login to Dashboard
+            </div>
+
+            <div class="section-header">
+                <div class="section-title">Recent Candidates</div>
+            </div>
+            <div class="table-wrap">
+                <table id="recent-candidates-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Job Applied</th>
+                            <th>AI Score</th>
+                            <th>Decision</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+        </div><!-- /dashboard-view -->
+
+        <!-- ─── JOBS VIEW ───────────────────────── -->
+        <div id="jobs-view" class="view">
+
+            <div class="view-header">
+                <div class="page-title">
+                    <svg viewBox="0 0 16 16" fill="none">
+                        <rect x="1" y="4" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M5 4V3a2 2 0 014 0v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Manage Jobs
+                </div>
+                <button class="btn-primary" onclick="openNewJobModal()">
+                    <i class='bx bx-plus'></i> New Job
                 </button>
-            </form>
-            <div class="login-footer">
-                <small>Default Access: admin@example.com / admin123</small>
-                <br><br>
-                <small><a href="register-company.html" style="color: var(--gold); text-decoration: none; font-weight: 600;">→ Register Your Company</a></small>
             </div>
-        </div>
-    </div>
-    <div class="dashboard">
-        <aside class="sidebar">
-            <div class="logo">
-                <img src="logo.png" alt="Logo" id="brand-logo" onerror="this.style.display='none'; document.getElementById('brand-icon').style.display='block';">
-                <i class='bx bx-target-lock' id="brand-icon" style="display:none;"></i>
-                <h2>Hunters for HR Solutions<br><span style="font-size: 10px; color: var(--gold);">AI Recruitment System</span></h2>
-            </div>
-            <ul class="nav-links">
-                <li class="active" data-view="dashboard-view"><i class='bx bx-grid-alt'></i> Dashboard</li>
-                <li data-view="jobs-view"><i class='bx bx-briefcase'></i> Jobs</li>
-                <li data-view="candidates-view"><i class='bx bx-user-pin'></i> Candidates</li>
-            </ul>
-        </aside>
 
-        <main class="content">
-            <header>
-                <div class="search-bar">
-                    <i class='bx bx-search'></i>
-                    <input type="text" placeholder="Search candidates...">
+            <div class="jobs-grid" id="jobs-grid"></div>
+
+        </div><!-- /jobs-view -->
+
+        <!-- ─── CANDIDATES VIEW ─────────────────── -->
+        <div id="candidates-view" class="view">
+
+            <div class="view-header">
+                <div class="page-title">
+                    <svg viewBox="0 0 16 16" fill="none">
+                        <circle cx="6" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M1 14c0-2.76 2.24-5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <circle cx="12" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M9 14c0-1.66 1.34-3 3-3s3 1.34 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Candidates Pipeline
                 </div>
-                <div class="user-profile">
-                    <a href="admin-approval-dashboard.html" style="margin-right: 15px; padding: 8px 16px; background: var(--gold); color: var(--navy); border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;" title="Go to Approval Dashboard">
-                        <i class='bx bx-check-circle'></i> Approvals
-                    </a>
-                    <span id="user-display-name" style="margin-right: 12px; font-weight: 500; color: var(--navy);">Admin</span>
-                    <img src="https://ui-avatars.com/api/?name=Admin&background=6c5ce7&color=fff" alt="User" onclick="handleLogout()" title="Click to Logout" style="cursor:pointer;">
-                </div>
-            </header>
-
-            <div class="views">
-                <!-- Dashboard Overview -->
-                <div id="dashboard-view" class="view active">
-                    <h1>Overview</h1>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon"><i class='bx bx-briefcase'></i></div>
-                            <div class="stat-details">
-                                <h3>Total Jobs</h3>
-                                <p id="total-jobs">0</p>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon"><i class='bx bx-user'></i></div>
-                            <div class="stat-details">
-                                <h3>Total Candidates</h3>
-                                <p id="total-candidates">0</p>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon"><i class='bx bx-check-circle'></i></div>
-                            <div class="stat-details">
-                                <h3>Shortlisted</h3>
-                                <p id="total-accepted">0</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h2>Recent Candidates</h2>
-                    <div class="table-container">
-                        <table id="recent-candidates-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Job Applied</th>
-                                    <th>AI Score</th>
-                                    <th>Decision</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Loaded dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Jobs View -->
-                <div id="jobs-view" class="view">
-                    <div class="view-header">
-                        <h1>Manage Jobs</h1>
-                        <button class="btn-primary" onclick="openNewJobModal()"><i class='bx bx-plus'></i> New Job</button>
-                    </div>
-                    <div class="jobs-grid" id="jobs-grid">
-                        <!-- Loaded dynamically -->
-                    </div>
-                </div>
-
-                <!-- Candidates View -->
-                <div id="candidates-view" class="view">
-                    <div class="view-header">
-                        <h1>Candidates Pipeline</h1>
-                        <div class="header-actions">
-                            <button class="btn-outline" style="color:var(--red); border-color:var(--red);" onclick="deleteAllCandidates()"><i class='bx bx-trash'></i> Delete All</button>
-                            <button class="btn-outline" onclick="importFromSheets()"><i class='bx bx-import'></i> Import from Sheets</button>
-                            <button class="btn-outline" onclick="exportToCSV()"><i class='bx bx-download'></i> Export to CSV</button>
-                            <button class="btn-primary" onclick="openCandidateModal()"><i class='bx bx-plus'></i> Add Candidate</button>
-                        </div>
-                    </div>
-                    <div class="table-container">
-                        <table id="all-candidates-table">
-                            <thead>
-                                <tr>
-                                    <th>Candidate</th>
-                                    <th>Experience</th>
-                                    <th>Expected Salary</th>
-                                    <th>AI Score</th>
-                                    <th>Decision</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Loaded dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="header-actions">
+                    <button class="btn-secondary" style="color:var(--red-alert);border-color:#fbc9c9;" onclick="deleteAllCandidates()">
+                        <i class='bx bx-trash'></i> Delete All
+                    </button>
+                    <button class="btn-secondary" onclick="importFromSheets()">
+                        <i class='bx bx-import'></i> Import
+                    </button>
+                    <button class="btn-secondary" onclick="exportToCSV()">
+                        <i class='bx bx-download'></i> Export CSV
+                    </button>
+                    <button class="btn-primary" onclick="openCandidateModal()">
+                        <i class='bx bx-plus'></i> Add Candidate
+                    </button>
                 </div>
             </div>
-        </main>
-    </div>
 
-    <!-- Modals -->
-    <!-- Candidate Detail Modal -->
-    <div class="modal" id="candidate-detail-modal">
-        <div class="modal-content large">
+            <div class="table-wrap">
+                <table id="all-candidates-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Candidate</th>
+                            <th>Experience</th>
+                            <th>Expected Salary</th>
+                            <th>AI Score</th>
+                            <th>Decision</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+        </div><!-- /candidates-view -->
+
+    </div><!-- /page-body -->
+</div><!-- /app-wrapper -->
+
+
+<!-- ══════════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════════ -->
+
+<!-- Candidate Detail Modal -->
+<div class="modal" id="candidate-detail-modal">
+    <div class="modal-content large">
+        <div class="modal-header-bar">
+            <span class="modal-title" id="modal-candidate-name">Candidate Details</span>
             <span class="close-btn" onclick="closeModals()">&times;</span>
-            <h2 id="modal-candidate-name">Candidate Details</h2>
-            <div class="modal-body">
-                    <div class="eval-card">
-                        <div class="eval-header">
-                            <div class="score-circle" id="modal-candidate-score">0.0</div>
-                            <div class="decision-badge" id="modal-candidate-decision">Pending</div>
-                        </div>
-                        <div class="candidate-info-summary" style="margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; background: var(--bg-hover); border-radius: 12px;">
-                            <div><i class='bx bx-phone'></i> <strong>Phone:</strong> <span id="modal-candidate-phone">-</span></div>
-                            <div><i class='bx bx-money'></i> <strong>Expected:</strong> <span id="modal-candidate-expected-salary">-</span></div>
-                        </div>
-                        <div class="eval-reason">
-                            <h3>AI Reasoning</h3>
-                            <p id="modal-candidate-reason">Loading...</p>
-                        </div>
-                    <div class="eval-strengths-weaknesses">
-                        <div class="strengths">
-                            <h3><i class='bx bx-up-arrow-circle'></i> Strengths</h3>
-                            <p id="modal-candidate-strengths">-</p>
-                        </div>
-                        <div class="weaknesses">
-                            <h3><i class='bx bx-down-arrow-circle'></i> Weaknesses</h3>
-                            <p id="modal-candidate-weaknesses">-</p>
-                        </div>
+        </div>
+        <div class="modal-body-area">
+            <div class="eval-card">
+                <div class="eval-header">
+                    <div class="score-circle" id="modal-candidate-score">0.0</div>
+                    <div class="decision-badge badge" id="modal-candidate-decision">Pending</div>
+                </div>
+                <div class="candidate-info-summary">
+                    <div><i class='bx bx-phone'></i> <strong>Phone:</strong>&nbsp;<span id="modal-candidate-phone">-</span></div>
+                    <div><i class='bx bx-money'></i> <strong>Expected:</strong>&nbsp;<span id="modal-candidate-expected-salary">-</span></div>
+                </div>
+                <div class="eval-reason">
+                    <h3><i class='bx bx-brain'></i> AI Reasoning</h3>
+                    <p id="modal-candidate-reason">Loading...</p>
+                </div>
+                <div class="eval-strengths-weaknesses">
+                    <div class="strengths">
+                        <h3><i class='bx bx-up-arrow-circle'></i> Strengths</h3>
+                        <p id="modal-candidate-strengths">-</p>
                     </div>
-                    <div class="eval-questions">
-                        <h3><i class='bx bx-question-mark'></i> Suggested Interview Questions</h3>
-                        <ul id="modal-candidate-questions">
-                            <!-- Questions loaded dynamically -->
-                        </ul>
+                    <div class="weaknesses">
+                        <h3><i class='bx bx-down-arrow-circle'></i> Weaknesses</h3>
+                        <p id="modal-candidate-weaknesses">-</p>
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer" style="margin-top:20px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:20px;">
-                <button class="btn-secondary" onclick="closeModals()">Close</button>
-                <div style="display:flex; gap:10px;">
-                    <button class="btn-outline" style="border-color: var(--navy); color: var(--navy);" onclick="exportScreeningCard(currentCandidateId)"><i class='bx bx-printer'></i> Premium Export</button>
-                    <button class="btn-primary" id="edit-eval-btn" onclick="toggleEditEvaluation()"><i class='bx bx-edit'></i> Edit Report</button>
-                    <button class="btn-primary" id="save-eval-btn" style="display:none; background:var(--green);" onclick="saveManualEvaluation()"><i class='bx bx-check'></i> Save Changes</button>
+                <div class="eval-questions">
+                    <h3><i class='bx bx-question-mark'></i> Suggested Interview Questions</h3>
+                    <ul id="modal-candidate-questions"></ul>
                 </div>
             </div>
         </div>
+        <div class="modal-footer-bar">
+            <button class="btn-secondary" onclick="closeModals()">Close</button>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-secondary" onclick="exportScreeningCard(currentCandidateId)">
+                    <i class='bx bx-printer'></i> Export
+                </button>
+                <button class="btn-primary" id="edit-eval-btn" onclick="toggleEditEvaluation()">
+                    <i class='bx bx-edit'></i> Edit Report
+                </button>
+                <button class="btn-primary" id="save-eval-btn" style="display:none;background:var(--green);" onclick="saveManualEvaluation()">
+                    <i class='bx bx-check'></i> Save Changes
+                </button>
+            </div>
+        </div>
     </div>
+</div>
 
-    <!-- Add Job Modal -->
-    <div class="modal" id="job-add-modal">
-        <div class="modal-content large">
+<!-- Add Job Modal -->
+<div class="modal" id="job-add-modal">
+    <div class="modal-content large">
+        <div class="modal-header-bar">
+            <span class="modal-title">Add New Job</span>
             <span class="close-btn" onclick="closeModals()">&times;</span>
-            <h2>Add New Job</h2>
+        </div>
+        <div class="modal-body-area">
+            <div class="modal-tabs">
+                <button class="tab-btn active" onclick="switchJobTab(event, 'upload-tab')">Upload File</button>
+                <button class="tab-btn" onclick="switchJobTab(event, 'manual-tab')">Write Manually</button>
+            </div>
             <div class="modal-scroll-area">
-                <div class="modal-tabs">
-                    <button class="tab-btn active" onclick="switchJobTab(event, 'upload-tab')">Upload File</button>
-                    <button class="tab-btn" onclick="switchJobTab(event, 'manual-tab')">Write Manually</button>
-                </div>
+
+                <!-- Upload tab -->
                 <div id="upload-tab" class="tab-content active">
                     <form id="job-upload-form" onsubmit="handleJobUpload(event)">
                         <div class="form-group">
-                            <label>Upload Job Description (Excel or PDF)</label>
-                            <input type="file" id="job-file" accept=".xlsx, .xls, .pdf" required>
+                            <label class="field-label">Upload Job Description (Excel or PDF)</label>
+                            <input type="file" id="job-file" accept=".xlsx,.xls,.pdf" required class="field-input-file">
                         </div>
-                        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 20px;">
-                            <i class='bx bx-upload'></i> Process & Import
+                        <button type="submit" class="btn-primary" style="width:100%;justify-content:center;margin-top:14px;">
+                            <i class='bx bx-upload'></i> Process &amp; Import
                         </button>
                     </form>
                 </div>
+
+                <!-- Manual tab -->
                 <div id="manual-tab" class="tab-content">
                     <form id="job-manual-form" onsubmit="handleJobManualCreate(event)">
                         <div class="form-grid">
                             <div class="form-group">
-                                <label>Job Title</label>
-                                <input type="text" id="manual-job-title" placeholder="e.g. english head of department" required>
+                                <label class="field-label">Job Title</label>
+                                <input type="text" id="manual-job-title" class="field-input"
+                                       placeholder="e.g. HR Business Partner" required>
                             </div>
                             <div class="form-group">
-                                <label>Job Location</label>
-                                <input type="text" id="manual-job-location" placeholder="e.g. New York, NY or Remote" required>
+                                <label class="field-label">Job Location</label>
+                                <input type="text" id="manual-job-location" class="field-input"
+                                       placeholder="e.g. Cairo, Egypt" required>
                             </div>
                             <div class="form-group">
-                                <label>Min Experience (Years)</label>
-                                <input type="number" id="manual-job-exp" placeholder="5" required>
+                                <label class="field-label">Min Experience (Years)</label>
+                                <input type="number" id="manual-job-exp" class="field-input"
+                                       placeholder="3" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="field-label">Salary Range</label>
+                                <input type="text" id="manual-job-salary" class="field-input"
+                                       placeholder="e.g. 15,000 – 20,000 EGP">
                             </div>
                             <div class="form-group full-width">
-                                <label>Job Description (General Overview)</label>
-                                <textarea id="manual-job-desc" placeholder="Briefly describe the role..."></textarea>
+                                <label class="field-label">Job Description</label>
+                                <textarea id="manual-job-desc" class="field-input field-textarea"
+                                          placeholder="Briefly describe the role..."></textarea>
                             </div>
                             <div class="form-group full-width">
-                                <label>Required Skills</label>
-                                <textarea id="manual-job-skills" placeholder="to fill manually" required></textarea>
+                                <label class="field-label">Required Skills</label>
+                                <textarea id="manual-job-skills" class="field-input field-textarea"
+                                          placeholder="e.g. HR Systems, Labour Law, Excel" required></textarea>
                             </div>
                             <div class="form-group full-width">
-                                <label>Nice to Have Skills</label>
-                                <textarea id="manual-job-nice" placeholder="to fill manually"></textarea>
+                                <label class="field-label">Nice to Have Skills</label>
+                                <textarea id="manual-job-nice" class="field-input field-textarea"
+                                          placeholder="e.g. SAP, Arabic fluency"></textarea>
                             </div>
                             <div class="form-group">
-                                <label>Education Level</label>
-                                <input type="text" id="manual-job-edu" placeholder="to fill manually" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Salary Range</label>
-                                <input type="text" id="manual-job-salary" placeholder="$80k - $100k">
+                                <label class="field-label">Education Level</label>
+                                <input type="text" id="manual-job-edu" class="field-input"
+                                       placeholder="e.g. Bachelor's degree" required>
                             </div>
                             <div class="form-group full-width">
-                                <label>Behavioral Skills</label>
-                                <textarea id="manual-job-behavioral" placeholder="creativity, communication, results-driven"></textarea>
+                                <label class="field-label">Behavioral Skills</label>
+                                <textarea id="manual-job-behavioral" class="field-input field-textarea"
+                                          placeholder="creativity, communication, results-driven"></textarea>
                             </div>
                             <div class="form-group full-width">
-                                <label>Industry Experience Preference</label>
-                                <textarea id="manual-job-industry" placeholder="education or schools preferred"></textarea>
+                                <label class="field-label">Industry Experience Preference</label>
+                                <textarea id="manual-job-industry" class="field-input field-textarea"
+                                          placeholder="e.g. FMCG, Banking, Telecom"></textarea>
                             </div>
                             <div class="form-group">
-                                <label>Weight: Experience</label>
-                                <input type="number" step="0.1" id="manual-job-w-exp" value="0.3" required>
+                                <label class="field-label">Weight: Experience</label>
+                                <input type="number" step="0.1" id="manual-job-w-exp" class="field-input"
+                                       value="0.3" required>
                             </div>
                             <div class="form-group">
-                                <label>Weight: Skills</label>
-                                <input type="number" step="0.1" id="manual-job-w-skills" value="0.4" required>
+                                <label class="field-label">Weight: Skills</label>
+                                <input type="number" step="0.1" id="manual-job-w-skills" class="field-input"
+                                       value="0.4" required>
                             </div>
                             <div class="form-group">
-                                <label>Weight: Education</label>
-                                <input type="number" step="0.1" id="manual-job-w-edu" value="0.1" required>
+                                <label class="field-label">Weight: Education</label>
+                                <input type="number" step="0.1" id="manual-job-w-edu" class="field-input"
+                                       value="0.1" required>
                             </div>
                             <div class="form-group">
-                                <label>Weight: Behavioral</label>
-                                <input type="number" step="0.1" id="manual-job-w-behavioral" value="0.2" required>
+                                <label class="field-label">Weight: Behavioral</label>
+                                <input type="number" step="0.1" id="manual-job-w-behavioral" class="field-input"
+                                       value="0.2" required>
                             </div>
                         </div>
-                        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 20px;">
+                        <button type="submit" class="btn-primary"
+                                style="width:100%;justify-content:center;margin-top:14px;">
                             <i class='bx bx-save'></i> Save Job
                         </button>
                     </form>
                 </div>
+
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Add Candidate Modal -->
-    <div class="modal" id="candidate-add-modal">
-        <div class="modal-content">
+<!-- Add Candidate Modal -->
+<div class="modal" id="candidate-add-modal">
+    <div class="modal-content">
+        <div class="modal-header-bar">
+            <span class="modal-title">Add Candidate(s)</span>
             <span class="close-btn" onclick="closeModals()">&times;</span>
-            <h2>Add Candidate(s)</h2>
+        </div>
+        <div class="modal-body-area">
             <form id="candidate-add-form" onsubmit="handleCandidateUpload(event)">
                 <div class="form-group">
-                    <label>Apply to Job</label>
-                    <select id="candidate-job-id" required>
-                        <!-- Jobs loaded dynamically -->
+                    <label class="field-label">Apply to Job</label>
+                    <select id="candidate-job-id" class="field-input field-select" required>
+                        <!-- Populated dynamically -->
                     </select>
                 </div>
-                <div class="form-group" style="margin-top: 15px;">
-                    <label>Upload CV (PDF, Word) or Excel list</label>
-                    <input type="file" id="candidate-file" accept=".pdf, .docx, .xlsx, .xls" required>
+                <div class="form-group" style="margin-top:12px;">
+                    <label class="field-label">Upload CV (PDF, Word) or Excel list</label>
+                    <div class="upload-zone" onclick="document.getElementById('candidate-file').click()">
+                        <svg viewBox="0 0 32 32" fill="none" width="30" height="30"
+                             style="stroke:#1B2A4A;opacity:.35;margin:0 auto;">
+                            <path d="M16 22V10M10 16l6-6 6 6"
+                                  stroke="currentColor" stroke-width="1.5"
+                                  stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M6 26h20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        <div class="upload-title">Drop CV files here or click to upload</div>
+                        <div class="upload-sub">PDF or Word files supported</div>
+                        <input type="file" id="candidate-file"
+                               accept=".pdf,.docx,.xlsx,.xls" required style="display:none;">
+                    </div>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 20px;">
-                    <i class='bx bx-upload'></i> Process & Screen
+                <button type="submit" class="btn-primary"
+                        style="width:100%;justify-content:center;margin-top:14px;">
+                    <i class='bx bx-upload'></i> Process &amp; Screen
                 </button>
             </form>
         </div>
     </div>
+</div>
 
-    <script src="app.js?v=1.2"></script>
+<script src="app.js?v=1.3"></script>
 </body>
 </html>
