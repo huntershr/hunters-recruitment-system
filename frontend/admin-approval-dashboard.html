@@ -10,6 +10,9 @@
     <style>
         body {
             background: #f5f7fa;
+            /* Override global `style.css` which disables page scrolling */
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .approval-dashboard {
@@ -117,8 +120,10 @@
         .approval-main {
             margin-left: 250px;
             padding: 20px;
-            overflow-y: auto;
-            max-height: 100vh;
+            /* Let the browser window handle vertical scrolling */
+            overflow: visible;
+            max-height: none;
+            min-width: 0;
         }
 
         .header-bar {
@@ -266,7 +271,8 @@
 
         .detail-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            /* Make company/job boxes feel wider on desktop */
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 20px;
             margin-bottom: 15px;
         }

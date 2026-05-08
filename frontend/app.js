@@ -491,16 +491,17 @@ async function handleLogin(event) {
         });
 
         if (!response.ok) {
-            // Check if it's an approval pending error
+            let errorMessage = "Invalid email or password";
             try {
                 const errorData = await response.json();
-                if (response.status === 403 && errorData.detail.includes("pending approval")) {
+                if (response.status === 403 && errorData.detail && errorData.detail.includes("pending approval")) {
                     throw new Error("⏳ Waiting for Admin's Approval\n\nYour company registration is pending administrator approval. We'll notify you as soon as you're approved!");
                 }
-                throw new Error(errorData.detail || "Login failed");
+                errorMessage = errorData.detail || "Login failed";
             } catch (e) {
-                throw new Error("Invalid email or password");
+                if (e.message.includes("pending approval")) throw e;
             }
+            throw new Error(errorMessage);
         }
 
         const data = await response.json();

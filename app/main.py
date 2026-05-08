@@ -37,21 +37,48 @@ def startup_populate_db():
     db = SessionLocal()
     try:
         logging.info("Application startup - initializing database")
-        # Create default admin user if none exists
+        # Create default admin user if it doesn't exist yet.
+        # NOTE: In production (e.g. Railway) the DB may already contain users,
+        # so we must not rely on "users table is empty" for seeding.
         try:
-            if db.query(models.User).count() == 0:
-                logging.info("Creating default admin user...")
-                hashed_pw = auth_utils.get_password_hash("admin123")
+            admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
+            admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+
+            existing_admin = db.query(models.User).filter(models.User.email == admin_email).first()
+            if existing_admin is None:
+                logging.info(f"Creating default admin user: {admin_email}")
+                hashed_pw = auth_utils.get_password_hash(admin_password)
                 admin = models.User(
-                    email="admin@example.com",
+                    email=admin_email,
                     hashed_password=hashed_pw,
                     full_name="Administrator",
                     is_admin=True,
-                    is_active=True
+                    is_active=True,
                 )
                 db.add(admin)
                 db.commit()
-                logging.info("Default admin user created: admin@example.com / admin123")
+                logging.info("Default admin user created (email from ADMIN_EMAIL, password from ADMIN_PASSWORD).")
+            else:
+                # Ensure the seeded admin remains active/admin if it already exists.
+                updated = False
+                if not existing_admin.is_admin:
+                    existing_admin.is_admin = True
+                    updated = True
+                if not existing_admin.is_active:
+                    existing_admin.is_active = True
+                    updated = True
+
+                # Optional, controlled password reset for recovery.
+                # Set ADMIN_RESET_PASSWORD=true temporarily to force reset.
+                reset_flag = os.getenv("ADMIN_RESET_PASSWORD", "").strip().lower() in {"1", "true", "yes", "y", "on"}
+                if reset_flag:
+                    existing_admin.hashed_password = auth_utils.get_password_hash(admin_password)
+                    updated = True
+                    logging.warning(f"ADMIN_RESET_PASSWORD is enabled. Resetting password for: {admin_email}")
+
+                if updated:
+                    db.commit()
+                    logging.info(f"Updated existing admin flags for: {admin_email}")
         except Exception as e:
             logging.warning(f"Could not create default admin user: {e}")
             db.rollback()
