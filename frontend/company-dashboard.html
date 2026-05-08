@@ -9,7 +9,7 @@
         :root {
             --navy: #1B2A4A;
             --gold: #C9A84C;
-            --sidebar-bg: linear-gradient(180deg, #6B6BB5 0%, #7B4F9E 100%);
+            --sidebar-bg: linear-gradient(180deg, #1B2A4A 0%, #2C3E6B 100%);
             --page-bg: #F4F5FA;
             --card-radius: 16px;
             --card-shadow: 0 2px 12px rgba(0,0,0,0.06);
@@ -109,8 +109,13 @@
             border: none; background: none; width: 100%; text-align: left;
         }
 
-        .nav-item:hover { background: rgba(255,255,255,0.12); color: #fff; }
-        .nav-item.active { background: rgba(255,255,255,0.22); color: #fff; font-weight: 600; }
+        .nav-item:hover { background: rgba(255,255,255,0.10); color: #fff; }
+        .nav-item.active {
+            background: rgba(201,168,76,0.22);
+            border-left: 3px solid #C9A84C;
+            color: #fff; font-weight: 600;
+            padding-left: 11px;
+        }
 
         .nav-item svg { flex-shrink: 0; opacity: 0.85; }
         .nav-item.active svg { opacity: 1; }
@@ -256,7 +261,7 @@
 
         .avatar-circle {
             width: 34px; height: 34px; border-radius: 50%;
-            background: linear-gradient(135deg, #6B6BB5, #7B4F9E);
+            background: linear-gradient(135deg, #1B2A4A, #2C3E6B);
             color: #fff; font-size: 13px; font-weight: 700;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
@@ -408,7 +413,7 @@
 
         .logo-upload-preview {
             width: 80px; height: 80px; border-radius: 50%;
-            background: linear-gradient(135deg, #6B6BB5, #7B4F9E);
+            background: linear-gradient(135deg, #1B2A4A, #2C3E6B);
             display: flex; align-items: center; justify-content: center;
             font-size: 28px; font-weight: 700; color: #fff;
             overflow: hidden; flex-shrink: 0;
@@ -613,8 +618,8 @@
 
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-card-icon" style="background:#EEF0FB;">
-                    <svg width="20" height="20" fill="none" stroke="#6B6BB5" stroke-width="2" viewBox="0 0 24 24">
+                <div class="stat-card-icon" style="background:#FBF7E8;">
+                    <svg width="20" height="20" fill="none" stroke="#C9A84C" stroke-width="2" viewBox="0 0 24 24">
                         <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
                     </svg>
                 </div>
@@ -705,6 +710,18 @@
                         <input type="number" id="job-salary-max" placeholder="100000" required>
                     </div>
                 </div>
+
+                <!-- Hide Salary Toggle -->
+                <div style="display:flex;align-items:center;gap:10px;margin-top:6px;margin-bottom:16px;">
+                    <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
+                        <input type="checkbox" id="hide-salary-toggle" style="opacity:0;width:0;height:0;">
+                        <span id="toggle-track" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#E5E7EB;border-radius:22px;transition:background 0.2s;"></span>
+                        <span id="toggle-thumb" style="position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:white;border-radius:50%;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.2);"></span>
+                    </label>
+                    <span style="font-size:13px;color:#1A1A2E;font-weight:500;">Hide salary from job posting</span>
+                    <span style="font-size:11px;color:#9CA3AF;">(Candidates will not see the salary range)</span>
+                </div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Min Experience (Years)</label>
@@ -729,6 +746,53 @@
                     <label>Required Skills (comma-separated)</label>
                     <input type="text" id="job-skills" placeholder="Python, FastAPI, React, PostgreSQL" required>
                 </div>
+                <!-- AI Scoring Weights -->
+                <div style="background:#F8F9FF;border:0.5px solid #E5E7EB;border-radius:12px;padding:20px 24px;margin-bottom:20px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                        <svg width="18" height="18" fill="none" stroke="#C9A84C" stroke-width="1.5" viewBox="0 0 24 24">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                        </svg>
+                        <span style="font-size:14px;font-weight:500;color:#1A1A2E;">AI Scoring Weights</span>
+                        <span style="font-size:10px;font-weight:500;background:#E6F1FB;color:#185FA5;border-radius:20px;padding:2px 8px;margin-left:4px;">Powered by Hunters AI</span>
+                    </div>
+                    <p style="font-size:12px;color:#9CA3AF;margin-bottom:18px;margin-top:0;">Set how much weight the AI gives each factor when scoring candidates. Total must equal 100%.</p>
+
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+                        <div id="weight-total-badge" style="font-size:12px;font-weight:500;background:#E1F5EE;color:#0F6E56;border-radius:20px;padding:3px 12px;border:0.5px solid #9FE1CB;transition:all 0.2s;">Total: 100% ✓</div>
+                    </div>
+
+                    <div style="display:flex;flex-direction:column;gap:16px;">
+                        <div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                                <span style="font-size:12px;font-weight:500;color:#1A1A2E;">Experience</span>
+                                <span id="exp-val" style="font-size:12px;font-weight:500;color:#1B2A4A;background:#F0F2F8;border-radius:6px;padding:2px 8px;min-width:40px;text-align:center;">40%</span>
+                            </div>
+                            <input type="range" id="exp-slider" min="0" max="100" value="40" style="width:100%;accent-color:#1B2A4A;height:4px;cursor:pointer;">
+                        </div>
+                        <div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                                <span style="font-size:12px;font-weight:500;color:#1A1A2E;">Skills Match</span>
+                                <span id="skills-val" style="font-size:12px;font-weight:500;color:#1B2A4A;background:#F0F2F8;border-radius:6px;padding:2px 8px;min-width:40px;text-align:center;">30%</span>
+                            </div>
+                            <input type="range" id="skills-slider" min="0" max="100" value="30" style="width:100%;accent-color:#1B2A4A;height:4px;cursor:pointer;">
+                        </div>
+                        <div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                                <span style="font-size:12px;font-weight:500;color:#1A1A2E;">Education</span>
+                                <span id="edu-val" style="font-size:12px;font-weight:500;color:#1B2A4A;background:#F0F2F8;border-radius:6px;padding:2px 8px;min-width:40px;text-align:center;">20%</span>
+                            </div>
+                            <input type="range" id="edu-slider" min="0" max="100" value="20" style="width:100%;accent-color:#1B2A4A;height:4px;cursor:pointer;">
+                        </div>
+                        <div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                                <span style="font-size:12px;font-weight:500;color:#1A1A2E;">Behavioral Fit</span>
+                                <span id="behav-val" style="font-size:12px;font-weight:500;color:#1B2A4A;background:#F0F2F8;border-radius:6px;padding:2px 8px;min-width:40px;text-align:center;">10%</span>
+                            </div>
+                            <input type="range" id="behav-slider" min="0" max="100" value="10" style="width:100%;accent-color:#1B2A4A;height:4px;cursor:pointer;">
+                        </div>
+                    </div>
+                </div>
+
                 <div style="display:flex; gap:10px; margin-top:20px;">
                     <button type="submit" class="btn-primary" style="flex:1;">Submit for Approval</button>
                     <button type="button" class="btn-secondary" onclick="cancelJobForm()" style="flex:1;">Cancel</button>
@@ -1274,20 +1338,35 @@
         event.preventDefault();
         const token = localStorage.getItem('token');
 
+        const weightTotal = ['exp','skills','edu','behav'].reduce((sum, id) =>
+            sum + parseInt(document.getElementById(id + '-slider').value), 0);
+        if (weightTotal !== 100) {
+            showToast('AI scoring weights must total exactly 100%. Currently: ' + weightTotal + '%', 'error');
+            return;
+        }
+
         const salaryMin = parseInt(document.getElementById('job-salary-min').value);
         const salaryMax = parseInt(document.getElementById('job-salary-max').value);
+        const hideSalary = document.getElementById('hide-salary-toggle').checked;
 
         const jobData = {
             job_title:         document.getElementById('job-title').value,
             job_location:      document.getElementById('job-location').value,
             salary_range:      `${salaryMin} - ${salaryMax}`,
+            hide_salary:       hideSalary,
             min_experience:    parseInt(document.getElementById('job-experience').value),
             education_level:   'Not specified',
             job_description:   document.getElementById('job-description').value,
             required_skills:   document.getElementById('job-skills').value,
             nice_to_have_skills:  '',
             behavioral_skills:    '',
-            industry_experience:  ''
+            industry_experience:  '',
+            scoring_weights: {
+                experience: parseInt(document.getElementById('exp-slider').value),
+                skills:     parseInt(document.getElementById('skills-slider').value),
+                education:  parseInt(document.getElementById('edu-slider').value),
+                behavioral: parseInt(document.getElementById('behav-slider').value)
+            }
         };
 
         const submitBtn = event.target.querySelector('button[type="submit"]');
@@ -1414,8 +1493,71 @@
             .replace(/"/g, '&quot;');
     }
 
+    /* ── Hide Salary Toggle ── */
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggle = document.getElementById('hide-salary-toggle');
+        if (!toggle) return;
+        const track = document.getElementById('toggle-track');
+        const thumb = document.getElementById('toggle-thumb');
+        toggle.addEventListener('change', function() {
+            if (this.checked) {
+                track.style.background = '#1B2A4A';
+                thumb.style.transform = 'translateX(18px)';
+            } else {
+                track.style.background = '#E5E7EB';
+                thumb.style.transform = 'translateX(0)';
+            }
+        });
+    });
+
+    /* ── AI Scoring Sliders ── */
+    function initWeightSliders() {
+        const sliderDefs = [
+            { slider: 'exp-slider',    val: 'exp-val' },
+            { slider: 'skills-slider', val: 'skills-val' },
+            { slider: 'edu-slider',    val: 'edu-val' },
+            { slider: 'behav-slider',  val: 'behav-val' }
+        ];
+
+        function updateWeights() {
+            let total = 0;
+            sliderDefs.forEach(s => {
+                const el = document.getElementById(s.slider);
+                const valEl = document.getElementById(s.val);
+                if (!el || !valEl) return;
+                const v = parseInt(el.value);
+                valEl.textContent = v + '%';
+                total += v;
+            });
+            const badge = document.getElementById('weight-total-badge');
+            if (!badge) return;
+            if (total === 100) {
+                badge.style.background = '#E1F5EE';
+                badge.style.color = '#0F6E56';
+                badge.style.borderColor = '#9FE1CB';
+                badge.textContent = 'Total: 100% ✓';
+            } else if (total > 100) {
+                badge.style.background = '#FCEBEB';
+                badge.style.color = '#A32D2D';
+                badge.style.borderColor = '#F5B8B8';
+                badge.textContent = 'Total: ' + total + '% — must equal 100%';
+            } else {
+                badge.style.background = '#FAEEDA';
+                badge.style.color = '#854F0B';
+                badge.style.borderColor = '#FAC775';
+                badge.textContent = 'Total: ' + total + '% — ' + (100 - total) + '% remaining';
+            }
+        }
+
+        sliderDefs.forEach(s => {
+            const el = document.getElementById(s.slider);
+            if (el) el.addEventListener('input', updateWeights);
+        });
+    }
+
     /* ── Boot ── */
     initializeDashboard();
+    initWeightSliders();
 </script>
 </body>
 </html>

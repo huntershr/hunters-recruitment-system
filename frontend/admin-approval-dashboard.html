@@ -9,8 +9,8 @@
            DESIGN TOKENS
         ═══════════════════════════════════════════ */
         :root {
-            --sidebar-bg:     linear-gradient(180deg, #6B6BB5 0%, #7B4F9E 100%);
-            --sidebar-active: rgba(255,255,255,0.18);
+            --sidebar-bg:     linear-gradient(180deg, #1B2A4A 0%, #2C3E6B 100%);
+            --sidebar-active: rgba(201,168,76,0.20);
             --sidebar-hover:  rgba(255,255,255,0.10);
             --sidebar-text:   #FFFFFF;
             --sidebar-width:  300px;
@@ -21,7 +21,7 @@
             --card-radius:    16px;
             --card-shadow:    0 2px 12px rgba(0,0,0,0.06);
 
-            --icon-color:     #6B6BB5;
+            --icon-color:     #C9A84C;
             --title-color:    #1A1A2E;
             --subtitle-color: #9CA3AF;
             --badge-bg:       #F5A623;
@@ -111,7 +111,11 @@
             white-space: nowrap;
         }
         .nav-link:hover  { background: var(--sidebar-hover); }
-        .nav-link.active { background: var(--sidebar-active); }
+        .nav-link.active {
+            background: var(--sidebar-active);
+            border-left: 3px solid #C9A84C;
+            padding-left: 13px;
+        }
 
         .nav-link svg {
             width: 18px;
@@ -198,7 +202,7 @@
             background: var(--white);
             border-radius: var(--card-radius);
             border: 0.5px solid var(--card-border);
-            border-left: 4px solid #6B6BB5;
+            border-left: 4px solid #1B2A4A;
             padding: 28px 32px;
             margin-bottom: 24px;
             box-shadow: var(--card-shadow);
@@ -316,7 +320,7 @@
         }
 
         .action-btn {
-            background: #6B6BB5;
+            background: #1B2A4A;
             color: #FFFFFF;
             border: none;
             border-radius: 8px;
@@ -396,7 +400,7 @@
         }
 
         .btn-approve {
-            background: #6B6BB5;
+            background: #1B2A4A;
             color: #FFFFFF;
             border: none;
             border-radius: 8px;
@@ -567,7 +571,7 @@
             outline: none;
             transition: border-color 0.15s;
         }
-        .reject-dialog textarea:focus { border-color: #6B6BB5; }
+        .reject-dialog textarea:focus { border-color: #1B2A4A; }
         .reject-dialog-footer {
             display: flex;
             justify-content: flex-end;
