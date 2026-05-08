@@ -6,6 +6,15 @@
     <title>Hunters AI — Recruitment System</title>
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Critical layout — guards against external CSS load failure */
+        .login-overlay{position:fixed;inset:0;background:#F5F6F8;z-index:10000;display:none;align-items:center;justify-content:center;padding:40px 20px;}
+        .login-overlay.active{display:flex;}
+        .login-card{background:#fff;border:0.5px solid rgba(0,0,0,.1);border-radius:14px;padding:36px 32px;width:360px;max-width:calc(100vw - 40px);box-sizing:border-box;}
+        .logo-icon{width:60px !important;height:60px !important;display:block;margin:0 auto;}
+        .nav-logo-icon{width:26px !important;height:26px !important;display:block;flex-shrink:0;}
+        svg{overflow:visible;}
+    </style>
 </head>
 <body>
 
