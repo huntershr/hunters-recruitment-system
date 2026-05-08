@@ -1,5 +1,24 @@
 const API_URL = ""; // Use relative paths
 
+function showToast(message, type = 'success') {
+    const colors = {
+        success: { bg: '#E1F5EE', text: '#0F6E56', border: '#9FE1CB' },
+        error:   { bg: '#FCEBEB', text: '#A32D2D', border: '#F5B8B8' },
+        info:    { bg: '#E6F1FB', text: '#185FA5', border: '#B5D4F4' }
+    };
+    const c = colors[type] || colors.info;
+    const toast = document.createElement('div');
+    toast.style.cssText = `position:fixed;top:20px;right:20px;z-index:9999;background:${c.bg};color:${c.text};border:0.5px solid ${c.border};border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.12);display:flex;align-items:center;gap:8px;animation:_toastIn 0.2s ease;max-width:320px;`;
+    toast.innerHTML = `<span>${message}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3500);
+}
+(function() {
+    const s = document.createElement('style');
+    s.textContent = '@keyframes _toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}';
+    document.head.appendChild(s);
+})();
+
 let jobs = [];
 let candidates = [];
 let evaluations = [];
@@ -109,31 +128,79 @@ async function fetchData() {
     }
 }
 
+function scoreBadgeHtml(score) {
+    if (score === null || score === undefined) return '<span class="skeleton skeleton-badge"></span>';
+    const cls = score >= 7.5 ? 'score-green' : score >= 5 ? 'score-amber' : 'score-red';
+    return `<span class="score-badge ${cls}">${score}/10</span>`;
+}
+
+function stagePillHtml(decision) {
+    if (!decision || decision.toLowerCase() === 'pending') {
+        return '<span class="stage-pill stage-new">New</span>';
+    }
+    const d = decision.toLowerCase();
+    if (d === 'shortlist') return '<span class="stage-pill stage-interview">Shortlisted</span>';
+    if (d === 'maybe')     return '<span class="stage-pill stage-screening">Screening</span>';
+    if (d === 'reject')    return '<span class="stage-pill stage-rejected">Rejected</span>';
+    return `<span class="stage-pill stage-new">${decision}</span>`;
+}
+
 function updateDashboard() {
     document.getElementById("total-jobs").innerText = jobs.length;
     document.getElementById("total-candidates").innerText = candidates.length;
-    
-    const accepted = evaluations.filter(e => e.decision.toLowerCase() === "shortlist").length;
-    document.getElementById("total-accepted").innerText = accepted;
+
+    const shortlisted = evaluations.filter(e => e.decision.toLowerCase() === "shortlist").length;
+    document.getElementById("total-accepted").innerText = shortlisted;
+
+    const pendingEl = document.getElementById("total-pending");
+    if (pendingEl) {
+        const pending = candidates.filter(c => !evaluations.find(e => e.candidate_id === c.id)).length;
+        pendingEl.innerText = pending;
+    }
+
+    // Trend texts
+    const jobsTrend = document.getElementById("jobs-trend");
+    if (jobsTrend) jobsTrend.innerText = jobs.length > 0 ? `${jobs.length} active` : "No jobs yet";
+    const candTrend = document.getElementById("candidates-trend");
+    if (candTrend) candTrend.innerText = candidates.length > 0 ? `${candidates.length} total` : "No candidates";
+    const shortTrend = document.getElementById("shortlisted-trend");
+    if (shortTrend) shortTrend.innerText = shortlisted > 0 ? `${shortlisted} shortlisted` : "None yet";
 
     const tbody = document.querySelector("#recent-candidates-table tbody");
     tbody.innerHTML = "";
-    
-    candidates.slice(-5).reverse().forEach(c => {
+
+    const recent = candidates.slice(-5).reverse();
+    if (recent.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6">
+            <div class="empty-state">
+                <div style="width:44px;height:44px;background:#F5F6F8;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;">
+                    <svg viewBox="0 0 24 24" fill="none" width="22" height="22" style="stroke:#1B2A4A;fill:none;stroke-width:1.5;">
+                        <circle cx="9" cy="7" r="4"/><path d="M2 20c0-3.87 3.13-7 7-7"/>
+                        <circle cx="17" cy="11" r="3"/><path d="M14 20c0-2.76 1.34-5 3-5s3 2.24 3 5"/>
+                    </svg>
+                </div>
+                <div class="empty-title">No candidates yet</div>
+                <div class="empty-sub">Upload CVs or add candidates to get started</div>
+                <button class="btn-primary" style="width:auto;font-size:11px;padding:6px 14px;margin-top:8px;" onclick="openCandidateModal()">Add your first candidate</button>
+            </div>
+        </td></tr>`;
+        return;
+    }
+
+    recent.forEach(c => {
         const job = jobs.find(j => j.id === c.job_applied);
-        const eval = evaluations.find(e => e.candidate_id === c.id);
-        
-        const score = eval ? eval.score : "-";
-        const decision = eval ? eval.decision : "Pending";
-        const badgeClass = eval ? decision.toLowerCase() : "pending";
+        const ev = evaluations.find(e => e.candidate_id === c.id);
+        const score = ev ? ev.score : null;
+        const decision = ev ? ev.decision : null;
 
         tbody.innerHTML += `
             <tr>
-                <td><strong>${c.name}</strong><br><small style="color:var(--text-muted)">${c.email}</small></td>
-                <td>${job ? job.job_title : "Unknown"}</td>
-                <td>${score}/10</td>
-                <td><span class="badge ${badgeClass}">${decision}</span></td>
-                <td><button class="btn-action" onclick="viewCandidate(${c.id})">View AI Report</button></td>
+                <td><strong>${c.name}</strong><br><small style="color:#9CA3AF">${c.email || ''}</small></td>
+                <td>${job ? job.job_title : '—'}</td>
+                <td>${stagePillHtml(decision)}</td>
+                <td>${scoreBadgeHtml(score)}</td>
+                <td><span class="badge ${decision ? decision.toLowerCase() : 'pending'}">${decision || 'Pending'}</span></td>
+                <td><button class="btn-action" onclick="viewCandidate(${c.id})">View Report</button></td>
             </tr>
         `;
     });
@@ -188,36 +255,157 @@ function renderJobs() {
 function copyPublicLink(id) {
     const link = `${window.location.origin}/apply.html?job_id=${id}`;
     navigator.clipboard.writeText(link).then(() => {
-        alert("Public Application Link copied to clipboard!");
+        showToast('Public application link copied to clipboard!', 'success');
     });
 }
 
+let pipelineView = 'board';
+let pipelineFilter = '';
+
 function renderCandidates() {
+    renderKanban(pipelineFilter);
+    renderCandidateList(pipelineFilter);
+}
+
+function renderKanban(filter) {
+    const board = document.getElementById("kanban-board");
+    if (!board) return;
+
+    const cols = [
+        { id: 'new',        label: 'New',         accent: '#378ADD', decisions: [null, 'pending'] },
+        { id: 'screening',  label: 'Screening',   accent: '#EF9F27', decisions: ['maybe'] },
+        { id: 'shortlisted',label: 'Shortlisted', accent: '#1D9E75', decisions: ['shortlist'] },
+        { id: 'rejected',   label: 'Rejected',    accent: '#CC2B2B', decisions: ['reject'] },
+    ];
+
+    const lf = (filter || '').toLowerCase();
+
+    board.innerHTML = cols.map(col => {
+        const colCandidates = candidates.filter(c => {
+            const ev = evaluations.find(e => e.candidate_id === c.id);
+            const dec = ev ? ev.decision.toLowerCase() : null;
+            const inCol = col.decisions.includes(dec);
+            if (!inCol) return false;
+            if (lf) {
+                const job = jobs.find(j => j.id === c.job_applied);
+                return c.name.toLowerCase().includes(lf) ||
+                       (c.email || '').toLowerCase().includes(lf) ||
+                       (job ? job.job_title.toLowerCase().includes(lf) : false);
+            }
+            return true;
+        });
+
+        const cards = colCandidates.map(c => {
+            const ev = evaluations.find(e => e.candidate_id === c.id);
+            const job = jobs.find(j => j.id === c.job_applied);
+            const score = ev ? ev.score : null;
+            let dotColor = '#9CA3AF';
+            let scoreText = 'Pending';
+            if (score !== null) {
+                dotColor = score >= 7.5 ? '#0F6E56' : score >= 5 ? '#854F0B' : '#A32D2D';
+                scoreText = `${score}/10`;
+            }
+            return `
+                <div class="kanban-card" onclick="viewCandidate(${c.id})">
+                    <div class="kanban-card-name">${c.name}</div>
+                    <div class="kanban-card-role">${job ? job.job_title : '—'}</div>
+                    <div class="kanban-card-score">
+                        <span class="score-dot" style="background:${dotColor};"></span>
+                        <span style="color:${dotColor};">${scoreText}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="kanban-col" style="border-top:3px solid ${col.accent};">
+                <div class="kanban-col-header">
+                    <span class="kanban-col-title">${col.label}</span>
+                    <span class="kanban-col-count">${colCandidates.length}</span>
+                </div>
+                <div class="kanban-col-body">
+                    ${cards}
+                    <button class="kanban-add-card" onclick="openCandidateModal()">+ Add candidate</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderCandidateList(filter) {
     const tbody = document.querySelector("#all-candidates-table tbody");
+    if (!tbody) return;
     tbody.innerHTML = "";
-    
-    candidates.forEach(c => {
-        const eval = evaluations.find(e => e.candidate_id === c.id);
-        const score = eval ? eval.score : "-";
-        const decision = eval ? eval.decision : "Pending";
-        const badgeClass = eval ? decision.toLowerCase() : "pending";
+
+    const lf = (filter || '').toLowerCase();
+    const filtered = lf ? candidates.filter(c => {
+        const job = jobs.find(j => j.id === c.job_applied);
+        return c.name.toLowerCase().includes(lf) ||
+               (c.email || '').toLowerCase().includes(lf) ||
+               (job ? job.job_title.toLowerCase().includes(lf) : false);
+    }) : candidates;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8">
+            <div class="empty-state">
+                <div class="empty-title">No candidates found</div>
+                <div class="empty-sub">${lf ? 'No results for "' + lf + '"' : 'Add candidates to get started'}</div>
+            </div>
+        </td></tr>`;
+        return;
+    }
+
+    filtered.forEach(c => {
+        const ev = evaluations.find(e => e.candidate_id === c.id);
+        const job = jobs.find(j => j.id === c.job_applied);
+        const score = ev ? ev.score : null;
+        const decision = ev ? ev.decision : null;
 
         tbody.innerHTML += `
             <tr>
-                <td><strong>${c.name}</strong></td>
-                <td>${c.experience_years} yrs</td>
-                <td>${c.expected_salary || '-'}</td>
-                <td>${score}</td>
-                <td><span class="badge ${badgeClass}">${decision}</span></td>
+                <td><strong>${c.name}</strong><br><small style="color:#9CA3AF">${c.email || ''}</small></td>
+                <td>${job ? job.job_title : '—'}</td>
+                <td>${stagePillHtml(decision)}</td>
+                <td>${c.experience_years != null ? c.experience_years + ' yrs' : '—'}</td>
+                <td>${c.expected_salary || '—'}</td>
+                <td>${scoreBadgeHtml(score)}</td>
+                <td><span class="badge ${decision ? decision.toLowerCase() : 'pending'}">${decision || 'Pending'}</span></td>
                 <td>
-                    <div style="display:flex; gap:8px;">
+                    <div style="display:flex;gap:6px;">
                         <button class="btn-action" onclick="viewCandidate(${c.id})">Details</button>
-                        <button class="btn-action" style="color:var(--red); border-color:var(--red);" onclick="deleteCandidate(${c.id})"><i class='bx bx-trash'></i></button>
+                        <button class="btn-action" style="color:var(--red);border-color:var(--red);" onclick="deleteCandidate(${c.id})"><i class='bx bx-trash'></i></button>
                     </div>
                 </td>
             </tr>
         `;
     });
+}
+
+function setPipelineView(view) {
+    pipelineView = view;
+    const boardView = document.getElementById("kanban-board-view");
+    const listView = document.getElementById("candidates-list-view");
+    const boardToggle = document.getElementById("board-toggle");
+    const listToggle = document.getElementById("list-toggle");
+    if (!boardView || !listView) return;
+
+    if (view === 'board') {
+        boardView.style.display = '';
+        listView.style.display = 'none';
+        boardToggle.classList.add('active');
+        listToggle.classList.remove('active');
+    } else {
+        boardView.style.display = 'none';
+        listView.style.display = '';
+        listToggle.classList.add('active');
+        boardToggle.classList.remove('active');
+    }
+}
+
+function filterPipeline(value) {
+    pipelineFilter = value;
+    renderKanban(value);
+    renderCandidateList(value);
 }
 
 function viewCandidate(id) {
@@ -268,29 +456,107 @@ function closeModals() {
 }
 
 function switchJobTab(event, tabId) {
-    // Remove active class from all tabs
     const container = event.target.closest('.modal-content');
     container.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     container.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-    // Add active class to clicked tab and target content
     event.target.classList.add('active');
     document.getElementById(tabId).classList.add('active');
+
+    // Show/hide wizard UI depending on tab
+    const isManual = tabId === 'manual-tab';
+    const indicator = document.getElementById("job-step-indicator");
+    const footer    = document.getElementById("job-wizard-footer");
+    if (indicator) indicator.style.display = isManual ? '' : 'none';
+    if (footer)    footer.style.display    = isManual ? '' : 'none';
+
+    if (isManual) jobWizardSetStep(1);
+}
+
+let currentJobStep = 1;
+
+function jobWizardSetStep(step) {
+    currentJobStep = step;
+    [1, 2, 3].forEach(s => {
+        const el = document.getElementById(`job-step-${s}`);
+        if (el) el.style.display = s === step ? '' : 'none';
+        const circle = document.getElementById(`step-circle-${s}`);
+        const label  = document.getElementById(`step-label-${s}`);
+        if (circle && label) {
+            if (s < step)       { circle.className = 'step-circle done';   label.className = 'step-label done'; }
+            else if (s === step){ circle.className = 'step-circle active'; label.className = 'step-label active'; }
+            else                { circle.className = 'step-circle idle';   label.className = 'step-label idle'; }
+        }
+    });
+    const backBtn = document.getElementById("job-step-back-btn");
+    const nextBtn = document.getElementById("job-step-next-btn");
+    if (backBtn) backBtn.style.display = step === 1 ? 'none' : '';
+    if (nextBtn) nextBtn.innerText = step === 3 ? 'Save Job' : 'Next step →';
+    if (step === 3) updateWeights();
+}
+
+function jobWizardNext() {
+    if (currentJobStep === 3) {
+        handleJobManualCreate(null);
+        return;
+    }
+    if (currentJobStep === 1) {
+        if (!document.getElementById("manual-job-title").value.trim()) {
+            showToast('Please enter a Job Title.', 'error');
+            return;
+        }
+    }
+    jobWizardSetStep(currentJobStep + 1);
+}
+
+function jobWizardBack() {
+    if (currentJobStep > 1) jobWizardSetStep(currentJobStep - 1);
+}
+
+function updateWeights() {
+    const exp  = parseInt(document.getElementById("manual-job-w-exp")?.value || 30);
+    const sk   = parseInt(document.getElementById("manual-job-w-skills")?.value || 40);
+    const edu  = parseInt(document.getElementById("manual-job-w-edu")?.value || 20);
+    const beh  = parseInt(document.getElementById("manual-job-w-behavioral")?.value || 10);
+    const total = exp + sk + edu + beh;
+
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v + '%'; };
+    setVal('wv-exp', exp); setVal('wv-skills', sk); setVal('wv-edu', edu); setVal('wv-behavioral', beh);
+
+    const totalEl = document.getElementById("weight-total-display");
+    const totalVal = document.getElementById("weight-total-val");
+    if (totalEl && totalVal) {
+        totalVal.innerText = total;
+        totalEl.className = 'weight-total ' + (total === 100 ? 'ok' : 'bad');
+        totalEl.innerHTML = `Total: <span id="weight-total-val">${total}</span>% — ${total === 100 ? '✓ Perfect' : 'must equal 100%'}`;
+    }
+
+    // Sync hidden decimal inputs
+    const setHidden = (id, v) => { const el = document.getElementById(id); if (el) el.value = (v/100).toFixed(2); };
+    setHidden('manual-job-w-exp-val', exp);
+    setHidden('manual-job-w-skills-val', sk);
+    setHidden('manual-job-w-edu-val', edu);
+    setHidden('manual-job-w-behavioral-val', beh);
 }
 
 function openJobModal() {
-    // Only reset form, don't reset editingJobId here
     document.getElementById("job-manual-form").reset();
-    const submitBtn = document.querySelector("#job-manual-form button[type='submit']");
-    if (submitBtn) {
-        submitBtn.innerHTML = "<i class='bx bx-save'></i> Save Job";
-        submitBtn.disabled = false;
-    }
     document.getElementById("job-add-modal").classList.add("active");
 }
 
 function openNewJobModal() {
-    editingJobId = null; // Explicitly reset for NEW job
+    editingJobId = null;
+    // Start on Upload tab, no wizard UI
+    const tabBtns = document.querySelectorAll('#job-add-modal .tab-btn');
+    const tabContents = document.querySelectorAll('#job-add-modal .tab-content');
+    tabBtns.forEach((b, i) => b.classList.toggle('active', i === 0));
+    tabContents.forEach((c, i) => c.classList.toggle('active', i === 0));
+
+    const indicator = document.getElementById("job-step-indicator");
+    const footer    = document.getElementById("job-wizard-footer");
+    if (indicator) indicator.style.display = 'none';
+    if (footer)    footer.style.display    = 'none';
+
     openJobModal();
 }
 
@@ -320,49 +586,11 @@ async function handleJobUpload(event) {
             body: formData
         });
         const result = await response.json();
-        alert(result.message);
+        showToast(result.message, 'success');
         closeModals();
         fetchData();
     } catch (err) {
-        alert("Failed to upload job.");
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleJobManualCreate(event) {
-    event.preventDefault();
-    const payload = {
-        job_title: document.getElementById("manual-job-title").value,
-        job_location: document.getElementById("manual-job-location").value,
-        min_experience: parseInt(document.getElementById("manual-job-exp").value),
-        required_skills: document.getElementById("manual-job-skills").value,
-        nice_to_have_skills: document.getElementById("manual-job-nice").value,
-        education_level: document.getElementById("manual-job-edu").value,
-        salary_range: document.getElementById("manual-job-salary").value,
-        weight_experience: parseFloat(document.getElementById("manual-job-w-exp").value),
-        weight_skills: parseFloat(document.getElementById("manual-job-w-skills").value),
-        weight_education: parseFloat(document.getElementById("manual-job-w-edu").value)
-    };
-
-    const btn = event.submitter;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Saving...";
-    btn.disabled = true;
-
-    try {
-        const response = await authFetch(`${API_URL}/jobs/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-        alert("Job created successfully!");
-        closeModals();
-        fetchData();
-    } catch (err) {
-        alert("Failed to create job.");
+        showToast('Failed to upload job.', 'error');
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -379,7 +607,7 @@ async function deleteCandidate(id) {
         const result = await response.json();
         fetchData(); // Refresh list
     } catch (err) {
-        alert("Failed to delete candidate.");
+        showToast('Failed to delete candidate.', 'error');
     }
 }
 
@@ -391,10 +619,10 @@ async function deleteAllCandidates() {
             method: "DELETE"
         });
         const result = await response.json();
-        alert(result.message);
+        showToast(result.message, 'success');
         fetchData(); // Refresh list
     } catch (err) {
-        alert("Failed to delete all candidates.");
+        showToast('Failed to delete all candidates.', 'error');
     }
 }
 
@@ -416,11 +644,11 @@ async function handleCandidateUpload(event) {
             body: formData
         });
         const result = await response.json();
-        alert(result.message);
+        showToast(result.message, 'success');
         closeModals();
         fetchData();
     } catch (err) {
-        alert("Failed to upload candidates.");
+        showToast('Failed to upload candidates.', 'error');
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -436,10 +664,10 @@ async function importFromSheets() {
     try {
         const response = await authFetch(`${API_URL}/sheets/import`, { method: "POST" });
         const result = await response.json();
-        alert(result.message || "Import completed successfully!");
+        showToast(result.message || 'Import completed successfully!', 'success');
         fetchData(); // Refresh UI
     } catch (err) {
-        alert("Import failed. Ensure GOOGLE_SHEET_URL is configured properly.");
+        showToast('Import failed. Ensure GOOGLE_SHEET_URL is configured properly.', 'error');
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -464,7 +692,7 @@ async function exportToCSV() {
         a.remove();
         window.URL.revokeObjectURL(url);
     } catch (err) {
-        alert("Export failed.");
+        showToast('Export failed.', 'error');
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -476,6 +704,10 @@ async function handleLogin(event) {
     const email = document.getElementById("login-email").value;
     const password = document.getElementById("login-password").value;
     const btn = event.submitter;
+
+    // Hide previous error
+    const loginErrDiv = document.getElementById('login-error');
+    if (loginErrDiv) loginErrDiv.style.display = 'none';
 
     btn.disabled = true;
     btn.innerText = "Authenticating...";
@@ -543,7 +775,14 @@ async function handleLogin(event) {
             checkAuth();
         }
     } catch (err) {
-        alert("Login failed: " + err.message);
+        const errDiv = document.getElementById('login-error');
+        const errText = document.getElementById('login-error-text');
+        if (errDiv && errText) {
+            errText.textContent = err.message;
+            errDiv.style.display = 'flex';
+        } else {
+            showToast('Login failed: ' + err.message, 'error');
+        }
     } finally {
         btn.disabled = false;
         btn.innerText = "Login to Dashboard";
@@ -583,14 +822,20 @@ function editJob(id) {
     document.getElementById("manual-job-salary").value = job.salary_range || '';
     document.getElementById("manual-job-behavioral").value = job.behavioral_skills || '';
     document.getElementById("manual-job-industry").value = job.industry_experience || '';
-    document.getElementById("manual-job-w-exp").value = job.weight_experience;
-    document.getElementById("manual-job-w-skills").value = job.weight_skills;
-    document.getElementById("manual-job-w-edu").value = job.weight_education;
-    document.getElementById("manual-job-w-behavioral").value = job.weight_behavioral || 0.2;
+    // Sliders expect 0-100; weights stored as 0-1 decimals
+    const toPercent = v => Math.round((parseFloat(v) || 0) * 100);
+    document.getElementById("manual-job-w-exp").value        = toPercent(job.weight_experience);
+    document.getElementById("manual-job-w-skills").value     = toPercent(job.weight_skills);
+    document.getElementById("manual-job-w-edu").value        = toPercent(job.weight_education);
+    document.getElementById("manual-job-w-behavioral").value = toPercent(job.weight_behavioral || 0.2);
 
-    // Change button text
-    const submitBtn = document.querySelector("#job-manual-form button[type='submit']");
-    submitBtn.innerHTML = "<i class='bx bx-save'></i> Update Job Description";
+    // Show wizard UI and go to step 1
+    const indicator = document.getElementById("job-step-indicator");
+    const footer    = document.getElementById("job-wizard-footer");
+    if (indicator) indicator.style.display = '';
+    if (footer)    footer.style.display    = '';
+    jobWizardSetStep(1);
+    updateWeights();
 }
 
 async function handleJobManualCreate(event) {
@@ -607,6 +852,12 @@ async function handleJobManualCreate(event) {
     };
 
     try {
+        // Weight values: prefer hidden decimal inputs (from slider), fall back to raw field
+        const getWeight = (hiddenId, rawId, def) => {
+            const h = document.getElementById(hiddenId);
+            if (h && h.value) return parseFloat(h.value) || def;
+            return parseFloat(safeGet(rawId)) || def;
+        };
         const payload = {
             job_title: safeGet("manual-job-title"),
             job_location: safeGet("manual-job-location"),
@@ -618,14 +869,14 @@ async function handleJobManualCreate(event) {
             salary_range: safeGet("manual-job-salary"),
             behavioral_skills: safeGet("manual-job-behavioral"),
             industry_experience: safeGet("manual-job-industry"),
-            weight_experience: parseFloat(safeGet("manual-job-w-exp")) || 0.3,
-            weight_skills: parseFloat(safeGet("manual-job-w-skills")) || 0.4,
-            weight_education: parseFloat(safeGet("manual-job-w-edu")) || 0.1,
-            weight_behavioral: parseFloat(safeGet("manual-job-w-behavioral")) || 0.2
+            weight_experience: getWeight("manual-job-w-exp-val", "manual-job-w-exp", 0.3),
+            weight_skills:     getWeight("manual-job-w-skills-val", "manual-job-w-skills", 0.4),
+            weight_education:  getWeight("manual-job-w-edu-val", "manual-job-w-edu", 0.2),
+            weight_behavioral: getWeight("manual-job-w-behavioral-val", "manual-job-w-behavioral", 0.1)
         };
 
         if (!payload.job_title) {
-            alert("Error: Job Title is required!");
+            showToast('Error: Job Title is required!', 'error');
             return;
         }
 
@@ -647,11 +898,11 @@ async function handleJobManualCreate(event) {
         });
 
         if (response.ok) {
-            alert(editingJobId ? "Job Updated Successfully!" : "Job Created Successfully!");
+            showToast(editingJobId ? 'Job Updated Successfully!' : 'Job Created Successfully!', 'success');
             location.reload();
         } else {
             const errorData = await response.json().catch(() => ({}));
-            alert(`Server Rejected Save: ${JSON.stringify(errorData.detail || "Check all fields")}`);
+            showToast(`Server Rejected Save: ${JSON.stringify(errorData.detail || "Check all fields")}`, 'error');
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = "<i class='bx bx-save'></i> Retry Save";
@@ -659,7 +910,7 @@ async function handleJobManualCreate(event) {
         }
     } catch (err) {
         console.error("Diagnostic: Crash in handleJobManualCreate", err);
-        alert(`Script Crash: ${err.message}`);
+        showToast(`Script Crash: ${err.message}`, 'error');
     }
 }
 
@@ -669,7 +920,7 @@ function exportScreeningCard(id) {
     const job = jobs.find(j => j.id === candidate.job_applied);
     
     if (!eval) {
-        alert("No evaluation found for this candidate.");
+        showToast('No evaluation found for this candidate.', 'error');
         return;
     }
 
@@ -823,13 +1074,13 @@ async function saveManualEvaluation() {
         });
 
         if (response.ok) {
-            alert("Report updated successfully!");
+            showToast('Report updated successfully!', 'success');
             location.reload();
         } else {
-            alert("Failed to update report.");
+            showToast('Failed to update report.', 'error');
         }
     } catch (err) {
-        alert("Error saving changes.");
+        showToast('Error saving changes.', 'error');
     }
 }
 
@@ -842,13 +1093,13 @@ async function deleteJob(id) {
         });
 
         if (response.ok) {
-            alert("Job deleted successfully!");
+            showToast('Job deleted successfully!', 'success');
             location.reload();
         } else {
-            alert("Failed to delete job.");
+            showToast('Failed to delete job.', 'error');
         }
     } catch (err) {
         console.error("Delete job error:", err);
-        alert("Error deleting job.");
+        showToast('Error deleting job.', 'error');
     }
 }
