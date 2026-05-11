@@ -6,14 +6,48 @@ from ..database import get_db
 from ..services.file_processor import process_excel_jobs, extract_text_from_pdf
 from .auth import get_current_user
 
+
+def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
+    """Map frontend JobSavePayload fields to Job model column names."""
+    weights = job.ai_weights or {}
+    exp_w   = weights.get("experience", 30)
+    skl_w   = weights.get("skills",     40)
+    edu_w   = weights.get("education",  20)
+    beh_w   = weights.get("behavioral", 10)
+
+    salary_parts = []
+    if job.salary_min:
+        salary_parts.append(str(job.salary_min))
+    if job.salary_max:
+        salary_parts.append(str(job.salary_max))
+    salary_range = " - ".join(salary_parts) + " EGP" if salary_parts else ""
+
+    return dict(
+        job_title        = job.title,
+        job_description  = job.description or "",
+        job_location     = job.location or "",
+        min_experience   = job.experience_years,
+        required_skills  = job.required_skills or "",
+        nice_to_have_skills = job.nice_to_have_skills,
+        behavioral_skills   = job.behavioral_skills,
+        education_level  = job.employment_type or "Not specified",
+        salary_range     = salary_range,
+        industry_experience = None,
+        weight_experience = round(exp_w / 100, 4),
+        weight_skills     = round(skl_w / 100, 4),
+        weight_education  = round(edu_w / 100, 4),
+        weight_behavioral = round(beh_w / 100, 4),
+    )
+
 router = APIRouter(
     prefix="/jobs",
     tags=["Jobs"]
 )
 
 @router.post("", response_model=schemas.JobResponse)
-def create_job(job: schemas.JobCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    db_job = models.Job(**job.model_dump(), owner_id=current_user.id)
+def create_job(job: schemas.JobSavePayload, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    fields = _payload_to_job_fields(job)
+    db_job = models.Job(**fields, owner_id=current_user.id)
     db.add(db_job)
     db.commit()
     db.refresh(db_job)
@@ -76,14 +110,14 @@ def read_job(job_id: int, db: Session = Depends(get_db), current_user: models.Us
     return job
 
 @router.put("/{job_id}", response_model=schemas.JobResponse)
-def update_job(job_id: int, updated_job: schemas.JobCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def update_job(job_id: int, updated_job: schemas.JobSavePayload, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     db_job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
     if not db_job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    for key, value in updated_job.model_dump().items():
+
+    for key, value in _payload_to_job_fields(updated_job).items():
         setattr(db_job, key, value)
-    
+
     db.commit()
     db.refresh(db_job)
     return db_job

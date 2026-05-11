@@ -80,6 +80,11 @@ class JobResponse(JobBase):
     id: int
     is_approved: bool
     created_at: Optional[datetime] = None
+    # Expose computed/convenience fields back to frontend
+    salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
+    employment_type: Optional[str] = None
+    hide_salary: bool = False
 
     class Config:
         from_attributes = True
@@ -127,6 +132,22 @@ class EvaluationResponse(EvaluationBase):
 
     class Config:
         from_attributes = True
+
+# Dashboard job save payload (matches hunters-jobs.js saveHuntersJob)
+class JobSavePayload(BaseModel):
+    title: str
+    location: Optional[str] = None
+    employment_type: Optional[str] = "Full-time"
+    experience_years: int = 0
+    salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
+    description: Optional[str] = None
+    required_skills: str = ""
+    nice_to_have_skills: Optional[str] = None
+    behavioral_skills: Optional[str] = None
+    ai_weights: Optional[dict] = None
+    hide_salary: bool = False
+    company_id: Optional[str] = None
 
 # Approval/Rejection Schemas
 class ApprovalData(BaseModel):
