@@ -12,6 +12,8 @@ import os
 import json
 from pathlib import Path
 import google.generativeai as genai
+import time
+import random
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -112,7 +114,6 @@ async def generate_job_ai(
     api_key = os.getenv("GEMINI_API_KEY", "")
     if not api_key:
         raise HTTPException(status_code=503, detail="AI service not configured")
-    genai.configure(api_key=api_key)
 
     job_title = request.job_title
     industry_background = request.industry_background
@@ -135,26 +136,50 @@ Return ONLY a valid JSON object with no markdown, no extra text, no code blocks:
 
 Be specific and realistic. Base skills on actual industry standards for {industry_background}."""
 
-    try:
-        model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.4,
-                response_mime_type="application/json",
+    model_name = os.getenv("GEMINI_MODEL", "models/gemini-1.5-flash")
+    max_retries = 3
+
+    for attempt in range(max_retries):
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(
+                model_name,
+                system_instruction="You are a senior HR specialist. You must output only valid JSON without any markdown blocks or explanations."
             )
-        )
-        result = json.loads(response.text.strip())
-        return JSONResponse(content={
-            "job_brief": result.get("job_brief", ""),
-            "required_skills": result.get("required_skills", ""),
-            "nice_to_have": result.get("nice_to_have", ""),
-            "behavioral_skills": result.get("behavioral_skills", "")
-        })
-    except Exception as e:
-        logging.error(f"AI job generation failed: {e}")
-        raise HTTPException(status_code=500, detail="AI generation failed. Please try again.")
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.4,
+                    response_mime_type="application/json",
+                )
+            )
+
+            raw = response.text.strip()
+            if raw.startswith("```json"):
+                raw = raw[7:]
+            if raw.startswith("```"):
+                raw = raw[3:]
+            if raw.endswith("```"):
+                raw = raw[:-3]
+
+            result = json.loads(raw.strip())
+            return JSONResponse(content={
+                "job_brief":        result.get("job_brief", ""),
+                "required_skills":  result.get("required_skills", ""),
+                "nice_to_have":     result.get("nice_to_have", ""),
+                "behavioral_skills": result.get("behavioral_skills", "")
+            })
+
+        except Exception as e:
+            logging.error(f"AI job generation failed (attempt {attempt + 1}): {e}")
+            if "429" in str(e) and attempt < max_retries - 1:
+                wait = (2 ** attempt) * 2 + random.random()
+                time.sleep(wait)
+                continue
+            if attempt == max_retries - 1:
+                raise HTTPException(status_code=500, detail="AI generation failed. Please try again.")
+
+    raise HTTPException(status_code=500, detail="AI generation failed after retries.")
 
 @app.get("/health")
 def health_check():
