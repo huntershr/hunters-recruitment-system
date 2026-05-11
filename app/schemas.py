@@ -26,6 +26,11 @@ class CompanyApprovalResponse(CompanyResponse):
     approval_date: Optional[datetime] = None
     approval_notes: Optional[str] = None
 
+class CompanyUpdate(BaseModel):
+    company_name: Optional[str] = None
+    company_website: Optional[str] = None
+    registration_number: Optional[str] = None
+
 # Auth Schemas
 class Token(BaseModel):
     access_token: str

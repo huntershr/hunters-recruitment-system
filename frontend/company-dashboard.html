@@ -1686,33 +1686,89 @@
             : '<span class="pill pill-amber">Pending Approval</span>';
 
         container.innerHTML = `
-            <div class="profile-grid">
-                <div class="profile-field">
-                    <label>Company Name</label>
-                    <p>${escHtml(currentCompany.company_name)}</p>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+                <span style="font-size:14px;color:#666;">Account status: ${approvedPill}</span>
+            </div>
+            <form id="profile-edit-form" onsubmit="saveCompanyProfile(event)">
+                <div class="form-row" style="margin-bottom:16px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Company Name</label>
+                        <input type="text" id="edit-company-name" value="${escHtml(currentCompany.company_name)}" required style="width:100%;padding:10px 13px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Company Email <span style="font-size:11px;color:#AAB0C0;">(read-only)</span></label>
+                        <input type="email" value="${escHtml(currentCompany.company_email)}" disabled style="width:100%;padding:10px 13px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#AAB0C0;background:#F9FAFB;">
+                    </div>
                 </div>
-                <div class="profile-field">
-                    <label>Company Email</label>
-                    <p>${escHtml(currentCompany.company_email)}</p>
+                <div class="form-row" style="margin-bottom:16px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Company Website</label>
+                        <input type="url" id="edit-company-website" value="${escHtml(currentCompany.company_website || '')}" placeholder="https://example.com" style="width:100%;padding:10px 13px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Registration Number</label>
+                        <input type="text" id="edit-registration-number" value="${escHtml(currentCompany.registration_number || '')}" style="width:100%;padding:10px 13px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;">
+                    </div>
                 </div>
-                <div class="profile-field">
-                    <label>Website</label>
-                    <p><a href="${escHtml(currentCompany.company_website)}" target="_blank" style="color:var(--navy);">${escHtml(currentCompany.company_website)}</a></p>
+                <div id="profile-save-alert" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;"></div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;">
+                    <button type="button" onclick="loadProfileData()" style="padding:9px 18px;border-radius:9px;border:1.5px solid #D0D3DE;background:#fff;color:#1B2A4A;font-size:13px;font-weight:500;cursor:pointer;">Discard</button>
+                    <button type="submit" id="profile-save-btn" class="btn-primary" style="padding:10px 20px;">
+                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Save Changes
+                    </button>
                 </div>
-                <div class="profile-field">
-                    <label>Account Status</label>
-                    <p>${approvedPill}</p>
-                </div>
-                <div class="profile-field">
-                    <label>Registration Number</label>
-                    <p>${escHtml(currentCompany.registration_number || '—')}</p>
-                </div>
-                <div class="profile-field">
-                    <label>Contact Person</label>
-                    <p>${escHtml(currentCompany.contact_person || '—')}</p>
-                </div>
-            </div>`;
+            </form>`;
         void loadJobsList();
+    }
+
+    async function saveCompanyProfile(event) {
+        event.preventDefault();
+        const token = localStorage.getItem('token');
+        if (!currentCompany) return;
+
+        const alertEl = document.getElementById('profile-save-alert');
+        const saveBtn = document.getElementById('profile-save-btn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = 'Saving…';
+
+        const payload = {};
+        const nameVal = (document.getElementById('edit-company-name').value || '').trim();
+        const websiteVal = (document.getElementById('edit-company-website').value || '').trim();
+        const regVal = (document.getElementById('edit-registration-number').value || '').trim();
+        if (nameVal) payload.company_name = nameVal;
+        payload.company_website = websiteVal || null;
+        payload.registration_number = regVal || null;
+
+        try {
+            const res = await fetch(`${API_URL}/companies/${currentCompany.id}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                currentCompany = await res.json();
+                window.__huntersCurrentCompany = currentCompany;
+                const nameEl = document.getElementById('company-name-sidebar');
+                if (nameEl) nameEl.textContent = currentCompany.company_name;
+                const b1 = document.getElementById('b1-company-name');
+                if (b1) b1.textContent = currentCompany.company_name;
+                alertEl.style.cssText = 'display:block;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;background:#E1F5EE;color:#0F6E56;border:0.5px solid #9FE1CB;';
+                alertEl.textContent = 'Profile updated successfully.';
+                showToast('Profile saved!', 'success');
+                setTimeout(() => { alertEl.style.display = 'none'; }, 3000);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                alertEl.style.cssText = 'display:block;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;background:#FCEBEB;color:#A32D2D;border:0.5px solid #F5B8B8;';
+                alertEl.textContent = err.detail || 'Failed to save profile.';
+            }
+        } catch (e) {
+            alertEl.style.cssText = 'display:block;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;background:#FCEBEB;color:#A32D2D;border:0.5px solid #F5B8B8;';
+            alertEl.textContent = 'Network error. Please try again.';
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Save Changes';
+        }
     }
 
     /* ──────────────────────────────

@@ -128,10 +128,21 @@ async function fetchData() {
     }
 }
 
+/** Stored score normalization: fractions (≤1), legacy 1–10 scale, or unified 0–100. */
+function evalScorePercent(raw) {
+    if (raw === null || raw === undefined || raw === "") return null;
+    const n = Number(raw);
+    if (Number.isNaN(n)) return null;
+    if (n <= 1) return Math.round(n * 100);
+    if (n <= 10) return Math.round(n * 10);
+    return Math.round(Math.min(100, n));
+}
+
 function scoreBadgeHtml(score) {
-    if (score === null || score === undefined) return '<span class="skeleton skeleton-badge"></span>';
-    const cls = score >= 7.5 ? 'score-green' : score >= 5 ? 'score-amber' : 'score-red';
-    return `<span class="score-badge ${cls}">${score}/10</span>`;
+    const pct = evalScorePercent(score);
+    if (pct === null) return '<span class="skeleton skeleton-badge"></span>';
+    const cls = pct >= 75 ? 'score-green' : pct >= 50 ? 'score-amber' : 'score-red';
+    return `<span class="score-badge ${cls}">${pct}%</span>`;
 }
 
 function stagePillHtml(decision) {
@@ -206,49 +217,117 @@ function updateDashboard() {
     });
 }
 
+let jobsView = 'card';
+
+function setJobsView(view) {
+    jobsView = view;
+    const cardBtn  = document.getElementById('jobs-card-toggle');
+    const listBtn  = document.getElementById('jobs-list-toggle');
+    const cardView = document.getElementById('jobs-card-view');
+    const listView = document.getElementById('jobs-list-view');
+    if (view === 'card') {
+        if (cardBtn) { cardBtn.style.background = '#1B2A4A'; cardBtn.style.color = '#fff'; }
+        if (listBtn) { listBtn.style.background = '#fff';    listBtn.style.color = '#6B7280'; }
+        if (cardView) cardView.style.display = '';
+        if (listView) listView.style.display = 'none';
+    } else {
+        if (cardBtn) { cardBtn.style.background = '#fff';    cardBtn.style.color = '#6B7280'; }
+        if (listBtn) { listBtn.style.background = '#1B2A4A'; listBtn.style.color = '#fff'; }
+        if (cardView) cardView.style.display = 'none';
+        if (listView) listView.style.display = 'block';
+    }
+    renderJobs();
+}
+
 function renderJobs() {
-    const grid = document.getElementById("jobs-grid");
-    if (!grid) return;
-    grid.innerHTML = "";
+    const cardView = document.getElementById("jobs-card-view");
+    const listTbody = document.getElementById("jobs-list-tbody");
+    if (!cardView) return;
+
+    cardView.innerHTML = "";
+    if (listTbody) listTbody.innerHTML = "";
+
     if (jobs.length === 0) {
-        grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-muted);'>No jobs found. Create one to get started!</p>";
+        cardView.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-muted);'>No jobs found. Create one to get started!</p>";
         return;
     }
+
     jobs.forEach(j => {
-        grid.innerHTML += `
-            <div class="job-card">
-                <div class="job-card-header">
-                    <h3>${j.job_title}</h3>
-                    <div style="display:flex; gap:10px;">
-                        <button class="btn-share edit-btn" onclick="editJob(${j.id})" title="Edit Job">
-                            <i class='bx bx-pencil'></i> Edit
-                        </button>
-                        <button class="btn-share" onclick="copyPublicLink(${j.id})" title="Share Link">
-                            <i class='bx bx-share-alt'></i>
-                        </button>
-                        <button class="btn-share" style="color:var(--red); border-color:var(--red);" onclick="deleteJob(${j.id})" title="Delete Job">
-                            <i class='bx bx-trash'></i>
-                        </button>
+        const initials = (j.job_title || '').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'J';
+        const salary   = j.salary_range || 'Negotiable';
+        const statusPill = j.is_approved
+            ? `<span style="background:#E1F5EE;color:#0F6E56;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;display:inline-flex;align-items:center;gap:3px;"><span style="width:5px;height:5px;border-radius:50%;background:#0F6E56;flex-shrink:0;"></span>Approved</span>`
+            : `<span style="background:#FFF7E0;color:#9B6F00;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;display:inline-flex;align-items:center;gap:3px;"><span style="width:5px;height:5px;border-radius:50%;background:#C9A84C;flex-shrink:0;"></span>Pending</span>`;
+        const weightPills = `
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
+                <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Exp ${Math.round((j.weight_experience||0)*100)}%</span>
+                <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Skills ${Math.round((j.weight_skills||0)*100)}%</span>
+                <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Edu ${Math.round((j.weight_education||0)*100)}%</span>
+                <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Beh ${Math.round((j.weight_behavioral||0)*100)}%</span>
+            </div>`;
+
+        if (jobsView !== 'list') {
+            cardView.innerHTML += `
+                <div class="job-card">
+                    <div class="job-card-header" style="flex-wrap:wrap;gap:8px;">
+                        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                            <div style="width:36px;height:36px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;">${initials}</div>
+                            <h3 style="margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.job_title}</h3>
+                        </div>
+                        <div style="display:flex;gap:7px;align-items:center;flex-shrink:0;">
+                            ${statusPill}
+                            <button class="btn-share edit-btn" onclick="editJob(${j.id})" title="Edit Job"><i class='bx bx-pencil'></i> Edit</button>
+                            <button class="btn-share" onclick="copyPublicLink(${j.id})" title="Share Link"><i class='bx bx-share-alt'></i></button>
+                            <button class="btn-share" style="color:var(--red);border-color:var(--red);" onclick="deleteJob(${j.id})" title="Delete Job"><i class='bx bx-trash'></i></button>
+                        </div>
                     </div>
-                </div>
-                <div class="job-meta">
-                    <p><i class='bx bx-money'></i> ${j.salary_range || 'Not specified'}</p>
-                    <p><i class='bx bx-book'></i> ${j.education_level}</p>
-                    <p><i class='bx bx-time'></i> ${j.min_experience} yrs min</p>
-                </div>
-                <div class="job-details-tags" style="margin-top: 12px; font-size: 11px; line-height: 1.4;">
-                    <div style="margin-bottom: 5px;"><strong><i class='bx bx-bolt-circle'></i> Skills:</strong> ${j.required_skills}</div>
-                    <div style="margin-bottom: 5px;"><strong><i class='bx bx-smile'></i> Behavioral:</strong> ${j.behavioral_skills || 'None'}</div>
-                    <div style="margin-bottom: 5px;"><strong><i class='bx bx-buildings'></i> Industry:</strong> ${j.industry_experience || 'Any'}</div>
-                </div>
-                <div class="job-weights-badge" style="margin-top: 10px; padding: 4px 8px; background: #fff8e1; color: #b58105; border-radius: 4px; font-size: 10px; font-weight: bold; display: inline-block;">
-                    AI BALANCE: ${Math.round((j.weight_experience || 0.3)*100)}% EXP / ${Math.round((j.weight_skills || 0.4)*100)}% SKILLS / ${Math.round((j.weight_behavioral || 0.2)*100)}% BEH
-                </div>
-                <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
-                    <a href="/apply.html?job_id=${j.id}" target="_blank" class="btn-apply-link">Apply Now <i class='bx bx-right-arrow-alt'></i></a>
-                </div>
-            </div>
-        `;
+                    <div class="job-meta">
+                        <p><i class='bx bx-money'></i> ${salary}</p>
+                        <p><i class='bx bx-book'></i> ${j.education_level}</p>
+                        <p><i class='bx bx-time'></i> ${j.min_experience} yrs min</p>
+                        <p><i class='bx bx-map'></i> ${j.job_location || 'Remote/Any'}</p>
+                    </div>
+                    <div class="job-details-tags" style="margin-top:12px;font-size:11px;line-height:1.4;">
+                        <div style="margin-bottom:5px;"><strong><i class='bx bx-bolt-circle'></i> Skills:</strong> ${j.required_skills}</div>
+                        ${j.behavioral_skills ? `<div style="margin-bottom:5px;"><strong><i class='bx bx-smile'></i> Behavioral:</strong> ${j.behavioral_skills}</div>` : ''}
+                    </div>
+                    ${weightPills}
+                    <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+                        <a href="/apply.html?job_id=${j.id}" target="_blank" class="btn-apply-link">Apply Now <i class='bx bx-right-arrow-alt'></i></a>
+                    </div>
+                </div>`;
+        }
+
+        if (listTbody) {
+            const posted = j.created_at ? new Date(j.created_at).toLocaleDateString() : '—';
+            listTbody.innerHTML += `
+                <tr style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background='#FAFBFF'" onmouseout="this.style.background='transparent'">
+                    <td style="padding:10px 14px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:28px;height:28px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${initials}</div>
+                            <span style="font-weight:500;font-size:13px;color:#1B2A4A;">${j.job_title}</span>
+                        </div>
+                    </td>
+                    <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${j.job_location || '—'}</td>
+                    <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${j.min_experience} yrs</td>
+                    <td style="padding:10px 14px;font-size:12px;color:#1B2A4A;font-weight:500;">${salary}</td>
+                    <td style="padding:10px 14px;">${statusPill}</td>
+                    <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${posted}</td>
+                    <td style="padding:10px 14px;">
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <button onclick="editJob(${j.id})" style="height:28px;padding:0 8px;border:0.5px solid #1B2A4A;background:#fff;color:#1B2A4A;border-radius:7px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Edit
+                            </button>
+                            <button onclick="copyPublicLink(${j.id})" style="height:28px;padding:0 8px;border:0.5px solid #C9A84C;background:#fff;color:#C9A84C;border-radius:7px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Share
+                            </button>
+                            <button onclick="deleteJob(${j.id})" style="height:28px;width:28px;padding:0;border:0.5px solid #CC2B2B;background:#fff;color:#CC2B2B;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" title="Delete">
+                                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+        }
     });
 }
 
@@ -301,9 +380,10 @@ function renderKanban(filter) {
             const score = ev ? ev.score : null;
             let dotColor = '#9CA3AF';
             let scoreText = 'Pending';
-            if (score !== null) {
-                dotColor = score >= 7.5 ? '#0F6E56' : score >= 5 ? '#854F0B' : '#A32D2D';
-                scoreText = `${score}/10`;
+            const pct = evalScorePercent(score);
+            if (pct !== null) {
+                dotColor = pct >= 75 ? '#0F6E56' : pct >= 50 ? '#854F0B' : '#A32D2D';
+                scoreText = `${pct}%`;
             }
             return `
                 <div class="kanban-card" onclick="viewCandidate(${c.id})">
@@ -419,9 +499,9 @@ function viewCandidate(id) {
     
     if (eval) {
         currentEvaluationId = eval.id;
-        document.getElementById("modal-candidate-score").innerText = eval.score;
-        // set conic gradient
-        document.getElementById("modal-candidate-score").style.background = `conic-gradient(var(--primary) ${eval.score * 10}%, var(--bg-dark) 0)`;
+        const pct = evalScorePercent(eval.score) ?? 0;
+        document.getElementById("modal-candidate-score").innerText = `${pct}%`;
+        document.getElementById("modal-candidate-score").style.background = `conic-gradient(var(--primary) ${pct}%, var(--bg-dark) 0)`;
         
         document.getElementById("modal-candidate-decision").innerText = eval.decision;
         document.getElementById("modal-candidate-decision").className = `decision-badge badge ${eval.decision.toLowerCase()}`;
@@ -440,7 +520,9 @@ function viewCandidate(id) {
             qList.innerHTML = "<li>No specific questions generated.</li>";
         }
     } else {
-        document.getElementById("modal-candidate-score").innerText = "0";
+        document.getElementById("modal-candidate-score").innerText = "0%";
+        document.getElementById("modal-candidate-score").style.background =
+            `conic-gradient(var(--primary) 0%, var(--bg-dark) 0)`;
         document.getElementById("modal-candidate-decision").innerText = "Pending";
         document.getElementById("modal-candidate-reason").innerText = "Evaluation is currently running or failed.";
         document.getElementById("modal-candidate-strengths").innerText = "-";
@@ -924,28 +1006,29 @@ function exportScreeningCard(id) {
         return;
     }
 
+    const printPct = evalScorePercent(eval.score);
+
     const printWindow = window.open('', '_blank');
     const html = `
         <html>
         <head>
             <title>Screening Card - ${candidate.name}</title>
-            <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
             <style>
-                body { font-family: 'Outfit', sans-serif; padding: 40px; color: #1e293b; background: white; }
-                .card { max-width: 800px; margin: auto; border: 2px solid #10367a; }
-                .header { background: #10367a; color: white; padding: 20px; text-align: center; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1e293b; background: white; }
+                .card { max-width: 800px; margin: auto; border: 2px solid #1B2A4A; }
+                .header { background: #1B2A4A; color: white; padding: 20px; text-align: center; }
                 .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
-                .section-title { background: #10367a; color: white; padding: 8px 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+                .section-title { background: #1B2A4A; color: white; padding: 8px 15px; font-weight: 500; display: flex; align-items: center; gap: 10px; margin-top: 20px; }
                 .grid { display: grid; grid-template-columns: 200px 1fr; border-bottom: 1px solid #e2e8f0; }
                 .grid div { padding: 10px 15px; border-right: 1px solid #e2e8f0; }
                 .grid div:last-child { border-right: none; }
-                .label { background: #f8fafc; font-weight: 600; color: #10367a; }
-                .score-summary { background: #c5923b; color: white; padding: 10px; text-align: center; font-weight: bold; margin-top: 20px; }
-                .decision-box { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid #10367a; margin-top: 10px; }
-                .decision-box div { padding: 20px; text-align: center; font-weight: bold; font-size: 20px; }
-                .decision-box .label { background: white; color: #10367a; border-right: 2px solid #10367a; }
+                .label { background: #f8fafc; font-weight: 500; color: #1B2A4A; }
+                .score-summary { background: #c5923b; color: white; padding: 10px; text-align: center; font-weight: 500; margin-top: 20px; }
+                .decision-box { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid #1B2A4A; margin-top: 10px; }
+                .decision-box div { padding: 20px; text-align: center; font-weight: 500; font-size: 20px; }
+                .decision-box .label { background: white; color: #1B2A4A; border-right: 2px solid #1B2A4A; }
                 .decision-box .value { background: #f0fff4; color: #10b981; }
-                .rejection-reason { background: #df2029; color: white; padding: 10px; font-weight: bold; margin-top: 20px; text-align: center; }
+                .rejection-reason { background: #df2029; color: white; padding: 10px; font-weight: 500; margin-top: 20px; text-align: center; }
                 .reason-list { padding: 15px; background: #fff5f5; border: 1px solid #feb2b2; }
                 .notes-section { border: 1px solid #e2e8f0; padding: 20px; min-height: 100px; margin-top: 20px; }
                 @media print { .no-print { display: none; } }
@@ -953,7 +1036,7 @@ function exportScreeningCard(id) {
         </head>
         <body>
             <div class="no-print" style="margin-bottom: 20px; text-align: center;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: #10367a; color: white; border: none; border-radius: 8px; cursor: pointer;">Download / Print PDF</button>
+                <button onclick="window.print()" style="padding: 10px 20px; background: #1B2A4A; color: white; border: none; border-radius: 8px; cursor: pointer;">Download / Print PDF</button>
             </div>
             <div class="card">
                 <div class="header">
@@ -982,7 +1065,7 @@ function exportScreeningCard(id) {
                 </div>
 
                 <div class="score-summary">🔢 SCORE SUMMARY</div>
-                <div class="grid"><div class="label">Weighted AI Score</div><div style="font-size: 24px; font-weight: bold; color: #10367a;">${eval.score} / 10</div></div>
+                <div class="grid"><div class="label">Weighted AI Score</div><div style="font-size: 24px; font-weight: 500; color: #1B2A4A;">${printPct != null ? printPct + '%' : '—'}</div></div>
 
                 <div class="section-title">⚙️ AUTO DECISION ENGINE</div>
                 <div class="decision-box">
@@ -1035,7 +1118,8 @@ function toggleEditEvaluation() {
     const saveBtn = document.getElementById("save-eval-btn");
 
     if (isEditMode) {
-        scoreEl.innerHTML = `<input type="number" step="0.1" id="edit-score" value="${scoreEl.innerText}" style="width: 60px; font-size: 20px; text-align: center; border-radius: 50%;">`;
+        const rawVal = scoreEl.innerText.trim().replace(/%/g, "");
+        scoreEl.innerHTML = `<input type="number" min="0" max="100" step="1" id="edit-score" value="${rawVal}" style="width: 72px; font-size: 20px; text-align: center; border-radius: 50%;">`;
         decisionEl.innerHTML = `
             <select id="edit-decision" style="padding: 4px; border-radius: 8px;">
                 <option value="Shortlist" ${decisionEl.innerText === 'Shortlist' ? 'selected' : ''}>Shortlist</option>

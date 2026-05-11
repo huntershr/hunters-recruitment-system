@@ -409,11 +409,46 @@
                     </svg>
                     Manage Jobs
                 </div>
-                <button class="btn-primary" style="width:auto;" onclick="openNewJobModal()">
-                    <i class='bx bx-plus'></i> New Job
-                </button>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="display:flex;border:1px solid #D0D3DE;border-radius:8px;overflow:hidden;">
+                        <button id="jobs-card-toggle" onclick="setJobsView('card')" style="padding:6px 12px;font-size:12px;border:none;cursor:pointer;background:#1B2A4A;color:#fff;display:flex;align-items:center;gap:5px;transition:background 0.15s,color 0.15s;">
+                            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+                            Cards
+                        </button>
+                        <button id="jobs-list-toggle" onclick="setJobsView('list')" style="padding:6px 12px;font-size:12px;border:none;cursor:pointer;background:#fff;color:#6B7280;display:flex;align-items:center;gap:5px;transition:background 0.15s,color 0.15s;">
+                            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="14" y2="4" stroke-linecap="round"/><line x1="2" y1="8" x2="14" y2="8" stroke-linecap="round"/><line x1="2" y1="12" x2="14" y2="12" stroke-linecap="round"/></svg>
+                            List
+                        </button>
+                    </div>
+                    <button class="btn-primary" style="width:auto;" onclick="openNewJobModal()">
+                        <svg viewBox="0 0 16 16" fill="none" width="11" height="11" style="stroke:currentColor;fill:none;stroke-width:2.5;flex-shrink:0;"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
+                        New Job
+                    </button>
+                </div>
             </div>
-            <div class="jobs-grid" id="jobs-grid"></div>
+
+            <!-- Card view -->
+            <div class="jobs-grid" id="jobs-card-view"></div>
+
+            <!-- List view -->
+            <div id="jobs-list-view" style="display:none;background:#fff;border-radius:16px;border:0.5px solid rgba(0,0,0,0.06);box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;margin-top:4px;">
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;text-align:left;min-width:700px;">
+                        <thead style="background:#1B2A4A;color:#fff;">
+                            <tr>
+                                <th style="padding:10px 14px;font-size:11px;font-weight:500;">Job Title</th>
+                                <th style="padding:10px 14px;font-size:11px;font-weight:500;">Location</th>
+                                <th style="padding:10px 14px;font-size:11px;font-weight:500;">Experience</th>
+                                <th style="padding:10px 14px;font-size:11px;font-weight:500;">Salary</th>
+                                <th style="padding:10px 14px;font-size:11px;font-weight:500;">Status</th>
+                                <th style="padding:10px 14px;font-size:11px;font-weight:500;">Posted</th>
+                                <th style="padding:10px 14px;font-size:11px;font-weight:500;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobs-list-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
 
         </div>
 

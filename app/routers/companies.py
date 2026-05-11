@@ -237,6 +237,24 @@ def get_approved_companies(db: Session = Depends(get_db)):
         models.Company.is_approved == True
     ).all()
 
+@router.patch("/{company_id}", response_model=schemas.CompanyResponse)
+def update_company(
+    company_id: int,
+    update_data: schemas.CompanyUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    if not current_user.is_admin and current_user.company_id != company_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized")
+    for field, value in update_data.dict(exclude_unset=True).items():
+        setattr(company, field, value)
+    db.commit()
+    db.refresh(company)
+    return company
+
 @router.get("/{company_id}", response_model=schemas.CompanyResponse)
 def get_company(company_id: int, db: Session = Depends(get_db)):
     """

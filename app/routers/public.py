@@ -98,16 +98,44 @@ def get_candidate_evaluation(candidate_id: int, db: Session = Depends(get_db)):
             "message": "Your application is being evaluated. Please check back shortly."
         }
     
+    pct = float(evaluation.score or 0)
     return {
         "candidate_id": candidate_id,
         "name": candidate.name,
         "status": "completed",
-        "score": evaluation.score,
+        "score": pct,
+        "overall_score": int(round(min(100.0, max(0.0, pct)))),
         "decision": evaluation.decision,
         "reason": evaluation.reason,
         "strengths": evaluation.strengths,
-        "weaknesses": evaluation.weaknesses
+        "weaknesses": evaluation.weaknesses,
     }
+
+@router.get("/company/{company_id}", response_model=schemas.CompanyResponse)
+def get_public_company(company_id: int, db: Session = Depends(get_db)):
+    company = db.query(models.Company).filter(
+        models.Company.id == company_id,
+        models.Company.is_approved == True
+    ).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found or not approved")
+    return company
+
+@router.get("/company/{company_id}/jobs", response_model=List[schemas.JobResponse])
+def get_public_company_jobs(company_id: int, db: Session = Depends(get_db)):
+    company = db.query(models.Company).filter(
+        models.Company.id == company_id,
+        models.Company.is_approved == True
+    ).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found or not approved")
+    users = db.query(models.User).filter(models.User.company_id == company_id).all()
+    user_ids = [u.id for u in users]
+    jobs = db.query(models.Job).filter(
+        models.Job.owner_id.in_(user_ids),
+        models.Job.is_approved == True
+    ).all()
+    return jobs
 
 @router.get("/jobs", response_model=List[schemas.JobResponse])
 def get_public_jobs(db: Session = Depends(get_db)):
