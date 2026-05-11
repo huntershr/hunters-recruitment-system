@@ -1240,14 +1240,11 @@
         if (page === 'candidates') loadCandidatesList();
         if (page === 'profile')    loadProfileData();
         if (page === 'public-profile') {
-            if (typeof loadJobsList === 'function') void loadJobsList();
+            window.__huntersCurrentCompany = currentCompany;
             if (typeof renderHuntersPublicProfile === 'function') {
-                const raw = (window.location.hash || '').replace(/^#/, '');
-                const q = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : '';
-                const pid = new URLSearchParams(q).get('id');
-                const idNum = pid != null && pid !== '' ? parseInt(pid, 10) : NaN;
-                renderHuntersPublicProfile(Number.isFinite(idNum) ? idNum : null);
+                renderHuntersPublicProfile(null);
             }
+            if (typeof loadJobsList === 'function') (async () => { await loadJobsList(); })();
         }
     }
 
@@ -2314,6 +2311,6 @@
     </div>
 </div>
 </div>
-<script src="hunters-jobs.js"></script>
+<script src="hunters-jobs.js?v=1.2"></script>
 </body>
 </html>

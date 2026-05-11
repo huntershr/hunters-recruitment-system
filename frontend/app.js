@@ -998,15 +998,15 @@ async function handleJobManualCreate(event) {
 
 function exportScreeningCard(id) {
     const candidate = candidates.find(c => c.id === id);
-    const eval = evaluations.find(e => e.candidate_id === id);
+    const ev = evaluations.find(e => e.candidate_id === id);
     const job = jobs.find(j => j.id === candidate.job_applied);
-    
-    if (!eval) {
+
+    if (!ev) {
         showToast('No evaluation found for this candidate.', 'error');
         return;
     }
 
-    const printPct = evalScorePercent(eval.score);
+    const printPct = evalScorePercent(ev.score);
 
     const printWindow = window.open('', '_blank');
     const html = `
@@ -1070,18 +1070,18 @@ function exportScreeningCard(id) {
                 <div class="section-title">⚙️ AUTO DECISION ENGINE</div>
                 <div class="decision-box">
                     <div class="label">SCREENING DECISION</div>
-                    <div class="value" style="color: ${eval.decision.toLowerCase() === 'reject' ? '#df2029' : '#10b981'}">${eval.decision.toUpperCase()}</div>
+                    <div class="value" style="color: ${ev.decision.toLowerCase() === 'reject' ? '#df2029' : '#10b981'}">${ev.decision.toUpperCase()}</div>
                 </div>
 
                 <div class="rejection-reason">🚩 ANALYSIS & REASONING</div>
                 <div class="reason-list">
-                    ${eval.reason.split('\n').map(r => `<p>🚩 ${r}</p>`).join('')}
+                    ${ev.reason.split('\n').map(r => `<p>🚩 ${r}</p>`).join('')}
                 </div>
 
                 <div class="section-title">📝 SCREENER NOTES & RECOMMENDATION</div>
                 <div class="notes-section">
-                    <strong>Strengths:</strong><br>${eval.strengths}<br><br>
-                    <strong>Weaknesses:</strong><br>${eval.weaknesses}
+                    <strong>Strengths:</strong><br>${ev.strengths}<br><br>
+                    <strong>Weaknesses:</strong><br>${ev.weaknesses}
                 </div>
             </div>
         </body>
