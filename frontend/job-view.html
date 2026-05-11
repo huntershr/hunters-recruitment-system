@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Job Details | Hunters for HR Solutions</title>
+    <style>
+        :root {
+            --navy: #1B2A4A;
+            --gold: #C9A84C;
+            --bg: #F4F5FA;
+            --white: #FFFFFF;
+            --text: #1B2A4A;
+            --muted: #6B7280;
+            --border: rgba(0,0,0,0.06);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px 16px 48px; }
+
+        .page-wrap { max-width: 780px; margin: 0 auto; }
+
+        /* Dual logo header */
+        .brand-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--navy);
+            border-radius: 16px 16px 0 0;
+            padding: 20px 28px;
+        }
+        .brand-hunters { display: flex; align-items: center; gap: 12px; }
+        .brand-hunters img { height: 48px; width: auto; object-fit: contain; }
+        .brand-divider {
+            width: 1px; height: 48px;
+            background: rgba(255,255,255,0.2);
+        }
+        .brand-company { display: flex; align-items: center; gap: 12px; }
+        .company-logo-circle {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: var(--gold); color: var(--navy);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 600;
+            flex-shrink: 0;
+        }
+        .company-name-text {
+            font-size: 14px; font-weight: 500; color: #fff;
+            max-width: 200px; line-height: 1.3;
+        }
+        .powered-tag {
+            font-size: 10px; color: var(--gold); font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        /* Main card */
+        .main-card {
+            background: var(--white);
+            border-radius: 0 0 16px 16px;
+            padding: 32px 28px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+
+        .job-title-row {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
+        }
+        .job-title { font-size: 26px; font-weight: 500; color: var(--navy); line-height: 1.3; }
+        .job-meta {
+            display: flex; flex-wrap: wrap; gap: 16px;
+            font-size: 13px; color: var(--muted); margin-bottom: 20px;
+        }
+        .job-meta span { display: flex; align-items: center; gap: 5px; }
+
+        /* Salary badge */
+        .salary-badge {
+            display: inline-block;
+            background: #F0FBF5; color: #0F6E56;
+            border: 0.5px solid #9FE1CB;
+            border-radius: 20px; padding: 4px 14px;
+            font-size: 13px; font-weight: 500;
+            margin-bottom: 24px;
+        }
+
+        /* Section */
+        .section { margin-bottom: 24px; }
+        .section-title {
+            font-size: 13px; font-weight: 600; color: var(--navy);
+            text-transform: uppercase; letter-spacing: 0.6px;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #F0F1F5;
+        }
+        .section-body { font-size: 14px; color: #374151; line-height: 1.7; white-space: pre-wrap; }
+
+        /* Skill tags */
+        .tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .tag {
+            background: #F0F2F8; color: var(--navy);
+            border-radius: 20px; padding: 4px 12px;
+            font-size: 12px; font-weight: 500;
+        }
+        .tag.nice { background: #FBF7E8; color: #7A5800; }
+
+        /* AI weights bar */
+        .weights-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .weight-chip {
+            background: #F0F2F8; border-radius: 20px;
+            padding: 4px 12px; font-size: 11px;
+            color: var(--navy); font-weight: 500;
+        }
+
+        /* CTA */
+        .cta-section {
+            margin-top: 32px; padding-top: 24px;
+            border-top: 1px solid #F0F1F5;
+            display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+        }
+        .btn-apply {
+            flex: 1; min-width: 200px;
+            padding: 16px 32px;
+            background: var(--navy); color: #fff;
+            border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 500;
+            cursor: pointer; text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            transition: opacity 0.15s;
+        }
+        .btn-apply:hover { opacity: 0.88; }
+        .btn-share {
+            padding: 14px 24px;
+            background: #fff; color: var(--navy);
+            border: 1px solid #E5E7EB;
+            border-radius: 10px; font-size: 14px; font-weight: 500;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+            transition: background 0.15s;
+        }
+        .btn-share:hover { background: #F4F5FA; }
+
+        /* Footer */
+        .page-footer {
+            margin-top: 24px; text-align: center;
+            font-size: 11px; color: var(--muted);
+        }
+
+        @media (max-width: 520px) {
+            .brand-header { padding: 16px 18px; flex-wrap: wrap; gap: 12px; }
+            .main-card { padding: 24px 18px; }
+            .job-title { font-size: 21px; }
+        }
+    </style>
+</head>
+<body>
+<div class="page-wrap">
+
+    <!-- Brand header: Hunters logo left + Company logo right -->
+    <div class="brand-header">
+        <div class="brand-hunters">
+            <img src="hunters-logo-white.jpeg" alt="Hunters for HR Solutions" id="hunters-logo">
+            <div>
+                <div style="color:#fff;font-size:13px;font-weight:500;">Hunters for HR</div>
+                <div class="powered-tag">Powered by Hunters AI</div>
+            </div>
+        </div>
+        <div class="brand-divider"></div>
+        <div class="brand-company">
+            <div class="company-logo-circle" id="company-initials">?</div>
+            <div class="company-name-text" id="company-name-header">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Main content card -->
+    <div class="main-card" id="job-content" style="display:none;">
+        <div class="job-title-row">
+            <h1 class="job-title" id="job-title">Loading...</h1>
+        </div>
+
+        <div class="job-meta" id="job-meta"></div>
+
+        <div id="salary-section"></div>
+
+        <div class="section" id="desc-section" style="display:none;">
+            <div class="section-title">About the Role</div>
+            <div class="section-body" id="job-description"></div>
+        </div>
+
+        <div class="section" id="skills-section" style="display:none;">
+            <div class="section-title">Required Skills</div>
+            <div class="tag-row" id="required-skills-tags"></div>
+        </div>
+
+        <div class="section" id="nice-skills-section" style="display:none;">
+            <div class="section-title">Nice to Have</div>
+            <div class="tag-row" id="nice-skills-tags"></div>
+        </div>
+
+        <div class="section" id="behavioral-section" style="display:none;">
+            <div class="section-title">Behavioral Skills</div>
+            <div class="tag-row" id="behavioral-tags"></div>
+        </div>
+
+        <div class="section" id="weights-section" style="display:none;">
+            <div class="section-title">AI Evaluation Weights</div>
+            <div class="weights-row" id="weights-row"></div>
+        </div>
+
+        <div class="cta-section">
+            <a id="apply-btn" href="#" class="btn-apply">Apply Now</a>
+            <button class="btn-share" onclick="shareJob()">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                Share Job
+            </button>
+        </div>
+    </div>
+
+    <!-- Error state -->
+    <div id="error-state" style="display:none; background:#fff; border-radius:0 0 16px 16px; padding:40px; text-align:center;">
+        <div style="font-size:15px; color:#A32D2D; font-weight:500;">Job not found or no longer available.</div>
+        <a href="/jobs.html" style="display:inline-block;margin-top:16px;color:var(--navy);font-size:13px;text-decoration:underline;">Browse all jobs</a>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loading-state" style="background:#fff; border-radius:0 0 16px 16px; padding:40px; text-align:center;">
+        <div style="font-size:13px; color:var(--muted);">Loading job details...</div>
+    </div>
+
+    <div class="page-footer">Recruitment powered by <strong>Hunters for HR Solutions</strong></div>
+</div>
+
+<!-- Toast -->
+<div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;"></div>
+
+<script>
+    function showToast(msg, type) {
+        var colors = {
+            success: { bg:'#E1F5EE', text:'#0F6E56', border:'#9FE1CB' },
+            error:   { bg:'#FCEBEB', text:'#A32D2D', border:'#F5B8B8' },
+            info:    { bg:'#E6F1FB', text:'#185FA5', border:'#B5D4F4' }
+        };
+        var c = colors[type] || colors.info;
+        var t = document.createElement('div');
+        t.style.cssText = 'background:' + c.bg + ';color:' + c.text + ';border:0.5px solid ' + c.border + ';' +
+            'border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;' +
+            'box-shadow:0 4px 16px rgba(0,0,0,0.12);max-width:320px;';
+        t.textContent = msg;
+        document.getElementById('toast-container').appendChild(t);
+        setTimeout(function() { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(function() { t.remove(); }, 300); }, 3000);
+    }
+
+    function initials(name) {
+        return String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(function(w) { return w[0]; }).join('').toUpperCase() || '?';
+    }
+
+    function splitToTags(str, cls) {
+        if (!str) return '';
+        return str.split(/[,;]+/).map(function(s) { s = s.trim(); return s ? '<span class="tag ' + (cls || '') + '">' + esc(s) + '</span>' : ''; }).join('');
+    }
+
+    function esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    var jobId = new URLSearchParams(window.location.search).get('job_id');
+    var jobData = null;
+
+    async function loadJob() {
+        if (!jobId) { showError(); return; }
+        try {
+            var res = await fetch('/public/job/' + jobId);
+            if (!res.ok) { showError(); return; }
+            jobData = await res.json();
+            renderJob(jobData);
+        } catch (e) {
+            showError();
+        }
+    }
+
+    function showError() {
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('error-state').style.display = 'block';
+        document.getElementById('company-name-header').textContent = 'Hunters for HR';
+        document.getElementById('company-initials').textContent = 'H';
+    }
+
+    function renderJob(job) {
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('job-content').style.display = 'block';
+
+        // Page title
+        document.title = (job.job_title || 'Job') + ' | Hunters for HR Solutions';
+        document.getElementById('page-title').textContent = document.title;
+
+        // Company header
+        var cname = job.company_name || 'Company';
+        document.getElementById('company-name-header').textContent = cname;
+        document.getElementById('company-initials').textContent = initials(cname);
+
+        // Job title
+        document.getElementById('job-title').textContent = job.job_title || 'Untitled';
+
+        // Apply button
+        document.getElementById('apply-btn').href = '/apply.html?job_id=' + job.id;
+
+        // Meta row
+        var meta = '';
+        if (job.job_location) meta += '<span>📍 ' + esc(job.job_location) + '</span>';
+        var empType = job.employment_type || job.education_level || '';
+        if (empType) meta += '<span>💼 ' + esc(empType) + '</span>';
+        if (job.min_experience != null) meta += '<span>⏱ ' + esc(String(job.min_experience)) + '+ yrs experience</span>';
+        document.getElementById('job-meta').innerHTML = meta;
+
+        // Salary
+        if (job.salary_range && !job.hide_salary) {
+            document.getElementById('salary-section').innerHTML =
+                '<div class="salary-badge">💰 ' + esc(job.salary_range) + '</div>';
+        }
+
+        // Description
+        if (job.job_description) {
+            document.getElementById('desc-section').style.display = 'block';
+            document.getElementById('job-description').textContent = job.job_description;
+        }
+
+        // Required skills
+        if (job.required_skills) {
+            document.getElementById('skills-section').style.display = 'block';
+            document.getElementById('required-skills-tags').innerHTML = splitToTags(job.required_skills, '');
+        }
+
+        // Nice to have
+        if (job.nice_to_have_skills) {
+            document.getElementById('nice-skills-section').style.display = 'block';
+            document.getElementById('nice-skills-tags').innerHTML = splitToTags(job.nice_to_have_skills, 'nice');
+        }
+
+        // Behavioral
+        if (job.behavioral_skills) {
+            document.getElementById('behavioral-section').style.display = 'block';
+            document.getElementById('behavioral-tags').innerHTML = splitToTags(job.behavioral_skills, '');
+        }
+
+        // AI weights
+        var wExp = Math.round((job.weight_experience || 0) * 100);
+        var wSkl = Math.round((job.weight_skills || 0) * 100);
+        var wEdu = Math.round((job.weight_education || 0) * 100);
+        var wBeh = Math.round((job.weight_behavioral || 0) * 100);
+        if (wExp + wSkl + wEdu + wBeh > 0) {
+            document.getElementById('weights-section').style.display = 'block';
+            document.getElementById('weights-row').innerHTML =
+                '<span class="weight-chip">Exp ' + wExp + '%</span>' +
+                '<span class="weight-chip">Skills ' + wSkl + '%</span>' +
+                '<span class="weight-chip">Edu ' + wEdu + '%</span>' +
+                '<span class="weight-chip">Behavioral ' + wBeh + '%</span>';
+        }
+    }
+
+    async function shareJob() {
+        var url = window.location.href;
+        try {
+            await navigator.clipboard.writeText(url);
+        } catch (_) {
+            var ta = document.createElement('textarea');
+            ta.value = url;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            document.execCommand('copy'); document.body.removeChild(ta);
+        }
+        showToast('Job link copied!', 'success');
+    }
+
+    loadJob();
+</script>
+</body>
+</html>

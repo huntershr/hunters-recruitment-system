@@ -134,12 +134,29 @@ function huntersOpenPublicCompany(job) {
         window.location.hash = `public-company?id=${encodeURIComponent(id)}`;
         navigateTo('public-profile');
     } else {
-        window.open(`public-company.html?id=${id}`, '_blank');
+        window.open(`company-public.html?id=${id}`, '_blank');
     }
 }
 
 function huntersViewJob(jobId) {
-    window.open(`/apply.html?job_id=${jobId}`, '_blank');
+    window.open(`/job-view.html?job_id=${jobId}`, '_blank');
+}
+
+async function huntersShareJob(jobId) {
+    const url = window.location.origin + '/job-view.html?job_id=' + jobId;
+    try {
+        await navigator.clipboard.writeText(url);
+    } catch (_) {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+    }
+    if (typeof showToast === 'function') showToast('Job link copied!', 'success');
 }
 
 function huntersInitJobs(isAdmin) {
@@ -270,6 +287,8 @@ function huntersJobCardInner(job, opts) {
                     <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Edit</button>
                 <button type="button" onclick="event.stopPropagation();huntersViewJob(${job.id})" style="background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
                     <svg width="12" height="12" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
+                <button type="button" onclick="event.stopPropagation();huntersShareJob(${job.id})" title="Copy share link" style="background:#fff;color:#C9A84C;border:0.5px solid #C9A84C;border-radius:7px;padding:5px 8px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
                 ${pendingBtns}
            </div>`;
 
@@ -313,6 +332,7 @@ function huntersListActionsHtml(job) {
             : `<div style="display:flex;gap:6px;align-items:center;">
                     <button type="button" onclick="event.stopPropagation();openEditJobModal(${job.id})" style="height:28px;width:28px;padding:0;border:0.5px solid #1B2A4A;background:#fff;color:#1B2A4A;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" title="Edit"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
                     <button type="button" onclick="event.stopPropagation();huntersViewJob(${job.id})" style="height:28px;width:28px;padding:0;border:none;background:#1B2A4A;color:#fff;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" title="View"><svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                    <button type="button" onclick="event.stopPropagation();huntersShareJob(${job.id})" style="height:28px;width:28px;padding:0;border:0.5px solid #C9A84C;background:#fff;color:#C9A84C;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" title="Copy share link"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
                     ${del}
                     ${huntersIsAdmin && job.status === 'Pending' ? `<button type="button" onclick="event.stopPropagation();approveJob(${job.id})" style="height:28px;padding:0 8px;border:none;background:#0F6E56;color:#fff;border-radius:7px;font-size:11px;cursor:pointer;">✓</button><button type="button" onclick="event.stopPropagation();showRejectJobForm(${job.id})" style="height:28px;padding:0 8px;border:none;background:#CC2B2B;color:#fff;border-radius:7px;font-size:11px;cursor:pointer;">×</button>` : ''}
                </div>`;

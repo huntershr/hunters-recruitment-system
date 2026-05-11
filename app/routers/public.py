@@ -22,12 +22,45 @@ def get_db():
     finally:
         db.close()
 
-@router.get("/job/{job_id}", response_model=schemas.JobResponse)
+@router.get("/job/{job_id}")
 def get_public_job(job_id: int, db: Session = Depends(get_db)):
     job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+
+    company_name = None
+    company_id = None
+    if job.owner and job.owner.company_id:
+        company = db.query(models.Company).filter(models.Company.id == job.owner.company_id).first()
+        if company:
+            company_name = company.company_name
+            company_id = company.id
+
+    return {
+        "id": job.id,
+        "job_title": job.job_title,
+        "job_description": job.job_description or "",
+        "job_location": job.job_location or "",
+        "min_experience": job.min_experience,
+        "required_skills": job.required_skills or "",
+        "nice_to_have_skills": job.nice_to_have_skills,
+        "behavioral_skills": job.behavioral_skills,
+        "education_level": job.education_level or "",
+        "salary_range": job.salary_range or "",
+        "industry_experience": job.industry_experience,
+        "weight_experience": job.weight_experience,
+        "weight_skills": job.weight_skills,
+        "weight_education": job.weight_education,
+        "weight_behavioral": job.weight_behavioral,
+        "is_approved": job.is_approved,
+        "created_at": job.created_at.isoformat() if job.created_at else None,
+        "salary_min": None,
+        "salary_max": None,
+        "employment_type": job.education_level,
+        "hide_salary": False,
+        "company_name": company_name,
+        "company_id": company_id,
+    }
 
 @router.post("/apply/{job_id}")
 async def public_apply(
