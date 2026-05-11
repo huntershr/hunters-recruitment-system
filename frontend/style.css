@@ -4,14 +4,14 @@
 
 :root {
   /* Brand */
-  --navy:             #0D1B3E;
+  --navy:             #1B2A4A;
   --navy-mid:         #1B2A4A;
   --gold:             #C9A84C;
   --gold-light:       #E2C97E;
   --red-alert:        #CC2B2B;
 
   /* Backgrounds */
-  --bg-page:          #F5F6F8;
+  --bg-page:          #F4F5FA;
   --bg-card:          #FFFFFF;
   --bg-input:         #FAFBFC;
 
@@ -52,6 +52,21 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   min-height: 100%;
+}
+
+button {
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  font-family: inherit;
+}
+
+button:not(:disabled):hover { opacity: 0.85; }
+
+button:not(:disabled):active { transform: scale(0.98); }
+
+button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 /* ── BUTTONS ───────────────────────────────────── */

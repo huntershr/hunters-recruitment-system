@@ -602,10 +602,10 @@ async function loadAdminCompaniesForDropdown() {
         const filterSel = document.getElementById('job-company-filter');
         
         if (sel) {
-            sel.innerHTML = data.map(c => \`<option value="\${c.id}">\${c.company_name}</option>\`).join('');
+            sel.innerHTML = data.map(c => `<option value="${c.id}">${c.company_name}</option>`).join('');
         }
         if (filterSel && filterSel.options.length <= 1) {
-            filterSel.innerHTML = '<option value="">All Companies</option>' + data.map(c => \`<option value="\${c.id}">\${c.company_name}</option>\`).join('');
+            filterSel.innerHTML = '<option value="">All Companies</option>' + data.map(c => `<option value="${c.id}">${c.company_name}</option>`).join('');
         }
     } catch(e) {}
 }
@@ -647,7 +647,7 @@ async function saveHuntersJob(e) {
     const jobId = document.getElementById('job-modal-id').value;
     const method = jobId ? 'PUT' : 'POST';
     const base = typeof API_URL !== 'undefined' ? API_URL : window.API_URL || window.location.origin;
-    const url = jobId ? \`\${base}/jobs/\${jobId}\` : \`\${base}/jobs/\`;
+    const url = jobId ? `${base}/jobs/${jobId}` : `${base}/jobs/`;
 
     try {
         const res = await fetch(url, {
@@ -689,7 +689,7 @@ function showToast(msg, type='success') {
         document.body.appendChild(t);
     }
     const color = type === 'error' ? '#CC2B2B' : '#C9A84C';
-    t.innerHTML = \`<svg width="18" height="18" fill="none" stroke="\${color}" viewBox="0 0 24 24"><path stroke-width="2" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path stroke-width="2" d="M22 4L12 14.01l-3-3"/></svg> \${msg}\`;
+    t.innerHTML = `<svg width="18" height="18" fill="none" stroke="${color}" viewBox="0 0 24 24"><path stroke-width="2" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path stroke-width="2" d="M22 4L12 14.01l-3-3"/></svg> ${msg}`;
     
     setTimeout(() => {
         t.style.transform = 'translateY(0)';
