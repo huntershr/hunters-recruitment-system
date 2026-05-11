@@ -5,32 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apply for Job | Hunters for HR Solutions</title>
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script>
-        // Global Error Watchdog
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            alert("System Error: " + msg + "\nLine: " + lineNo + "\nFile: " + url);
+        window.onerror = function(msg, url, lineNo) {
+            console.error("Script error:", msg, url, lineNo);
             return false;
         };
     </script>
     <style>
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
         :root {
-            --primary: #10367a;
-            --secondary: #6c5ce7;
-            --bg: #f4f7f6;
-            --white: #ffffff;
-            --text: #2d3436;
+            --navy: #1B2A4A;
+            --gold: #C9A84C;
+            --alert-red: #CC2B2B;
+            --bg-page: #F4F5FA;
+            --white: #FFFFFF;
+            --text: #1B2A4A;
+            --score-green-text: #0F6E56;
+            --score-amber-text: #854F0B;
+            --score-red-text: #A32D2D;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
         }
 
         body {
-            background-color: var(--bg);
+            background-color: var(--bg-page);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -41,10 +47,11 @@
         .apply-card {
             background: var(--white);
             padding: 40px;
-            border-radius: 20px;
+            border-radius: 16px;
             width: 100%;
             max-width: 500px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 0.5px solid rgba(0,0,0,0.06);
         }
 
         .header {
@@ -52,20 +59,19 @@
             margin-bottom: 30px;
         }
 
-        .header i {
-            font-size: 50px;
-            color: var(--primary);
-            margin-bottom: 10px;
-        }
+        .header .logo-svg { margin: 0 auto 12px; display: block; }
 
         .header h1 {
             font-size: 24px;
-            color: var(--primary);
+            font-weight: 500;
+            color: var(--navy);
         }
 
         .header p {
-            color: #636e72;
-            margin-top: 5px;
+            color: #6B7280;
+            margin-top: 8px;
+            font-size: 14px;
+            font-weight: 400;
         }
 
         .form-group {
@@ -75,61 +81,98 @@
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            font-weight: 600;
+            font-weight: 500;
             color: var(--text);
+            font-size: 13px;
         }
 
         .form-group input {
             width: 100%;
             padding: 12px 15px;
-            border: 2px solid #eee;
-            border-radius: 10px;
+            border: 0.5px solid #E5E7EB;
+            border-radius: 8px;
             outline: none;
-            transition: 0.3s;
+            transition: border-color 0.15s;
+            font-size: 14px;
         }
 
         .form-group input:focus {
-            border-color: var(--primary);
+            border-color: var(--navy);
+            outline: 2px solid var(--gold);
+            outline-offset: 2px;
         }
 
         .btn-submit {
             width: 100%;
             padding: 15px;
-            background: var(--primary);
+            background: var(--navy);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 16px;
-            font-weight: 700;
+            font-weight: 500;
             cursor: pointer;
-            transition: 0.3s;
+            transition: opacity 0.15s, transform 0.1s;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
         }
 
-        .btn-submit:hover {
-            background: #0d2c63;
-            transform: translateY(-2px);
-        }
+        .btn-submit:hover { opacity: 0.85; }
+        .btn-submit:active { transform: scale(0.98); }
+        .btn-submit:focus { outline: 2px solid var(--gold); outline-offset: 2px; }
 
         .success-message {
             display: none;
             text-align: center;
-            color: #27ae60;
+            color: var(--score-green-text);
         }
 
         .success-message i {
             font-size: 60px;
             margin-bottom: 15px;
+            color: var(--navy);
         }
+
+        #score-display h3 {
+            text-align: left;
+            font-weight: 500;
+        }
+
+        .eval-reason {
+            text-align: left;
+            font-size: 14px;
+            color: #4B5563;
+            line-height: 1.5;
+        }
+
+        .decision-pill {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .footer-brand {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 0.5px solid rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .footer-brand span { font-size: 11px; font-weight: 500; color: var(--gold); }
     </style>
 </head>
 <body>
     <div class="apply-card" id="form-container">
         <div class="header">
-            <i class='bx bx-briefcase-alt-2'></i>
+            <img src="hunters-logo-blue.jpeg" alt="Hunters for HR Transformation &amp; Execution" style="height:64px;width:auto;object-fit:contain;display:block;margin:0 auto;">
             <h1 id="job-title">Loading Job...</h1>
             <p>Complete the form below to apply</p>
         </div>
@@ -162,43 +205,96 @@
 
     <div class="apply-card success-message" id="success-container">
         <i class='bx bx-check-circle'></i>
-        <h1>Thank You!</h1>
-        <p style="margin-bottom: 30px;">Your application has been received and is being evaluated by our AI screening system.</p>
+        <h1 style="font-weight:500;color:var(--navy);font-size:26px;margin-bottom:8px;">Thank You!</h1>
+        <p style="margin-bottom: 30px;color:#4B5563;font-weight:400;">Your application has been received and is being evaluated by our AI screening system.</p>
         
-        <div id="score-display" style="display: none; padding: 20px; background: #f0f4f8; border-radius: 10px; margin-bottom: 20px;">
-            <h3 style="margin-bottom: 15px; color: var(--primary);">Your Evaluation Results</h3>
-            <div style="display: flex; align-items: center; justify-content: center; margin: 15px 0;">
-                <div style="text-align: center;">
-                    <div style="font-size: 48px; font-weight: 700; color: var(--primary); margin-bottom: 5px;" id="score-value">-</div>
-                    <div style="font-size: 14px; color: #636e72;">Overall Score</div>
+        <div id="score-display" style="display: none; padding: 20px; background: var(--white); border-radius: 16px; margin-bottom: 20px; border: 0.5px solid rgba(0,0,0,0.06); text-align:left;">
+            <h3 style="margin-bottom: 15px; color: var(--navy);">Your Evaluation Results</h3>
+            <div style="display:flex;align-items:center;justify-content:flex-start;margin:15px 0;gap:20px;">
+                <div id="score-ring-wrap" style="flex-shrink:0;"></div>
+                <div style="text-align:left;">
+                    <div style="font-size: 42px; font-weight: 500; margin-bottom: 4px;" id="score-value">-</div>
+                    <div style="font-size: 13px; color: #6B7280;font-weight:400;">Overall Score</div>
                 </div>
             </div>
-            <div style="margin-top: 15px; padding: 10px; background: white; border-radius: 8px;">
-                <div style="font-weight: 600; color: var(--primary); margin-bottom: 5px;">Decision: <span id="decision-value">-</span></div>
-                <div style="font-size: 14px; color: #636e72;">Reason: <span id="reason-value">-</span></div>
+            <div style="margin-top: 12px;">
+                <div id="decision-row" style="margin-bottom: 10px;"></div>
+                <div class="eval-reason"><span style="font-weight:500;color:var(--navy);">Reason:</span> <span id="reason-value">—</span></div>
+            </div>
+            <div id="breakdown-wrap" style="margin-top:16px;display:none;"></div>
+            <div class="footer-brand">
+                <img src="hunters-logo-blue.jpeg" alt="Hunters for HR Transformation &amp; Execution" style="height:64px;width:auto;object-fit:contain;display:block;margin:0 auto;">
+                <span>Powered by Hunters AI</span>
             </div>
         </div>
         
-        <div id="pending-message" style="padding: 15px; background: #fffbf0; border-radius: 8px; border-left: 4px solid var(--secondary); margin-bottom: 20px;">
-            <p style="font-size: 14px; color: #636e72;"><strong>Evaluation in progress...</strong> We'll show your results here as soon as they're ready. Typically takes 1-2 minutes.</p>
+        <div id="pending-message" style="padding: 15px; background: #FAEEDA; border-radius: 8px; border-left: 4px solid var(--gold); margin-bottom: 20px; text-align:left;">
+            <p style="font-size: 14px; color: #854F0B;"><strong style="font-weight:500;">Evaluation in progress...</strong> We'll show your results here as soon as they're ready. Typically takes 1-2 minutes.</p>
         </div>
         
-        <a href="/jobs.html" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Back to Job Listings</a>
+        <a href="/jobs.html" style="display: inline-block; margin-top: 20px; padding: 12px 20px; background: var(--navy); color: white; text-decoration: none; border-radius: 8px; font-weight: 500;">Back to Job Listings</a>
     </div>
 
     <script>
+        function showToast(message, type = 'success') {
+            const colors = {
+                success: { bg:'#E1F5EE', text:'#0F6E56', border:'#9FE1CB' },
+                error:   { bg:'#FCEBEB', text:'#A32D2D', border:'#F5B8B8' },
+                info:    { bg:'#E6F1FB', text:'#185FA5', border:'#B5D4F4' },
+                warning: { bg:'#FAEEDA', text:'#854F0B', border:'#FAC775' }
+            };
+            const c = colors[type] || colors.info;
+            const t = document.createElement('div');
+            t.style.cssText = 'position:fixed;top:20px;right:20px;z-index:99999;' +
+                'background:' + c.bg + ';color:' + c.text + ';border:0.5px solid ' + c.border + ';' +
+                'border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;' +
+                'box-shadow:0 4px 16px rgba(0,0,0,0.12);max-width:320px;' +
+                'animation:toastIn 0.2s ease;';
+            t.innerHTML = '<span>' + message + '</span>';
+            document.body.appendChild(t);
+            setTimeout(function() {
+                t.style.opacity = '0';
+                t.style.transition = 'opacity 0.3s';
+                setTimeout(function() { t.remove(); }, 300);
+            }, 3500);
+        }
+
+        function normalizedScorePercent(raw) {
+            if (raw == null || raw === '' || isNaN(Number(raw))) return 0;
+            const n = Number(raw);
+            if (n <= 1) return Math.round(n * 100);
+            if (n <= 10) return Math.round(n * 10);
+            return Math.round(n);
+        }
+
+        function scoreColors(percent) {
+            if (percent >= 75) return { fg: '#0F6E56', bg: '#E1F5EE', ring: '#0F6E56' };
+            if (percent >= 50) return { fg: '#854F0B', bg: '#FAEEDA', ring: '#854F0B' };
+            return { fg: '#A32D2D', bg: '#FCEBEB', ring: '#CC2B2B' };
+        }
+
+        function renderScoreRing(percent, colors) {
+            const r = 36;
+            const c = 2 * Math.PI * r;
+            const offset = c - (Math.min(100, Math.max(0, percent)) / 100) * c;
+            return '<svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true">' +
+                '<circle cx="44" cy="44" r="' + r + '" fill="none" stroke="#E8EAED" stroke-width="8"/>' +
+                '<circle cx="44" cy="44" r="' + r + '" fill="none" stroke="' + colors.ring + '" stroke-width="8" ' +
+                'stroke-dasharray="' + c + '" stroke-dashoffset="' + offset + '" transform="rotate(-90 44 44)" stroke-linecap="round"/>' +
+                '</svg>';
+        }
+
         const API_URL = "";
         const urlParams = new URLSearchParams(window.location.search);
         const jobId = urlParams.get('job_id');
 
         if (!jobId) {
-            document.getElementById('form-container').innerHTML = "<h1>Error: Invalid Job Link</h1>";
+            document.getElementById('form-container').innerHTML = "<h1 style='font-weight:500'>Error: Invalid Job Link</h1>";
         }
 
-        // Fetch Job Details
         async function fetchJob() {
             try {
-                const res = await fetch(`${API_URL}/public/job/${jobId}`);
+                const res = await fetch(API_URL + '/public/job/' + jobId);
                 if (!res.ok) throw new Error();
                 const job = await res.json();
                 document.getElementById('job-title').innerText = job.job_title;
@@ -222,7 +318,7 @@
             formData.append("file", document.getElementById('cv-file').files[0]);
 
             try {
-                const response = await fetch(`${API_URL}/public/apply/${jobId}`, {
+                const response = await fetch(API_URL + '/public/apply/' + jobId, {
                     method: "POST",
                     body: formData
                 });
@@ -231,23 +327,20 @@
                     const result = await response.json();
                     document.getElementById('form-container').style.display = 'none';
                     document.getElementById('success-container').style.display = 'block';
-                    
-                    // Poll for evaluation results
                     pollEvaluation(result.candidate_id);
                 } else {
-                    const errData = await response.json().catch(() => ({}));
-                    alert(`Submission Failed: ${errData.detail || "Please check your file size and try again."}`);
+                    const errData = await response.json().catch(function() { return {}; });
+                    showToast(String(errData.detail || "Submission failed — check file size and try again."), 'error');
                 }
             } catch (err) {
                 console.error("Apply crash:", err);
-                alert(`Connection Error: ${err.message}`);
+                showToast('Connection error: ' + err.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = "Submit Application";
             }
         }
 
-        // Poll for evaluation results every 2 seconds (max 30 attempts = 60 seconds)
         let pollAttempts = 0;
         const maxAttempts = 30;
 
@@ -258,26 +351,61 @@
             }
 
             try {
-                const response = await fetch(`${API_URL}/public/evaluation/${candidateId}`);
+                const response = await fetch(API_URL + '/public/evaluation/' + candidateId);
                 const result = await response.json();
 
                 if (result.status === 'completed') {
-                    // Show evaluation results
                     document.getElementById('pending-message').style.display = 'none';
                     document.getElementById('score-display').style.display = 'block';
-                    document.getElementById('score-value').innerText = Math.round(result.score) + '%';
-                    document.getElementById('decision-value').innerText = result.decision;
-                    document.getElementById('reason-value').innerText = result.reason || 'See details above';
+
+                    let rawScore = result.score;
+                    if (rawScore === undefined || rawScore === null) rawScore = result.overall_score;
+                    const pct = normalizedScorePercent(rawScore);
+                    const decision = String(result.decision || '').trim();
+                    const decLower = decision.toLowerCase();
+
+                    if (pct < 30 && decLower.indexOf('shortlist') !== -1) {
+                        console.error('[Hunters evaluation] Invalid combination: Shortlist with score under 30', pct, rawScore);
+                    }
+
+                    const col = scoreColors(pct);
+                    document.getElementById('score-ring-wrap').innerHTML = renderScoreRing(pct, col);
+                    var scoreEl = document.getElementById('score-value');
+                    scoreEl.innerText = pct + '%';
+                    scoreEl.style.color = col.fg;
+
+                    var pillBg = '#E6F1FB', pillText = '#185FA5';
+                    if (decLower.indexOf('shortlist') !== -1) { pillBg = '#E1F5EE'; pillText = '#0F6E56'; }
+                    else if (decLower.indexOf('maybe') !== -1) { pillBg = '#FAEEDA'; pillText = '#854F0B'; }
+                    else if (decLower.indexOf('reject') !== -1) { pillBg = '#FCEBEB'; pillText = '#A32D2D'; }
+                    document.getElementById('decision-row').innerHTML =
+                        '<span class="decision-pill" style="background:' + pillBg + ';color:' + pillText + ';">'
+                        + (decision || '—') + '</span>';
+
+                    document.getElementById('reason-value').innerText = result.reason || 'See details above.';
+
+                    var bw = result.score_breakdown || result.breakdown_weights || result.scoring_breakdown;
+                    var wrap = document.getElementById('breakdown-wrap');
+                    if (bw && typeof bw === 'object') {
+                        wrap.style.display = 'block';
+                        var keys = ['experience', 'skills', 'education', 'behavioral'];
+                        var html = '<div style="font-size:12px;font-weight:500;color:var(--navy);margin-bottom:8px;">Score breakdown</div>';
+                        keys.forEach(function(k) {
+                            if (bw[k] == null) return;
+                            var val = normalizedScorePercent(bw[k]);
+                            html += '<div style="margin-bottom:6px;"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;"><span>' + k + '</span><span>' + val + '</span></div>' +
+                                '<div style="height:6px;background:#E8EAED;border-radius:3px;"><div style="width:' + val + '%;height:100%;background:var(--navy);border-radius:3px;"></div></div></div>';
+                        });
+                        wrap.innerHTML = html;
+                    }
                 } else {
-                    // Still pending - poll again in 2 seconds
                     pollAttempts++;
-                    setTimeout(() => pollEvaluation(candidateId), 2000);
+                    setTimeout(function() { pollEvaluation(candidateId); }, 2000);
                 }
             } catch (err) {
                 console.error("Polling error:", err);
-                // Retry on error
                 pollAttempts++;
-                setTimeout(() => pollEvaluation(candidateId), 2000);
+                setTimeout(function() { pollEvaluation(candidateId); }, 2000);
             }
         }
     </script>

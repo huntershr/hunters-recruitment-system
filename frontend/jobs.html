@@ -4,20 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Job Openings | Hunters for HR Solutions</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary: #10367a;
-            --navy: #10367a;
-            --gold: #c5a059;
-            --bg: #f8fafc;
+            --primary: #1B2A4A;
+            --navy: #1B2A4A;
+            --gold: #C9A84C;
+            --bg: #F4F5FA;
             --white: #ffffff;
-            --text: #1e293b;
+            --text: #1B2A4A;
             --text-muted: #64748b;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
         body { background-color: var(--bg); color: var(--text); line-height: 1.6; }
 
         .header {
@@ -32,20 +31,19 @@
             z-index: 100;
         }
 
-        .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--navy); }
-        .logo i { font-size: 32px; color: var(--gold); }
-        .logo h1 { font-size: 20px; font-weight: 700; letter-spacing: 1px; line-height: 1; }
-        .logo span { font-size: 10px; color: var(--gold); text-transform: uppercase; }
+        .logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--navy); }
+        .logo h1 { font-size: 20px; font-weight: 500; letter-spacing: 0.5px; line-height: 1.1; }
+        .logo span { font-size: 9px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
 
         .hero {
             padding: 80px 20px;
             text-align: center;
-            background: linear-gradient(135deg, var(--navy) 0%, #1e4ea1 100%);
+            background: linear-gradient(180deg, #1B2A4A 0%, #2C3E6B 100%);
             color: white;
         }
-        .hero h2 { font-size: 42px; margin-bottom: 10px; }
-        .hero p { opacity: 0.9; font-size: 18px; max-width: 600px; margin: 0 auto; }
-        .hero p strong { color: var(--gold); font-weight: 600; }
+        .hero h2 { font-size: 42px; margin-bottom: 10px; font-weight: 500; }
+        .hero p { opacity: 0.95; font-size: 18px; max-width: 600px; margin: 0 auto; font-weight: 400; }
+        .hero p strong { color: var(--gold); font-weight: 500; }
 
         .container { max-width: 1200px; margin: -50px auto 80px; padding: 0 20px; }
 
@@ -59,11 +57,11 @@
             background: var(--white);
             border-radius: 16px;
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             display: flex;
             flex-direction: column;
-            border: 1px solid #f1f5f9;
+            border: 0.5px solid rgba(0,0,0,0.06);
         }
 
         .job-card:hover {
@@ -103,17 +101,18 @@
             color: white;
             text-decoration: none;
             padding: 12px 20px;
-            border-radius: 10px;
+            border-radius: 8px;
             text-align: center;
-            font-weight: 600;
-            transition: 0.3s;
+            font-weight: 500;
+            transition: opacity 0.15s, transform 0.1s;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
         }
 
-        .btn-apply:hover { background: #1e4ea1; }
+        .btn-apply:hover { opacity: 0.85; }
+        .btn-apply:active { transform: scale(0.98); }
 
         .loader { text-align: center; padding: 50px; font-size: 18px; color: var(--text-muted); }
     </style>
@@ -121,11 +120,7 @@
 <body>
     <header class="header">
         <a href="#" class="logo">
-            <i class='bx bx-target-lock'></i>
-            <div>
-                <h1>Hunters for HR Solutions</h1>
-                <span>AI Recruitment System</span>
-            </div>
+            <img src="hunters-logo-blue.jpeg" alt="Hunters for HR Transformation &amp; Execution" style="height:64px;width:auto;object-fit:contain;display:block;margin:0 auto;">
         </a>
     </header>
 

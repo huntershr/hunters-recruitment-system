@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Company Dashboard - Hunters for HR Solutions</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --navy: #1B2A4A;
@@ -17,9 +16,20 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        .hunters-jobs-grid { grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 1024px) { .hunters-jobs-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px) { .hunters-jobs-grid { grid-template-columns: 1fr; } }
+
+        .profile-tab-content { transition: opacity 0.15s ease; }
+        @keyframes huntersModalIn {
+            from { opacity: 0; transform: translateY(12px) scale(0.98); }
+            to { opacity: 1; transform: none; }
+        }
+        .hunters-modal-panel { animation: huntersModalIn 0.2s ease-out; }
 
         body {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
             background: var(--page-bg);
             color: #1B2A4A;
             min-height: 100vh;
@@ -53,7 +63,7 @@
             background: rgba(255,255,255,0.15);
             border: 2.5px solid rgba(255,255,255,0.4);
             display: flex; align-items: center; justify-content: center;
-            font-size: 26px; font-weight: 700; color: #fff;
+            font-size: 26px; font-weight: 500; color: #fff;
             overflow: hidden; cursor: pointer;
             position: relative;
         }
@@ -77,7 +87,7 @@
         .sidebar-logo-circle:hover .upload-hint { display: flex; }
 
         .sidebar-company-name {
-            font-size: 15px; font-weight: 600;
+            font-size: 15px; font-weight: 500;
             color: #fff; text-align: center;
             line-height: 1.3;
         }
@@ -113,7 +123,7 @@
         .nav-item.active {
             background: rgba(201,168,76,0.22);
             border-left: 3px solid #C9A84C;
-            color: #fff; font-weight: 600;
+            color: #fff; font-weight: 500;
             padding-left: 11px;
         }
 
@@ -158,7 +168,7 @@
         }
 
         .page-header-card h1 {
-            font-size: 22px; font-weight: 700;
+            font-size: 22px; font-weight: 500;
             color: var(--navy); margin: 0;
         }
 
@@ -191,12 +201,12 @@
         }
 
         .stat-card-value {
-            font-size: 28px; font-weight: 700;
+            font-size: 28px; font-weight: 500;
             color: var(--navy); line-height: 1;
         }
 
         .stat-card-label {
-            font-size: 11px; font-weight: 600;
+            font-size: 11px; font-weight: 500;
             color: #AAB0C0; text-transform: uppercase; letter-spacing: 0.6px;
         }
 
@@ -210,7 +220,7 @@
         }
 
         .card-title {
-            font-size: 16px; font-weight: 700;
+            font-size: 16px; font-weight: 500;
             color: var(--navy); margin-bottom: 18px;
             display: flex; align-items: center; gap: 8px;
         }
@@ -228,7 +238,7 @@
             background: #F4F5FA;
             padding: 11px 14px;
             text-align: left;
-            font-size: 11px; font-weight: 700;
+            font-size: 11px; font-weight: 500;
             color: #AAB0C0; text-transform: uppercase; letter-spacing: 0.5px;
             border-bottom: 1px solid #ECEEF3;
         }
@@ -248,7 +258,7 @@
             display: inline-flex; align-items: center; gap: 4px;
             padding: 3px 10px;
             border-radius: 20px;
-            font-size: 11px; font-weight: 600;
+            font-size: 11px; font-weight: 500;
         }
 
         .pill-green  { background: #E1F5EE; color: #0F6E56; }
@@ -262,7 +272,7 @@
         .avatar-circle {
             width: 34px; height: 34px; border-radius: 50%;
             background: linear-gradient(135deg, #1B2A4A, #2C3E6B);
-            color: #fff; font-size: 13px; font-weight: 700;
+            color: #fff; font-size: 13px; font-weight: 500;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
@@ -274,7 +284,7 @@
         .score-chip {
             display: inline-flex; align-items: center;
             padding: 3px 10px; border-radius: 20px;
-            font-size: 12px; font-weight: 700;
+            font-size: 12px; font-weight: 500;
         }
 
         .score-high   { background: #E1F5EE; color: #0F6E56; }
@@ -285,7 +295,7 @@
         /* ── Action buttons ── */
         .btn-icon {
             padding: 5px 10px; border: none; border-radius: 7px;
-            font-size: 12px; font-weight: 600; cursor: pointer;
+            font-size: 12px; font-weight: 500; cursor: pointer;
             transition: opacity 0.15s;
         }
 
@@ -300,7 +310,7 @@
             background: var(--navy);
             color: #fff; border: none;
             padding: 10px 20px; border-radius: 9px;
-            font-size: 13px; font-weight: 600;
+            font-size: 13px; font-weight: 500;
             cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
             transition: opacity 0.15s;
         }
@@ -313,7 +323,7 @@
             color: var(--navy);
             border: 1.5px solid #D0D3DE;
             padding: 9px 18px; border-radius: 9px;
-            font-size: 13px; font-weight: 600;
+            font-size: 13px; font-weight: 500;
             cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
             transition: background 0.15s;
         }
@@ -325,7 +335,7 @@
 
         .form-group label {
             display: block; margin-bottom: 7px;
-            font-size: 13px; font-weight: 600; color: #444;
+            font-size: 13px; font-weight: 500; color: #444;
         }
 
         .form-group input,
@@ -334,7 +344,7 @@
             width: 100%; padding: 10px 13px;
             border: 0.5px solid #E5E7EB;
             border-radius: 8px;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
             font-size: 13px; color: var(--navy);
             background: #fff;
             transition: border-color 0.15s;
@@ -373,7 +383,7 @@
         .filter-toolbar input,
         .filter-toolbar select {
             padding: 8px 12px; border: 0.5px solid #E5E7EB;
-            border-radius: 8px; font-family: 'Outfit', sans-serif;
+            border-radius: 8px; font-family: 'Segoe UI', Arial, sans-serif;
             font-size: 13px; color: var(--navy); background: #fff;
         }
 
@@ -395,7 +405,7 @@
         }
 
         .profile-field label {
-            font-size: 11px; font-weight: 700; color: #AAB0C0;
+            font-size: 11px; font-weight: 500; color: #AAB0C0;
             text-transform: uppercase; letter-spacing: 0.5px;
             display: block; margin-bottom: 4px;
         }
@@ -415,7 +425,7 @@
             width: 80px; height: 80px; border-radius: 50%;
             background: linear-gradient(135deg, #1B2A4A, #2C3E6B);
             display: flex; align-items: center; justify-content: center;
-            font-size: 28px; font-weight: 700; color: #fff;
+            font-size: 28px; font-weight: 500; color: #fff;
             overflow: hidden; flex-shrink: 0;
         }
 
@@ -474,7 +484,7 @@
         .confirm-cancel-btn {
             padding: 9px 18px; border-radius: 8px;
             border: 1.5px solid #D0D3DE; background: #fff;
-            color: var(--navy); font-size: 13px; font-weight: 600;
+            color: var(--navy); font-size: 13px; font-weight: 500;
             cursor: pointer;
         }
 
@@ -483,7 +493,7 @@
         .confirm-ok-btn {
             padding: 9px 18px; border-radius: 8px;
             border: none; background: #A32D2D;
-            color: #fff; font-size: 13px; font-weight: 600;
+            color: #fff; font-size: 13px; font-weight: 500;
             cursor: pointer;
         }
 
@@ -552,6 +562,7 @@
 
 <div class="sidebar" id="sidebar">
     <div class="sidebar-brand">
+        <img src="hunters-logo-white.jpeg" alt="Hunters" style="height:44px;width:auto;object-fit:contain;display:block;">
         <div class="sidebar-logo-circle" id="sidebar-logo-circle" onclick="document.getElementById('logo-file-input').click()">
             <span id="sidebar-initials">?</span>
             <div class="upload-hint">Upload Logo</div>
@@ -668,222 +679,335 @@
 
     <!-- ── Jobs ── -->
     <div id="jobs" class="content-area">
-        <div class="page-header-card">
+        <!-- A1 Page Header -->
+        <div style="background:#FFFFFF; border-radius:16px; border-left:4px solid #1B2A4A; padding:24px 32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <div>
-                <h1>Manage Jobs</h1>
-                <p>Create and manage your job postings</p>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <svg width="18" height="18" fill="#C9A84C" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" fill="none" stroke="#C9A84C" stroke-width="2"/></svg>
+                    <h1 style="font-size:22px; font-weight:500; color:#1B2A4A; margin:0;">My Jobs</h1>
+                </div>
+                <p style="font-size:13px; color:#9CA3AF; margin:4px 0 0 0;">Manage and track your job postings</p>
             </div>
-            <button class="btn-primary" onclick="showJobForm()">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Post New Job
-            </button>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <!-- A3 Toggle -->
+                <div style="display:flex; border:0.5px solid #E5E7EB; border-radius:8px; overflow:hidden;">
+                    <button id="card-view-btn" onclick="huntersToggleJobView('card')" style="padding:7px 12px; font-size:12px; border:none; cursor:pointer; background:#1B2A4A; color:#FFFFFF; display:flex; align-items:center; gap:5px;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Cards
+                    </button>
+                    <button id="list-view-btn" onclick="huntersToggleJobView('list')" style="padding:7px 12px; font-size:12px; border:none; cursor:pointer; background:#FFFFFF; color:#6B7280; display:flex; align-items:center; gap:5px;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> List
+                    </button>
+                </div>
+                <!-- Post New Job -->
+                <button onclick="openNewJobModal()" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:opacity 0.2s;">
+                    <svg width="14" height="14" stroke="#C9A84C" stroke-width="3" fill="none" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Post New Job
+                </button>
+            </div>
         </div>
 
-        <div id="job-form-card" class="card" style="display:none;">
-            <div class="card-title">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
-                </svg>
-                <span id="form-title">Post New Job</span>
+        <!-- A2 Filter Toolbar -->
+        <div style="display:flex; gap:10px; margin-bottom:16px;">
+            <div style="flex:1; position:relative;">
+                <svg width="14" height="14" fill="none" stroke="#9CA3AF" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; left:12px; top:10px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="job-search-input" oninput="renderHuntersJobs()" placeholder="Search jobs by title, location…" style="width:100%; background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px 8px 32px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif;">
             </div>
-            <div id="job-alert" class="inline-alert"></div>
-            <form id="job-form" onsubmit="handleJobSubmit(event)">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Job Title</label>
-                        <input type="text" id="job-title" placeholder="e.g. Senior Developer" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Job Location</label>
-                        <input type="text" id="job-location" placeholder="e.g. Cairo or Remote" required>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Salary Range (Min)</label>
-                        <input type="number" id="job-salary-min" placeholder="50000" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Salary Range (Max)</label>
-                        <input type="number" id="job-salary-max" placeholder="100000" required>
-                    </div>
-                </div>
-
-                <!-- Hide Salary Toggle -->
-                <div style="display:flex;align-items:center;gap:10px;margin-top:6px;margin-bottom:16px;">
-                    <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;">
-                        <input type="checkbox" id="hide-salary-toggle" style="opacity:0;width:0;height:0;">
-                        <span id="toggle-track" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#E5E7EB;border-radius:22px;transition:background 0.2s;"></span>
-                        <span id="toggle-thumb" style="position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:white;border-radius:50%;transition:transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.2);"></span>
-                    </label>
-                    <span style="font-size:13px;color:#1A1A2E;font-weight:500;">Hide salary from job posting</span>
-                    <span style="font-size:11px;color:#9CA3AF;">(Candidates will not see the salary range)</span>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Min Experience (Years)</label>
-                        <input type="number" id="job-experience" placeholder="3" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Employment Type</label>
-                        <select id="job-type" required>
-                            <option value="">Select...</option>
-                            <option value="Full-time">Full-time</option>
-                            <option value="Part-time">Part-time</option>
-                            <option value="Contract">Contract</option>
-                            <option value="Internship">Internship</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Job Description</label>
-                    <textarea id="job-description" placeholder="Describe the role, responsibilities, and requirements..." required></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Required Skills (comma-separated)</label>
-                    <input type="text" id="job-skills" placeholder="Python, FastAPI, React, PostgreSQL" required>
-                </div>
-                <!-- AI Scoring Weights -->
-                <div style="background:#F8F9FF;border:0.5px solid #E5E7EB;border-radius:12px;padding:20px 24px;margin-bottom:20px;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                        <svg width="18" height="18" fill="none" stroke="#C9A84C" stroke-width="1.5" viewBox="0 0 24 24">
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                        </svg>
-                        <span style="font-size:14px;font-weight:500;color:#1A1A2E;">AI Scoring Weights</span>
-                        <span style="font-size:10px;font-weight:500;background:#E6F1FB;color:#185FA5;border-radius:20px;padding:2px 8px;margin-left:4px;">Powered by Hunters AI</span>
-                    </div>
-                    <p style="font-size:12px;color:#9CA3AF;margin-bottom:18px;margin-top:0;">Set how much weight the AI gives each factor when scoring candidates. Total must equal 100%.</p>
-
-                    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-                        <div id="weight-total-badge" style="font-size:12px;font-weight:500;background:#E1F5EE;color:#0F6E56;border-radius:20px;padding:3px 12px;border:0.5px solid #9FE1CB;transition:all 0.2s;">Total: 100% ✓</div>
-                    </div>
-
-                    <div style="display:flex;flex-direction:column;gap:16px;">
-                        <div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                                <span style="font-size:12px;font-weight:500;color:#1A1A2E;">Experience</span>
-                                <span id="exp-val" style="font-size:12px;font-weight:500;color:#1B2A4A;background:#F0F2F8;border-radius:6px;padding:2px 8px;min-width:40px;text-align:center;">40%</span>
-                            </div>
-                            <input type="range" id="exp-slider" min="0" max="100" value="40" style="width:100%;accent-color:#1B2A4A;height:4px;cursor:pointer;">
-                        </div>
-                        <div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                                <span style="font-size:12px;font-weight:500;color:#1A1A2E;">Skills Match</span>
-                                <span id="skills-val" style="font-size:12px;font-weight:500;color:#1B2A4A;background:#F0F2F8;border-radius:6px;padding:2px 8px;min-width:40px;text-align:center;">30%</span>
-                            </div>
-                            <input type="range" id="skills-slider" min="0" max="100" value="30" style="width:100%;accent-color:#1B2A4A;height:4px;cursor:pointer;">
-                        </div>
-                        <div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                                <span style="font-size:12px;font-weight:500;color:#1A1A2E;">Education</span>
-                                <span id="edu-val" style="font-size:12px;font-weight:500;color:#1B2A4A;background:#F0F2F8;border-radius:6px;padding:2px 8px;min-width:40px;text-align:center;">20%</span>
-                            </div>
-                            <input type="range" id="edu-slider" min="0" max="100" value="20" style="width:100%;accent-color:#1B2A4A;height:4px;cursor:pointer;">
-                        </div>
-                        <div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                                <span style="font-size:12px;font-weight:500;color:#1A1A2E;">Behavioral Fit</span>
-                                <span id="behav-val" style="font-size:12px;font-weight:500;color:#1B2A4A;background:#F0F2F8;border-radius:6px;padding:2px 8px;min-width:40px;text-align:center;">10%</span>
-                            </div>
-                            <input type="range" id="behav-slider" min="0" max="100" value="10" style="width:100%;accent-color:#1B2A4A;height:4px;cursor:pointer;">
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display:flex; gap:10px; margin-top:20px;">
-                    <button type="submit" class="btn-primary" style="flex:1;">Submit for Approval</button>
-                    <button type="button" class="btn-secondary" onclick="cancelJobForm()" style="flex:1;">Cancel</button>
-                </div>
-            </form>
+            <select id="job-status-filter" onchange="renderHuntersJobs()" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; cursor:pointer;">
+                <option value="">All Status</option>
+                <option value="Approved">Approved</option>
+                <option value="Pending">Pending</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+            <select id="job-type-filter" onchange="renderHuntersJobs()" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; cursor:pointer;">
+                <option value="">All Types</option>
+                <option value="Full-time">Full-time</option>
+                <option value="Part-time">Part-time</option>
+                <option value="Contract">Contract</option>
+                <option value="Freelance">Freelance</option>
+            </select>
+            <input type="text" id="job-loc-filter" oninput="renderHuntersJobs()" placeholder="Filter by location…" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; width:160px;">
         </div>
 
-        <div class="card">
-            <div class="card-title">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                </svg>
-                Your Jobs
+        <!-- A4 CARD VIEW CONTAINER -->
+        <div id="jobs-card-view" class="hunters-jobs-grid" style="display:grid; gap:16px;"></div>
+
+        <!-- A5 LIST VIEW CONTAINER -->
+        <div id="jobs-list-view" style="display:none; background:#FFFFFF; border-radius:16px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; text-align:left;">
+                    <thead style="background:#1B2A4A; color:#FFFFFF;">
+                        <tr>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Job Title</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Company</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Location</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Type</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Salary</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Status</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">AI Score</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Applications</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Posted</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobs-list-tbody"></tbody>
+                </table>
             </div>
-            <div class="table-wrap" id="jobs-list-container"></div>
+        </div>
+
+        <!-- A7 EMPTY STATE -->
+        <div id="jobs-empty-state" style="display:none; text-align:center; padding:48px; background:#FFFFFF; border-radius:16px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:16px;">
+            <svg width="44" height="44" fill="none" stroke="#D1D5DB" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto;"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+            <div style="font-size:14px; font-weight:500; color:#1B2A4A; margin-top:12px;">No jobs found</div>
+            <div style="font-size:12px; color:#9CA3AF; margin-top:4px;">Try adjusting your filters or post a new job</div>
+            <button onclick="openNewJobModal()" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:8px 16px; font-size:12px; font-weight:500; cursor:pointer; margin-top:16px; transition:opacity 0.2s;">+ Post New Job</button>
         </div>
     </div>
 
     <!-- ── Candidates ── -->
     <div id="candidates" class="content-area">
-        <div class="page-header-card">
+        <div style="background:#FFFFFF; border-radius:16px; border-left:4px solid #1B2A4A; padding:24px 32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-direction:row;">
             <div>
-                <h1>Applications</h1>
-                <p>Review applications to your job postings</p>
+                <h1 style="display:flex; align-items:center; gap:8px; margin:0 0 4px 0; font-size:22px; font-weight:500; color:#1B2A4A;">
+                    <svg width="18" height="18" fill="none" stroke="#C9A84C" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                    Candidates
+                </h1>
+                <p style="margin:0; font-size:13px; color:#9CA3AF;">Upload, screen and manage your candidates</p>
             </div>
-            <button class="btn-secondary" onclick="exportCandidatesCSV()">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Export CSV
-            </button>
+            <div style="display:flex; gap:8px;">
+                <button onclick="openBulkUploadModal()" style="background:transparent; color:#C9A84C; border:1.5px solid #C9A84C; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Bulk Upload
+                </button>
+                <button onclick="showToast('Single candidate upload coming soon', 'info')" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                    + Add Single Candidate
+                </button>
+            </div>
         </div>
 
-        <div class="card">
-            <div class="filter-toolbar">
-                <input type="text" id="cand-search" placeholder="Search by name or email..." oninput="filterCandidates()">
-                <select id="cand-job-filter" onchange="filterCandidates()">
-                    <option value="">All Jobs</option>
-                </select>
-                <select id="cand-sort" onchange="filterCandidates()">
-                    <option value="score-desc">Score: High → Low</option>
-                    <option value="score-asc">Score: Low → High</option>
-                    <option value="name-asc">Name: A → Z</option>
-                </select>
+        <div style="background:#FFFFFF; border-radius:16px; border:1px solid #E5E7EB; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+            <div style="padding:16px 20px; border-bottom:1px solid #E5E7EB; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                    <input type="text" id="cand-search" placeholder="Search by name or email..." oninput="filterCandidates()" style="padding:10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; min-width:240px; outline:none; color:#1B2A4A;">
+                    <select id="cand-job-filter" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background-color:#fff; cursor:pointer;">
+                        <option value="">All Jobs</option>
+                    </select>
+                    <select id="cand-stage-filter" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background-color:#fff; cursor:pointer;">
+                        <option value="">All Stages</option>
+                        <option value="Applied">Applied</option>
+                        <option value="Review">Review</option>
+                        <option value="Shortlisted">Shortlisted</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                    <select id="cand-sort" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background-color:#fff; cursor:pointer;">
+                        <option value="score-desc">Score: High → Low</option>
+                        <option value="score-asc">Score: Low → High</option>
+                        <option value="name-asc">Name: A → Z</option>
+                    </select>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button onclick="openBulkUploadModal()" style="background:#F4F5FA; color:#1B2A4A; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Bulk Upload
+                    </button>
+                    <button onclick="exportCandidatesCSV()" style="background:#FFFFFF; color:#1B2A4A; border:1px solid #E5E7EB; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.background='#F4F5FA'" onmouseout="this.style.background='#FFFFFF'">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export
+                    </button>
+                </div>
             </div>
-            <div class="table-wrap" id="candidates-list-container"></div>
+            
+            <div id="bulk-actions-bar" style="display:none; padding:12px 20px; background:#F8F9FF; border-bottom:1px solid #E5E7EB; align-items:center; justify-content:space-between;">
+                <div style="font-size:13px; font-weight:500; color:#1B2A4A;">
+                    <span id="selected-count">0</span> selected
+                </div>
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:12px; color:#6B7280;">Move to Stage:</span>
+                        <select id="bulk-stage-select" onchange="bulkUpdateStage(this.value)" style="padding:6px 10px; border:1px solid #E5E7EB; border-radius:6px; font-size:12px; outline:none;">
+                            <option value="">Select...</option>
+                            <option value="Applied">Applied</option>
+                            <option value="Review">Review</option>
+                            <option value="Shortlisted">Shortlisted</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <span style="color:#D1D5DB;">|</span>
+                    <button onclick="exportSelectedCSV()" style="background:none; border:none; color:#1B2A4A; font-size:13px; font-weight:500; cursor:pointer; padding:0;">Export Selected</button>
+                    <span style="color:#D1D5DB;">|</span>
+                    <button onclick="deleteSelectedCandidates()" style="background:none; border:none; color:#CC2B2B; font-size:13px; font-weight:500; cursor:pointer; padding:0;">Delete Selected</button>
+                </div>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <div id="candidates-list-container"></div>
+            </div>
         </div>
     </div>
 
     <!-- ── Profile ── -->
     <div id="profile" class="content-area">
-        <div class="page-header-card">
-            <div>
-                <h1>Company Profile</h1>
-                <p>Your registered company information</p>
+        
+        <!-- B1 - Profile Header Card -->
+        <div style="background:#FFFFFF; border-radius:16px; border-left:4px solid #C9A84C; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div style="display:flex; align-items:center; gap:20px;">
+                <div id="b1-logo-container" style="width:64px; height:64px; border-radius:50%; border:2px solid #E5E7EB; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#F4F5FA; cursor:pointer;" onclick="document.getElementById('logo-file-input').click()">
+                    <span id="b1-logo-initials" style="font-size:24px; font-weight:500; color:#1B2A4A;">?</span>
+                    <img id="b1-logo-img" style="display:none; width:100%; height:100%; object-fit:cover;">
+                </div>
+                <div>
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <h1 id="b1-company-name" style="margin:0; font-size:24px; font-weight:500; color:#1B2A4A;">Company Name</h1>
+                        <span id="b1-status-pill" style="display:none;"></span>
+                    </div>
+                    <a id="b1-company-website" href="#" target="_blank" style="color:#C9A84C; font-size:14px; text-decoration:none; display:flex; align-items:center; gap:4px; margin-top:4px;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Website
+                    </a>
+                </div>
+            </div>
+            <div style="display:flex; gap:12px;">
+                <button onclick="navigateTo('public-profile')" style="background:transparent; border:1px solid #E5E7EB; color:#6B7280; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s;">
+                    View Public Profile
+                </button>
+                <button onclick="switchProfileTab('Settings')" style="background:transparent; border:1px solid #C9A84C; color:#1B2A4A; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s;">
+                    Edit Profile
+                </button>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-title">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/>
-                </svg>
-                Company Logo
-            </div>
-            <div class="logo-upload-section">
-                <div class="logo-upload-preview" id="profile-logo-preview">
-                    <span id="profile-logo-initials">?</span>
+        <!-- B2 - Tab Bar -->
+        <div style="display:flex; border-bottom:1px solid #E5E7EB; margin-bottom:24px;">
+            <button class="profile-tab-btn active" onclick="switchProfileTab('Jobs')" style="padding:12px 24px; border:none; background:none; font-size:14px; cursor:pointer; color:#1B2A4A; font-weight:500; border-bottom:2px solid #C9A84C; transition:color 0.15s ease, border-color 0.15s ease;">Jobs</button>
+            <button class="profile-tab-btn" onclick="switchProfileTab('Candidates')" style="padding:12px 24px; border:none; background:none; font-size:14px; cursor:pointer; color:#9CA3AF; font-weight:400; border-bottom:2px solid transparent; transition:color 0.15s ease, border-color 0.15s ease;">Candidates</button>
+            <button class="profile-tab-btn" onclick="switchProfileTab('Analytics')" style="padding:12px 24px; border:none; background:none; font-size:14px; cursor:pointer; color:#9CA3AF; font-weight:400; border-bottom:2px solid transparent; transition:color 0.15s ease, border-color 0.15s ease;">Analytics</button>
+            <button class="profile-tab-btn" onclick="switchProfileTab('Settings')" style="padding:12px 24px; border:none; background:none; font-size:14px; cursor:pointer; color:#9CA3AF; font-weight:400; border-bottom:2px solid transparent; transition:color 0.15s ease, border-color 0.15s ease;">Settings</button>
+        </div>
+
+        <!-- Tab Contents -->
+        <!-- Jobs Tab -->
+        <div id="profile-tab-Jobs" class="profile-tab-content" style="display:block;">
+            <h2 style="font-size:18px; color:#1B2A4A; margin-bottom:12px;">Active Jobs</h2>
+            <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:180px; position:relative;">
+                    <svg width="14" height="14" fill="none" stroke="#9CA3AF" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; left:12px; top:10px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="profile-job-search-input" placeholder="Search jobs by title, location…" style="width:100%; background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px 8px 32px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif;">
                 </div>
-                <div class="logo-upload-info">
-                    <p>Upload your company logo to personalise your profile.</p>
-                    <button class="btn-secondary" onclick="document.getElementById('logo-file-input').click()" style="margin-bottom:6px;">
-                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                        Choose Image
-                    </button>
-                    <br><small>PNG, JPG or GIF · Max 2MB</small>
+                <select id="profile-job-status-filter" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; cursor:pointer;">
+                    <option value="">All Status</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+                <select id="profile-job-type-filter" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; cursor:pointer;">
+                    <option value="">All Types</option>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Part-time">Part-time</option>
+                    <option value="Contract">Contract</option>
+                    <option value="Freelance">Freelance</option>
+                </select>
+                <input type="text" id="profile-job-loc-filter" placeholder="Location…" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; width:140px;">
+            </div>
+            <div id="profile-jobs-container" class="hunters-jobs-grid" style="display:grid; gap:16px;">
+                <!-- Will be populated by JS -->
+            </div>
+        </div>
+
+        <!-- Candidates Tab -->
+        <div id="profile-tab-Candidates" class="profile-tab-content" style="display:none;">
+            <h2 style="font-size:18px; color:#1B2A4A; margin-bottom:16px;">Recent Candidates</h2>
+            <div id="profile-candidates-container" style="background:#FFFFFF; border-radius:16px; border:1px solid #E5E7EB; padding:20px;">
+                <!-- Will be populated by JS -->
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="profile-tab-Analytics" class="profile-tab-content" style="display:none;">
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:24px;">
+                <div style="background:#FFFFFF; border-radius:12px; padding:20px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                    <div style="font-size:11px; color:#C9A84C; font-weight:500; text-transform:uppercase;">Total Jobs</div>
+                    <div id="stat-profile-jobs" style="font-size:32px; font-weight:500; color:#1B2A4A; margin-top:4px;">0</div>
+                </div>
+                <div style="background:#FFFFFF; border-radius:12px; padding:20px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                    <div style="font-size:11px; color:#C9A84C; font-weight:500; text-transform:uppercase;">Total Applications</div>
+                    <div id="stat-profile-apps" style="font-size:32px; font-weight:500; color:#1B2A4A; margin-top:4px;">0</div>
+                </div>
+                <div style="background:#FFFFFF; border-radius:12px; padding:20px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                    <div style="font-size:11px; color:#C9A84C; font-weight:500; text-transform:uppercase;">Avg AI Score</div>
+                    <div id="stat-profile-avgscore" style="font-size:32px; font-weight:500; color:#1B2A4A; margin-top:4px;">—</div>
+                </div>
+                <div style="background:#FFFFFF; border-radius:12px; padding:20px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                    <div style="font-size:11px; color:#C9A84C; font-weight:500; text-transform:uppercase;">Shortlisted</div>
+                    <div id="stat-profile-shortlisted" style="font-size:32px; font-weight:500; color:#1B2A4A; margin-top:4px;">0</div>
+                </div>
+            </div>
+            <div style="background:#FFFFFF; border-radius:16px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06); padding:24px; min-height:220px;">
+                <div id="profile-analytics-chart-wrap"></div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="profile-tab-Settings" class="profile-tab-content" style="display:none;">
+            <div style="background:#FFFFFF; border-radius:16px; border:1px solid #E5E7EB; padding:24px; max-width:600px;">
+                <h2 style="font-size:18px; color:#1B2A4A; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Company Information
+                </h2>
+                <div id="profile-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Public Profile (B3) ── -->
+    <div id="public-profile" class="content-area">
+        <div style="background:#FFFFFF; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div style="display:flex; align-items:center; gap:20px;">
+                <div id="public-logo-container" style="width:64px; height:64px; border-radius:50%; border:2px solid #E5E7EB; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#F4F5FA;">
+                    <span id="public-logo-initials" style="font-size:24px; font-weight:500; color:#1B2A4A;">?</span>
+                    <img id="public-logo-img" style="display:none; width:100%; height:100%; object-fit:cover;">
+                </div>
+                <div>
+                    <h1 id="public-company-name" style="margin:0 0 4px 0; font-size:24px; font-weight:500; color:#1B2A4A;">Company Name</h1>
+                    <a id="public-company-website" href="#" target="_blank" style="color:#C9A84C; font-size:14px; text-decoration:none; display:flex; align-items:center; gap:4px;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Website
+                    </a>
+                </div>
+            </div>
+            <div>
+                <button onclick="navigateTo('profile')" style="background:transparent; border:1px solid #E5E7EB; color:#6B7280; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s;">
+                    Back to Internal
+                </button>
+            </div>
+        </div>
+        
+        <div style="display:grid; grid-template-columns:1fr 1.5fr; gap:24px;">
+            <div style="background:#FFFFFF; border-radius:16px; padding:24px; border:1px solid #E5E7EB; align-self:start;">
+                <h3 style="font-size:18px; color:#1B2A4A; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                    <svg width="18" height="18" fill="none" stroke="#C9A84C" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    About Us
+                </h3>
+                <p id="public-about-text" style="font-size:14px; color:#4B5563; line-height:1.6; margin:0;">
+                    We are a leading company innovating in our field. We are looking for talented individuals to join our team and help us build the future.
+                </p>
+                <div style="margin-top:24px; padding-top:24px; border-top:1px solid #E5E7EB;">
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+                        <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#4B5563;">
+                            <svg width="16" height="16" fill="none" stroke="#9CA3AF" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                            Joined <span id="public-joined-date">2026</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#4B5563;">
+                            <svg width="16" height="16" fill="none" stroke="#9CA3AF" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            <span id="public-jobs-count">0</span> Open Positions
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="card-title" style="margin-top:4px;">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                </svg>
-                Company Information
+            <div>
+                <h3 style="font-size:18px; color:#1B2A4A; margin-bottom:16px;">Open Positions</h3>
+                <div id="public-open-positions" class="hunters-jobs-grid" style="display:grid; gap:16px;">
+                    <!-- Populated by JS -->
+                </div>
             </div>
-            <div id="profile-content"></div>
         </div>
     </div>
 
@@ -891,6 +1015,7 @@
 
 <script>
     const API_URL = window.location.origin;
+    window.API_URL = API_URL;
     let currentUser = null;
     let currentCompany = null;
     let allCandidatesData = [];
@@ -952,7 +1077,7 @@
 
     function updateLogoUI(dataUrl) {
         const sidebarCircle = document.getElementById('sidebar-logo-circle');
-        const profilePreview = document.getElementById('profile-logo-preview');
+        const profilePreview = document.getElementById('b1-logo-container');
 
         let sidebarImg = sidebarCircle.querySelector('img');
         if (!sidebarImg) {
@@ -962,13 +1087,15 @@
         }
         sidebarImg.src = dataUrl;
 
-        let profileImg = profilePreview.querySelector('img');
-        if (!profileImg) {
-            profileImg = document.createElement('img');
-            profilePreview.querySelector('span').style.display = 'none';
-            profilePreview.appendChild(profileImg);
+        if (profilePreview) {
+            const initials = document.getElementById('b1-logo-initials');
+            const img = document.getElementById('b1-logo-img');
+            if (initials) initials.style.display = 'none';
+            if (img) {
+                img.style.display = 'block';
+                img.src = dataUrl;
+            }
         }
-        profileImg.src = dataUrl;
     }
 
     function loadSavedLogo() {
@@ -1003,18 +1130,44 @@
 
                 if (companyResponse.ok) {
                     currentCompany = await companyResponse.json();
+                    window.__huntersCurrentCompany = currentCompany;
                     const name = currentCompany.company_name || 'Company';
                     document.getElementById('company-name-sidebar').textContent = name;
-                    document.getElementById('company-info-text').textContent = `Manage recruitment for ${name}`;
+                    
+                    const infoText = document.getElementById('company-info-text');
+                    if(infoText) infoText.textContent = `Manage recruitment for ${name}`;
+
+                    const b1Name = document.getElementById('b1-company-name');
+                    if(b1Name) b1Name.textContent = name;
+                    
+                    const b1Website = document.getElementById('b1-company-website');
+                    if(b1Website && currentCompany.company_website) {
+                        b1Website.href = currentCompany.company_website;
+                    }
 
                     const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
                     document.getElementById('sidebar-initials').textContent = initials;
-                    document.getElementById('profile-logo-initials').textContent = initials;
+                    
+                    const b1Initials = document.getElementById('b1-logo-initials');
+                    if(b1Initials) b1Initials.textContent = initials;
+
+                    const b1Pill = document.getElementById('b1-status-pill');
+                    if (b1Pill) {
+                        b1Pill.style.display = 'inline-flex';
+                        if (currentCompany.is_approved) {
+                            b1Pill.innerHTML = '<span style="background:#E1F5EE;color:#0F6E56;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500;">Approved</span>';
+                        } else {
+                            b1Pill.innerHTML = '<span style="background:#FAEEDA;color:#854F0B;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500;">Pending Approval</span>';
+                        }
+                    }
                 }
+            } else {
+                window.__huntersCurrentCompany = null;
             }
 
             loadSavedLogo();
             loadOverviewData();
+            applyRouteFromHash();
         } catch (error) {
             console.error('Init error:', error);
             localStorage.removeItem('token');
@@ -1025,16 +1178,77 @@
     /* ──────────────────────────────
        Navigation
     ────────────────────────────── */
-    function navigateTo(page) {
+    let __huntersHashSync = false;
+
+    function setRouteHashForPage(page) {
+        if (__huntersHashSync) return;
+        const map = { overview: 'overview', jobs: 'my-jobs', candidates: 'candidates', profile: 'company-profile', 'public-profile': 'public-profile' };
+        const h = map[page];
+        if (!h) return;
+        const cur = (window.location.hash || '').replace(/^#/, '').split('?')[0];
+        if (page === 'public-profile' && cur === 'public-company') return;
+        if (cur !== h) {
+            __huntersHashSync = true;
+            window.location.hash = h;
+            setTimeout(() => { __huntersHashSync = false; }, 0);
+        }
+    }
+
+    function applyRouteFromHash() {
+        const raw = (window.location.hash || '').replace(/^#/, '');
+        const base = raw.split('?')[0];
+
+        if (base === 'my-jobs' || base === 'jobs') {
+            navigateTo('jobs', { fromHash: true });
+            return;
+        }
+        if (base === 'candidates') {
+            navigateTo('candidates', { fromHash: true });
+            return;
+        }
+        if (base === 'company-profile' || base === 'profile') {
+            navigateTo('profile', { fromHash: true });
+            return;
+        }
+        if (base === 'public-company' || base === 'public-profile') {
+            navigateTo('public-profile', { fromHash: true });
+            return;
+        }
+        if (base === 'overview' || base === '') {
+            navigateTo('overview', { fromHash: true });
+        }
+    }
+
+    window.addEventListener('hashchange', () => {
+        if (__huntersHashSync) return;
+        applyRouteFromHash();
+    });
+
+    function navigateTo(page, opts) {
+        const fromHash = opts && opts.fromHash;
+        if (!fromHash) setRouteHashForPage(page);
+
         document.querySelectorAll('.content-area').forEach(a => a.classList.remove('active'));
-        document.getElementById(page).classList.add('active');
+        const targetPage = document.getElementById(page);
+        if (targetPage) targetPage.classList.add('active');
 
         document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-        document.querySelector(`[data-page="${page}"]`).classList.add('active');
+        const navItem = document.querySelector(`[data-page="${page}"]`);
+        if (navItem) navItem.classList.add('active');
 
         if (page === 'jobs')       loadJobsList();
         if (page === 'candidates') loadCandidatesList();
         if (page === 'profile')    loadProfileData();
+        if (page === 'public-profile') {
+            if (typeof loadJobsList === 'function') void loadJobsList();
+            if (typeof renderHuntersPublicProfile === 'function') {
+                const raw = (window.location.hash || '').replace(/^#/, '');
+                const q = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : '';
+                const pid = new URLSearchParams(q).get('id');
+                const idNum = pid != null && pid !== '' ? parseInt(pid, 10) : NaN;
+                renderHuntersPublicProfile(Number.isFinite(idNum) ? idNum : null);
+            }
+        }
     }
 
     /* ──────────────────────────────
@@ -1117,50 +1331,69 @@
     ────────────────────────────── */
     async function loadJobsList() {
         const token = localStorage.getItem('token');
-        const container = document.getElementById('jobs-list-container');
-        container.innerHTML = '<p style="padding:20px;color:#AAB0C0;font-size:13px;">Loading...</p>';
-
         try {
             const response = await fetch(`${API_URL}/jobs`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const jobs = await response.json();
+            let rawJobs = await response.json();
+            if(!Array.isArray(rawJobs)) rawJobs = [];
+            
+            // Map keys
+            window.__huntersCompanyContext = currentCompany || null;
 
-            if (jobs.length === 0) {
-                container.innerHTML = `<div class="empty-state">
-                    <svg width="48" height="48" fill="none" stroke="#D0D3DE" stroke-width="1.5" viewBox="0 0 24 24">
-                        <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
-                    </svg>
-                    <p>No jobs posted yet. Create your first opening!</p>
-                </div>`;
-                return;
+            const mappedJobs = await Promise.all(rawJobs.map(async (j) => {
+                let cands = [];
+                try {
+                    const cr = await fetch(`${API_URL}/jobs/${j.id}/candidates`, { headers: { 'Authorization': `Bearer ${token}` } });
+                    if (cr.ok) cands = await cr.json();
+                } catch (e) {}
+                let aiScore = null;
+                if (cands.length) {
+                    const scores = cands.map(c => c.ai_score != null ? Number(c.ai_score) : null).filter(v => v != null && !Number.isNaN(v));
+                    if (scores.length) aiScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+                }
+                return {
+                    id: j.id,
+                    title: j.job_title || j.title,
+                    location: j.job_location || j.location,
+                    employment_type: j.employment_type || 'Full-time',
+                    experience_years: j.min_experience,
+                    salary_min: j.salary_min,
+                    salary_max: j.salary_max,
+                    salary_currency: 'EGP',
+                    hide_salary: !!(j.hide_salary),
+                    status: j.is_approved ? 'Approved' : 'Pending',
+                    candidates: cands,
+                    created_at: j.created_at,
+                    description: j.job_description || j.description,
+                    required_skills: j.required_skills,
+                    ai_score: aiScore,
+                    company: currentCompany || null,
+                    company_id: currentCompany ? currentCompany.id : null,
+                    ai_weights: {
+                        experience: Math.round((j.weight_experience || 0) * 100),
+                        skills: Math.round((j.weight_skills || 0) * 100),
+                        education: Math.round((j.weight_education || 0) * 100),
+                        behavioral: Math.round((j.weight_behavioral || 0) * 100)
+                    }
+                };
+            }));
+            
+            if (typeof huntersInitJobs === 'function') {
+                huntersInitJobs(false);
+                renderHuntersJobs(mappedJobs);
             }
 
-            let html = `<table><thead><tr>
-                <th>Title</th><th>Location</th><th>Status</th><th>Actions</th>
-            </tr></thead><tbody>`;
-
-            jobs.forEach(job => {
-                const pillClass = job.is_approved ? 'pill-green' : 'pill-amber';
-                const pillText  = job.is_approved ? 'Approved' : 'Pending Approval';
-                html += `<tr>
-                    <td><strong style="color:var(--navy);">${escHtml(job.job_title)}</strong></td>
-                    <td>${escHtml(job.job_location)}</td>
-                    <td><span class="pill ${pillClass}">${pillText}</span></td>
-                    <td>
-                        <div style="display:flex;gap:6px;">
-                            <button class="btn-icon btn-edit" onclick="editJob(${job.id})">Edit</button>
-                            <button class="btn-icon btn-delete" onclick="deleteJob(${job.id})">Delete</button>
-                        </div>
-                    </td>
-                </tr>`;
-            });
-
-            html += '</tbody></table>';
-            container.innerHTML = html;
+            const pub = document.getElementById('public-profile');
+            if (pub && pub.classList.contains('active') && typeof renderHuntersPublicProfile === 'function') {
+                const raw = (window.location.hash || '').replace(/^#/, '');
+                const q = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : '';
+                const pid = new URLSearchParams(q).get('id');
+                const idNum = pid != null && pid !== '' ? parseInt(pid, 10) : NaN;
+                renderHuntersPublicProfile(Number.isFinite(idNum) ? idNum : null);
+            }
         } catch (error) {
-            console.error('Jobs load error:', error);
-            container.innerHTML = '<p style="padding:20px;color:#A32D2D;font-size:13px;">Failed to load jobs.</p>';
+            console.error('Jobs error:', error);
         }
     }
 
@@ -1170,7 +1403,22 @@
     async function loadCandidatesList() {
         const token = localStorage.getItem('token');
         const container = document.getElementById('candidates-list-container');
-        container.innerHTML = '<p style="padding:20px;color:#AAB0C0;font-size:13px;">Loading...</p>';
+        
+        let skeletonHTML = '<div style="display:flex; flex-direction:column; gap:8px;">';
+        for(let i=0; i<5; i++) {
+            skeletonHTML += `<div style="height:60px; background:linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:8px;"></div>`;
+        }
+        skeletonHTML += '</div>';
+        
+        // Add shimmer keyframes if not exists
+        if (!document.getElementById('shimmer-style')) {
+            const style = document.createElement('style');
+            style.id = 'shimmer-style';
+            style.innerHTML = `@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`;
+            document.head.appendChild(style);
+        }
+
+        container.innerHTML = skeletonHTML;
 
         try {
             const jobsResponse = await fetch(`${API_URL}/jobs`, {
@@ -1234,44 +1482,192 @@
         return `<span class="score-chip ${cls}">${n.toFixed(1)}</span>`;
     }
 
+    // CRITICAL FIX — always apply this before displaying any score:
+    function formatScore(raw) {
+        if (raw === null || raw === undefined || raw === '') return null;
+        const n = parseFloat(raw);
+        if (isNaN(n)) return null;
+        if (n <= 1) return Math.round(n * 100);   // 0.8 → 80
+        if (n <= 10) return Math.round(n * 10);   // 8 → 80
+        return Math.round(n);                      // 80 → 80
+    }
+
     function renderCandidatesTable(candidates) {
         const container = document.getElementById('candidates-list-container');
 
         if (candidates.length === 0) {
-            container.innerHTML = `<div class="empty-state">
-                <svg width="48" height="48" fill="none" stroke="#D0D3DE" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-                </svg>
-                <p>No applications found.</p>
-            </div>`;
+            container.innerHTML = `
+                <div style="text-align:center; padding:48px; background:#FFFFFF;">
+                    <svg width="44" height="44" fill="none" stroke="#D1D5DB" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                    <div style="font-size:14px; font-weight:500; color:#1B2A4A; margin-top:12px;">No candidates yet</div>
+                    <div style="font-size:12px; color:#9CA3AF; margin-top:4px;">Use Bulk Upload to screen multiple CVs at once</div>
+                    <button onclick="openBulkUploadModal()" style="margin-top:16px; background:#1B2A4A; color:#FFFFFF; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer;">Bulk Upload</button>
+                </div>`;
             return;
         }
 
-        let html = `<table><thead><tr>
-            <th>Candidate</th><th>Applied For</th><th>AI Score</th><th>Stage</th>
-        </tr></thead><tbody>`;
+        let html = `
+            <table style="width:100%; border-collapse:collapse; text-align:left; min-width:1200px;">
+                <thead style="background:#F8F9FF; border-bottom:1px solid #E5E7EB;">
+                    <tr>
+                        <th style="padding:12px 14px; width:40px;"><input type="checkbox" id="cand-select-all" onclick="toggleSelectAllCandidates(this)" style="cursor:pointer;"></th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Applicant</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Phone</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Location</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Stage</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Last Title</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Last Employer</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Years Exp</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Resume File</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Interviewer</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Score</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">HR Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
 
-        candidates.forEach(cand => {
+        candidates.forEach((cand, idx) => {
             const initials = (cand.full_name || '?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-            html += `<tr>
-                <td>
-                    <div class="avatar-cell">
-                        <div class="avatar-circle">${initials}</div>
-                        <div>
-                            <strong>${escHtml(cand.full_name || 'Unknown')}</strong>
-                            <small>${escHtml(cand.email || '')}</small>
+            
+            let scoreVal = formatScore(cand.evaluation_score || cand.score);
+            let scoreHTML = '-';
+            if (scoreVal != null) {
+                if (scoreVal >= 75) scoreHTML = `<span style="background:#E1F5EE; color:#0F6E56; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500; white-space:nowrap;">${scoreVal}%</span>`;
+                else if (scoreVal >= 50) scoreHTML = `<span style="background:#FAEEDA; color:#854F0B; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500; white-space:nowrap;">${scoreVal}%</span>`;
+                else scoreHTML = `<span style="background:#FCEBEB; color:#A32D2D; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500; white-space:nowrap;">${scoreVal}%</span>`;
+            }
+
+            const stage = cand.stage || cand.status || 'Applied';
+            let stageColor = '#6B7280'; let stageBg = '#F3F4F6';
+            if(stage==='Shortlisted') { stageColor='#0F6E56'; stageBg='#E1F5EE'; }
+            else if(stage==='Review') { stageColor='#854F0B'; stageBg='#FAEEDA'; }
+            else if(stage==='Rejected') { stageColor='#A32D2D'; stageBg='#FCEBEB'; }
+
+            let stageBadge = `<div style="position:relative; display:inline-block;">
+                <select onchange="updateCandidateStage(${cand.id}, this.value)" style="appearance:none; -webkit-appearance:none; background:${stageBg}; color:${stageColor}; border:1px solid ${stageColor}40; border-radius:12px; padding:4px 20px 4px 10px; font-size:11px; font-weight:500; cursor:pointer; outline:none;">
+                    <option value="Applied" ${stage==='Applied'?'selected':''}>Applied</option>
+                    <option value="Review" ${stage==='Review'?'selected':''}>Review</option>
+                    <option value="Shortlisted" ${stage==='Shortlisted'?'selected':''}>Shortlisted</option>
+                    <option value="Rejected" ${stage==='Rejected'?'selected':''}>Rejected</option>
+                </select>
+                <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); pointer-events:none; color:${stageColor};"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>`;
+
+            const resumeLink = cand.resume_url || cand.cv_url ? `<a href="${cand.resume_url || cand.cv_url}" target="_blank" style="color:#C9A84C; font-size:12px; font-weight:500; text-decoration:none;">View CV</a>` : `<span style="color:#9CA3AF; font-size:12px;">-</span>`;
+
+            html += `
+                <tr style="border-bottom:1px solid #F3F4F6; transition:background 0.15s;" onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='transparent'">
+                    <td style="padding:12px 14px;"><input type="checkbox" class="cand-checkbox" value="${cand.id}" onchange="updateBulkActions()" style="cursor:pointer;"></td>
+                    <td style="padding:12px 14px; display:flex; align-items:center; gap:10px; min-width:180px;">
+                        <div style="width:28px; height:28px; border-radius:50%; background:#1B2A4A; color:#C9A84C; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:500; flex-shrink:0;">${initials}</div>
+                        <div style="min-width:0;">
+                            <div style="font-size:13px; font-weight:500; color:#1B2A4A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(cand.full_name || cand.name || 'Unknown')}</div>
+                            <div style="font-size:11px; color:#9CA3AF; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(cand.email || '')}</div>
                         </div>
-                    </div>
-                </td>
-                <td style="color:#666;">${escHtml(cand.job_title || '')}</td>
-                <td>${scorePill(cand.evaluation_score)}</td>
-                <td><span class="pill pill-blue">Applied</span></td>
-            </tr>`;
+                    </td>
+                    <td style="padding:12px 14px; font-size:12px; color:#4B5563; white-space:nowrap;">${escHtml(cand.phone || '-')}</td>
+                    <td style="padding:12px 14px; font-size:12px; color:#4B5563; white-space:nowrap;">${escHtml(cand.location || '-')}</td>
+                    <td style="padding:12px 14px;">${stageBadge}</td>
+                    <td style="padding:12px 14px; font-size:12px; color:#4B5563; white-space:nowrap; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${escHtml(cand.last_title || cand.lastTitle || '-')}</td>
+                    <td style="padding:12px 14px; font-size:12px; color:#4B5563; white-space:nowrap; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${escHtml(cand.last_employer || cand.lastEmployer || '-')}</td>
+                    <td style="padding:12px 14px; font-size:12px; color:#4B5563;">${escHtml(cand.years_exp || cand.yearsExp || '-')}</td>
+                    <td style="padding:12px 14px;">${resumeLink}</td>
+                    <td style="padding:12px 14px;">
+                        <input type="text" value="${escHtml(cand.interviewer || '')}" onchange="updateCandidateField(${cand.id}, 'interviewer', this.value)" placeholder="Add..." style="width:100px; padding:4px 8px; font-size:12px; border:1px solid transparent; border-radius:4px; outline:none; background:transparent; transition:border 0.2s;" onfocus="this.style.border='1px solid #C9A84C'; this.style.background='#fff'" onblur="this.style.border='1px solid transparent'; this.style.background='transparent'">
+                    </td>
+                    <td style="padding:12px 14px;">${scoreHTML}</td>
+                    <td style="padding:12px 14px;">
+                        <input type="text" value="${escHtml(cand.notes || cand.hr_notes || '')}" onchange="updateCandidateField(${cand.id}, 'notes', this.value)" placeholder="Add notes..." style="width:120px; padding:4px 8px; font-size:12px; border:1px solid transparent; border-radius:4px; outline:none; background:transparent; transition:border 0.2s;" onfocus="this.style.border='1px solid #C9A84C'; this.style.background='#fff'" onblur="this.style.border='1px solid transparent'; this.style.background='transparent'">
+                    </td>
+                </tr>
+            `;
         });
 
         html += '</tbody></table>';
         container.innerHTML = html;
+    }
+
+    function toggleSelectAllCandidates(checkbox) {
+        const boxes = document.querySelectorAll('.cand-checkbox');
+        boxes.forEach(b => b.checked = checkbox.checked);
+        updateBulkActions();
+    }
+
+    function updateBulkActions() {
+        const checked = document.querySelectorAll('.cand-checkbox:checked').length;
+        const bar = document.getElementById('bulk-actions-bar');
+        document.getElementById('selected-count').innerText = checked;
+        if (checked > 0) {
+            bar.style.display = 'flex';
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+
+    function updateCandidateStage(id, stage) {
+        showToast('Candidate stage updated to ' + stage, 'success');
+        // Actually send API request here in the real backend
+    }
+    
+    function updateCandidateField(id, field, value) {
+        // Send API request to update 'interviewer' or 'hr_notes'
+        showToast('Candidate updated', 'success');
+    }
+
+    function bulkUpdateStage(stage) {
+        if (!stage) return;
+        const checked = document.querySelectorAll('.cand-checkbox:checked').length;
+        showToast(checked + ' candidates moved to ' + stage, 'success');
+        document.getElementById('bulk-stage-select').value = '';
+    }
+
+    function exportSelectedCSV() {
+        const checkedBoxes = document.querySelectorAll('.cand-checkbox:checked');
+        if (checkedBoxes.length === 0) return;
+        
+        const selectedIds = Array.from(checkedBoxes).map(b => parseInt(b.value));
+        const selectedCandidates = allCandidatesData.filter(c => selectedIds.includes(c.id));
+        
+        exportCandidatesDataToCSV(selectedCandidates);
+        showToast('Exported ' + selectedCandidates.length + ' candidates', 'success');
+    }
+
+    function exportCandidatesDataToCSV(candidates) {
+        const headers = [
+            "Applicant","Phone","Email","Location","Stage",
+            "Last Title","Last Employer","Years of Exp.",
+            "Resume File","Interviewer","Score","HR Notes"
+        ];
+        
+        const rows = candidates.map(c => [
+            c.full_name || c.name || '',
+            c.phone || '',
+            c.email || '',
+            c.location || '',
+            c.stage || c.status || 'Applied',
+            c.last_title || c.lastTitle || '',
+            c.last_employer || c.lastEmployer || '',
+            c.years_exp || c.yearsExp || '',
+            c.resume_url || c.cv_url || '',
+            c.interviewer || '',
+            formatScore(c.evaluation_score || c.score) ?? '',
+            c.notes || c.hr_notes || ''
+        ]);
+        
+        const esc = v => `"${String(v).replace(/"/g,'""')}"`;
+        const csv = '\uFEFF' + [headers,...rows].map(r=>r.map(esc).join(',')).join('\r\n');
+        const uri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+        const a = document.createElement('a');
+        a.href = uri; 
+        a.download = `candidates_export_${new Date().toISOString().slice(0,10)}.csv`; 
+        a.click();
+    }
+
+    function deleteSelectedCandidates() {
+        const checked = document.querySelectorAll('.cand-checkbox:checked').length;
+        showToast(checked + ' candidates deleted', 'success');
+        updateBulkActions();
     }
 
     /* ──────────────────────────────
@@ -1316,6 +1712,7 @@
                     <p>${escHtml(currentCompany.contact_person || '—')}</p>
                 </div>
             </div>`;
+        void loadJobsList();
     }
 
     /* ──────────────────────────────
@@ -1445,34 +1842,9 @@
             showToast('No candidates to export.', 'info');
             return;
         }
-
-        const rows = [['Name', 'Email', 'Job', 'AI Score', 'Stage']];
-        allCandidatesData.forEach(c => {
-            rows.push([
-                c.full_name || '',
-                c.email || '',
-                c.job_title || '',
-                c.evaluation_score != null ? c.evaluation_score : '',
-                'Applied'
-            ]);
-        });
-
-        const csvContent = '﻿' + rows.map(r =>
-            r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
-        ).join('\r\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `candidates_${new Date().toISOString().slice(0,10)}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        showToast(`Exported ${allCandidatesData.length} candidate(s).`, 'success');
+        exportCandidatesDataToCSV(allCandidatesData);
     }
+
 
     /* ──────────────────────────────
        Logout
@@ -1559,5 +1931,333 @@
     initializeDashboard();
     initWeightSliders();
 </script>
+<!-- Public apply (preview / Section C) -->
+<div id="hunters-public-apply-modal" onclick="if(event.target===this)huntersCloseApplyModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+    <div class="hunters-modal-panel" style="background:#FFFFFF; border-radius:16px; width:480px; max-width:92%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.2); position:relative;">
+        <div style="position:sticky; top:0; background:#1B2A4A; color:#FFFFFF; padding:16px 24px; border-radius:16px 16px 0 0; display:flex; justify-content:space-between; align-items:center; z-index:10;">
+            <div>
+                <div style="font-size:11px; font-weight:500; color:#C9A84C; text-transform:uppercase; letter-spacing:0.04em;">Apply</div>
+                <h2 id="public-apply-job-title" style="margin:4px 0 0 0; font-size:17px; font-weight:500;">Job</h2>
+            </div>
+            <button type="button" onclick="huntersCloseApplyModal()" style="background:none; border:none; color:#FFFFFF; cursor:pointer; font-size:22px; line-height:1;">&times;</button>
+        </div>
+        <form id="hunters-public-apply-form" onsubmit="huntersSubmitPublicApply(event)" style="padding:24px;">
+            <input type="hidden" id="public-apply-job-id" value="">
+            <div style="margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:500; color:#6B7280; display:block; margin-bottom:6px;">Full name</label>
+                <input id="public-apply-name" required type="text" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; font-family:'Segoe UI', Arial, sans-serif;">
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:500; color:#6B7280; display:block; margin-bottom:6px;">Email</label>
+                <input id="public-apply-email" required type="email" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; font-family:'Segoe UI', Arial, sans-serif;">
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:500; color:#6B7280; display:block; margin-bottom:6px;">Phone</label>
+                <input id="public-apply-phone" required type="tel" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; font-family:'Segoe UI', Arial, sans-serif;">
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:500; color:#6B7280; display:block; margin-bottom:6px;">Expected salary (EGP)</label>
+                <input id="public-apply-salary" required type="text" placeholder="e.g. 25000 - 30000" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; font-family:'Segoe UI', Arial, sans-serif;">
+            </div>
+            <div style="margin-bottom:20px;">
+                <label style="font-size:12px; font-weight:500; color:#6B7280; display:block; margin-bottom:6px;">CV (PDF or DOC)</label>
+                <input id="public-apply-file" required type="file" accept=".pdf,.doc,.docx,application/pdf" style="width:100%; font-size:13px;">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" onclick="huntersCloseApplyModal()" style="background:#FFFFFF; color:#1B2A4A; border:1px solid #E5E7EB; border-radius:8px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer;">Cancel</button>
+                <button type="submit" id="public-apply-submit" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:500; cursor:pointer;">Submit application</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- JOB MODAL -->
+<div id="hunters-job-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div class="hunters-modal-panel" style="background:#FFFFFF; border-radius:16px; width:600px; max-width:90%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.2); position:relative;">
+        <div style="position:sticky; top:0; background:#1B2A4A; color:#FFFFFF; padding:16px 24px; border-radius:16px 16px 0 0; display:flex; justify-content:space-between; align-items:center; z-index:10;">
+            <h2 id="job-modal-title" style="margin:0; font-size:18px; font-weight:500;">Post New Job</h2>
+            <button onclick="closeHuntersJobModal()" style="background:none; border:none; color:#FFFFFF; cursor:pointer; font-size:20px;">&times;</button>
+        </div>
+        
+        <div style="padding:24px;">
+            <div id="admin-company-selector-wrapper" style="display:none; margin-bottom:20px; background:#F4F5FA; padding:16px; border-radius:12px;">
+                <label style="font-size:12px; font-weight:500; color:#9CA3AF; margin-bottom:6px; display:block;">Select Company (Admin Only)</label>
+                <select id="job-modal-company-id" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;"></select>
+            </div>
+
+            <div style="display:flex; margin-bottom:24px; border-bottom:1px solid #E5E7EB;">
+                <button class="job-step-btn active" id="btn-step-1" onclick="gotoJobStep(1)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid #C9A84C; color:#1B2A4A; font-weight:500; cursor:pointer;">1. Basic Info</button>
+                <button class="job-step-btn" id="btn-step-2" onclick="gotoJobStep(2)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid transparent; color:#9CA3AF; font-weight:500; cursor:pointer;">2. Requirements</button>
+                <button class="job-step-btn" id="btn-step-3" onclick="gotoJobStep(3)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid transparent; color:#9CA3AF; font-weight:500; cursor:pointer;">3. AI Weights</button>
+            </div>
+
+            <form id="job-modal-form" onsubmit="saveHuntersJob(event)">
+                <input type="hidden" id="job-modal-id">
+
+                <!-- STEP 1 -->
+                <div id="job-step-1">
+                    <div style="display:flex; gap:16px; margin-bottom:16px;">
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Job Title</label>
+                            <input type="text" id="job-modal-title-input" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Location</label>
+                            <input type="text" id="job-modal-location" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap:16px; margin-bottom:16px;">
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Employment Type</label>
+                            <select id="job-modal-type" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                                <option value="Full-time">Full-time</option>
+                                <option value="Part-time">Part-time</option>
+                                <option value="Contract">Contract</option>
+                                <option value="Freelance">Freelance</option>
+                            </select>
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Experience Required (Years)</label>
+                            <input type="number" id="job-modal-experience" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:16px; margin-bottom:8px;">
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Salary Min</label>
+                            <input type="number" id="job-modal-salary-min" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Salary Max</label>
+                            <input type="number" id="job-modal-salary-max" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom:20px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#1A1A2E;">
+                            <input type="checkbox" id="job-modal-hide-salary"> Hide salary range from applicants
+                        </label>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end;">
+                        <button type="button" onclick="gotoJobStep(2)" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:10px 20px; font-size:13px; cursor:pointer;">Next Step</button>
+                    </div>
+                </div>
+
+                <!-- STEP 2 -->
+                <div id="job-step-2" style="display:none;">
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Job Description</label>
+                        <textarea id="job-modal-desc" rows="6" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Required Skills (comma separated)</label>
+                        <input type="text" id="job-modal-skills" required placeholder="e.g. React, Python, Communication" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between;">
+                        <button type="button" onclick="gotoJobStep(1)" style="background:#FFFFFF; color:#1B2A4A; border:1px solid #E5E7EB; border-radius:8px; padding:10px 20px; font-size:13px; cursor:pointer;">Back</button>
+                        <button type="button" onclick="gotoJobStep(3)" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:10px 20px; font-size:13px; cursor:pointer;">Next Step</button>
+                    </div>
+                </div>
+
+                <!-- STEP 3 -->
+                <div id="job-step-3" style="display:none;">
+                    <div style="background:#F4F5FA; border-radius:12px; padding:20px; margin-bottom:20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <span style="font-size:14px; font-weight:500; color:#1B2A4A;">AI Evaluation Weights</span>
+                            <span id="modal-weights-total" style="font-size:12px; background:#E1F5EE; color:#0F6E56; padding:4px 10px; border-radius:20px; font-weight:500;">Total: 100%</span>
+                        </div>
+
+                        <div style="margin-bottom:16px;">
+                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
+                                <span>Experience Match</span>
+                                <span id="val-weight-exp">40%</span>
+                            </div>
+                            <input type="range" id="weight-exp" min="0" max="100" value="40" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
+                                <span>Skills Match</span>
+                                <span id="val-weight-skills">30%</span>
+                            </div>
+                            <input type="range" id="weight-skills" min="0" max="100" value="30" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
+                                <span>Education</span>
+                                <span id="val-weight-edu">20%</span>
+                            </div>
+                            <input type="range" id="weight-edu" min="0" max="100" value="20" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
+                                <span>Behavioral Fit</span>
+                                <span id="val-weight-behav">10%</span>
+                            </div>
+                            <input type="range" id="weight-behav" min="0" max="100" value="10" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between;">
+                        <button type="button" onclick="gotoJobStep(2)" style="background:#FFFFFF; color:#1B2A4A; border:1px solid #E5E7EB; border-radius:8px; padding:10px 20px; font-size:13px; cursor:pointer;">Back</button>
+                        <button type="submit" id="job-modal-submit-btn" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:500; cursor:pointer;">Save Job Posting</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+<!-- SECTION B — BULK UPLOAD MODAL -->
+<div id="bulk-upload-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+    <div style="width:640px; max-height:90vh; background:#FFFFFF; border-radius:16px; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,0.2); display:flex; flex-direction:column;">
+        
+        <!-- Modal Header -->
+        <div style="background:linear-gradient(135deg, #1B2A4A 0%, #2C3E6B 100%); padding:20px 28px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <svg width="18" height="18" fill="none" stroke="#C9A84C" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    <span style="color:#FFFFFF; font-size:15px; font-weight:500;">Bulk CV Upload</span>
+                </div>
+                <div style="color:#C9A84C; font-size:10px; margin-left:26px;">Powered by Hunters AI</div>
+            </div>
+            <button onclick="closeBulkUploadModal()" style="background:none; border:none; color:rgba(255,255,255,0.6); cursor:pointer; padding:4px; display:flex; align-items:center; justify-content:center; transition:color 0.2s;" onmouseover="this.style.color='#FFFFFF'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div style="padding:24px 28px; overflow-y:auto; flex:1;">
+            
+            <!-- Step indicator -->
+            <div style="display:flex; align-items:center; margin-bottom:24px;">
+                <!-- Step 1 -->
+                <div style="display:flex; flex-direction:column; align-items:center; width:60px; position:relative;">
+                    <div id="bulk-step-circle-1" style="width:28px; height:28px; border-radius:50%; background:#1B2A4A; color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; z-index:2; transition:all 0.3s;">1</div>
+                    <div id="bulk-step-label-1" style="font-size:11px; color:#1B2A4A; font-weight:500; margin-top:6px; position:absolute; top:30px; white-space:nowrap;">Upload Files</div>
+                </div>
+                <div id="bulk-step-line-1" style="flex:1; height:0.5px; background:#E5E7EB; margin:0 -10px; transform:translateY(-8px);"></div>
+                
+                <!-- Step 2 -->
+                <div style="display:flex; flex-direction:column; align-items:center; width:60px; position:relative;">
+                    <div id="bulk-step-circle-2" style="width:28px; height:28px; border-radius:50%; background:#F0F2F8; color:#9CA3AF; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; z-index:2; transition:all 0.3s;">2</div>
+                    <div id="bulk-step-label-2" style="font-size:11px; color:#9CA3AF; font-weight:400; margin-top:6px; position:absolute; top:30px; white-space:nowrap;">AI Processing</div>
+                </div>
+                <div id="bulk-step-line-2" style="flex:1; height:0.5px; background:#E5E7EB; margin:0 -10px; transform:translateY(-8px);"></div>
+                
+                <!-- Step 3 -->
+                <div style="display:flex; flex-direction:column; align-items:center; width:60px; position:relative;">
+                    <div id="bulk-step-circle-3" style="width:28px; height:28px; border-radius:50%; background:#F0F2F8; color:#9CA3AF; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; z-index:2; transition:all 0.3s;">3</div>
+                    <div id="bulk-step-label-3" style="font-size:11px; color:#9CA3AF; font-weight:400; margin-top:6px; position:absolute; top:30px; white-space:nowrap;">Review Results</div>
+                </div>
+            </div>
+
+            <!-- STEP 1 CONTENT -->
+            <div id="bulk-step-content-1">
+                <div style="margin-bottom:16px;">
+                    <label style="font-size:11px; font-weight:500; color:#6B7280; margin-bottom:5px; display:block; text-transform:uppercase; letter-spacing:0.05em;">Apply candidates to job (optional)</label>
+                    <select id="bulk-job-select" style="width:100%; padding:10px 12px; border:0.5px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; background:#fff; outline:none;">
+                        <option value="">— Screen without job match —</option>
+                    </select>
+                </div>
+
+                <div id="bulk-drop-zone" onclick="document.getElementById('bulk-file-input').click()" ondragover="handleBulkDragOver(event)" ondragleave="handleBulkDragLeave(event)" ondrop="handleBulkDrop(event)" style="border:2px dashed #E5E7EB; border-radius:12px; padding:36px 24px; text-align:center; cursor:pointer; background:#FAFBFC; transition:all 0.2s; margin-bottom:16px;">
+                    <div style="width:52px; height:52px; border-radius:50%; background:#F0F2F8; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">
+                        <svg width="24" height="24" fill="none" stroke="#1B2A4A" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </div>
+                    <div style="font-size:14px; font-weight:500; color:#1B2A4A; margin-bottom:4px;">Drop CV files here or click to browse</div>
+                    <div style="font-size:12px; color:#9CA3AF; margin-bottom:14px;">PDF and Excel (.xlsx) files supported — up to 15 files at once</div>
+                    <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <span style="background:#FCEBEB; color:#A32D2D; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:500;">PDF</span>
+                        <span style="background:#E6F1FB; color:#185FA5; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:500;">XLSX</span>
+                        <span style="font-size:11px; color:#9CA3AF;">Max 15 files · Max 5MB each</span>
+                    </div>
+                    <input type="file" id="bulk-file-input" multiple accept=".pdf,.xlsx,.xls" style="display:none;" onchange="handleBulkFileInput(event)">
+                </div>
+
+                <div id="bulk-file-list" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; margin-bottom:16px;"></div>
+                
+                <div style="font-size:12px; color:#9CA3AF; text-align:right;">
+                    <span id="bulk-file-count">0</span> / 15 files selected
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-top:24px;">
+                    <button onclick="closeBulkUploadModal()" style="background:none; border:none; color:#9CA3AF; font-size:13px; font-weight:500; cursor:pointer; padding:10px 20px;">Cancel</button>
+                    <button id="bulk-start-btn" disabled onclick="startBulkProcessing()" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:500; cursor:pointer; opacity:0.5; display:flex; align-items:center; gap:6px; transition:all 0.2s;">
+                        Start AI Screening <svg width="14" height="14" fill="none" stroke="#C9A84C" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2 CONTENT -->
+            <div id="bulk-step-content-2" style="display:none;">
+                <div style="text-align:center; margin-bottom:24px;">
+                    <div style="font-size:14px; font-weight:500; color:#1B2A4A; margin-bottom:4px;">AI is screening your candidates…</div>
+                    <div style="font-size:12px; color:#9CA3AF;">Do not close this window</div>
+                    <div style="margin-top:14px; background:#F0F2F8; border-radius:20px; height:6px; overflow:hidden;">
+                        <div id="bulk-overall-progress" style="height:100%; background:linear-gradient(90deg,#1B2A4A,#C9A84C); border-radius:20px; width:0%; transition:width 0.4s ease;"></div>
+                    </div>
+                    <div style="font-size:11px; color:#9CA3AF; margin-top:6px;">
+                        <span id="bulk-processed-count">0</span> of <span id="bulk-total-count">0</span> candidates processed
+                    </div>
+                </div>
+
+                <div id="bulk-processing-list" style="display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto;"></div>
+            </div>
+
+            <!-- STEP 3 CONTENT -->
+            <div id="bulk-step-content-3" style="display:none;">
+                <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px;">
+                    <div style="background:#E1F5EE; border-radius:10px; padding:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:500; color:#0F6E56;" id="count-shortlisted">0</div>
+                        <div style="font-size:11px; color:#0F6E56;">Shortlisted</div>
+                    </div>
+                    <div style="background:#FAEEDA; border-radius:10px; padding:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:500; color:#854F0B;" id="count-review">0</div>
+                        <div style="font-size:11px; color:#854F0B;">Under Review</div>
+                    </div>
+                    <div style="background:#FCEBEB; border-radius:10px; padding:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:500; color:#A32D2D;" id="count-rejected">0</div>
+                        <div style="font-size:11px; color:#A32D2D;">Not Qualified</div>
+                    </div>
+                    <div style="background:#F0F2F8; border-radius:10px; padding:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:500; color:#1B2A4A;" id="count-errors">0</div>
+                        <div style="font-size:11px; color:#9CA3AF;">Errors</div>
+                    </div>
+                </div>
+
+                <div style="overflow-y:auto; max-height:300px; border:1px solid #E5E7EB; border-radius:10px; margin-bottom:20px;">
+                    <table style="width:100%; border-collapse:collapse; text-align:left;">
+                        <thead style="background:#F8F9FF; border-bottom:1px solid #E5E7EB; position:sticky; top:0; z-index:10;">
+                            <tr>
+                                <th style="padding:10px 12px; font-size:11px; font-weight:500; color:#6B7280;">Name</th>
+                                <th style="padding:10px 12px; font-size:11px; font-weight:500; color:#6B7280;">Score</th>
+                                <th style="padding:10px 12px; font-size:11px; font-weight:500; color:#6B7280;">Decision</th>
+                                <th style="padding:10px 12px; font-size:11px; font-weight:500; color:#6B7280;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulk-results-tbody"></tbody>
+                    </table>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <button onclick="resetBulkUploadModal()" style="background:none; border:1px solid #E5E7EB; border-radius:8px; color:#1B2A4A; font-size:13px; font-weight:500; cursor:pointer; padding:10px 20px; transition:all 0.2s;">Upload More</button>
+                    <div style="display:flex; gap:8px;">
+                        <button onclick="exportBulkResultsCSV()" style="background:none; border:1px solid #E5E7EB; border-radius:8px; color:#1B2A4A; font-size:13px; font-weight:500; cursor:pointer; padding:10px 20px; transition:all 0.2s;">Export Results</button>
+                        <button onclick="saveBulkToPipeline()" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s;">Save All to Pipeline</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+</div>
+<script src="hunters-jobs.js"></script>
 </body>
 </html>

@@ -32,6 +32,10 @@
            RESET & BASE
         ═══════════════════════════════════════════ */
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        .hunters-jobs-grid { grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 1024px) { .hunters-jobs-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px) { .hunters-jobs-grid { grid-template-columns: 1fr; } }
 
         html, body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -620,12 +624,7 @@
 <!-- ── SIDEBAR ──────────────────────────────────── -->
 <aside class="admin-sidebar">
     <div class="sidebar-header">
-        <div class="sidebar-shield">
-            <svg viewBox="0 0 24 24">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-        </div>
-        <div class="sidebar-title">Admin Panel</div>
+        <img src="hunters-logo-white.jpeg" alt="Hunters" style="height:44px;width:auto;object-fit:contain;display:block;">
     </div>
 
     <nav class="sidebar-nav">
@@ -770,31 +769,115 @@
 
     <!-- ── JOBS ──────────────────────────────────── -->
     <div id="jobs" class="content-area">
-
-        <div class="page-header-card">
-            <h1>Job Approvals</h1>
-            <p>Review and approve job postings</p>
-        </div>
-
-        <div class="admin-card">
-            <div class="card-section-header">
-                <svg viewBox="0 0 24 24">
-                    <rect x="2" y="7" width="20" height="14" rx="2"/>
-                    <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
-                </svg>
-                <span class="card-section-title">Pending Jobs</span>
+        <!-- A1 Page Header -->
+        <div style="background:#FFFFFF; border-radius:16px; border-left:4px solid #1B2A4A; padding:24px 32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <h1 style="font-size:22px; font-weight:500; color:#1B2A4A; margin:0;">All Jobs</h1>
+                </div>
+                <p style="font-size:13px; color:#9CA3AF; margin:4px 0 0 0;">Manage all company job postings</p>
             </div>
-            <div id="jobs-alert" class="alert"></div>
-            <div id="jobs-list-container"></div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <!-- A3 Toggle -->
+                <div style="display:flex; border:0.5px solid #E5E7EB; border-radius:8px; overflow:hidden;">
+                    <button id="admin-card-view-btn" onclick="huntersToggleJobView('card')" style="padding:7px 12px; font-size:12px; border:none; cursor:pointer; background:#1B2A4A; color:#FFFFFF; display:flex; align-items:center; gap:5px;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Cards
+                    </button>
+                    <button id="admin-list-view-btn" onclick="huntersToggleJobView('list')" style="padding:7px 12px; font-size:12px; border:none; cursor:pointer; background:#FFFFFF; color:#6B7280; display:flex; align-items:center; gap:5px;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> List
+                    </button>
+                </div>
+                <!-- Post New Job -->
+                <button onclick="openNewJobModal()" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:opacity 0.2s;">
+                    <svg width="14" height="14" stroke="#C9A84C" stroke-width="3" fill="none" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> + Add Job for Company
+                </button>
+            </div>
         </div>
 
+        <!-- A2 Filter Toolbar -->
+        <div style="display:flex; gap:10px; margin-bottom:16px;">
+            <div style="flex:1; position:relative;">
+                <svg width="14" height="14" fill="none" stroke="#9CA3AF" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; left:12px; top:10px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="job-search-input" oninput="renderHuntersJobs()" placeholder="Search jobs by title, location…" style="width:100%; background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px 8px 32px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif;">
+            </div>
+            <select id="job-status-filter" onchange="renderHuntersJobs()" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; cursor:pointer;">
+                <option value="">All Status</option>
+                <option value="Approved">Approved</option>
+                <option value="Pending">Pending</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+            <select id="job-type-filter" onchange="renderHuntersJobs()" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; cursor:pointer;">
+                <option value="">All Types</option>
+                <option value="Full-time">Full-time</option>
+                <option value="Part-time">Part-time</option>
+                <option value="Contract">Contract</option>
+                <option value="Freelance">Freelance</option>
+            </select>
+            <select id="job-company-filter" onchange="renderHuntersJobs()" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; cursor:pointer;">
+                <option value="">All Companies</option>
+            </select>
+            <input type="text" id="job-loc-filter" oninput="renderHuntersJobs()" placeholder="Filter by location…" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; width:160px;">
+        </div>
+
+        <div id="jobs-alert" class="alert"></div>
+
+        <!-- A4 CARD VIEW CONTAINER -->
+        <div id="jobs-card-view" class="hunters-jobs-grid" style="display:grid; gap:16px;"></div>
+
+        <!-- A5 LIST VIEW CONTAINER -->
+        <div id="jobs-list-view" style="display:none; background:#FFFFFF; border-radius:16px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; text-align:left;">
+                    <thead style="background:#1B2A4A; color:#FFFFFF;">
+                        <tr>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Job Title</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Company</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Location</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Type</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Salary</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Status</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">AI Score</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Applications</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Posted</th>
+                            <th style="padding:10px 14px; font-size:11px; font-weight:500;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobs-list-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- A7 EMPTY STATE -->
+        <div id="jobs-empty-state" style="display:none; text-align:center; padding:48px; background:#FFFFFF; border-radius:16px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:16px;">
+            <svg width="44" height="44" fill="none" stroke="#D1D5DB" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto;"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+            <div style="font-size:14px; font-weight:500; color:#1B2A4A; margin-top:12px;">No jobs found</div>
+            <div style="font-size:12px; color:#9CA3AF; margin-top:4px;">Try adjusting your filters or post a new job</div>
+            <button onclick="openNewJobModal()" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:8px 16px; font-size:12px; font-weight:500; cursor:pointer; margin-top:16px; transition:opacity 0.2s;">+ Add Job for Company</button>
+        </div>
     </div>
 
 </main>
 
 <script>
     const API_URL = window.location.origin;
+    window.API_URL = API_URL;
     let currentUser = null;
+
+    function showToast(message, type) {
+        type = type || 'success';
+        var colors = {
+            success: { bg:'#E1F5EE', text:'#0F6E56', border:'#9FE1CB' },
+            error:   { bg:'#FCEBEB', text:'#A32D2D', border:'#F5B8B8' },
+            info:    { bg:'#E6F1FB', text:'#185FA5', border:'#B5D4F4' },
+            warning: { bg:'#FAEEDA', text:'#854F0B', border:'#FAC775' }
+        };
+        var c = colors[type] || colors.info;
+        var t = document.createElement('div');
+        t.style.cssText = 'position:fixed;top:20px;right:20px;z-index:99999;background:'+c.bg+';color:'+c.text+';border:0.5px solid '+c.border+';border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-width:320px;';
+        t.textContent = message;
+        document.body.appendChild(t);
+        setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(function(){ t.remove(); }, 300); }, 3500);
+    }
 
     // Initialize dashboard
     async function initializeDashboard() {
@@ -820,8 +903,8 @@
 
             // Check if user is admin
             if (!currentUser.is_admin) {
-                alert('Admin access required');
-                window.location.href = 'index.html';
+                showToast('Admin access required', 'error');
+                setTimeout(function() { window.location.href = 'index.html'; }, 800);
                 return;
             }
 
@@ -999,42 +1082,39 @@
     async function loadJobsList() {
         const token = localStorage.getItem('token');
         try {
-            const response = await fetch(`${API_URL}/jobs/admin/pending`, {
+            const response = await fetch(`${API_URL}/jobs/admin/all`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const jobs = response.ok ? await response.json() : [];
-
-            const container = document.getElementById('jobs-list-container');
-
-            if (jobs.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="9,12 11,14 15,10"/></svg>
-                        <div class="empty-state-title">No pending job approvals</div>
-                        <div class="empty-state-sub">All job postings have been reviewed</div>
-                    </div>
-                `;
-                return;
+            let rawJobs = response.ok ? await response.json() : [];
+            if(!Array.isArray(rawJobs)) rawJobs = [];
+            
+            // Map keys
+            const mappedJobs = rawJobs.map(j => ({
+                id: j.id,
+                title: j.job_title || j.title,
+                location: j.job_location || j.location,
+                employment_type: j.employment_type || 'Full-time',
+                salary_min: j.salary_min,
+                salary_max: j.salary_max,
+                status: j.is_approved ? 'Approved' : (j.status === 'Rejected' ? 'Rejected' : 'Pending'),
+                company: j.company || null,
+                company_id: j.company_id || null,
+                candidates: [], // backend should provide candidates or lengths if available
+                created_at: j.created_at,
+                description: j.job_description || j.description,
+                required_skills: j.required_skills,
+                ai_weights: {
+                    experience: Math.round((j.weight_experience || 0) * 100),
+                    skills: Math.round((j.weight_skills || 0) * 100),
+                    education: Math.round((j.weight_education || 0) * 100),
+                    behavioral: Math.round((j.weight_behavioral || 0) * 100)
+                }
+            }));
+            
+            if (typeof huntersInitJobs === 'function') {
+                huntersInitJobs(true); // isAdmin = true
+                renderHuntersJobs(mappedJobs);
             }
-
-            let html = '';
-            jobs.forEach(job => {
-                const createdDate = new Date(job.created_at).toLocaleDateString();
-                html += `
-                    <div class="approval-item">
-                        <div class="approval-item-left">
-                            <div class="approval-item-name">${job.job_title}</div>
-                            <div class="approval-item-email">${job.job_location || 'No location specified'}</div>
-                            <div class="approval-item-date">Posted: ${createdDate}</div>
-                        </div>
-                        <div class="approval-item-right">
-                            <button class="btn-approve" onclick="approveJob(${job.id})">Approve</button>
-                            <button class="btn-reject"  onclick="showRejectJobForm(${job.id})">Reject</button>
-                        </div>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
         } catch (error) {
             console.error('Error loading jobs:', error);
             showAlert('Error loading jobs list', 'error', 'jobs-alert');
@@ -1188,5 +1268,145 @@
     // Initialize on page load
     initializeDashboard();
 </script>
+<!-- JOB MODAL -->
+<div id="hunters-job-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#FFFFFF; border-radius:16px; width:600px; max-width:90%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.2); position:relative;">
+        <div style="position:sticky; top:0; background:#1B2A4A; color:#FFFFFF; padding:16px 24px; border-radius:16px 16px 0 0; display:flex; justify-content:space-between; align-items:center; z-index:10;">
+            <h2 id="job-modal-title" style="margin:0; font-size:18px; font-weight:500;">Post New Job</h2>
+            <button onclick="closeHuntersJobModal()" style="background:none; border:none; color:#FFFFFF; cursor:pointer; font-size:20px;">&times;</button>
+        </div>
+        
+        <div style="padding:24px;">
+            <div id="admin-company-selector-wrapper" style="display:none; margin-bottom:20px; background:#F4F5FA; padding:16px; border-radius:12px;">
+                <label style="font-size:12px; font-weight:500; color:#9CA3AF; margin-bottom:6px; display:block;">Select Company (Admin Only)</label>
+                <select id="job-modal-company-id" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;"></select>
+            </div>
+
+            <div style="display:flex; margin-bottom:24px; border-bottom:1px solid #E5E7EB;">
+                <button class="job-step-btn active" id="btn-step-1" onclick="gotoJobStep(1)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid #C9A84C; color:#1B2A4A; font-weight:500; cursor:pointer;">1. Basic Info</button>
+                <button class="job-step-btn" id="btn-step-2" onclick="gotoJobStep(2)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid transparent; color:#9CA3AF; font-weight:500; cursor:pointer;">2. Requirements</button>
+                <button class="job-step-btn" id="btn-step-3" onclick="gotoJobStep(3)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid transparent; color:#9CA3AF; font-weight:500; cursor:pointer;">3. AI Weights</button>
+            </div>
+
+            <form id="job-modal-form" onsubmit="saveHuntersJob(event)">
+                <input type="hidden" id="job-modal-id">
+
+                <!-- STEP 1 -->
+                <div id="job-step-1">
+                    <div style="display:flex; gap:16px; margin-bottom:16px;">
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Job Title</label>
+                            <input type="text" id="job-modal-title-input" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Location</label>
+                            <input type="text" id="job-modal-location" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap:16px; margin-bottom:16px;">
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Employment Type</label>
+                            <select id="job-modal-type" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                                <option value="Full-time">Full-time</option>
+                                <option value="Part-time">Part-time</option>
+                                <option value="Contract">Contract</option>
+                                <option value="Freelance">Freelance</option>
+                            </select>
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Experience Required (Years)</label>
+                            <input type="number" id="job-modal-experience" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:16px; margin-bottom:8px;">
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Salary Min</label>
+                            <input type="number" id="job-modal-salary-min" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Salary Max</label>
+                            <input type="number" id="job-modal-salary-max" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom:20px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#1A1A2E;">
+                            <input type="checkbox" id="job-modal-hide-salary"> Hide salary range from applicants
+                        </label>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end;">
+                        <button type="button" onclick="gotoJobStep(2)" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:10px 20px; font-size:13px; cursor:pointer;">Next Step</button>
+                    </div>
+                </div>
+
+                <!-- STEP 2 -->
+                <div id="job-step-2" style="display:none;">
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Job Description</label>
+                        <textarea id="job-modal-desc" rows="6" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Required Skills (comma separated)</label>
+                        <input type="text" id="job-modal-skills" required placeholder="e.g. React, Python, Communication" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between;">
+                        <button type="button" onclick="gotoJobStep(1)" style="background:#FFFFFF; color:#1B2A4A; border:1px solid #E5E7EB; border-radius:8px; padding:10px 20px; font-size:13px; cursor:pointer;">Back</button>
+                        <button type="button" onclick="gotoJobStep(3)" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:10px 20px; font-size:13px; cursor:pointer;">Next Step</button>
+                    </div>
+                </div>
+
+                <!-- STEP 3 -->
+                <div id="job-step-3" style="display:none;">
+                    <div style="background:#F4F5FA; border-radius:12px; padding:20px; margin-bottom:20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <span style="font-size:14px; font-weight:500; color:#1B2A4A;">AI Evaluation Weights</span>
+                            <span id="modal-weights-total" style="font-size:12px; background:#E1F5EE; color:#0F6E56; padding:4px 10px; border-radius:20px; font-weight:500;">Total: 100%</span>
+                        </div>
+
+                        <div style="margin-bottom:16px;">
+                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
+                                <span>Experience Match</span>
+                                <span id="val-weight-exp">40%</span>
+                            </div>
+                            <input type="range" id="weight-exp" min="0" max="100" value="40" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
+                                <span>Skills Match</span>
+                                <span id="val-weight-skills">30%</span>
+                            </div>
+                            <input type="range" id="weight-skills" min="0" max="100" value="30" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
+                                <span>Education</span>
+                                <span id="val-weight-edu">20%</span>
+                            </div>
+                            <input type="range" id="weight-edu" min="0" max="100" value="20" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
+                                <span>Behavioral Fit</span>
+                                <span id="val-weight-behav">10%</span>
+                            </div>
+                            <input type="range" id="weight-behav" min="0" max="100" value="10" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between;">
+                        <button type="button" onclick="gotoJobStep(2)" style="background:#FFFFFF; color:#1B2A4A; border:1px solid #E5E7EB; border-radius:8px; padding:10px 20px; font-size:13px; cursor:pointer;">Back</button>
+                        <button type="submit" id="job-modal-submit-btn" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:500; cursor:pointer;">Save Job Posting</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script src="hunters-jobs.js"></script>
 </body>
 </html>

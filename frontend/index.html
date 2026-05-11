@@ -15,10 +15,10 @@
         /* Reset */
         *{margin:0;padding:0;box-sizing:border-box;}
         html{overflow-x:hidden;height:100%;}
-        body{font-family:'Segoe UI',Arial,sans-serif;background:#F5F6F8;color:#1B2A4A;overflow-x:hidden;overflow-y:auto;min-height:100%;}
+        body{font-family:'Segoe UI',Arial,sans-serif;background:#F4F5FA;color:#1B2A4A;overflow-x:hidden;overflow-y:auto;min-height:100%;}
 
         /* Login overlay */
-        .login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#1B2A4A 0%,#2C3E6B 50%,#1B2A4A 100%);z-index:10000;display:none;align-items:center;justify-content:center;padding:40px 20px;}
+        .login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#6B6BB5 0%,#5A4A9E 50%,#7B4F9E 100%);z-index:10000;display:none;align-items:center;justify-content:center;padding:40px 20px;}
         .login-overlay.active{display:flex;}
         .login-card{background:#fff;border:none;border-radius:16px;padding:40px 36px;width:420px;max-width:calc(100vw - 40px);box-shadow:0 20px 60px rgba(0,0,0,0.25);}
 
@@ -64,7 +64,7 @@
         .nav-avatar{width:28px;height:28px;border-radius:50%;background:#C9A84C;color:#1B2A4A;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 
         /* Page body & views */
-        .page-body{background:#F5F6F8;padding:20px 24px;flex:1;min-width:0;overflow-x:hidden;}
+        .page-body{background:#F4F5FA;padding:20px 24px;flex:1;min-width:0;overflow-x:hidden;}
         .view{display:none;}
         .view.active{display:block;}
         .page-title{font-size:15px;font-weight:500;color:#1B2A4A;display:flex;align-items:center;gap:7px;margin-bottom:16px;}
@@ -196,28 +196,8 @@
 <div id="login-overlay" class="login-overlay active">
     <div class="login-card">
 
-        <div class="login-logo">
-            <svg class="logo-icon" viewBox="0 0 100 100" fill="none"
-                 width="60" height="60" style="width:60px;height:60px;display:block;margin:0 auto;"
-                 xmlns="http://www.w3.org/2000/svg">
-                <circle cx="50" cy="50" r="46" stroke="#CC2B2B" stroke-width="4"/>
-                <circle cx="50" cy="50" r="28" stroke="#CC2B2B" stroke-width="3"/>
-                <line x1="50" y1="22" x2="50" y2="1"  stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="44" y1="1"  x2="56" y2="1"  stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="50" y1="78" x2="50" y2="99" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="44" y1="99" x2="56" y2="99" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="22" y1="50" x2="1"  y2="50" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="1"  y1="44" x2="1"  y2="56" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="78" y1="50" x2="99" y2="50" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="99" y1="44" x2="99" y2="56" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <circle cx="50" cy="37" r="9" fill="#1B3A6B"/>
-                <path d="M37 72 C36 57 42 47 50 47 C58 47 64 57 63 72 Z" fill="#1B3A6B"/>
-                <polygon points="47,47 53,47 55,63 50,68 45,63" fill="#C9A84C"/>
-            </svg>
-        </div>
+        <img src="hunters-logo-blue.jpeg" alt="Hunters" style="height:80px;width:auto;display:block;margin:0 auto 16px;">
 
-        <div class="brand-name">Hunters</div>
-        <div class="brand-sub">FOR HR TRANSFORMATION &amp; EXECUTION</div>
         <div class="tagline">Sign in to your recruitment dashboard</div>
 
         <form id="login-form" onsubmit="handleLogin(event)">
@@ -285,27 +265,7 @@
     <!-- ── GLOBAL NAV ─────────────────────────── -->
     <nav class="global-nav">
         <div class="nav-logo">
-            <svg class="nav-logo-icon" viewBox="0 0 100 100" fill="none"
-                 width="22" height="22" style="width:22px;height:22px;flex-shrink:0;"
-                 xmlns="http://www.w3.org/2000/svg">
-                <circle cx="50" cy="50" r="46" stroke="#CC2B2B" stroke-width="4"/>
-                <circle cx="50" cy="50" r="28" stroke="#CC2B2B" stroke-width="3"/>
-                <line x1="50" y1="22" x2="50" y2="1"  stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="44" y1="1"  x2="56" y2="1"  stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="50" y1="78" x2="50" y2="99" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="44" y1="99" x2="56" y2="99" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="22" y1="50" x2="1"  y2="50" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="1"  y1="44" x2="1"  y2="56" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="78" y1="50" x2="99" y2="50" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <line x1="99" y1="44" x2="99" y2="56" stroke="#CC2B2B" stroke-width="4" stroke-linecap="round"/>
-                <circle cx="50" cy="37" r="9" fill="#1B3A6B"/>
-                <path d="M37 72 C36 57 42 47 50 47 C58 47 64 57 63 72 Z" fill="#1B3A6B"/>
-                <polygon points="47,47 53,47 55,63 50,68 45,63" fill="#C9A84C"/>
-            </svg>
-            <div class="nav-brand">
-                <span class="nav-brand-name">Hunters</span>
-                <span class="nav-brand-sub">FOR HR TRANSFORMATION</span>
-            </div>
+            <img src="hunters-logo-white.jpeg" alt="Hunters" style="height:44px;width:auto;object-fit:contain;display:block;">
         </div>
 
         <ul class="nav-links">
@@ -555,7 +515,7 @@
         <div class="modal-body-area">
             <div class="eval-card">
                 <div class="eval-header">
-                    <div class="score-circle" id="modal-candidate-score">0.0</div>
+                    <div class="score-circle" id="modal-candidate-score">0%</div>
                     <div class="decision-badge badge" id="modal-candidate-decision">Pending</div>
                 </div>
                 <div class="candidate-info-summary">
