@@ -84,6 +84,60 @@ def finalize_evaluation(parsed: dict) -> dict:
 
     return out
 
+def generate_job_details(job_title: str, industry_background: str, additional_context: str = "") -> dict:
+    ctx = additional_context.strip() or "None"
+    prompt = f"""You are a senior HR specialist at Hunters for HR Transformation & Execution.
+
+Generate professional job posting details for the role below.
+
+Job Title: {job_title}
+Industry Background: {industry_background}
+Additional Context: {ctx}
+
+Return ONLY a valid JSON object (no markdown, no code blocks) with exactly these keys:
+{{
+  "job_brief": "3-4 sentence professional description of the role and its responsibilities in the {industry_background} sector",
+  "required_skills": "comma-separated list of 6-8 must-have skills for {job_title} in {industry_background}",
+  "nice_to_have": "comma-separated list of 4-5 bonus skills for {job_title}",
+  "behavioral_skills": "comma-separated list of 4-5 behavioral competencies such as communication, teamwork, adaptability"
+}}"""
+
+    model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+    max_retries = 3
+
+    for attempt in range(max_retries):
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.4,
+                    response_mime_type="application/json",
+                ),
+            )
+
+            raw = response.text.strip()
+            if raw.startswith("```json"):
+                raw = raw[7:]
+            if raw.startswith("```"):
+                raw = raw[3:]
+            if raw.endswith("```"):
+                raw = raw[:-3]
+
+            return json.loads(raw.strip())
+
+        except Exception as e:
+            logger.error("generate_job_details attempt %d failed: %s", attempt + 1, e)
+            if "429" in str(e) and attempt < max_retries - 1:
+                wait = (2 ** attempt) * 2 + random.random()
+                time.sleep(wait)
+                continue
+            if attempt == max_retries - 1:
+                raise
+
+    raise RuntimeError("generate_job_details failed after retries")
+
+
 def extract_candidate_info(cv_text):
     """
     Extracts structured candidate information from CV text using Gemini.

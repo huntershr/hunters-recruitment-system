@@ -2028,7 +2028,10 @@
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({ job_title: title, industry_background: industry, additional_context: context })
             });
-            if (!response.ok) throw new Error('Generation failed');
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.detail || 'Generation failed');
+            }
             const result = await response.json();
             window._cdAIGeneratedJob = result;
             window._cdAIJobTitle     = title;
@@ -2042,7 +2045,7 @@
             if (prevEl) prevEl.style.display = 'block';
         } catch (err) {
             if (loadEl) loadEl.style.display = 'none';
-            showToast('AI generation failed. Please try again.', 'error');
+            showToast('AI generation failed: ' + (err.message || 'Please try again.'), 'error');
         } finally {
             if (genBtn) genBtn.disabled = false;
         }
