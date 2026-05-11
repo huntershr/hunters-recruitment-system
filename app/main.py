@@ -1,12 +1,17 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from .database import engine, Base, SessionLocal
 from .routers import jobs, candidates, evaluations, sheets, auth, public, companies
+from .routers.auth import get_current_user
 from . import models, auth_utils
 import logging
 import os
+import json
 from pathlib import Path
+import google.generativeai as genai
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -93,6 +98,63 @@ app.include_router(jobs.router)
 app.include_router(candidates.router)
 app.include_router(evaluations.router)
 app.include_router(sheets.router)
+
+class GenerateJobRequest(BaseModel):
+    job_title: str
+    industry_background: str
+    additional_context: str = ""
+
+@app.post("/api/ai/generate-job")
+async def generate_job_ai(
+    request: GenerateJobRequest,
+    current_user: models.User = Depends(get_current_user)
+):
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="AI service not configured")
+    genai.configure(api_key=api_key)
+
+    job_title = request.job_title
+    industry_background = request.industry_background
+    additional_context = request.additional_context or "None"
+
+    prompt = f"""You are a senior HR specialist at Hunters for HR Transformation & Execution.
+
+Generate professional job posting details based on the following inputs:
+- Job Title: {job_title}
+- Industry Background: {industry_background}
+- Additional Context: {additional_context}
+
+Return ONLY a valid JSON object with no markdown, no extra text, no code blocks:
+{{
+  "job_brief": "A professional 3-4 sentence job description that describes the role, responsibilities, and what makes it exciting. Tailored specifically to the {industry_background} industry.",
+  "required_skills": "comma separated list of 6-8 must-have technical and professional skills specific to {job_title} in {industry_background}",
+  "nice_to_have": "comma separated list of 4-5 additional skills that would be a bonus for {job_title}",
+  "behavioral_skills": "comma separated list of 4-5 behavioral competencies important for {job_title} such as communication, teamwork, adaptability"
+}}
+
+Be specific and realistic. Base skills on actual industry standards for {industry_background}."""
+
+    try:
+        model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.4,
+                response_mime_type="application/json",
+            )
+        )
+        result = json.loads(response.text.strip())
+        return JSONResponse(content={
+            "job_brief": result.get("job_brief", ""),
+            "required_skills": result.get("required_skills", ""),
+            "nice_to_have": result.get("nice_to_have", ""),
+            "behavioral_skills": result.get("behavioral_skills", "")
+        })
+    except Exception as e:
+        logging.error(f"AI job generation failed: {e}")
+        raise HTTPException(status_code=500, detail="AI generation failed. Please try again.")
 
 @app.get("/health")
 def health_check():

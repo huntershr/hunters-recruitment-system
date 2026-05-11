@@ -624,6 +624,7 @@
         <div class="modal-body-area">
             <div class="modal-tabs">
                 <button class="tab-btn active" onclick="switchJobTab(event, 'upload-tab')">Upload File</button>
+                <button class="tab-btn" onclick="switchJobTab(event, 'ai-tab')">&#10024; Ask AI</button>
                 <button class="tab-btn" onclick="switchJobTab(event, 'manual-tab')">Write Manually</button>
             </div>
             <div class="modal-scroll-area">
@@ -637,6 +638,62 @@
                             <i class='bx bx-upload'></i> Process &amp; Import
                         </button>
                     </form>
+                </div>
+                <div id="ai-tab" class="tab-content">
+                  <div style="background:#F8F9FF;border:0.5px solid #E5E7EB;border-radius:12px;padding:20px 24px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                      <svg width="16" height="16" fill="none" stroke="#C9A84C" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                      <span style="font-size:14px;font-weight:500;color:#1B2A4A;">Ask AI to generate job details</span>
+                      <span style="background:#E6F1FB;color:#185FA5;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:500;">Powered by Gemini AI</span>
+                    </div>
+                    <p style="font-size:12px;color:#9CA3AF;margin-bottom:18px;">
+                      Fill in the 3 fields below. AI will generate the Job Brief, Required Skills, Nice to Have, and Behavioral Skills automatically.
+                    </p>
+                    <div style="margin-bottom:12px;">
+                      <label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:5px;">Job Title <span style="color:#CC2B2B;">*</span></label>
+                      <input type="text" id="ai-job-title" style="width:100%;padding:10px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;font-family:inherit;" placeholder="e.g. English Checkpoint Teacher">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                      <label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:5px;">Industry Background <span style="color:#CC2B2B;">*</span></label>
+                      <input type="text" id="ai-job-industry-bg" style="width:100%;padding:10px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;font-family:inherit;" placeholder="e.g. International School, Cambridge Curriculum, K-12 Education">
+                      <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">&#128161; Be specific — this helps AI generate more accurate and relevant skills</div>
+                    </div>
+                    <div style="margin-bottom:16px;">
+                      <label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:5px;">Additional Context <span style="font-size:10px;color:#9CA3AF;">(optional)</span></label>
+                      <textarea id="ai-job-context" style="width:100%;padding:10px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;font-family:inherit;min-height:70px;resize:vertical;" placeholder="e.g. Must have Cambridge Primary Checkpoint certification. Salary around 8,000-12,000 EGP. The role involves teaching grades 4-6."></textarea>
+                    </div>
+                    <button onclick="generateJobFromAI()" id="ai-generate-btn" style="width:100%;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                      <svg width="14" height="14" fill="none" stroke="#C9A84C" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                      Generate Job Details
+                    </button>
+                    <div id="ai-job-generating" style="display:none;text-align:center;padding:16px;">
+                      <div style="width:20px;height:20px;border:2px solid #E5E7EB;border-top:2px solid #C9A84C;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 8px;"></div>
+                      <div style="font-size:12px;color:#9CA3AF;">AI is generating job details…</div>
+                    </div>
+                    <div id="ai-job-preview" style="display:none;margin-top:16px;">
+                      <div style="font-size:12px;font-weight:500;color:#0F6E56;margin-bottom:8px;display:flex;align-items:center;gap:5px;">
+                        <svg width="14" height="14" fill="none" stroke="#0F6E56" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                        AI generated the following — review then click Accept
+                      </div>
+                      <div style="border:0.5px solid #E5E7EB;border-radius:10px;overflow:hidden;">
+                        <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">JOB BRIEF</span></div>
+                        <div id="ai-preview-brief" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
+                        <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">REQUIRED SKILLS</span></div>
+                        <div id="ai-preview-skills" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
+                        <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">NICE TO HAVE</span></div>
+                        <div id="ai-preview-nice" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
+                        <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">BEHAVIORAL SKILLS</span></div>
+                        <div id="ai-preview-behavioral" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
+                      </div>
+                      <div style="display:flex;gap:8px;margin-top:12px;">
+                        <button onclick="acceptAIJob()" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                          Accept &amp; Fill Form
+                        </button>
+                        <button onclick="regenerateAIJob()" style="flex:1;background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:10px;font-size:12px;color:#6B7280;cursor:pointer;">&#8634; Regenerate</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div id="manual-tab" class="tab-content">
                     <form id="job-manual-form" onsubmit="return false;">
@@ -808,6 +865,6 @@
     </div>
 </div>
 
-<script src="app.js?v=1.5"></script>
+<script src="app.js?v=1.6"></script>
 </body>
 </html>

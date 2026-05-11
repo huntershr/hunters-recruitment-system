@@ -509,6 +509,10 @@ function openEditJobModal(id) {
     document.getElementById('job-modal-salary-max').value = job.salary_max || '';
     document.getElementById('job-modal-desc').value = job.description || '';
     document.getElementById('job-modal-skills').value = job.required_skills || '';
+    const niceEl = document.getElementById('job-modal-nice');
+    if (niceEl) niceEl.value = job.nice_to_have_skills || '';
+    const behavEl = document.getElementById('job-modal-behavioral');
+    if (behavEl) behavEl.value = job.behavioral_skills || '';
     
     if (huntersIsAdmin) {
         document.getElementById('admin-company-selector-wrapper').style.display = 'block';
@@ -540,6 +544,13 @@ function closeHuntersJobModal() {
 }
 
 function gotoJobStep(step) {
+    const aiPanel = document.getElementById('job-step-ai');
+    const form    = document.getElementById('job-modal-form');
+    if (aiPanel) aiPanel.style.display = 'none';
+    if (form)    form.style.display    = '';
+    const aiBtn = document.getElementById('btn-step-ai');
+    if (aiBtn) { aiBtn.style.borderBottom = '2px solid transparent'; aiBtn.style.color = '#9CA3AF'; aiBtn.classList.remove('active'); }
+
     for (let i = 1; i <= 3; i++) {
         document.getElementById('job-step-' + i).style.display = (i === step) ? 'block' : 'none';
         const btn = document.getElementById('btn-step-' + i);
@@ -623,6 +634,8 @@ async function saveHuntersJob(e) {
         salary_max: parseInt(document.getElementById('job-modal-salary-max').value) || null,
         description: document.getElementById('job-modal-desc').value,
         required_skills: document.getElementById('job-modal-skills').value,
+        nice_to_have_skills: (document.getElementById('job-modal-nice')?.value || '').trim() || null,
+        behavioral_skills: (document.getElementById('job-modal-behavioral')?.value || '').trim() || null,
         ai_weights: { experience: exp, skills: skills, education: edu, behavioral: behav },
         hide_salary: hideSal ? !!hideSal.checked : false,
     };

@@ -1983,6 +1983,89 @@
     /* ── Boot ── */
     initializeDashboard();
     initWeightSliders();
+
+    /* ── Ask AI (company dashboard) ── */
+    function gotoJobStepAI() {
+        const aiPanel = document.getElementById('job-step-ai');
+        const form    = document.getElementById('job-modal-form');
+        if (aiPanel) aiPanel.style.display = 'block';
+        if (form)    form.style.display    = 'none';
+        ['btn-step-ai','btn-step-1','btn-step-2','btn-step-3'].forEach(id => {
+            const b = document.getElementById(id);
+            if (!b) return;
+            const isAI = id === 'btn-step-ai';
+            b.style.borderBottom = isAI ? '2px solid #C9A84C' : '2px solid transparent';
+            b.style.color        = isAI ? '#1B2A4A' : '#9CA3AF';
+        });
+    }
+
+    function gotoJobStep_withFormToggle(step) {
+        const aiPanel = document.getElementById('job-step-ai');
+        const form    = document.getElementById('job-modal-form');
+        if (aiPanel) aiPanel.style.display = 'none';
+        if (form)    form.style.display    = '';
+        const aiBtn = document.getElementById('btn-step-ai');
+        if (aiBtn) { aiBtn.style.borderBottom = '2px solid transparent'; aiBtn.style.color = '#9CA3AF'; }
+        if (typeof gotoJobStep === 'function') gotoJobStep(step);
+    }
+
+    async function generateJobFromAICD() {
+        const title    = (document.getElementById('cd-ai-job-title')?.value || '').trim();
+        const industry = (document.getElementById('cd-ai-job-industry-bg')?.value || '').trim();
+        const context  = (document.getElementById('cd-ai-job-context')?.value || '').trim();
+        if (!title)    { showToast('Please enter a Job Title', 'warning'); return; }
+        if (!industry) { showToast('Please enter the Industry Background', 'warning'); return; }
+        const genBtn = document.getElementById('cd-ai-generate-btn');
+        const loadEl = document.getElementById('cd-ai-job-generating');
+        const prevEl = document.getElementById('cd-ai-job-preview');
+        if (genBtn) genBtn.disabled = true;
+        if (loadEl) loadEl.style.display = 'block';
+        if (prevEl) prevEl.style.display = 'none';
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/ai/generate-job', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ job_title: title, industry_background: industry, additional_context: context })
+            });
+            if (!response.ok) throw new Error('Generation failed');
+            const result = await response.json();
+            window._cdAIGeneratedJob = result;
+            window._cdAIJobTitle     = title;
+            window._cdAIJobIndustry  = industry;
+            const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || ''; };
+            set('cd-ai-preview-brief',      result.job_brief);
+            set('cd-ai-preview-skills',     result.required_skills);
+            set('cd-ai-preview-nice',       result.nice_to_have);
+            set('cd-ai-preview-behavioral', result.behavioral_skills);
+            if (loadEl) loadEl.style.display = 'none';
+            if (prevEl) prevEl.style.display = 'block';
+        } catch (err) {
+            if (loadEl) loadEl.style.display = 'none';
+            showToast('AI generation failed. Please try again.', 'error');
+        } finally {
+            if (genBtn) genBtn.disabled = false;
+        }
+    }
+
+    function acceptAIJobDashboard() {
+        const job = window._cdAIGeneratedJob;
+        if (!job) return;
+        const fill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        fill('job-modal-title-input', window._cdAIJobTitle    || '');
+        fill('job-modal-desc',        job.job_brief);
+        fill('job-modal-skills',      job.required_skills);
+        fill('job-modal-nice',        job.nice_to_have);
+        fill('job-modal-behavioral',  job.behavioral_skills);
+        gotoJobStep_withFormToggle(1);
+        showToast('AI filled Job Brief and Skills — complete the remaining fields and set scoring weights', 'success');
+    }
+
+    function regenerateAIJobCD() {
+        const prevEl = document.getElementById('cd-ai-job-preview');
+        if (prevEl) prevEl.style.display = 'none';
+        generateJobFromAICD();
+    }
 </script>
 <!-- Public apply (preview / Section C) -->
 <div id="hunters-public-apply-modal" onclick="if(event.target===this)huntersCloseApplyModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
@@ -2039,9 +2122,68 @@
             </div>
 
             <div style="display:flex; margin-bottom:24px; border-bottom:1px solid #E5E7EB;">
+                <button class="job-step-btn" id="btn-step-ai" onclick="gotoJobStepAI()" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid transparent; color:#9CA3AF; font-weight:500; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;">
+                    <svg width="13" height="13" fill="none" stroke="#C9A84C" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Ask AI
+                </button>
                 <button class="job-step-btn active" id="btn-step-1" onclick="gotoJobStep(1)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid #C9A84C; color:#1B2A4A; font-weight:500; cursor:pointer;">1. Basic Info</button>
                 <button class="job-step-btn" id="btn-step-2" onclick="gotoJobStep(2)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid transparent; color:#9CA3AF; font-weight:500; cursor:pointer;">2. Requirements</button>
                 <button class="job-step-btn" id="btn-step-3" onclick="gotoJobStep(3)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid transparent; color:#9CA3AF; font-weight:500; cursor:pointer;">3. AI Weights</button>
+            </div>
+
+            <!-- ASK AI PANEL -->
+            <div id="job-step-ai" style="display:none;">
+              <div style="background:#F8F9FF;border:0.5px solid #E5E7EB;border-radius:12px;padding:20px 24px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                  <svg width="16" height="16" fill="none" stroke="#C9A84C" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  <span style="font-size:14px;font-weight:500;color:#1B2A4A;">Ask AI to generate job details</span>
+                  <span style="background:#E6F1FB;color:#185FA5;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:500;">Powered by Gemini AI</span>
+                </div>
+                <p style="font-size:12px;color:#9CA3AF;margin-bottom:18px;">Fill in the 3 fields below. AI will generate the Job Brief, Required Skills, Nice to Have, and Behavioral Skills automatically.</p>
+                <div style="margin-bottom:12px;">
+                  <label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:5px;">Job Title <span style="color:#CC2B2B;">*</span></label>
+                  <input type="text" id="cd-ai-job-title" style="width:100%;padding:10px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;font-family:inherit;" placeholder="e.g. English Checkpoint Teacher">
+                </div>
+                <div style="margin-bottom:12px;">
+                  <label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:5px;">Industry Background <span style="color:#CC2B2B;">*</span></label>
+                  <input type="text" id="cd-ai-job-industry-bg" style="width:100%;padding:10px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;font-family:inherit;" placeholder="e.g. International School, Cambridge Curriculum, K-12 Education">
+                  <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">&#128161; Be specific — this helps AI generate more accurate and relevant skills</div>
+                </div>
+                <div style="margin-bottom:16px;">
+                  <label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:5px;">Additional Context <span style="font-size:10px;color:#9CA3AF;">(optional)</span></label>
+                  <textarea id="cd-ai-job-context" style="width:100%;padding:10px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;font-family:inherit;min-height:70px;resize:vertical;" placeholder="e.g. Must have Cambridge Primary Checkpoint certification. Salary around 8,000-12,000 EGP."></textarea>
+                </div>
+                <button type="button" onclick="generateJobFromAICD()" id="cd-ai-generate-btn" style="width:100%;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                  <svg width="14" height="14" fill="none" stroke="#C9A84C" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  Generate Job Details
+                </button>
+                <div id="cd-ai-job-generating" style="display:none;text-align:center;padding:16px;">
+                  <div style="width:20px;height:20px;border:2px solid #E5E7EB;border-top:2px solid #C9A84C;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 8px;"></div>
+                  <div style="font-size:12px;color:#9CA3AF;">AI is generating job details…</div>
+                </div>
+                <div id="cd-ai-job-preview" style="display:none;margin-top:16px;">
+                  <div style="font-size:12px;font-weight:500;color:#0F6E56;margin-bottom:8px;display:flex;align-items:center;gap:5px;">
+                    <svg width="14" height="14" fill="none" stroke="#0F6E56" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    AI generated the following — review then click Accept
+                  </div>
+                  <div style="border:0.5px solid #E5E7EB;border-radius:10px;overflow:hidden;">
+                    <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">JOB BRIEF</span></div>
+                    <div id="cd-ai-preview-brief" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
+                    <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">REQUIRED SKILLS</span></div>
+                    <div id="cd-ai-preview-skills" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
+                    <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">NICE TO HAVE</span></div>
+                    <div id="cd-ai-preview-nice" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
+                    <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">BEHAVIORAL SKILLS</span></div>
+                    <div id="cd-ai-preview-behavioral" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
+                  </div>
+                  <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button type="button" onclick="acceptAIJobDashboard()" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                      Accept &amp; Fill Form
+                    </button>
+                    <button type="button" onclick="regenerateAIJobCD()" style="flex:1;background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:10px;font-size:12px;color:#6B7280;cursor:pointer;">&#8634; Regenerate</button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <form id="job-modal-form" onsubmit="saveHuntersJob(event)">
@@ -2108,6 +2250,16 @@
                     <div style="margin-bottom:16px;">
                         <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Required Skills (comma separated)</label>
                         <input type="text" id="job-modal-skills" required placeholder="e.g. React, Python, Communication" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Nice to Have Skills <span style="font-size:11px; color:#9CA3AF;">(optional)</span></label>
+                        <input type="text" id="job-modal-nice" placeholder="e.g. Arabic fluency, SAP" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Behavioral Skills <span style="font-size:11px; color:#9CA3AF;">(optional)</span></label>
+                        <input type="text" id="job-modal-behavioral" placeholder="e.g. communication, teamwork, adaptability" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
                     </div>
 
                     <div style="display:flex; justify-content:space-between;">
@@ -2311,6 +2463,6 @@
     </div>
 </div>
 </div>
-<script src="hunters-jobs.js?v=1.2"></script>
+<script src="hunters-jobs.js?v=1.3"></script>
 </body>
 </html>

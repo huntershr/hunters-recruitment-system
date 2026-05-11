@@ -538,14 +538,24 @@ function closeModals() {
 }
 
 function switchJobTab(event, tabId) {
-    const container = event.target.closest('.modal-content');
+    const modal = document.getElementById('job-add-modal');
+    const container = event
+        ? event.target.closest('.modal-content')
+        : (modal ? modal.querySelector('.modal-content') : null);
+    if (!container) return;
     container.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     container.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-    event.target.classList.add('active');
-    document.getElementById(tabId).classList.add('active');
+    if (event) {
+        event.target.classList.add('active');
+    } else {
+        const match = container.querySelector(`[onclick*="${tabId}"]`);
+        if (match) match.classList.add('active');
+    }
+    const tab = document.getElementById(tabId);
+    if (tab) tab.classList.add('active');
 
-    // Show/hide wizard UI depending on tab
+    // Show/hide wizard UI — only visible on manual tab
     const isManual = tabId === 'manual-tab';
     const indicator = document.getElementById("job-step-indicator");
     const footer    = document.getElementById("job-wizard-footer");
@@ -554,6 +564,8 @@ function switchJobTab(event, tabId) {
 
     if (isManual) jobWizardSetStep(1);
 }
+
+function jobWizardGoTo(step) { jobWizardSetStep(step); }
 
 let currentJobStep = 1;
 
@@ -640,6 +652,77 @@ function openNewJobModal() {
     if (footer)    footer.style.display    = 'none';
 
     openJobModal();
+}
+
+async function generateJobFromAI() {
+    const title    = (document.getElementById('ai-job-title')?.value || '').trim();
+    const industry = (document.getElementById('ai-job-industry-bg')?.value || '').trim();
+    const context  = (document.getElementById('ai-job-context')?.value || '').trim();
+
+    if (!title)    { showToast('Please enter a Job Title', 'warning'); return; }
+    if (!industry) { showToast('Please enter the Industry Background', 'warning'); return; }
+
+    const genBtn = document.getElementById('ai-generate-btn');
+    const loadEl = document.getElementById('ai-job-generating');
+    const prevEl = document.getElementById('ai-job-preview');
+    if (genBtn) genBtn.disabled = true;
+    if (loadEl) loadEl.style.display = 'block';
+    if (prevEl) prevEl.style.display = 'none';
+
+    try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        const response = await fetch('/api/ai/generate-job', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ job_title: title, industry_background: industry, additional_context: context })
+        });
+        if (!response.ok) throw new Error('Generation failed');
+        const result = await response.json();
+        window._aiGeneratedJob = result;
+        window._aiJobTitle    = title;
+        window._aiJobIndustry = industry;
+
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || ''; };
+        set('ai-preview-brief',      result.job_brief);
+        set('ai-preview-skills',     result.required_skills);
+        set('ai-preview-nice',       result.nice_to_have);
+        set('ai-preview-behavioral', result.behavioral_skills);
+
+        if (loadEl) loadEl.style.display = 'none';
+        if (prevEl) prevEl.style.display = 'block';
+    } catch (err) {
+        if (loadEl) loadEl.style.display = 'none';
+        showToast('AI generation failed. Please try again.', 'error');
+    } finally {
+        if (genBtn) genBtn.disabled = false;
+    }
+}
+
+function acceptAIJob() {
+    const job = window._aiGeneratedJob;
+    if (!job) return;
+
+    switchJobTab(null, 'manual-tab');
+
+    const fill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    fill('manual-job-title',    window._aiJobTitle    || '');
+    fill('manual-job-industry', window._aiJobIndustry || '');
+    fill('manual-job-desc',     job.job_brief);
+    fill('manual-job-skills',   job.required_skills);
+    fill('manual-job-nice',     job.nice_to_have);
+    fill('manual-job-behavioral', job.behavioral_skills);
+
+    jobWizardGoTo(1);
+    showToast('AI filled Job Brief and Skills — complete the remaining fields and set scoring weights', 'success');
+}
+
+function regenerateAIJob() {
+    const prevEl = document.getElementById('ai-job-preview');
+    if (prevEl) prevEl.style.display = 'none';
+    generateJobFromAI();
 }
 
 function openCandidateModal() {
