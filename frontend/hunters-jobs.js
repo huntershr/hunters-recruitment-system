@@ -647,7 +647,7 @@ async function saveHuntersJob(e) {
     const jobId = document.getElementById('job-modal-id').value;
     const method = jobId ? 'PUT' : 'POST';
     const base = typeof API_URL !== 'undefined' ? API_URL : window.API_URL || window.location.origin;
-    const url = jobId ? `${base}/jobs/${jobId}` : `${base}/jobs/`;
+    const url = jobId ? `${base}/jobs/${jobId}` : `${base}/jobs`;
 
     try {
         const res = await fetch(url, {
