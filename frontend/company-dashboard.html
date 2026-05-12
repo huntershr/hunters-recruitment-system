@@ -1561,8 +1561,9 @@
             </div>`;
 
             const hasCV = cand.has_cv || (typeof cand.cv_text === 'string' && cand.cv_text.trim().length > 10);
+            const cvSafeName = (cand.full_name || cand.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g,'_');
             const resumeLink = hasCV
-                ? `<a href="${API_URL}/candidates/${cand.id}/cv" download="CV_${escHtml(cand.full_name||cand.name||'Candidate').replace(/\s+/g,'_')}.html" style="color:#C9A84C; font-size:12px; font-weight:500; text-decoration:none;">↓ Download CV</a>`
+                ? `<a href="#" onclick="downloadCandidateCV(${cand.id},'${cvSafeName}');return false;" style="color:#C9A84C; font-size:12px; font-weight:500; text-decoration:none; cursor:pointer;">↓ Download CV</a>`
                 : `<span style="color:#9CA3AF; font-size:12px;">-</span>`;
 
             html += `
@@ -1640,6 +1641,30 @@
         
         exportCandidatesDataToCSV(selectedCandidates);
         showToast('Exported ' + selectedCandidates.length + ' candidates', 'success');
+    }
+
+    function downloadCandidateCV(id, safeName) {
+        const token = localStorage.getItem('token');
+        showToast('Preparing CV download…', 'info');
+        fetch(`${API_URL}/candidates/${id}/cv`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('CV not available');
+            return res.blob();
+        })
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `CV_${safeName || id}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('CV downloaded! Open the file and press Ctrl+P → Save as PDF.', 'success');
+        })
+        .catch(() => showToast('CV text not available for this candidate.', 'error'));
     }
 
     function exportCandidatesDataToCSV(candidates) {

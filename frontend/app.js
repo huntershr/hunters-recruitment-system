@@ -512,7 +512,7 @@ function renderCandidateList(filter) {
         const hrNotes     = localStorage.getItem(`hunters_notes_${c.id}`) || '';
         const location    = c.location || (job ? (job.job_location || '—') : '—');
         const hasCV       = c.cv_text && c.cv_text.trim().length > 10;
-        const safeNameDl  = (c.name || 'Candidate').replace(/\s+/g, '_');
+        const safeNameDl  = (c.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
 
         tbody.innerHTML += `
             <tr onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='transparent'">
@@ -530,7 +530,7 @@ function renderCandidateList(filter) {
                 <td style="font-size:11px;color:#1B2A4A;font-weight:500;">${c.experience_years != null ? c.experience_years + ' yrs' : '—'}</td>
                 <td style="font-size:11px;">
                     ${hasCV
-                        ? `<a href="/candidates/${c.id}/cv" download="CV_${safeNameDl}.html" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;">↓ CV</a>`
+                        ? `<a href="#" onclick="downloadAdminCV(${c.id},'${safeNameDl}');return false;" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;cursor:pointer;">↓ CV</a>`
                         : '<span style="color:#9CA3AF;">—</span>'}
                 </td>
                 <td style="min-width:110px;">
@@ -591,6 +591,28 @@ function filterPipelineCompany(val) {
     companyFilter = val;
     renderKanban(pipelineFilter);
     renderCandidateList(pipelineFilter);
+}
+
+function downloadAdminCV(id, safeName) {
+    const token = localStorage.getItem('token');
+    showToast('Preparing CV download…', 'info');
+    authFetch(`/candidates/${id}/cv`)
+        .then(res => {
+            if (!res.ok) throw new Error('Not available');
+            return res.blob();
+        })
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `CV_${safeName || id}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('CV downloaded! Open and press Ctrl+P → Save as PDF.', 'success');
+        })
+        .catch(() => showToast('CV text not available for this candidate.', 'error'));
 }
 
 function viewCandidate(id) {
