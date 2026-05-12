@@ -9,6 +9,24 @@
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;}
 body{background:var(--bg);color:var(--navy);min-height:100vh;}
 
+/* ── Auth Screen ── */
+#auth-screen{display:none;position:fixed;inset:0;background:var(--navy);z-index:9999;align-items:center;justify-content:center;}
+#auth-screen.active{display:flex;}
+.auth-card{background:var(--white);border-radius:20px;padding:40px 36px;width:420px;max-width:calc(100vw - 32px);box-shadow:0 24px 64px rgba(0,0,0,0.28);animation:slideUp 0.25s ease;}
+.auth-logo{text-align:center;margin-bottom:24px;}
+.auth-tabs{display:flex;border-radius:10px;overflow:hidden;border:1px solid #E5E7EB;margin-bottom:28px;}
+.auth-tab{flex:1;padding:10px;background:none;border:none;font-size:13px;font-weight:500;cursor:pointer;color:#9CA3AF;transition:all 0.15s;}
+.auth-tab.active{background:var(--navy);color:var(--white);}
+.auth-field{margin-bottom:16px;}
+.auth-field label{display:block;font-size:12px;font-weight:600;color:var(--navy);margin-bottom:6px;letter-spacing:0.02em;}
+.auth-field input{width:100%;padding:11px 14px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:14px;color:var(--navy);outline:none;transition:border-color 0.15s;}
+.auth-field input:focus{border-color:var(--navy);}
+.auth-btn{width:100%;padding:13px;background:var(--navy);color:var(--white);border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;transition:opacity 0.15s;}
+.auth-btn:hover{opacity:0.88;}
+.auth-btn.gold{background:var(--gold);color:var(--navy);}
+.auth-error{color:#A32D2D;font-size:12px;margin-top:8px;text-align:center;display:none;}
+.auth-note{text-align:center;font-size:12px;color:var(--muted);margin-top:16px;}
+
 .portal-header{background:var(--navy);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
 .portal-tabs{background:var(--white);border-bottom:0.5px solid #E5E7EB;display:flex;padding:0 32px;overflow-x:auto;}
 .portal-tab{padding:12px 22px;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;color:#9CA3AF;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;}
@@ -43,8 +61,41 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 </head>
 <body>
 
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="hunters-logo.jpeg" alt="Hunters" style="height:52px;width:auto;" onerror="this.outerHTML='<div style=color:#1B2A4A;font-size:22px;font-weight:700;letter-spacing:0.04em;>HUNTERS</div>'">
+      <div style="color:#6B7280;font-size:13px;margin-top:8px;">Candidates Portal</div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Create Account</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="auth-login">
+      <div class="auth-field"><label>Email Address</label><input type="email" id="login-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="auth-error" id="login-error"></div>
+      <button class="auth-btn" onclick="doLogin()" id="login-btn">Sign In</button>
+      <div class="auth-note">New here? <a href="#" onclick="switchAuthTab('register');return false;" style="color:#1B2A4A;font-weight:600;">Create a free account</a></div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="auth-register" style="display:none;">
+      <div class="auth-field"><label>Full Name</label><input type="text" id="reg-name" placeholder="Ahmed Mohamed"></div>
+      <div class="auth-field"><label>Email Address</label><input type="email" id="reg-email" placeholder="you@example.com"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="reg-password" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter')doRegister()"></div>
+      <div class="auth-error" id="reg-error"></div>
+      <button class="auth-btn gold" onclick="doRegister()" id="reg-btn">Create Account & Continue</button>
+      <div class="auth-note">Already have an account? <a href="#" onclick="switchAuthTab('login');return false;" style="color:#1B2A4A;font-weight:600;">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
 <!-- Header -->
-<div class="portal-header">
+<div class="portal-header" id="portal-header" style="display:none;">
   <img src="hunters-logo-white.jpeg" alt="Hunters" style="height:38px;width:auto;filter:brightness(0) invert(1);" onerror="this.outerHTML='<span style=color:#C9A84C;font-size:15px;font-weight:500;>HUNTERS</span>'">
   <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
     <span style="color:rgba(255,255,255,0.7);font-size:12px;" id="portal-username"></span>
@@ -55,7 +106,7 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 </div>
 
 <!-- Tabs -->
-<div class="portal-tabs">
+<div class="portal-tabs" id="portal-tabs" style="display:none;">
   <button class="portal-tab active" onclick="showPortalSection('all-jobs')">All Jobs</button>
   <button class="portal-tab" onclick="showPortalSection('edu-jobs')">Education Jobs</button>
   <button class="portal-tab" onclick="showPortalSection('corp-jobs')">Corporate Jobs</button>
@@ -64,7 +115,7 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 </div>
 
 <!-- Body -->
-<div class="portal-body">
+<div class="portal-body" id="portal-body" style="display:none;">
 
   <!-- All Jobs -->
   <div id="section-all-jobs" class="portal-section active">
@@ -145,19 +196,102 @@ function hdrs(){return{'Authorization':'Bearer '+tok()};}
 var portalUser=null,allJobs=[],_applyFile=null,currentJob=null,_cvData=null;
 var _profileSkills=[],_profileExps=[];
 
+function showAuthScreen(){
+  document.getElementById('auth-screen').classList.add('active');
+  document.getElementById('portal-header').style.display='none';
+  document.getElementById('portal-tabs').style.display='none';
+  document.getElementById('portal-body').style.display='none';
+}
+function hideAuthScreen(){
+  document.getElementById('auth-screen').classList.remove('active');
+  document.getElementById('portal-header').style.display='';
+  document.getElementById('portal-tabs').style.display='';
+  document.getElementById('portal-body').style.display='';
+}
+
+function switchAuthTab(tab){
+  document.getElementById('auth-login').style.display=tab==='login'?'':'none';
+  document.getElementById('auth-register').style.display=tab==='register'?'':'none';
+  document.getElementById('tab-login').classList.toggle('active',tab==='login');
+  document.getElementById('tab-register').classList.toggle('active',tab==='register');
+  document.getElementById('login-error').style.display='none';
+  document.getElementById('reg-error').style.display='none';
+}
+
+function doLogin(){
+  var email=(document.getElementById('login-email').value||'').trim();
+  var pass=(document.getElementById('login-password').value||'');
+  var errEl=document.getElementById('login-error');
+  var btn=document.getElementById('login-btn');
+  if(!email||!pass){errEl.textContent='Please enter email and password.';errEl.style.display='block';return;}
+  btn.textContent='Signing in…';btn.disabled=true;
+  var fd=new URLSearchParams();fd.append('username',email);fd.append('password',pass);
+  fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
+    .then(function(res){
+      btn.textContent='Sign In';btn.disabled=false;
+      if(!res.ok){errEl.textContent=res.d.detail||'Incorrect email or password.';errEl.style.display='block';return;}
+      localStorage.setItem('token',res.d.access_token);
+      onAuthSuccess(res.d.access_token);
+    })
+    .catch(function(){btn.textContent='Sign In';btn.disabled=false;errEl.textContent='Connection error. Try again.';errEl.style.display='block';});
+}
+
+function doRegister(){
+  var name=(document.getElementById('reg-name').value||'').trim();
+  var email=(document.getElementById('reg-email').value||'').trim();
+  var pass=(document.getElementById('reg-password').value||'');
+  var errEl=document.getElementById('reg-error');
+  var btn=document.getElementById('reg-btn');
+  if(!name||!email||!pass){errEl.textContent='All fields are required.';errEl.style.display='block';return;}
+  if(pass.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.style.display='block';return;}
+  btn.textContent='Creating account…';btn.disabled=true;
+  fetch('/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:name,email:email,password:pass})})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
+    .then(function(res){
+      if(!res.ok){btn.textContent='Create Account & Continue';btn.disabled=false;errEl.textContent=res.d.detail||'Registration failed.';errEl.style.display='block';return;}
+      /* auto-login after register */
+      var fd=new URLSearchParams();fd.append('username',email);fd.append('password',pass);
+      return fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd})
+        .then(function(r2){return r2.json();})
+        .then(function(d2){
+          btn.textContent='Create Account & Continue';btn.disabled=false;
+          if(!d2.access_token){errEl.textContent='Registered! Please sign in.';errEl.style.display='block';switchAuthTab('login');return;}
+          localStorage.setItem('token',d2.access_token);
+          onAuthSuccess(d2.access_token);
+        });
+    })
+    .catch(function(){btn.textContent='Create Account & Continue';btn.disabled=false;errEl.textContent='Connection error. Try again.';errEl.style.display='block';});
+}
+
+function onAuthSuccess(token){
+  fetch('/auth/me',{headers:{'Authorization':'Bearer '+token}})
+    .then(function(r){return r.json();})
+    .then(function(u){
+      portalUser=u;
+      var el=document.getElementById('portal-username');if(el)el.textContent=u.full_name||u.email;
+      hideAuthScreen();
+      loadJobs();
+    });
+}
+
 function checkAuth(){
   var t=localStorage.getItem('token');
-  if(!t){window.location.href='index.html';return;}
+  if(!t){showAuthScreen();return;}
   fetch('/auth/me',{headers:{'Authorization':'Bearer '+t}})
-    .then(function(r){if(!r.ok){window.location.href='index.html';return null;}return r.json();})
-    .then(function(u){if(!u)return;portalUser=u;
+    .then(function(r){if(!r.ok){showAuthScreen();return null;}return r.json();})
+    .then(function(u){
+      if(!u){showAuthScreen();return;}
+      portalUser=u;
       var el=document.getElementById('portal-username');if(el)el.textContent=u.full_name||u.email;
-      loadJobs();})
-    .catch(function(){window.location.href='index.html';});
+      hideAuthScreen();
+      loadJobs();
+    })
+    .catch(function(){showAuthScreen();});
 }
 
 function goBack(){
-  var t=tok();if(!t){window.location.href='index.html';return;}
+  var t=tok();if(!t){showAuthScreen();return;}
   fetch('/auth/me',{headers:{'Authorization':'Bearer '+t}}).then(function(r){return r.json();})
     .then(function(u){window.location.href=u&&u.is_admin?'index.html':'company-dashboard.html';})
     .catch(function(){window.location.href='index.html';});
