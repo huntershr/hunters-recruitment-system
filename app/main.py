@@ -104,6 +104,15 @@ class GenerateJobRequest(BaseModel):
     industry_background: str
     additional_context: str = ""
 
+class GenerateCVRequest(BaseModel):
+    name: str
+    email: str = ""
+    phone: str = ""
+    experiences: list = []
+    skills: list = []
+    education: str = ""
+    industry: str = ""
+
 @app.post("/api/ai/generate-job")
 async def generate_job_ai(
     request: GenerateJobRequest,
@@ -126,6 +135,51 @@ async def generate_job_ai(
     except Exception as e:
         logging.error("generate_job_ai endpoint error: %s", e)
         raise HTTPException(status_code=500, detail=f"AI generation failed: {e}")
+
+@app.post("/api/ai/generate-cv")
+async def generate_cv_ai(
+    request: GenerateCVRequest,
+    current_user: models.User = Depends(get_current_user)
+):
+    if not os.getenv("GEMINI_API_KEY", ""):
+        raise HTTPException(status_code=503, detail="AI service not configured")
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"""You are a professional CV writer at Hunters for HR Transformation & Execution.
+
+Create a polished, professional CV. Return ONLY valid JSON with no markdown fences:
+{{
+  "name": "{request.name}",
+  "headline": "professional headline based on their experience",
+  "summary": "3-4 sentence professional summary",
+  "experience": [{{"title":"job title","company":"employer","duration":"duration","achievements":["achievement 1","achievement 2","achievement 3"]}}],
+  "skills": ["skill1","skill2","skill3"],
+  "education": "education details",
+  "languages": ["Arabic","English"],
+  "certifications": []
+}}
+
+Candidate: {request.name}
+Email: {request.email}
+Phone: {request.phone}
+Experiences: {json.dumps(request.experiences)}
+Skills: {json.dumps(request.skills)}
+Education: {request.education}
+Industry: {request.industry}"""
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+        if "```" in text:
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            if start >= 0 and end > start:
+                text = text[start:end]
+        cv_data = json.loads(text)
+        return JSONResponse(content=cv_data)
+    except Exception as e:
+        logging.error("generate_cv_ai error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
 def health_check():

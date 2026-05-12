@@ -170,24 +170,51 @@ def get_public_company_jobs(company_id: int, db: Session = Depends(get_db)):
     ).all()
     return jobs
 
-@router.get("/jobs", response_model=List[schemas.JobResponse])
+@router.get("/jobs")
 def get_public_jobs(db: Session = Depends(get_db)):
     """
-    Get all approved public job postings.
+    Get all approved public job postings with company info.
     Only shows jobs from approved companies.
     """
-    # Get approved companies
     approved_companies = db.query(models.Company).filter(
         models.Company.is_approved == True
     ).all()
     approved_company_ids = [c.id for c in approved_companies]
-    
-    # Get approved jobs from approved companies
+    company_map = {c.id: c.company_name for c in approved_companies}
+
     jobs = db.query(models.Job).join(
         models.User, models.Job.owner_id == models.User.id
     ).filter(
         models.Job.is_approved == True,
         models.User.company_id.in_(approved_company_ids)
     ).all()
-    
-    return jobs
+
+    result = []
+    for job in jobs:
+        company_id = job.owner.company_id if job.owner else None
+        company_name = company_map.get(company_id, "Unknown Company") if company_id else "Unknown Company"
+        result.append({
+            "id": job.id,
+            "job_title": job.job_title,
+            "job_description": job.job_description or "",
+            "job_location": job.job_location or "",
+            "min_experience": job.min_experience,
+            "required_skills": job.required_skills or "",
+            "nice_to_have_skills": job.nice_to_have_skills,
+            "behavioral_skills": job.behavioral_skills,
+            "education_level": job.education_level or "",
+            "salary_range": job.salary_range or "",
+            "weight_experience": job.weight_experience,
+            "weight_skills": job.weight_skills,
+            "weight_education": job.weight_education,
+            "weight_behavioral": job.weight_behavioral,
+            "is_approved": job.is_approved,
+            "created_at": job.created_at.isoformat() if job.created_at else None,
+            "company_name": company_name,
+            "company_id": company_id,
+            "hide_salary": False,
+            "salary_min": None,
+            "salary_max": None,
+            "employment_type": job.education_level,
+        })
+    return result

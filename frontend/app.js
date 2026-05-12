@@ -351,10 +351,11 @@ function renderKanban(filter) {
     if (!board) return;
 
     const cols = [
-        { id: 'new',        label: 'New',         accent: '#378ADD', decisions: [null, 'pending'] },
-        { id: 'screening',  label: 'Screening',   accent: '#EF9F27', decisions: ['maybe'] },
-        { id: 'shortlisted',label: 'Shortlisted', accent: '#1D9E75', decisions: ['shortlist'] },
-        { id: 'rejected',   label: 'Rejected',    accent: '#CC2B2B', decisions: ['reject'] },
+        { id: 'new',       label: 'New',       accent: '#378ADD', decisions: [null, 'pending'] },
+        { id: 'screening', label: 'Screening', accent: '#EF9F27', decisions: ['maybe'] },
+        { id: 'interview', label: 'Interview', accent: '#1D9E75', decisions: ['shortlist'] },
+        { id: 'offer',     label: 'Offer',     accent: '#C9A84C', decisions: ['offer'] },
+        { id: 'rejected',  label: 'Rejected',  accent: '#CC2B2B', decisions: ['reject'] },
     ];
 
     const lf = (filter || '').toLowerCase();
@@ -412,6 +413,21 @@ function renderKanban(filter) {
     }).join('');
 }
 
+function _decisionToStage(decision) {
+    if (!decision || decision.toLowerCase() === 'pending') return 'New';
+    const d = decision.toLowerCase();
+    if (d === 'maybe')     return 'Screening';
+    if (d === 'shortlist') return 'Interview';
+    if (d === 'offer')     return 'Offer';
+    if (d === 'reject')    return 'Rejected';
+    return decision;
+}
+
+function _stageColor(stage) {
+    const map = { New: '#378ADD', Screening: '#EF9F27', Interview: '#1D9E75', Offer: '#C9A84C', Rejected: '#CC2B2B' };
+    return map[stage] || '#9CA3AF';
+}
+
 function renderCandidateList(filter) {
     const tbody = document.querySelector("#all-candidates-table tbody");
     if (!tbody) return;
@@ -426,7 +442,7 @@ function renderCandidateList(filter) {
     }) : candidates;
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8">
+        tbody.innerHTML = `<tr><td colspan="12">
             <div class="empty-state">
                 <div class="empty-title">No candidates found</div>
                 <div class="empty-sub">${lf ? 'No results for "' + lf + '"' : 'Add candidates to get started'}</div>
@@ -440,20 +456,55 @@ function renderCandidateList(filter) {
         const job = jobs.find(j => j.id === c.job_applied);
         const score = ev ? ev.score : null;
         const decision = ev ? ev.decision : null;
+        const stage = _decisionToStage(decision);
+        const stageCol = _stageColor(stage);
+        const pct = evalScorePercent(score);
+        const sc = pct === null ? { bg: '#F5F6F8', text: '#6B7280' }
+                 : pct >= 75   ? { bg: '#E1F5EE', text: '#0F6E56' }
+                 : pct >= 50   ? { bg: '#FAEEDA', text: '#854F0B' }
+                 :               { bg: '#FCEBEB', text: '#A32D2D' };
+
+        const interviewer = localStorage.getItem(`hunters_interviewer_${c.id}`) || '';
+        const hrNotes     = localStorage.getItem(`hunters_notes_${c.id}`) || '';
+        const location    = job ? (job.job_location || '—') : '—';
+        const hasCV       = c.cv_text && c.cv_text.trim().length > 10;
 
         tbody.innerHTML += `
-            <tr>
-                <td><strong>${c.name}</strong><br><small style="color:#9CA3AF">${c.email || ''}</small></td>
-                <td>${job ? job.job_title : '—'}</td>
-                <td>${stagePillHtml(decision)}</td>
-                <td>${c.experience_years != null ? c.experience_years + ' yrs' : '—'}</td>
-                <td>${c.expected_salary || '—'}</td>
-                <td>${scoreBadgeHtml(score)}</td>
-                <td><span class="badge ${decision ? decision.toLowerCase() : 'pending'}">${decision || 'Pending'}</span></td>
+            <tr onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='transparent'">
+                <td style="min-width:150px;">
+                    <strong style="font-size:12px;">${c.name}</strong>
+                </td>
+                <td style="font-size:11px;color:#6B7280;">${c.phone || '—'}</td>
+                <td style="font-size:11px;color:#6B7280;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.email || '—'}</td>
+                <td style="font-size:11px;color:#6B7280;">${location}</td>
                 <td>
-                    <div style="display:flex;gap:6px;">
-                        <button class="btn-action" onclick="viewCandidate(${c.id})">Details</button>
-                        <button class="btn-action" style="color:var(--red);border-color:var(--red);" onclick="deleteCandidate(${c.id})"><i class='bx bx-trash'></i></button>
+                    <span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:${stageCol}22;color:${stageCol};">${stage}</span>
+                </td>
+                <td style="font-size:11px;color:#6B7280;">${c.education || '—'}</td>
+                <td style="font-size:11px;color:#6B7280;">${c.skills ? c.skills.split(',')[0].trim() || '—' : '—'}</td>
+                <td style="font-size:11px;color:#1B2A4A;font-weight:500;">${c.experience_years != null ? c.experience_years + ' yrs' : '—'}</td>
+                <td style="font-size:11px;">
+                    ${hasCV ? '<span style="color:#0F6E56;font-weight:500;">✓ CV</span>' : '<span style="color:#9CA3AF;">—</span>'}
+                </td>
+                <td style="min-width:110px;">
+                    <input type="text" value="${interviewer.replace(/"/g,'&quot;')}" placeholder="Interviewer…"
+                        onchange="localStorage.setItem('hunters_interviewer_${c.id}',this.value)"
+                        style="width:100%;border:0.5px solid #E5E7EB;border-radius:6px;padding:4px 7px;font-size:11px;outline:none;color:#1B2A4A;">
+                </td>
+                <td>
+                    ${pct !== null
+                        ? `<span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:${sc.bg};color:${sc.text};">${pct}%</span>`
+                        : '<span class="skeleton skeleton-badge"></span>'}
+                </td>
+                <td style="min-width:130px;">
+                    <input type="text" value="${hrNotes.replace(/"/g,'&quot;')}" placeholder="Notes…"
+                        onchange="localStorage.setItem('hunters_notes_${c.id}',this.value)"
+                        style="width:100%;border:0.5px solid #E5E7EB;border-radius:6px;padding:4px 7px;font-size:11px;outline:none;color:#1B2A4A;">
+                </td>
+                <td>
+                    <div style="display:flex;gap:5px;">
+                        <button class="btn-action" style="font-size:10px;padding:4px 8px;" onclick="viewCandidate(${c.id})">View</button>
+                        <button class="btn-action" style="color:var(--red);border-color:var(--red);font-size:10px;padding:4px 6px;" onclick="deleteCandidate(${c.id})">✕</button>
                     </div>
                 </td>
             </tr>
