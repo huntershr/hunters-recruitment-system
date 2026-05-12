@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -179,6 +179,65 @@ Industry: {request.industry}"""
         return JSONResponse(content=cv_data)
     except Exception as e:
         logging.error("generate_cv_ai error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/ai/extract-cv")
+async def extract_cv_ai(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_user)
+):
+    if not os.getenv("GEMINI_API_KEY", ""):
+        raise HTTPException(status_code=503, detail="AI service not configured")
+    try:
+        contents = await file.read()
+        filename = file.filename or ""
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        text = ""
+        if ext == "pdf":
+            import io
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(contents))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        elif ext == "docx":
+            import io
+            from docx import Document
+            doc = Document(io.BytesIO(contents))
+            text = "\n".join(p.text for p in doc.paragraphs)
+        else:
+            text = contents.decode("utf-8", errors="ignore")
+        if not text.strip():
+            raise HTTPException(status_code=400, detail="Could not extract text from file")
+        import google.generativeai as genai
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        prompt = f"""Extract structured profile data from this CV/resume text.
+Return ONLY valid JSON with no markdown fences:
+{{
+  "name": "full name",
+  "email": "email address or empty string",
+  "phone": "phone number or empty string",
+  "industry": "main industry or field",
+  "education": "education summary as one string",
+  "skills": ["skill1", "skill2"],
+  "experiences": [
+    {{"title": "job title", "company": "company name", "duration": "e.g. 2020-2023"}}
+  ]
+}}
+
+CV Text:
+{text[:8000]}"""
+        response = model.generate_content(prompt)
+        raw = response.text.strip()
+        if "```" in raw:
+            start = raw.find("{"); end = raw.rfind("}") + 1
+            if start >= 0 and end > start:
+                raw = raw[start:end]
+        profile_data = json.loads(raw)
+        return JSONResponse(content=profile_data)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="AI returned invalid data format")
+    except Exception as e:
+        logging.error("extract_cv_ai error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")

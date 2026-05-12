@@ -57,6 +57,26 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 @keyframes shimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
 
 #toast-container{position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;}
+
+/* ── CV Writer Modal ── */
+#cv-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1500;overflow-y:auto;padding:24px 16px;}
+#cv-modal.active{display:flex;align-items:flex-start;justify-content:center;}
+.cv-modal-panel{background:#fff;border-radius:20px;width:800px;max-width:calc(100vw - 32px);animation:slideUp 0.22s ease;overflow:hidden;}
+.cv-modal-head{background:var(--navy);padding:20px 28px;display:flex;align-items:center;justify-content:space-between;}
+.cv-modal-tabs{display:flex;gap:0;border-bottom:1px solid #E5E7EB;padding:0 28px;background:#F8F9FF;}
+.cv-modal-tab{padding:12px 20px;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;color:#9CA3AF;border-bottom:2px solid transparent;transition:all 0.15s;}
+.cv-modal-tab.active{color:var(--navy);border-bottom-color:var(--gold);}
+.cv-modal-body{padding:24px 28px;}
+
+/* Profile photo */
+.photo-circle{width:88px;height:88px;border-radius:50%;background:var(--navy);border:3px solid var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;position:relative;}
+.photo-circle img{width:100%;height:100%;object-fit:cover;}
+.photo-circle .photo-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;border-radius:50%;}
+.photo-circle:hover .photo-overlay{display:flex;}
+
+/* CV Dropzone */
+.cv-drop{border:2px dashed #CBD5E1;border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;}
+.cv-drop:hover,.cv-drop.dragover{border-color:var(--navy);background:#F0F4FF;}
 </style>
 </head>
 <body>
@@ -65,7 +85,7 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 <div id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">
-      <img src="hunters-logo-blue.jpeg" alt="Hunters" style="height:52px;width:auto;" onerror="this.outerHTML='<div style=color:#1B2A4A;font-size:22px;font-weight:700;letter-spacing:0.04em;>HUNTERS</div>'">
+      <img src="hunters-logo-white.jpeg" alt="Hunters" style="height:52px;width:auto;" onerror="this.outerHTML='<div style=color:#1B2A4A;font-size:22px;font-weight:700;letter-spacing:0.04em;>HUNTERS</div>'">
       <div style="color:#6B7280;font-size:13px;margin-top:8px;">Candidates Portal</div>
     </div>
     <div class="auth-tabs">
@@ -96,11 +116,11 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 
 <!-- Header -->
 <div class="portal-header" id="portal-header" style="display:none;">
-  <img src="hunters-logo-white.jpeg" alt="Hunters" style="height:38px;width:auto;" onerror="this.outerHTML='<span style=color:#C9A84C;font-size:15px;font-weight:500;>HUNTERS</span>'">
+  <img src="hunters-logo-blue.jpeg" alt="Hunters" style="height:38px;width:auto;" onerror="this.outerHTML='<span style=color:#C9A84C;font-size:15px;font-weight:500;>HUNTERS</span>'">
   <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
     <span style="color:rgba(255,255,255,0.7);font-size:12px;" id="portal-username"></span>
     <button onclick="showPortalSection('profile')" style="color:rgba(255,255,255,0.7);background:none;border:none;font-size:12px;cursor:pointer;">My Profile</button>
-    <button onclick="showPortalSection('cv-writer')" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:500;cursor:pointer;">✨ AI CV Writer</button>
+    <button onclick="openCVModal()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:500;cursor:pointer;">✨ AI CV Writer</button>
     <button onclick="goBack()" style="color:rgba(255,255,255,0.55);background:none;border:0.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;">← Dashboard</button>
   </div>
 </div>
@@ -170,6 +190,98 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 <div id="job-overlay" class="overlay" onclick="if(event.target===this)closeOverlay()">
   <div class="overlay-panel">
     <div id="overlay-inner"></div>
+  </div>
+</div>
+
+<!-- AI CV Writer Modal -->
+<div id="cv-modal" onclick="if(event.target===this)closeCVModal()">
+  <div class="cv-modal-panel">
+    <div class="cv-modal-head">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <img src="hunters-logo-blue.jpeg" alt="Hunters" style="height:32px;width:auto;" onerror="this.style.display='none'">
+        <div>
+          <div style="color:#fff;font-size:15px;font-weight:500;">✨ AI CV Writer</div>
+          <div style="color:rgba(255,255,255,0.55);font-size:11px;">Professional CV generated by Hunters AI</div>
+        </div>
+      </div>
+      <button onclick="closeCVModal()" style="color:rgba(255,255,255,0.6);background:none;border:none;font-size:22px;cursor:pointer;line-height:1;">&times;</button>
+    </div>
+    <div class="cv-modal-tabs">
+      <button class="cv-modal-tab active" id="cvtab-upload" onclick="switchCVTab('upload')">📄 Upload Current CV</button>
+      <button class="cv-modal-tab" id="cvtab-manual" onclick="switchCVTab('manual')">✏️ Fill Manually</button>
+    </div>
+    <div class="cv-modal-body">
+
+      <!-- Upload tab -->
+      <div id="cvpanel-upload">
+        <div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:8px;">PROFILE PHOTO</div>
+            <div class="photo-circle" id="cv-photo-upload" onclick="document.getElementById('cv-photo-input').click()" title="Click to upload photo">
+              <span id="cv-photo-ini" style="color:#C9A84C;font-size:24px;font-weight:500;">?</span>
+              <div class="photo-overlay"><svg width="20" height="20" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+            </div>
+            <input type="file" id="cv-photo-input" accept="image/*" style="display:none;" onchange="handlePhotoUpload(this.files,'cv')">
+          </div>
+          <div style="flex:1;min-width:220px;">
+            <div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:8px;">UPLOAD YOUR CV <span style="color:#A32D2D;">*Required</span></div>
+            <div class="cv-drop" id="cv-dropzone" onclick="document.getElementById('cv-file-input').click()"
+              ondragover="event.preventDefault();this.classList.add('dragover')"
+              ondragleave="this.classList.remove('dragover')"
+              ondrop="handleCVDrop(event)">
+              <svg width="36" height="36" fill="none" stroke="#CBD5E1" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto 10px;display:block;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+              <div style="font-size:13px;color:#6B7280;margin-bottom:4px;">Drag &amp; drop your CV here</div>
+              <div style="font-size:11px;color:#9CA3AF;">PDF or DOCX accepted</div>
+              <div id="cv-file-name" style="display:none;margin-top:8px;font-size:12px;font-weight:500;color:#1B2A4A;"></div>
+            </div>
+            <input type="file" id="cv-file-input" accept=".pdf,.docx" style="display:none;" onchange="setCVFile(this.files[0])">
+          </div>
+        </div>
+        <div style="background:#F0F4FF;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:#1B2A4A;line-height:1.7;">
+          <strong>What happens next:</strong> AI extracts your details from the CV → generates a polished professional CV → you download it as PDF.
+        </div>
+        <button onclick="generateCVFromUpload()" style="width:100%;background:#1B2A4A;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:500;cursor:pointer;">✨ Generate My Professional CV</button>
+      </div>
+
+      <!-- Manual tab -->
+      <div id="cvpanel-manual" style="display:none;">
+        <div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:8px;">PROFILE PHOTO</div>
+            <div class="photo-circle" id="cv-photo-manual" onclick="document.getElementById('cv-photo-manual-input').click()" title="Click to upload photo">
+              <span id="cv-photo-manual-ini" style="color:#C9A84C;font-size:24px;font-weight:500;">?</span>
+              <div class="photo-overlay"><svg width="20" height="20" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+            </div>
+            <input type="file" id="cv-photo-manual-input" accept="image/*" style="display:none;" onchange="handlePhotoUpload(this.files,'manual')">
+          </div>
+          <div style="flex:1;min-width:220px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+              <div><label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:5px;">Full Name <span style="color:#A32D2D;">*</span></label><input id="m-name" type="text" style="width:100%;padding:9px 11px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;" placeholder="Ahmed Mohamed"></div>
+              <div><label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:5px;">Phone</label><input id="m-phone" type="text" style="width:100%;padding:9px 11px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;" placeholder="+20 1XX XXX XXXX"></div>
+              <div><label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:5px;">Email <span style="color:#A32D2D;">*</span></label><input id="m-email" type="email" style="width:100%;padding:9px 11px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;" placeholder="you@email.com"></div>
+              <div><label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:5px;">Industry <span style="color:#A32D2D;">*</span></label><input id="m-industry" type="text" style="width:100%;padding:9px 11px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;" placeholder="e.g. Education, Banking"></div>
+            </div>
+            <div style="margin-bottom:10px;"><label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:5px;">Education</label><input id="m-edu" type="text" style="width:100%;padding:9px 11px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;" placeholder="e.g. B.Sc. Business Administration, Cairo University 2018"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:6px;">Skills <span style="color:#A32D2D;">*</span></label>
+          <div id="m-skill-tags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;margin-bottom:6px;"></div>
+          <div style="display:flex;gap:8px;"><input id="m-new-skill" type="text" placeholder="Add a skill…" style="flex:1;padding:8px 11px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;" onkeydown="if(event.key==='Enter'){addModalSkill();event.preventDefault();}"><button onclick="addModalSkill()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;">+ Add</button></div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:6px;">Work Experience <span style="color:#A32D2D;">*</span></label>
+          <div id="m-exp-list" style="margin-bottom:6px;"></div>
+          <button onclick="addModalExp()" style="border:1px dashed #1B2A4A;color:#1B2A4A;background:#fff;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;">+ Add Experience</button>
+        </div>
+        <button onclick="generateCVFromManual()" style="width:100%;background:#C9A84C;color:#1B2A4A;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:500;cursor:pointer;">✨ Generate My Professional CV</button>
+      </div>
+
+      <!-- Progress & Preview (shared) -->
+      <div id="cv-modal-progress" style="display:none;margin-top:20px;"></div>
+      <div id="cv-modal-preview" style="display:none;margin-top:20px;"></div>
+
+    </div>
   </div>
 </div>
 
@@ -316,12 +428,12 @@ function goBack(){
 /* ─── Navigation ─── */
 var tabOrder=['all-jobs','edu-jobs','corp-jobs','my-applications','profile','cv-writer'];
 function showPortalSection(id){
+  if(id==='cv-writer'){openCVModal();return;}
   document.querySelectorAll('.portal-section').forEach(function(s){s.style.display='none';s.classList.remove('active');});
   var el=document.getElementById('section-'+id);if(el){el.style.display='block';el.classList.add('active');}
   document.querySelectorAll('.portal-tab').forEach(function(t,i){t.classList.toggle('active',tabOrder[i]===id);});
   if(id==='my-applications')renderMyApps();
   if(id==='profile')renderProfile();
-  if(id==='cv-writer')renderCVWriter();
   if(['all-jobs','edu-jobs','corp-jobs'].includes(id))renderSection(id);
 }
 
@@ -550,40 +662,78 @@ function renderProfile(){
   _profileExps=pr.experiences?[...pr.experiences]:[];
   var name=pr.name||(portalUser?portalUser.full_name:'')||'';
   var email=pr.email||(portalUser?portalUser.email:'')||'';
-  var i=ini(name||'?');
+  var photo=localStorage.getItem('hunters_profile_photo')||'';
+  var avatarHtml=photo
+    ?'<img src="'+photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+    :'<span style="color:#C9A84C;font-size:26px;font-weight:500;">'+ini(name||'?')+'</span>';
   document.getElementById('profile-content').innerHTML=
-    '<div style="max-width:640px;margin:0 auto;background:#fff;border-radius:16px;border:0.5px solid rgba(0,0,0,0.06);box-shadow:0 2px 12px rgba(0,0,0,0.06);padding:28px;">' +
-      '<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">' +
-        '<div style="width:72px;height:72px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:500;border:3px solid #C9A84C;flex-shrink:0;">'+i+'</div>' +
-        '<div><div style="font-size:20px;font-weight:500;color:#1B2A4A;">'+esc(name||'Your Name')+'</div><div style="font-size:12px;color:#9CA3AF;margin-top:3px;">'+esc(email)+'</div></div>' +
+    '<div style="max-width:660px;margin:0 auto;">' +
+      /* Auto-fill banner */
+      '<div style="background:#EEF2FF;border:0.5px solid #C7D2FE;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">' +
+        '<svg width="20" height="20" fill="none" stroke="#4F46E5" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+        '<div style="flex:1;min-width:160px;"><div style="font-size:13px;font-weight:500;color:#1B2A4A;">Have an existing CV?</div><div style="font-size:11px;color:#6B7280;margin-top:2px;">Upload it and AI will auto-fill your profile fields</div></div>' +
+        '<label style="background:#4F46E5;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;">📄 Upload CV to Auto-Fill<input type="file" accept=".pdf,.docx" style="display:none;" onchange="extractCVForProfile(this.files[0])"></label>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">' +
-        field('Full Name','profile-name','text',name,'Your full name')+
-        field('Phone','profile-phone','text',pr.phone||'','+20 1XX XXX XXXX')+
-        field('Email','profile-email','email',email,'your@email.com')+
-        field('Industry','profile-industry','text',pr.industry||'','e.g. Education, Banking')+
-      '</div>' +
-      '<div style="margin-bottom:20px;">' +
-        '<label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:8px;">Skills</label>' +
-        '<div id="skill-tags" style="display:flex;flex-wrap:wrap;gap:8px;min-height:30px;margin-bottom:8px;">'+renderSkillTags()+'</div>' +
-        '<div style="display:flex;gap:8px;">' +
-          '<input id="new-skill" type="text" placeholder="Add a skill…" style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;" onkeydown="if(event.key===\'Enter\'){addSkill();event.preventDefault();}">' +
-          '<button onclick="addSkill()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;">+ Add</button>' +
+      /* Card */
+      '<div style="background:#fff;border-radius:16px;border:0.5px solid rgba(0,0,0,0.06);box-shadow:0 2px 12px rgba(0,0,0,0.06);padding:28px;">' +
+        /* Photo + name */
+        '<div style="display:flex;align-items:center;gap:18px;margin-bottom:24px;">' +
+          '<div class="photo-circle" id="profile-photo-circle" onclick="document.getElementById(\'profile-photo-input\').click()" title="Click to change photo" style="width:80px;height:80px;">'+avatarHtml+'<div class="photo-overlay"><svg width="18" height="18" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div></div>' +
+          '<input type="file" id="profile-photo-input" accept="image/*" style="display:none;" onchange="handlePhotoUpload(this.files,\'profile\')">' +
+          '<div><div style="font-size:18px;font-weight:500;color:#1B2A4A;" id="profile-display-name">'+esc(name||'Your Name')+'</div><div style="font-size:11px;color:#9CA3AF;margin-top:3px;">'+esc(email)+'</div><div style="font-size:11px;color:#9CA3AF;margin-top:2px;">Click photo to change</div></div>' +
         '</div>' +
-      '</div>' +
-      '<div style="margin-bottom:24px;">' +
-        '<label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:8px;">Work Experience</label>' +
-        '<div id="exp-list">'+renderExpList()+'</div>' +
-        '<button onclick="addExp()" style="border:1px dashed #1B2A4A;color:#1B2A4A;background:#fff;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;margin-top:8px;">+ Add Experience</button>' +
-      '</div>' +
-      '<div style="display:flex;gap:10px;">' +
-        '<button onclick="saveProfile()" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:500;cursor:pointer;">Save Profile</button>' +
-        '<button onclick="showPortalSection(\'cv-writer\')" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;cursor:pointer;">✨ Generate CV</button>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">' +
+          field('Full Name','profile-name','text',name,'Your full name')+
+          field('Phone','profile-phone','text',pr.phone||'','+20 1XX XXX XXXX')+
+          field('Email','profile-email','email',email,'your@email.com')+
+          field('Industry','profile-industry','text',pr.industry||'','e.g. Education, Banking')+
+        '</div>' +
+        '<div style="margin-bottom:14px;">'+fieldFull('Education','profile-edu','text',pr.education||'','e.g. B.Sc. Business Admin, Cairo University 2018')+'</div>'+
+        '<div style="margin-bottom:20px;">' +
+          '<label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:8px;">Skills</label>' +
+          '<div id="skill-tags" style="display:flex;flex-wrap:wrap;gap:8px;min-height:30px;margin-bottom:8px;">'+renderSkillTags()+'</div>' +
+          '<div style="display:flex;gap:8px;">' +
+            '<input id="new-skill" type="text" placeholder="Add a skill…" style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;" onkeydown="if(event.key===\'Enter\'){addSkill();event.preventDefault();}">' +
+            '<button onclick="addSkill()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;">+ Add</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-bottom:24px;">' +
+          '<label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:8px;">Work Experience</label>' +
+          '<div id="exp-list">'+renderExpList()+'</div>' +
+          '<button onclick="addExp()" style="border:1px dashed #1B2A4A;color:#1B2A4A;background:#fff;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;margin-top:8px;">+ Add Experience</button>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;">' +
+          '<button onclick="saveProfile()" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:500;cursor:pointer;">Save Profile</button>' +
+          '<button onclick="openCVModal()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;cursor:pointer;">✨ Generate CV</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
 }
 
+async function extractCVForProfile(file){
+  if(!file)return;
+  var ext=file.name.split('.').pop().toLowerCase();
+  if(ext!=='pdf'&&ext!=='docx'){showToast('Only PDF or DOCX files','error');return;}
+  showToast('AI is reading your CV…','info');
+  try{
+    var fd=new FormData();fd.append('file',file);
+    var r=await fetch(API_BASE+'/api/ai/extract-cv',{method:'POST',headers:hdrs(),body:fd});
+    if(!r.ok)throw new Error('Extraction failed');
+    var d=await r.json();
+    /* pre-fill profile form */
+    if(d.name){var n=document.getElementById('profile-name');if(n)n.value=d.name;var dn=document.getElementById('profile-display-name');if(dn)dn.textContent=d.name;}
+    if(d.email){var e=document.getElementById('profile-email');if(e)e.value=d.email;}
+    if(d.phone){var p=document.getElementById('profile-phone');if(p)p.value=d.phone;}
+    if(d.industry){var ind=document.getElementById('profile-industry');if(ind)ind.value=d.industry;}
+    if(d.education){var edu=document.getElementById('profile-edu');if(edu)edu.value=d.education;}
+    if(d.skills&&d.skills.length){_profileSkills=d.skills;document.getElementById('skill-tags').innerHTML=renderSkillTags();}
+    if(d.experiences&&d.experiences.length){_profileExps=d.experiences;document.getElementById('exp-list').innerHTML=renderExpList();}
+    showToast('Profile auto-filled from CV! Review and save.','success');
+  }catch(err){showToast('Could not extract CV: '+err.message,'error');}
+}
+
 function field(label,id,type,val,ph){return'<div><label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:5px;">'+label+'</label><input id="'+id+'" type="'+type+'" value="'+esc(val)+'" placeholder="'+esc(ph)+'" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;"></div>';}
+function fieldFull(label,id,type,val,ph){return'<div><label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:5px;">'+label+'</label><input id="'+id+'" type="'+type+'" value="'+esc(val)+'" placeholder="'+esc(ph)+'" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;"></div>';}
 
 function renderSkillTags(){return _profileSkills.map(function(s,i){return'<span style="display:inline-flex;align-items:center;gap:6px;background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:500;">'+esc(s)+'<button onclick="removeSkill('+i+')" style="color:#CC2B2B;background:none;border:none;cursor:pointer;font-size:14px;line-height:1;padding:0;">&times;</button></span>';}).join('');}
 
@@ -595,71 +745,172 @@ function addExp(){var t=prompt('Job Title:');if(!t)return;var c=prompt('Company/
 function removeExp(i){_profileExps.splice(i,1);document.getElementById('exp-list').innerHTML=renderExpList();}
 
 function saveProfile(){
-  var pr={name:(document.getElementById('profile-name')||{}).value||'',phone:(document.getElementById('profile-phone')||{}).value||'',email:(document.getElementById('profile-email')||{}).value||'',industry:(document.getElementById('profile-industry')||{}).value||'',skills:_profileSkills,experiences:_profileExps};
+  var pr={
+    name:(document.getElementById('profile-name')||{}).value||'',
+    phone:(document.getElementById('profile-phone')||{}).value||'',
+    email:(document.getElementById('profile-email')||{}).value||'',
+    industry:(document.getElementById('profile-industry')||{}).value||'',
+    education:(document.getElementById('profile-edu')||{}).value||'',
+    skills:_profileSkills,
+    experiences:_profileExps
+  };
   localStorage.setItem('hunters_candidate_profile',JSON.stringify(pr));
   showToast('Profile saved!','success');
 }
 
-/* ─── AI CV Writer ─── */
-function renderCVWriter(){
-  var paid=localStorage.getItem('hunters_cv_paid')==='true';
-  var el=document.getElementById('cv-writer-content');
-  if(!paid){
-    el.innerHTML='<div style="text-align:center;padding:48px 24px;max-width:480px;margin:0 auto;">' +
-      '<div style="width:64px;height:64px;border-radius:50%;background:#FFF8E7;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;">✨</div>' +
-      '<div style="font-size:20px;font-weight:500;color:#1B2A4A;margin-bottom:8px;">AI-Powered CV Writing</div>' +
-      '<div style="font-size:13px;color:#9CA3AF;margin-bottom:24px;line-height:1.6;">Our AI generates a polished, professional CV tailored to your profile. Stand out with a Hunters-branded CV.</div>' +
-      '<div style="background:#F8F9FF;border:0.5px solid #E5E7EB;border-radius:12px;padding:20px;margin-bottom:20px;">' +
-        '<div style="font-size:13px;color:#6B7280;margin-bottom:4px;">One-time fee</div>' +
-        '<div style="font-size:32px;font-weight:500;color:#1B2A4A;">50 <span style="font-size:16px;">EGP</span></div>' +
-        '<div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Includes unlimited downloads</div>' +
-      '</div>' +
-      '<ul style="text-align:left;list-style:none;padding:0;margin-bottom:24px;">' +
-        ['Professional format tailored to your experience','ATS-optimized keywords from your industry','Hunters branded design','Download as PDF instantly'].map(function(f){return'<li style="font-size:12px;color:#1B2A4A;padding:6px 0;border-bottom:0.5px solid #F3F4F6;display:flex;align-items:center;gap:8px;"><span style="color:#0F6E56;">✓</span>'+f+'</li>';}).join('')+
-      '</ul>' +
-      '<button onclick="payAndGenerate()" style="width:100%;background:#C9A84C;color:#1B2A4A;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:500;cursor:pointer;">Pay 50 EGP &amp; Generate My CV</button>' +
-      '<div style="font-size:11px;color:#9CA3AF;margin-top:10px;">Payment placeholder — real gateway coming soon</div>' +
-    '</div>';
-  } else {
-    el.innerHTML='<div style="max-width:700px;margin:0 auto;">' +
-      '<div style="display:flex;gap:10px;justify-content:center;margin-bottom:20px;">' +
-        '<button onclick="generateCV()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:500;cursor:pointer;">✨ Generate My CV</button>' +
-      '</div>' +
-      '<div id="cv-status" style="display:none;text-align:center;padding:20px;"></div>' +
-      '<div id="cv-preview-wrap" style="display:none;"></div>' +
-    '</div>';
-    if(_cvData)renderCVPreview(_cvData);
-  }
+/* ─── Photo Upload ─── */
+function handlePhotoUpload(files,ctx){
+  if(!files||!files.length)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var b64=e.target.result;
+    localStorage.setItem('hunters_profile_photo',b64);
+    if(ctx==='profile'){
+      var circle=document.getElementById('profile-photo-circle');
+      if(circle){circle.innerHTML='<img src="'+b64+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="photo-overlay"><svg width="18" height="18" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>';}
+    } else {
+      ['cv-photo-upload','cv-photo-manual'].forEach(function(id){
+        var c=document.getElementById(id);
+        if(c)c.innerHTML='<img src="'+b64+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="photo-overlay"><svg width="18" height="18" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>';
+      });
+    }
+    showToast('Photo saved!','success');
+  };
+  reader.readAsDataURL(files[0]);
 }
 
-function payAndGenerate(){localStorage.setItem('hunters_cv_paid','true');showToast('Payment confirmed! Generating your CV…','success');renderCVWriter();setTimeout(generateCV,400);}
+/* ─── AI CV Writer Modal ─── */
+var _modalSkills=[],_modalExps=[],_cvFile=null;
 
-async function generateCV(){
+function openCVModal(){
+  var modal=document.getElementById('cv-modal');modal.classList.add('active');
+  /* pre-fill manual tab from saved profile */
   var pr=JSON.parse(localStorage.getItem('hunters_candidate_profile')||'{}');
-  if(!pr.name&&portalUser)pr.name=portalUser.full_name||'';
-  if(!pr.email&&portalUser)pr.email=portalUser.email||'';
-  var st=document.getElementById('cv-status'),pw=document.getElementById('cv-preview-wrap');
-  if(!st)return;
-  st.style.display='block';if(pw)pw.style.display='none';
-  var steps=['Reading your profile…','Crafting your CV…','Adding finishing touches…'],si=0;
-  st.innerHTML='<div id="gen-step" style="font-size:13px;color:#6B7280;margin-bottom:12px;">'+steps[0]+'</div><div style="height:4px;background:#F0F1F5;border-radius:2px;overflow:hidden;"><div id="gen-bar" style="height:100%;width:8%;background:#C9A84C;border-radius:2px;transition:width 0.5s;"></div></div>';
-  var iv=setInterval(function(){si=Math.min(si+1,steps.length-1);var s=document.getElementById('gen-step'),b=document.getElementById('gen-bar');if(s)s.textContent=steps[si];if(b)b.style.width=((si+1)/steps.length*80)+'%';},1600);
-  try{
-    var r=await fetch('/api/ai/generate-cv',{method:'POST',headers:Object.assign({},hdrs(),{'Content-Type':'application/json'}),body:JSON.stringify({name:pr.name||'Candidate',email:pr.email||'',phone:pr.phone||'',experiences:pr.experiences||[],skills:pr.skills||[],education:pr.education||'',industry:pr.industry||''})});
-    clearInterval(iv);if(!r.ok)throw new Error('CV generation failed');
-    _cvData=await r.json();st.style.display='none';renderCVPreview(_cvData);
-  }catch(err){clearInterval(iv);st.innerHTML='<div style="color:#A32D2D;font-size:13px;">Failed: '+esc(err.message)+'</div><button onclick="generateCV()" style="margin-top:10px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;">Retry</button>';}
+  var photo=localStorage.getItem('hunters_profile_photo')||'';
+  _modalSkills=pr.skills?[...pr.skills]:[];
+  _modalExps=pr.experiences?[...pr.experiences]:[];
+  var setVal=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
+  setVal('m-name',pr.name||(portalUser?portalUser.full_name:'')||'');
+  setVal('m-email',pr.email||(portalUser?portalUser.email:'')||'');
+  setVal('m-phone',pr.phone||'');
+  setVal('m-industry',pr.industry||'');
+  setVal('m-edu',pr.education||'');
+  renderModalSkillTags();renderModalExpList();
+  /* sync photo */
+  ['cv-photo-upload','cv-photo-manual'].forEach(function(id){
+    var c=document.getElementById(id);if(!c)return;
+    if(photo){c.innerHTML='<img src="'+photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="photo-overlay"><svg width="18" height="18" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>';}
+    else{var ini_=ini(pr.name||portalUser&&portalUser.full_name||'?');c.innerHTML='<span style="color:#C9A84C;font-size:24px;font-weight:500;">'+ini_+'</span><div class="photo-overlay"><svg width="18" height="18" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>';}
+  });
+  /* clear progress/preview */
+  var prog=document.getElementById('cv-modal-progress'),prev=document.getElementById('cv-modal-preview');
+  if(prog){prog.style.display='none';prog.innerHTML='';}
+  if(prev){prev.style.display='none';prev.innerHTML='';}
+  _cvFile=null;
+  switchCVTab('upload');
+}
+function closeCVModal(){document.getElementById('cv-modal').classList.remove('active');}
+function switchCVTab(t){
+  document.getElementById('cvpanel-upload').style.display=t==='upload'?'':'none';
+  document.getElementById('cvpanel-manual').style.display=t==='manual'?'':'none';
+  document.getElementById('cvtab-upload').classList.toggle('active',t==='upload');
+  document.getElementById('cvtab-manual').classList.toggle('active',t==='manual');
+}
+function setCVFile(file){
+  if(!file)return;
+  _cvFile=file;
+  var n=document.getElementById('cv-file-name');
+  if(n){n.textContent='✓ '+file.name;n.style.display='block';}
+  document.getElementById('cv-dropzone').style.borderColor='#1B2A4A';
+}
+function handleCVDrop(e){
+  e.preventDefault();document.getElementById('cv-dropzone').classList.remove('dragover');
+  if(e.dataTransfer.files.length)setCVFile(e.dataTransfer.files[0]);
 }
 
-function renderCVPreview(cv){
-  var pw=document.getElementById('cv-preview-wrap');if(!pw)return;
+function renderModalSkillTags(){
+  var el=document.getElementById('m-skill-tags');if(!el)return;
+  el.innerHTML=_modalSkills.map(function(s,i){return'<span style="display:inline-flex;align-items:center;gap:5px;background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:500;">'+esc(s)+'<button onclick="removeModalSkill('+i+')" style="color:#CC2B2B;background:none;border:none;cursor:pointer;font-size:13px;line-height:1;padding:0;">&times;</button></span>';}).join('');
+}
+function renderModalExpList(){
+  var el=document.getElementById('m-exp-list');if(!el)return;
+  if(!_modalExps.length){el.innerHTML='<div style="font-size:12px;color:#9CA3AF;padding:4px 0;">No experience added</div>';return;}
+  el.innerHTML=_modalExps.map(function(e,i){return'<div style="background:#F5F6F8;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:flex-start;justify-content:space-between;"><div><div style="font-size:13px;font-weight:500;color:#1B2A4A;">'+esc(e.title||'—')+'</div><div style="font-size:11px;color:#6B7280;">'+esc(e.company||'')+(e.duration?' · '+esc(e.duration):'')+'</div></div><button onclick="removeModalExp('+i+')" style="color:#CC2B2B;background:none;border:none;cursor:pointer;font-size:16px;line-height:1;">&times;</button></div>';}).join('');
+}
+function addModalSkill(){var el=document.getElementById('m-new-skill');if(!el||!el.value.trim())return;_modalSkills.push(el.value.trim());el.value='';renderModalSkillTags();}
+function removeModalSkill(i){_modalSkills.splice(i,1);renderModalSkillTags();}
+function addModalExp(){var t=prompt('Job Title:');if(!t)return;var c=prompt('Company/Employer:')||'';var d=prompt('Duration (e.g. 2020-2023):')||'';_modalExps.push({title:t,company:c,duration:d});renderModalExpList();}
+function removeModalExp(i){_modalExps.splice(i,1);renderModalExpList();}
+
+async function generateCVFromUpload(){
+  if(!_cvFile){showToast('Please upload a CV file first','error');return;}
+  var prog=document.getElementById('cv-modal-progress'),prev=document.getElementById('cv-modal-preview');
+  prog.style.display='block';prev.style.display='none';prev.innerHTML='';
+  var steps=['Reading your CV…','AI is building your profile…','Crafting your CV…','Adding finishing touches…'],si=0;
+  prog.innerHTML='<div id="mp-step" style="font-size:13px;color:#6B7280;margin-bottom:12px;text-align:center;">'+steps[0]+'</div><div style="height:4px;background:#F0F1F5;border-radius:2px;overflow:hidden;"><div id="mp-bar" style="height:100%;width:5%;background:#C9A84C;border-radius:2px;transition:width 0.6s;"></div></div>';
+  var iv=setInterval(function(){si=Math.min(si+1,steps.length-1);var s=document.getElementById('mp-step'),b=document.getElementById('mp-bar');if(s)s.textContent=steps[si];if(b)b.style.width=((si+1)/steps.length*70)+'%';},1800);
+  try{
+    /* Step 1: extract profile from CV */
+    var fd=new FormData();fd.append('file',_cvFile);
+    var r1=await fetch(API_BASE+'/api/ai/extract-cv',{method:'POST',headers:hdrs(),body:fd});
+    if(!r1.ok)throw new Error('Could not extract CV');
+    var pr=await r1.json();
+    if(!pr.name&&portalUser)pr.name=portalUser.full_name||'';
+    if(!pr.email&&portalUser)pr.email=portalUser.email||'';
+    /* Step 2: generate professional CV */
+    var r2=await fetch(API_BASE+'/api/ai/generate-cv',{method:'POST',headers:Object.assign({},hdrs(),{'Content-Type':'application/json'}),body:JSON.stringify({name:pr.name||'Candidate',email:pr.email||'',phone:pr.phone||'',experiences:pr.experiences||[],skills:pr.skills||[],education:pr.education||'',industry:pr.industry||''})});
+    clearInterval(iv);if(!r2.ok)throw new Error('CV generation failed');
+    _cvData=await r2.json();
+    var b=document.getElementById('mp-bar');if(b)b.style.width='100%';
+    setTimeout(function(){prog.style.display='none';prev.style.display='block';renderCVPreviewInModal(_cvData);},400);
+  }catch(err){clearInterval(iv);prog.innerHTML='<div style="color:#A32D2D;font-size:13px;text-align:center;padding:12px;">⚠ '+esc(err.message)+'</div><div style="text-align:center;margin-top:8px;"><button onclick="generateCVFromUpload()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;">Retry</button></div>';}
+}
+
+async function generateCVFromManual(){
+  var name=(document.getElementById('m-name')||{}).value||'';
+  var email=(document.getElementById('m-email')||{}).value||'';
+  var industry=(document.getElementById('m-industry')||{}).value||'';
+  if(!name||!email||!industry||!_modalSkills.length||!_modalExps.length){
+    showToast('Please fill Name, Email, Industry, at least one Skill and one Experience','error');return;
+  }
+  var prog=document.getElementById('cv-modal-progress'),prev=document.getElementById('cv-modal-preview');
+  prog.style.display='block';prev.style.display='none';prev.innerHTML='';
+  var steps=['Reading your details…','Crafting your CV…','Adding finishing touches…'],si=0;
+  prog.innerHTML='<div id="mp-step" style="font-size:13px;color:#6B7280;margin-bottom:12px;text-align:center;">'+steps[0]+'</div><div style="height:4px;background:#F0F1F5;border-radius:2px;overflow:hidden;"><div id="mp-bar" style="height:100%;width:5%;background:#C9A84C;border-radius:2px;transition:width 0.6s;"></div></div>';
+  var iv=setInterval(function(){si=Math.min(si+1,steps.length-1);var s=document.getElementById('mp-step'),b=document.getElementById('mp-bar');if(s)s.textContent=steps[si];if(b)b.style.width=((si+1)/steps.length*80)+'%';},1600);
+  try{
+    var payload={name:name,email:email,phone:(document.getElementById('m-phone')||{}).value||'',industry:industry,education:(document.getElementById('m-edu')||{}).value||'',skills:_modalSkills,experiences:_modalExps};
+    var r=await fetch(API_BASE+'/api/ai/generate-cv',{method:'POST',headers:Object.assign({},hdrs(),{'Content-Type':'application/json'}),body:JSON.stringify(payload)});
+    clearInterval(iv);if(!r.ok)throw new Error('CV generation failed');
+    _cvData=await r.json();
+    var b=document.getElementById('mp-bar');if(b)b.style.width='100%';
+    setTimeout(function(){prog.style.display='none';prev.style.display='block';renderCVPreviewInModal(_cvData);},400);
+  }catch(err){clearInterval(iv);prog.innerHTML='<div style="color:#A32D2D;font-size:13px;text-align:center;padding:12px;">⚠ '+esc(err.message)+'</div><div style="text-align:center;margin-top:8px;"><button onclick="generateCVFromManual()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;">Retry</button></div>';}
+}
+
+function renderCVPreviewInModal(cv){
+  var pw=document.getElementById('cv-modal-preview');
+  renderCVPreview(cv,pw);
+  /* append action buttons */
+  var btns=document.createElement('div');
+  btns.style.cssText='display:flex;gap:10px;justify-content:center;padding:16px 0 4px;';
+  btns.innerHTML='<button onclick="downloadCV()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:11px 24px;font-size:13px;font-weight:500;cursor:pointer;">⬇ Download PDF</button><button onclick="openCVModal()" style="background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:11px 24px;font-size:13px;color:#6B7280;cursor:pointer;">↺ Regenerate</button>';
+  pw.appendChild(btns);
+}
+
+function renderCVPreview(cv,pw){
+  if(!pw)pw=document.getElementById('cv-preview-wrap');
+  if(!pw)return;
   pw.style.display='block';
-  var i=ini(cv.name||'?');
+  var photo=localStorage.getItem('hunters_profile_photo')||'';
+  var avatarHtml=photo
+    ?'<img src="'+photo+'" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid #C9A84C;flex-shrink:0;">'
+    :'<div style="width:72px;height:72px;border-radius:50%;background:#C9A84C;color:#1B2A4A;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:500;flex-shrink:0;border:3px solid rgba(255,255,255,0.3);">'+ini(cv.name||'?')+'</div>';
   pw.innerHTML=
     '<div id="cv-preview" style="max-width:700px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.12);">' +
       '<div style="background:#1B2A4A;padding:32px;color:#fff;">' +
         '<div style="display:flex;align-items:center;gap:20px;">' +
-          '<div style="width:72px;height:72px;border-radius:50%;background:#C9A84C;color:#1B2A4A;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:500;flex-shrink:0;">'+i+'</div>' +
+          avatarHtml+
           '<div><div style="font-size:24px;font-weight:500;">'+esc(cv.name||'')+'</div>' +
             '<div style="color:#C9A84C;font-size:14px;margin-top:4px;">'+esc(cv.headline||'')+'</div>' +
             '<div style="color:rgba(255,255,255,0.6);font-size:12px;margin-top:6px;">'+esc(cv.email||'')+(cv.phone?' · '+esc(cv.phone):'')+'</div>' +
@@ -674,7 +925,7 @@ function renderCVPreview(cv){
         (cv.languages&&cv.languages.length?'<div style="margin-bottom:16px;"><div style="font-size:13px;font-weight:500;color:#C9A84C;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #C9A84C;">Languages</div><div style="display:flex;flex-wrap:wrap;gap:8px;">'+cv.languages.map(function(l){return'<span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:500;">'+esc(l)+'</span>';}).join('')+'</div></div>':'')+
       '</div>' +
       '<div style="background:#F5F6F8;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;">' +
-        '<img src="hunters-logo-blue.jpeg" alt="Hunters" style="height:28px;width:auto;" onerror="this.outerHTML=\'<span style=font-size:11px;color:#9CA3AF;font-weight:500;>HUNTERS FOR HR</span>\'">' +
+        '<img src="hunters-logo-white.jpeg" alt="Hunters" style="height:28px;width:auto;" onerror="this.outerHTML=\'<span style=font-size:11px;color:#9CA3AF;font-weight:500;>HUNTERS FOR HR</span>\'">' +
         '<span style="font-size:11px;color:#9CA3AF;">Generated by Hunters AI</span>' +
       '</div>' +
     '</div>' +
@@ -687,8 +938,9 @@ function renderCVPreview(cv){
 function downloadCV(){
   var cv=_cvData||{};var el=document.getElementById('cv-preview');
   if(!el){showToast('Generate your CV first','error');return;}
+  var html=el.outerHTML.replace(/hunters-logo-blue\.jpeg/g,'hunters-logo-blue.jpeg').replace(/hunters-logo-white\.jpeg/g,'hunters-logo-white.jpeg');
   var w=window.open('','_blank');
-  w.document.write('<html><head><title>CV - '+esc(cv.name||'CV')+'</title><style>body{margin:0;font-family:"Segoe UI",Arial,sans-serif;}@media print{body{margin:0;}}</style></head><body>'+el.outerHTML+'</body></html>');
+  w.document.write('<html><head><title>CV - '+esc(cv.name||'CV')+'</title><style>body{margin:0;font-family:"Segoe UI",Arial,sans-serif;}@media print{body{margin:0;}button{display:none;}}</style></head><body>'+html+'</body></html>');
   w.document.close();w.print();
 }
 
