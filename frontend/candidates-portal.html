@@ -141,8 +141,10 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
   <img src="hunters-logo-blue.jpeg" alt="Hunters" style="height:38px;width:auto;" onerror="this.outerHTML='<span style=color:#C9A84C;font-size:15px;font-weight:500;>HUNTERS</span>'">
   <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
     <span style="color:rgba(255,255,255,0.7);font-size:12px;" id="portal-username"></span>
-    <button onclick="showPortalSection('profile')" style="color:rgba(255,255,255,0.7);background:none;border:none;font-size:12px;cursor:pointer;">My Profile</button>
-    <button onclick="openCVModal()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:500;cursor:pointer;">✨ AI CV Writer</button>
+    <div id="candidate-header-btns" style="display:flex;align-items:center;gap:14px;">
+      <button onclick="showPortalSection('profile')" style="color:rgba(255,255,255,0.7);background:none;border:none;font-size:12px;cursor:pointer;">My Profile</button>
+      <button onclick="openCVModal()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:500;cursor:pointer;">✨ AI CV Writer</button>
+    </div>
     <button onclick="goBack()" style="color:rgba(255,255,255,0.55);background:none;border:0.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;">← Dashboard</button>
   </div>
 </div>
@@ -152,8 +154,8 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
   <button class="portal-tab active" onclick="showPortalSection('all-jobs')">All Jobs</button>
   <button class="portal-tab" onclick="showPortalSection('edu-jobs')">Education Jobs</button>
   <button class="portal-tab" onclick="showPortalSection('corp-jobs')">Corporate Jobs</button>
-  <button class="portal-tab" onclick="showPortalSection('my-applications')">My Applications</button>
-  <button class="portal-tab" onclick="showPortalSection('profile')">My Profile</button>
+  <button class="portal-tab candidate-tab" onclick="showPortalSection('my-applications')">My Applications</button>
+  <button class="portal-tab candidate-tab" onclick="showPortalSection('profile')">My Profile</button>
 </div>
 
 <!-- Body -->
@@ -373,6 +375,17 @@ function hideAuthScreen(){
   document.getElementById('portal-header').style.display='';
   document.getElementById('portal-tabs').style.display='';
   document.getElementById('portal-body').style.display='';
+  if(portalUser) applyUserRole(portalUser);
+}
+
+function applyUserRole(user){
+  var isEmployer = user.is_admin || !!user.company_id;
+  /* Candidate-only tabs and buttons */
+  document.querySelectorAll('.candidate-tab').forEach(function(t){t.style.display=isEmployer?'none':'';});
+  var chb=document.getElementById('candidate-header-btns');
+  if(chb) chb.style.display=isEmployer?'none':'flex';
+  /* Occupation cards — employer/admin only */
+  if(isEmployer) loadOccupationCards();
 }
 
 function switchAuthTab(tab){
@@ -442,6 +455,7 @@ function onAuthSuccess(token){
       loadJobs();
     });
 }
+/* hideAuthScreen already calls applyUserRole → no need to duplicate loadOccupationCards in checkAuth */
 
 function showEntryScreen(){
   document.getElementById('candidate-entry').style.display='flex';
@@ -478,7 +492,6 @@ function checkAuth(){
       document.getElementById('candidate-entry').style.display='none';
       hideAuthScreen();
       loadJobs();
-      loadOccupationCards();
     })
     .catch(function(){showAuthScreen();});
 }
