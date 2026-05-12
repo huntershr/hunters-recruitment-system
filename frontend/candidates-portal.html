@@ -77,6 +77,7 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 /* CV Dropzone */
 .cv-drop{border:2px dashed #CBD5E1;border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;}
 .cv-drop:hover,.cv-drop.dragover{border-color:var(--navy);background:#F0F4FF;}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -914,9 +915,9 @@ function renderProfile(){
   document.getElementById('profile-content').innerHTML=
     '<div style="max-width:660px;margin:0 auto;">' +
       /* Auto-fill banner */
-      '<div style="background:#EEF2FF;border:0.5px solid #C7D2FE;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">' +
+      '<div id="cv-autofill-banner" style="background:#EEF2FF;border:0.5px solid #C7D2FE;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">' +
         '<svg width="20" height="20" fill="none" stroke="#4F46E5" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
-        '<div style="flex:1;min-width:160px;"><div style="font-size:13px;font-weight:500;color:#1B2A4A;">Have an existing CV?</div><div style="font-size:11px;color:#6B7280;margin-top:2px;">Upload it and AI will auto-fill your profile fields</div></div>' +
+        '<div style="flex:1;min-width:160px;"><div style="font-size:13px;font-weight:500;color:#1B2A4A;">Have an existing CV?</div><div style="font-size:11px;color:#6B7280;margin-top:2px;">Upload it and AI will auto-fill your profile fields instantly</div></div>' +
         '<label style="background:#4F46E5;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;">📄 Upload CV to Auto-Fill<input type="file" accept=".pdf,.docx" style="display:none;" onchange="extractCVForProfile(this.files[0])"></label>' +
       '</div>' +
       /* Card */
@@ -958,23 +959,47 @@ function renderProfile(){
 async function extractCVForProfile(file){
   if(!file)return;
   var ext=file.name.split('.').pop().toLowerCase();
-  if(ext!=='pdf'&&ext!=='docx'){showToast('Only PDF or DOCX files','error');return;}
-  showToast('AI is reading your CV…','info');
+  if(ext!=='pdf'&&ext!=='docx'){showToast('Only PDF or DOCX files accepted','error');return;}
+
+  /* Show loading state on the banner label */
+  var banner=document.getElementById('cv-autofill-banner');
+  var origHtml=banner?banner.innerHTML:'';
+  if(banner)banner.innerHTML='<div style="display:flex;align-items:center;gap:10px;"><div style="width:18px;height:18px;border-radius:50%;border:2px solid #E5E7EB;border-top-color:#4F46E5;animation:spin 0.7s linear infinite;flex-shrink:0;"></div><span style="font-size:13px;color:#1B2A4A;">AI is reading your CV… this takes a few seconds</span></div>';
+
   try{
     var fd=new FormData();fd.append('file',file);
     var r=await fetch(API_BASE+'/api/ai/extract-cv',{method:'POST',headers:hdrs(),body:fd});
-    if(!r.ok)throw new Error('Extraction failed');
+    if(!r.ok){
+      var errBody=await r.json().catch(function(){return{};});
+      throw new Error(errBody.detail||'Server error '+r.status);
+    }
     var d=await r.json();
-    /* pre-fill profile form */
-    if(d.name){var n=document.getElementById('profile-name');if(n)n.value=d.name;var dn=document.getElementById('profile-display-name');if(dn)dn.textContent=d.name;}
-    if(d.email){var e=document.getElementById('profile-email');if(e)e.value=d.email;}
-    if(d.phone){var p=document.getElementById('profile-phone');if(p)p.value=d.phone;}
+
+    /* Pre-fill every form field */
+    if(d.name){
+      var n=document.getElementById('profile-name');if(n)n.value=d.name;
+      var dn=document.getElementById('profile-display-name');if(dn)dn.textContent=d.name;
+    }
+    if(d.email){var em=document.getElementById('profile-email');if(em)em.value=d.email;}
+    if(d.phone){var ph=document.getElementById('profile-phone');if(ph)ph.value=d.phone;}
     if(d.industry){var ind=document.getElementById('profile-industry');if(ind)ind.value=d.industry;}
     if(d.education){var edu=document.getElementById('profile-edu');if(edu)edu.value=d.education;}
-    if(d.skills&&d.skills.length){_profileSkills=d.skills;document.getElementById('skill-tags').innerHTML=renderSkillTags();}
-    if(d.experiences&&d.experiences.length){_profileExps=d.experiences;document.getElementById('exp-list').innerHTML=renderExpList();}
-    showToast('Profile auto-filled from CV! Review and save.','success');
-  }catch(err){showToast('Could not extract CV: '+err.message,'error');}
+    if(d.skills&&d.skills.length){_profileSkills=d.skills;var st=document.getElementById('skill-tags');if(st)st.innerHTML=renderSkillTags();}
+    if(d.experiences&&d.experiences.length){_profileExps=d.experiences;var el2=document.getElementById('exp-list');if(el2)el2.innerHTML=renderExpList();}
+
+    /* Auto-save to localStorage immediately */
+    saveProfile();
+
+    /* Restore banner with success state */
+    if(banner)banner.innerHTML='<div style="display:flex;align-items:center;gap:10px;color:#0F6E56;"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="font-size:13px;font-weight:500;">Profile auto-filled and saved! Review the fields below.</span></div>';
+    /* Scroll to the profile card */
+    var profileCard=document.querySelector('#section-profile .photo-circle');
+    if(profileCard)profileCard.scrollIntoView({behavior:'smooth',block:'center'});
+    showToast('Profile filled from CV and saved!','success');
+  }catch(err){
+    if(banner)banner.innerHTML=origHtml;
+    showToast('CV extraction failed: '+err.message,'error');
+  }
 }
 
 function field(label,id,type,val,ph){return'<div><label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:5px;">'+label+'</label><input id="'+id+'" type="'+type+'" value="'+esc(val)+'" placeholder="'+esc(ph)+'" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;"></div>';}
@@ -1098,13 +1123,14 @@ async function generateCVFromUpload(){
     /* Step 1: extract profile from CV */
     var fd=new FormData();fd.append('file',_cvFile);
     var r1=await fetch(API_BASE+'/api/ai/extract-cv',{method:'POST',headers:hdrs(),body:fd});
-    if(!r1.ok)throw new Error('Could not extract CV');
+    if(!r1.ok){var e1=await r1.json().catch(function(){return{};});throw new Error(e1.detail||'CV extraction failed ('+r1.status+')');}
     var pr=await r1.json();
     if(!pr.name&&portalUser)pr.name=portalUser.full_name||'';
     if(!pr.email&&portalUser)pr.email=portalUser.email||'';
     /* Step 2: generate professional CV */
     var r2=await fetch(API_BASE+'/api/ai/generate-cv',{method:'POST',headers:Object.assign({},hdrs(),{'Content-Type':'application/json'}),body:JSON.stringify({name:pr.name||'Candidate',email:pr.email||'',phone:pr.phone||'',experiences:pr.experiences||[],skills:pr.skills||[],education:pr.education||'',industry:pr.industry||''})});
-    clearInterval(iv);if(!r2.ok)throw new Error('CV generation failed');
+    clearInterval(iv);if(!r2.ok){var e2=await r2.json().catch(function(){return{};});throw new Error(e2.detail||'CV generation failed ('+r2.status+')');}
+
     _cvData=await r2.json();
     var b=document.getElementById('mp-bar');if(b)b.style.width='100%';
     setTimeout(function(){prog.style.display='none';prev.style.display='block';renderCVPreviewInModal(_cvData);},400);
