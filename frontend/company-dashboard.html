@@ -773,12 +773,13 @@
                 <p style="margin:0; font-size:13px; color:#9CA3AF;">Upload, screen and manage your candidates</p>
             </div>
             <div style="display:flex; gap:8px;">
-                <button onclick="openBulkUploadModal()" style="background:transparent; color:#C9A84C; border:1.5px solid #C9A84C; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                <input type="file" id="bulk-trigger-input" multiple accept=".pdf,.docx,.xlsx,.xls" style="display:none;" onchange="bulkFilesChosen(this.files)">
+                <button onclick="document.getElementById('bulk-trigger-input').click()" style="background:transparent; color:#C9A84C; border:1.5px solid #C9A84C; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     Bulk Upload
                 </button>
-                <button onclick="showToast('Single candidate upload coming soon', 'info')" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-                    + Add Single Candidate
+                <button onclick="openSingleUpload()" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                    + Screen Single CV
                 </button>
             </div>
         </div>
@@ -804,7 +805,7 @@
                     </select>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <button onclick="openBulkUploadModal()" style="background:#F4F5FA; color:#1B2A4A; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                    <button onclick="document.getElementById('bulk-trigger-input').click()" style="background:#F4F5FA; color:#1B2A4A; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         Bulk Upload
                     </button>
@@ -1498,7 +1499,7 @@
                     <svg width="44" height="44" fill="none" stroke="#D1D5DB" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
                     <div style="font-size:14px; font-weight:500; color:#1B2A4A; margin-top:12px;">No candidates yet</div>
                     <div style="font-size:12px; color:#9CA3AF; margin-top:4px;">Use Bulk Upload to screen multiple CVs at once</div>
-                    <button onclick="openBulkUploadModal()" style="margin-top:16px; background:#1B2A4A; color:#FFFFFF; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer;">Bulk Upload</button>
+                    <button onclick="document.getElementById('bulk-trigger-input').click()" style="margin-top:16px; background:#1B2A4A; color:#FFFFFF; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer;">Bulk Upload</button>
                 </div>`;
             return;
         }
@@ -2379,13 +2380,14 @@
                         </svg>
                     </div>
                     <div style="font-size:14px; font-weight:500; color:#1B2A4A; margin-bottom:4px;">Drop CV files here or click to browse</div>
-                    <div style="font-size:12px; color:#9CA3AF; margin-bottom:14px;">PDF and Excel (.xlsx) files supported — up to 15 files at once</div>
+                    <div style="font-size:12px; color:#9CA3AF; margin-bottom:14px;">PDF, DOCX, and Excel (.xlsx) files supported — up to 15 files at once</div>
                     <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
                         <span style="background:#FCEBEB; color:#A32D2D; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:500;">PDF</span>
+                        <span style="background:#F0FBF5; color:#0F6E56; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:500;">DOCX</span>
                         <span style="background:#E6F1FB; color:#185FA5; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:500;">XLSX</span>
                         <span style="font-size:11px; color:#9CA3AF;">Max 15 files · Max 5MB each</span>
                     </div>
-                    <input type="file" id="bulk-file-input" multiple accept=".pdf,.xlsx,.xls" style="display:none;" onchange="handleBulkFileInput(event)">
+                    <input type="file" id="bulk-file-input" multiple accept=".pdf,.docx,.xlsx,.xls" style="display:none;" onchange="handleBulkFileInput(event)">
                 </div>
 
                 <div id="bulk-file-list" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; margin-bottom:16px;"></div>
@@ -2466,6 +2468,248 @@
     </div>
 </div>
 </div>
-<script src="hunters-jobs.js?v=1.7"></script>
+<!-- ═══ SINGLE CV UPLOAD MODAL ═══ -->
+<div id="single-upload-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;align-items:center;justify-content:center;" onclick="if(event.target===this)closeSingleUpload()">
+  <div style="background:#fff;border-radius:16px;width:480px;max-width:94vw;box-shadow:0 24px 64px rgba(0,0,0,0.2);overflow:hidden;">
+    <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="color:#C9A84C;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;">AI Screening</div>
+        <div style="color:#fff;font-size:15px;font-weight:500;margin-top:2px;">Screen Single CV</div>
+      </div>
+      <button onclick="closeSingleUpload()" style="background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:20px;line-height:1;">×</button>
+    </div>
+    <div style="padding:24px;">
+      <label style="font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Job Position</label>
+      <select id="single-job-select" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;margin-bottom:16px;">
+        <option value="">— Select a job (optional) —</option>
+      </select>
+      <label style="font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">CV File (PDF or DOCX)</label>
+      <input type="file" id="single-cv-file" accept=".pdf,.docx" style="width:100%;padding:10px;border:1px dashed #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#FAFBFC;cursor:pointer;margin-bottom:20px;">
+      <div id="single-upload-result" style="display:none;padding:14px;border-radius:10px;margin-bottom:16px;font-size:13px;"></div>
+      <button onclick="runSingleScreening()" id="single-screen-btn" style="width:100%;background:#1B2A4A;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:500;cursor:pointer;">Screen CV with AI</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BULK CV UPLOAD MODAL (rebuilt) ═══ -->
+<div id="bulk-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;align-items:center;justify-content:center;" onclick="if(event.target===this)closeBulkModal()">
+  <div style="background:#fff;border-radius:16px;width:620px;max-width:96vw;max-height:90vh;box-shadow:0 24px 64px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;">
+    <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+      <div>
+        <div style="color:#C9A84C;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;">AI Screening</div>
+        <div style="color:#fff;font-size:15px;font-weight:500;margin-top:2px;">Bulk CV Upload</div>
+      </div>
+      <button onclick="closeBulkModal()" style="background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:20px;line-height:1;">×</button>
+    </div>
+    <div style="padding:20px 24px;overflow-y:auto;flex:1;">
+      <label style="font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Apply to Job (optional)</label>
+      <select id="bulk-modal-job-select" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;margin-bottom:16px;">
+        <option value="">— Screen without job match —</option>
+      </select>
+      <div id="bulk-file-list-new" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;margin-bottom:16px;"></div>
+      <div id="bulk-progress-area" style="display:none;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+      <div id="bulk-results-area" style="display:none;"></div>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+      <span id="bulk-modal-count" style="font-size:12px;color:#9CA3AF;">0 files selected</span>
+      <button onclick="runBulkScreening()" id="bulk-screen-btn" disabled style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:500;cursor:pointer;opacity:0.5;">Start AI Screening</button>
+    </div>
+  </div>
+</div>
+
+<script src="hunters-jobs.js?v=2.1"></script>
+<script>
+/* ══════════════════════════════════════════════
+   UPLOAD MODULE — fully standalone, no dependencies
+   ══════════════════════════════════════════════ */
+
+var _bulkFiles = [];
+
+/* ── helpers ── */
+function _apiBase() {
+  return window.API_URL || window.location.origin;
+}
+function _token() {
+  return localStorage.getItem('token') || '';
+}
+function _jobOptions() {
+  var opts = '<option value="">— Select a job (optional) —</option>';
+  var jobs = window.huntersAllJobs || [];
+  jobs.filter(function(j){ return j.status === 'Approved'; }).forEach(function(j){
+    opts += '<option value="' + j.id + '">' + (j.title || '') + '</option>';
+  });
+  return opts;
+}
+
+/* ── Single Upload ── */
+function openSingleUpload() {
+  document.getElementById('single-job-select').innerHTML = _jobOptions();
+  document.getElementById('single-cv-file').value = '';
+  var r = document.getElementById('single-upload-result');
+  r.style.display = 'none'; r.innerHTML = '';
+  document.getElementById('single-screen-btn').disabled = false;
+  document.getElementById('single-screen-btn').textContent = 'Screen CV with AI';
+  document.getElementById('single-upload-modal').style.display = 'flex';
+}
+function closeSingleUpload() {
+  document.getElementById('single-upload-modal').style.display = 'none';
+}
+async function runSingleScreening() {
+  var fileInput = document.getElementById('single-cv-file');
+  if (!fileInput.files || !fileInput.files.length) {
+    alert('Please select a PDF or DOCX file first.');
+    return;
+  }
+  var btn = document.getElementById('single-screen-btn');
+  btn.disabled = true;
+  btn.textContent = 'Screening…';
+  var resultDiv = document.getElementById('single-upload-result');
+  resultDiv.style.display = 'none';
+
+  var formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+  var jobId = document.getElementById('single-job-select').value;
+  if (jobId) formData.append('job_id', jobId);
+
+  try {
+    var res = await fetch(_apiBase() + '/candidates/screen-cv', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + _token() },
+      body: formData
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Screening failed');
+
+    var score = data.score != null ? Math.round(data.score) : null;
+    var scoreColor = score == null ? '#6B7280' : score >= 75 ? '#0F6E56' : score >= 50 ? '#854F0B' : '#A32D2D';
+    var scoreBg   = score == null ? '#F0F2F8'  : score >= 75 ? '#E1F5EE'  : score >= 50 ? '#FAEEDA'  : '#FCEBEB';
+    resultDiv.style.background = scoreBg;
+    resultDiv.style.border = '1px solid ' + scoreColor + '44';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML =
+      '<div style="font-weight:600;color:' + scoreColor + ';font-size:15px;margin-bottom:6px;">' +
+        (score != null ? score + '% — ' : '') + (data.decision || '—') +
+      '</div>' +
+      '<div style="color:#374151;font-size:13px;">' + (data.reason || '') + '</div>' +
+      '<div style="margin-top:8px;font-size:12px;color:#6B7280;">' + (data.name || '') + (data.email ? ' · ' + data.email : '') + '</div>';
+
+    btn.textContent = 'Screen Another';
+    btn.disabled = false;
+    if (typeof loadCandidatesList === 'function') loadCandidatesList();
+  } catch(err) {
+    resultDiv.style.background = '#FCEBEB';
+    resultDiv.style.border = '1px solid #F5B8B8';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div style="color:#A32D2D;font-size:13px;">' + err.message + '</div>';
+    btn.textContent = 'Screen CV with AI';
+    btn.disabled = false;
+  }
+}
+
+/* ── Bulk Upload ── */
+function bulkFilesChosen(files) {
+  if (!files || !files.length) return;
+  _bulkFiles = Array.from(files);
+  // Reset trigger input so same files can be re-selected
+  var ti = document.getElementById('bulk-trigger-input');
+  if (ti) ti.value = '';
+  // Populate job dropdown
+  document.getElementById('bulk-modal-job-select').innerHTML = _jobOptions().replace('Select a job','Screen without job match').replace('— Select a job (optional) —','— Screen without job match —');
+  // Render file list
+  var listEl = document.getElementById('bulk-file-list-new');
+  listEl.innerHTML = '';
+  _bulkFiles.forEach(function(f, i) {
+    var ext = f.name.split('.').pop().toLowerCase();
+    var bg = ext === 'pdf' ? '#FCEBEB' : ext === 'docx' ? '#E8F5E9' : '#E6F1FB';
+    var col = ext === 'pdf' ? '#A32D2D' : ext === 'docx' ? '#2E7D32' : '#185FA5';
+    listEl.innerHTML += '<div style="display:flex;align-items:center;gap:10px;background:#F5F6F8;border-radius:8px;padding:8px 12px;">' +
+      '<span style="background:' + bg + ';color:' + col + ';border-radius:6px;padding:2px 8px;font-size:10px;font-weight:600;">' + ext.toUpperCase() + '</span>' +
+      '<span style="flex:1;font-size:12px;font-weight:500;color:#1B2A4A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f.name + '</span>' +
+      '<span style="font-size:11px;color:#9CA3AF;">' + Math.round(f.size/1024) + ' KB</span>' +
+      '</div>';
+  });
+  // Reset progress/results
+  document.getElementById('bulk-progress-area').style.display = 'none';
+  document.getElementById('bulk-progress-area').innerHTML = '';
+  document.getElementById('bulk-results-area').style.display = 'none';
+  document.getElementById('bulk-results-area').innerHTML = '';
+  // Update count and button
+  var countEl = document.getElementById('bulk-modal-count');
+  if (countEl) countEl.textContent = _bulkFiles.length + ' file(s) selected';
+  var btn = document.getElementById('bulk-screen-btn');
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  // Show modal
+  document.getElementById('bulk-modal').style.display = 'flex';
+}
+
+function closeBulkModal() {
+  document.getElementById('bulk-modal').style.display = 'none';
+}
+
+async function runBulkScreening() {
+  if (!_bulkFiles.length) return;
+  var btn = document.getElementById('bulk-screen-btn');
+  btn.disabled = true;
+  btn.textContent = 'Screening…';
+
+  var jobId = document.getElementById('bulk-modal-job-select').value;
+  var progressArea = document.getElementById('bulk-progress-area');
+  progressArea.style.display = 'flex';
+  progressArea.style.flexDirection = 'column';
+  progressArea.innerHTML = '';
+
+  var results = [];
+  for (var i = 0; i < _bulkFiles.length; i++) {
+    var f = _bulkFiles[i];
+    var rowId = 'bpr-' + i;
+    progressArea.innerHTML += '<div id="' + rowId + '" style="display:flex;align-items:center;gap:10px;background:#F5F6F8;border-radius:8px;padding:10px 14px;">' +
+      '<span style="flex:1;font-size:12px;font-weight:500;color:#1B2A4A;">' + f.name + '</span>' +
+      '<span id="' + rowId + '-status" style="font-size:11px;color:#9CA3AF;">Processing…</span>' +
+      '</div>';
+
+    var ext = f.name.split('.').pop().toLowerCase();
+    try {
+      if (ext === 'pdf' || ext === 'docx') {
+        var fd = new FormData();
+        fd.append('file', f);
+        if (jobId) fd.append('job_id', jobId);
+        var res = await fetch(_apiBase() + '/candidates/screen-cv', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + _token() },
+          body: fd
+        });
+        var d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Failed');
+        var s = d.score != null ? Math.round(d.score) : null;
+        var col = s == null ? '#6B7280' : s >= 75 ? '#0F6E56' : s >= 50 ? '#854F0B' : '#A32D2D';
+        document.getElementById(rowId + '-status').innerHTML =
+          '<span style="color:' + col + ';font-weight:600;">' + (s != null ? s + '% · ' : '') + (d.decision || 'Done') + '</span>';
+        results.push({ name: d.name, score: s, decision: d.decision });
+      } else {
+        // Excel — use bulk upload endpoint
+        var fd2 = new FormData();
+        fd2.append('file', f);
+        var res2 = await fetch(_apiBase() + '/candidates/upload?job_id=' + (jobId || '1'), {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + _token() },
+          body: fd2
+        });
+        var d2 = await res2.json();
+        document.getElementById(rowId + '-status').innerHTML =
+          '<span style="color:#185FA5;font-weight:600;">' + (d2.message || 'Imported') + '</span>';
+        results.push({ name: f.name, score: null, decision: 'Imported' });
+      }
+    } catch(err) {
+      document.getElementById(rowId + '-status').innerHTML =
+        '<span style="color:#A32D2D;">Failed: ' + err.message + '</span>';
+      results.push({ name: f.name, score: null, decision: 'Error' });
+    }
+  }
+
+  btn.textContent = 'Done ✓';
+  if (typeof loadCandidatesList === 'function') loadCandidatesList();
+}
+</script>
 </body>
 </html>

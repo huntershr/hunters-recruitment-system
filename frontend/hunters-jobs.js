@@ -3,6 +3,15 @@ let huntersCurrentView = localStorage.getItem('hunters_jobs_view') || 'card';
 let huntersIsAdmin = false;
 let huntersPendingDeleteJobId = null;
 
+// Surface JS errors as toasts for easier diagnosis
+window.addEventListener('error', function(ev) {
+    var msg = (ev && ev.message) || 'Unknown JS error';
+    var file = (ev && ev.filename) ? ev.filename.split('/').pop() : '';
+    var line = (ev && ev.lineno) ? ':' + ev.lineno : '';
+    if (typeof showToast === 'function') showToast('JS Error — ' + msg + ' (' + file + line + ')', 'error');
+    console.error('Global error:', ev);
+});
+
 function huntersEsc(s) {
     if (s == null || s === undefined) return '';
     return String(s)
@@ -1095,21 +1104,29 @@ let bulkSelectedFiles = [];
 let bulkProcessingResults = [];
 
 function openBulkUploadModal() {
-    const modal = document.getElementById('bulk-upload-modal');
-    if (!modal) return;
-    
-    // Populate job select
-    const jobSelect = document.getElementById('bulk-job-select');
-    if (jobSelect) {
-        jobSelect.innerHTML = '<option value="">— Screen without job match —</option>';
-        const openJobs = huntersAllJobs.filter(j => j.status === 'Approved');
-        openJobs.forEach(j => {
-            jobSelect.innerHTML += `<option value="${j.id}">${huntersEsc(j.title)}</option>`;
-        });
-    }
+    try {
+        const modal = document.getElementById('bulk-upload-modal');
+        if (!modal) {
+            showToast('Upload panel not found — please refresh the page', 'error');
+            return;
+        }
 
-    resetBulkUploadModal();
-    modal.style.display = 'flex';
+        // Populate job select
+        const jobSelect = document.getElementById('bulk-job-select');
+        if (jobSelect) {
+            jobSelect.innerHTML = '<option value="">— Screen without job match —</option>';
+            const openJobs = huntersAllJobs.filter(j => j.status === 'Approved');
+            openJobs.forEach(j => {
+                jobSelect.innerHTML += `<option value="${j.id}">${huntersEsc(j.title)}</option>`;
+            });
+        }
+
+        resetBulkUploadModal();
+        modal.style.display = 'flex';
+    } catch (err) {
+        showToast('Could not open upload panel: ' + err.message, 'error');
+        console.error('openBulkUploadModal error:', err);
+    }
 }
 
 function closeBulkUploadModal() {
@@ -1120,7 +1137,8 @@ function closeBulkUploadModal() {
 function resetBulkUploadModal() {
     bulkSelectedFiles = [];
     bulkProcessingResults = [];
-    document.getElementById('bulk-file-input').value = '';
+    const fi = document.getElementById('bulk-file-input');
+    if (fi) fi.value = '';
     showBulkStep(1);
     renderBulkFileList();
 }
@@ -1192,7 +1210,7 @@ function handleBulkFileInput(e) {
 }
 
 function processSelectedFiles(files) {
-    const validExtensions = ['.pdf', '.xlsx', '.xls'];
+    const validExtensions = ['.pdf', '.docx', '.xlsx', '.xls'];
     const maxFiles = 15;
     const maxSize = 5 * 1024 * 1024; // 5MB
 
@@ -1233,6 +1251,8 @@ function renderBulkFileList() {
     const count = document.getElementById('bulk-file-count');
     const startBtn = document.getElementById('bulk-start-btn');
 
+    if (!list || !count || !startBtn) return;
+
     list.innerHTML = '';
     count.innerText = bulkSelectedFiles.length;
 
@@ -1245,9 +1265,11 @@ function renderBulkFileList() {
     }
 
     bulkSelectedFiles.forEach((file, index) => {
-        const isPdf = file.name.toLowerCase().endsWith('.pdf');
-        const iconBg = isPdf ? '#FCEBEB' : '#E6F1FB';
-        const iconColor = isPdf ? '#A32D2D' : '#185FA5';
+        const fn = file.name.toLowerCase();
+        const isPdf = fn.endsWith('.pdf');
+        const isDocx = fn.endsWith('.docx');
+        const iconBg = isPdf ? '#FCEBEB' : isDocx ? '#F0FBF5' : '#E6F1FB';
+        const iconColor = isPdf ? '#A32D2D' : isDocx ? '#0F6E56' : '#185FA5';
         const sizeKB = Math.round(file.size / 1024);
 
         list.innerHTML += `
@@ -1260,7 +1282,7 @@ function renderBulkFileList() {
                 </div>
                 <div style="flex:1; min-width:0;">
                     <div style="font-size:12px; font-weight:500; color:#1B2A4A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${file.name}</div>
-                    <div style="font-size:11px; color:#9CA3AF;">${sizeKB} KB · ${isPdf ? 'PDF' : 'XLSX'}</div>
+                    <div style="font-size:11px; color:#9CA3AF;">${sizeKB} KB · ${isPdf ? 'PDF' : isDocx ? 'DOCX' : 'XLSX'}</div>
                 </div>
                 <button onclick="removeBulkFile(${index})" style="background:none; border:none; cursor:pointer; color:#D1D5DB; font-size:16px; line-height:1; padding:2px; transition:color 0.2s;" onmouseover="this.style.color='#A32D2D'" onmouseout="this.style.color='#D1D5DB'">✕</button>
             </div>
@@ -1274,11 +1296,15 @@ async function startBulkProcessing() {
     showBulkStep(2);
 
     const total = bulkSelectedFiles.length;
-    document.getElementById('bulk-total-count').innerText = total;
-    document.getElementById('bulk-processed-count').innerText = '0';
-    document.getElementById('bulk-overall-progress').style.width = '0%';
+    const totalEl = document.getElementById('bulk-total-count');
+    const processedEl = document.getElementById('bulk-processed-count');
+    const progressEl = document.getElementById('bulk-overall-progress');
+    if (totalEl) totalEl.innerText = total;
+    if (processedEl) processedEl.innerText = '0';
+    if (progressEl) progressEl.style.width = '0%';
 
     const list = document.getElementById('bulk-processing-list');
+    if (!list) { showToast('Processing list element not found', 'error'); return; }
     list.innerHTML = '';
     bulkProcessingResults = [];
 
@@ -1312,7 +1338,8 @@ async function startBulkProcessing() {
 
         try {
             let result;
-            if (file.name.toLowerCase().endsWith('.pdf')) {
+            const fname = file.name.toLowerCase();
+            if (fname.endsWith('.pdf') || fname.endsWith('.docx')) {
                 result = await screenSingleCandidate(file, jobId);
                 result.sourceFile = file.name;
                 bulkProcessingResults.push(result);
@@ -1382,8 +1409,10 @@ function animateProgress(index, from, to, duration) {
 
 function updateOverallProgress(done, total) {
     const pct = Math.round((done / total) * 100);
-    document.getElementById('bulk-overall-progress').style.width = pct + '%';
-    document.getElementById('bulk-processed-count').innerText = done;
+    const prog = document.getElementById('bulk-overall-progress');
+    const cnt = document.getElementById('bulk-processed-count');
+    if (prog) prog.style.width = pct + '%';
+    if (cnt) cnt.innerText = done;
 }
 
 async function screenSingleCandidate(file, jobId) {
@@ -1445,6 +1474,7 @@ async function parseExcelFile(file) {
 // Step 3 UI
 function renderBulkResults() {
     const tbody = document.getElementById('bulk-results-tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
     
     let shortlisted = 0, review = 0, rejected = 0, errors = 0;
