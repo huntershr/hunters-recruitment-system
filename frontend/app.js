@@ -239,6 +239,27 @@ function setJobsView(view) {
     renderJobs();
 }
 
+const EDU_KEYWORDS = ['school','university','training','education','academy','college','kindergarten','institute','learning','teacher','headmistress','hod','head of department','curriculum','cambridge','academic','subject teacher','floating teacher','consultant','key stage','english hod','english head'];
+function isEduJob(j) {
+    const t = (j.job_title || '').toLowerCase();
+    const ind = (j.industry_experience || '').toLowerCase();
+    return EDU_KEYWORDS.some(k => t.includes(k) || ind.includes(k));
+}
+
+function sectionDivider(label, icon, count) {
+    return `<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:8px 0 4px;">
+        <span style="font-size:13px;font-weight:600;color:#1B2A4A;">${icon} ${label}</span>
+        <span style="background:#F0F4F8;color:#6B7280;font-size:11px;padding:2px 8px;border-radius:10px;">${count} job${count!==1?'s':''}</span>
+        <div style="flex:1;height:1px;background:#E5E7EB;"></div>
+    </div>`;
+}
+
+function listDividerRow(label, icon) {
+    return `<tr><td colspan="7" style="padding:10px 14px;background:#F8F9FF;border-bottom:0.5px solid #E5E7EB;">
+        <span style="font-size:12px;font-weight:600;color:#1B2A4A;">${icon} ${label}</span>
+    </td></tr>`;
+}
+
 function renderJobs() {
     const cardView = document.getElementById("jobs-card-view");
     const listTbody = document.getElementById("jobs-list-tbody");
@@ -252,83 +273,100 @@ function renderJobs() {
         return;
     }
 
-    jobs.forEach(j => {
-        const initials = (j.job_title || '').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'J';
-        const salary   = j.salary_range || 'Negotiable';
-        const statusPill = j.is_approved
-            ? `<span style="background:#E1F5EE;color:#0F6E56;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;display:inline-flex;align-items:center;gap:3px;"><span style="width:5px;height:5px;border-radius:50%;background:#0F6E56;flex-shrink:0;"></span>Approved</span>`
-            : `<span style="background:#FFF7E0;color:#9B6F00;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;display:inline-flex;align-items:center;gap:3px;"><span style="width:5px;height:5px;border-radius:50%;background:#C9A84C;flex-shrink:0;"></span>Pending</span>`;
-        const weightPills = `
-            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
-                <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Exp ${Math.round((j.weight_experience||0)*100)}%</span>
-                <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Skills ${Math.round((j.weight_skills||0)*100)}%</span>
-                <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Edu ${Math.round((j.weight_education||0)*100)}%</span>
-                <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Beh ${Math.round((j.weight_behavioral||0)*100)}%</span>
-            </div>`;
+    const eduJobs  = jobs.filter(j =>  isEduJob(j));
+    const corpJobs = jobs.filter(j => !isEduJob(j));
+
+    function renderGroup(group, label, icon) {
+        if (!group.length) return;
 
         if (jobsView !== 'list') {
-            cardView.innerHTML += `
-                <div class="job-card">
-                    <div class="job-card-header" style="flex-wrap:wrap;gap:8px;">
-                        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-                            <div style="width:36px;height:36px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;">${initials}</div>
-                            <h3 style="margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.job_title}</h3>
-                        </div>
-                        <div style="display:flex;gap:7px;align-items:center;flex-shrink:0;">
-                            ${statusPill}
-                            <button class="btn-share edit-btn" onclick="editJob(${j.id})" title="Edit Job"><i class='bx bx-pencil'></i> Edit</button>
-                            <button class="btn-share" onclick="copyPublicLink(${j.id})" title="Share Link"><i class='bx bx-share-alt'></i></button>
-                            <button class="btn-share" style="color:var(--red);border-color:var(--red);" onclick="deleteJob(${j.id})" title="Delete Job"><i class='bx bx-trash'></i></button>
-                        </div>
-                    </div>
-                    <div class="job-meta">
-                        <p><i class='bx bx-money'></i> ${salary}</p>
-                        <p><i class='bx bx-book'></i> ${j.education_level}</p>
-                        <p><i class='bx bx-time'></i> ${j.min_experience} yrs min</p>
-                        <p><i class='bx bx-map'></i> ${j.job_location || 'Remote/Any'}</p>
-                    </div>
-                    <div class="job-details-tags" style="margin-top:12px;font-size:11px;line-height:1.4;">
-                        <div style="margin-bottom:5px;"><strong><i class='bx bx-bolt-circle'></i> Skills:</strong> ${j.required_skills}</div>
-                        ${j.behavioral_skills ? `<div style="margin-bottom:5px;"><strong><i class='bx bx-smile'></i> Behavioral:</strong> ${j.behavioral_skills}</div>` : ''}
-                    </div>
-                    ${weightPills}
-                    <div style="margin-top:16px;display:flex;justify-content:flex-end;">
-                        <a href="/apply.html?job_id=${j.id}" target="_blank" class="btn-apply-link">Apply Now <i class='bx bx-right-arrow-alt'></i></a>
-                    </div>
-                </div>`;
+            cardView.innerHTML += sectionDivider(label, icon, group.length);
+        }
+        if (listTbody) {
+            listTbody.innerHTML += listDividerRow(label, icon);
         }
 
-        if (listTbody) {
-            const posted = j.created_at ? new Date(j.created_at).toLocaleDateString() : '—';
-            listTbody.innerHTML += `
-                <tr style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background='#FAFBFF'" onmouseout="this.style.background='transparent'">
-                    <td style="padding:10px 14px;">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <div style="width:28px;height:28px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${initials}</div>
-                            <span style="font-weight:500;font-size:13px;color:#1B2A4A;">${j.job_title}</span>
+        group.forEach(j => {
+            const initials = (j.job_title || '').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'J';
+            const salary   = j.salary_range || 'Negotiable';
+            const statusPill = j.is_approved
+                ? `<span style="background:#E1F5EE;color:#0F6E56;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;display:inline-flex;align-items:center;gap:3px;"><span style="width:5px;height:5px;border-radius:50%;background:#0F6E56;flex-shrink:0;"></span>Approved</span>`
+                : `<span style="background:#FFF7E0;color:#9B6F00;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;display:inline-flex;align-items:center;gap:3px;"><span style="width:5px;height:5px;border-radius:50%;background:#C9A84C;flex-shrink:0;"></span>Pending</span>`;
+            const weightPills = `
+                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
+                    <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Exp ${Math.round((j.weight_experience||0)*100)}%</span>
+                    <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Skills ${Math.round((j.weight_skills||0)*100)}%</span>
+                    <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Edu ${Math.round((j.weight_education||0)*100)}%</span>
+                    <span style="background:#F0F2F8;color:#1B2A4A;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:500;">Beh ${Math.round((j.weight_behavioral||0)*100)}%</span>
+                </div>`;
+
+            if (jobsView !== 'list') {
+                cardView.innerHTML += `
+                    <div class="job-card">
+                        <div class="job-card-header" style="flex-wrap:wrap;gap:8px;">
+                            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                                <div style="width:36px;height:36px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;">${initials}</div>
+                                <h3 style="margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.job_title}</h3>
+                            </div>
+                            <div style="display:flex;gap:7px;align-items:center;flex-shrink:0;">
+                                ${statusPill}
+                                <button class="btn-share edit-btn" onclick="editJob(${j.id})" title="Edit Job"><i class='bx bx-pencil'></i> Edit</button>
+                                <button class="btn-share" onclick="copyPublicLink(${j.id})" title="Share Link"><i class='bx bx-share-alt'></i></button>
+                                <button class="btn-share" style="color:var(--red);border-color:var(--red);" onclick="deleteJob(${j.id})" title="Delete Job"><i class='bx bx-trash'></i></button>
+                            </div>
                         </div>
-                    </td>
-                    <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${j.job_location || '—'}</td>
-                    <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${j.min_experience} yrs</td>
-                    <td style="padding:10px 14px;font-size:12px;color:#1B2A4A;font-weight:500;">${salary}</td>
-                    <td style="padding:10px 14px;">${statusPill}</td>
-                    <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${posted}</td>
-                    <td style="padding:10px 14px;">
-                        <div style="display:flex;gap:6px;align-items:center;">
-                            <button onclick="editJob(${j.id})" style="height:28px;padding:0 8px;border:0.5px solid #1B2A4A;background:#fff;color:#1B2A4A;border-radius:7px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
-                                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Edit
-                            </button>
-                            <button onclick="copyPublicLink(${j.id})" style="height:28px;padding:0 8px;border:0.5px solid #C9A84C;background:#fff;color:#C9A84C;border-radius:7px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
-                                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Share
-                            </button>
-                            <button onclick="deleteJob(${j.id})" style="height:28px;width:28px;padding:0;border:0.5px solid #CC2B2B;background:#fff;color:#CC2B2B;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" title="Delete">
-                                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                            </button>
+                        <div class="job-meta">
+                            <p><i class='bx bx-money'></i> ${salary}</p>
+                            <p><i class='bx bx-book'></i> ${j.education_level}</p>
+                            <p><i class='bx bx-time'></i> ${j.min_experience} yrs min</p>
+                            <p><i class='bx bx-map'></i> ${j.job_location || 'Remote/Any'}</p>
                         </div>
-                    </td>
-                </tr>`;
-        }
-    });
+                        <div class="job-details-tags" style="margin-top:12px;font-size:11px;line-height:1.4;">
+                            <div style="margin-bottom:5px;"><strong><i class='bx bx-bolt-circle'></i> Skills:</strong> ${j.required_skills}</div>
+                            ${j.behavioral_skills ? `<div style="margin-bottom:5px;"><strong><i class='bx bx-smile'></i> Behavioral:</strong> ${j.behavioral_skills}</div>` : ''}
+                        </div>
+                        ${weightPills}
+                        <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+                            <a href="/apply.html?job_id=${j.id}" target="_blank" class="btn-apply-link">Apply Now <i class='bx bx-right-arrow-alt'></i></a>
+                        </div>
+                    </div>`;
+            }
+
+            if (listTbody) {
+                const posted = j.created_at ? new Date(j.created_at).toLocaleDateString() : '—';
+                listTbody.innerHTML += `
+                    <tr style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background='#FAFBFF'" onmouseout="this.style.background='transparent'">
+                        <td style="padding:10px 14px;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div style="width:28px;height:28px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${initials}</div>
+                                <span style="font-weight:500;font-size:13px;color:#1B2A4A;">${j.job_title}</span>
+                            </div>
+                        </td>
+                        <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${j.job_location || '—'}</td>
+                        <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${j.min_experience} yrs</td>
+                        <td style="padding:10px 14px;font-size:12px;color:#1B2A4A;font-weight:500;">${salary}</td>
+                        <td style="padding:10px 14px;">${statusPill}</td>
+                        <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${posted}</td>
+                        <td style="padding:10px 14px;">
+                            <div style="display:flex;gap:6px;align-items:center;">
+                                <button onclick="editJob(${j.id})" style="height:28px;padding:0 8px;border:0.5px solid #1B2A4A;background:#fff;color:#1B2A4A;border-radius:7px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                                    <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Edit
+                                </button>
+                                <button onclick="copyPublicLink(${j.id})" style="height:28px;padding:0 8px;border:0.5px solid #C9A84C;background:#fff;color:#C9A84C;border-radius:7px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                                    <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Share
+                                </button>
+                                <button onclick="deleteJob(${j.id})" style="height:28px;width:28px;padding:0;border:0.5px solid #CC2B2B;background:#fff;color:#CC2B2B;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" title="Delete">
+                                    <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+            }
+        });
+    }
+
+    renderGroup(eduJobs,  'Education Jobs',  '🎓');
+    renderGroup(corpJobs, 'Corporate Jobs',  '🏢');
 }
 
 function copyPublicLink(id) {
