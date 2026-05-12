@@ -466,13 +466,7 @@ async function entryUploadCV(input){
 
 function checkAuth(){
   var t=localStorage.getItem('token');
-  var hasProfile=!!localStorage.getItem('hunters_candidate_profile');
-  if(!t){
-    /* First-time visitor with no profile → entry screen */
-    if(!hasProfile){showEntryScreen();}
-    else{showAuthScreen();}
-    return;
-  }
+  if(!t){showAuthScreen();return;}
   fetch(API_BASE+'/auth/me',{headers:{'Authorization':'Bearer '+t}})
     .then(function(r){if(!r.ok){showAuthScreen();return null;}return r.json();})
     .then(function(u){
