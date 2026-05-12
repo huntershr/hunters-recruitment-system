@@ -309,6 +309,14 @@
         </ul>
 
         <div class="nav-right">
+            <button onclick="openCandidateUsersModal()" class="nav-approvals-link" style="background:none;cursor:pointer;" title="Candidate Accounts">
+                <svg viewBox="0 0 16 16" fill="none" width="13" height="13" style="width:13px;height:13px;stroke:currentColor;fill:none;flex-shrink:0;">
+                    <path d="M10 13v-1a3 3 0 00-3-3H4a3 3 0 00-3 3v1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                    <circle cx="5.5" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.4"/>
+                    <path d="M13 6v3M14.5 7.5h-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+                Candidate Users
+            </button>
             <a href="admin-approval-dashboard.html" class="nav-approvals-link" title="Approval Dashboard">
                 <svg viewBox="0 0 16 16" fill="none" width="13" height="13"
                      style="width:13px;height:13px;stroke:currentColor;fill:none;flex-shrink:0;">
@@ -878,6 +886,108 @@
         </div>
     </div>
 </div>
+
+<!-- Candidate Users Modal -->
+<div id="cu-modal" onclick="if(event.target===this)closeCandidateUsersModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;width:560px;max-width:calc(100vw - 40px);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.25);">
+    <div style="padding:20px 24px;border-bottom:1px solid #F0F0F0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="font-size:15px;font-weight:600;color:#1B2A4A;">Candidate Accounts</div>
+        <div style="font-size:12px;color:#9CA3AF;margin-top:2px;">Delete or reset passwords for portal users</div>
+      </div>
+      <button onclick="closeCandidateUsersModal()" style="background:none;border:none;font-size:22px;color:#9CA3AF;cursor:pointer;">&times;</button>
+    </div>
+    <div id="cu-list" style="overflow-y:auto;flex:1;padding:16px 24px;">
+      <div style="color:#9CA3AF;font-size:13px;text-align:center;padding:24px;">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Password Sub-modal -->
+<div id="cu-reset-modal" onclick="if(event.target===this)closeResetModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:14px;width:340px;max-width:calc(100vw - 40px);padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.25);">
+    <div style="font-size:14px;font-weight:600;color:#1B2A4A;margin-bottom:4px;">Reset Password</div>
+    <div id="cu-reset-label" style="font-size:12px;color:#9CA3AF;margin-bottom:16px;"></div>
+    <input id="cu-new-pw" type="password" placeholder="New password (min 6 chars)" style="width:100%;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;margin-bottom:12px;">
+    <div id="cu-reset-err" style="display:none;font-size:12px;color:#A32D2D;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeResetModal()" style="flex:1;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;color:#6B7280;">Cancel</button>
+      <button onclick="confirmResetPassword()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#fff;font-size:13px;font-weight:500;cursor:pointer;">Set Password</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var _cuResetUserId=null;
+
+function openCandidateUsersModal(){
+  document.getElementById('cu-modal').style.display='flex';
+  loadCandidateUsers();
+}
+function closeCandidateUsersModal(){
+  document.getElementById('cu-modal').style.display='none';
+}
+
+function loadCandidateUsers(){
+  var tok=localStorage.getItem('token')||'';
+  document.getElementById('cu-list').innerHTML='<div style="color:#9CA3AF;font-size:13px;text-align:center;padding:24px;">Loading…</div>';
+  fetch('/auth/candidate-users',{headers:{'Authorization':'Bearer '+tok}})
+    .then(function(r){return r.json();})
+    .then(function(users){
+      if(!users.length){
+        document.getElementById('cu-list').innerHTML='<div style="color:#9CA3AF;font-size:13px;text-align:center;padding:24px;">No candidate accounts yet.</div>';
+        return;
+      }
+      var html=users.map(function(u){
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #F4F5FA;">'
+          +'<div>'
+          +'<div style="font-size:13px;font-weight:500;color:#1B2A4A;">'+(u.full_name||'—')+'</div>'
+          +'<div style="font-size:11px;color:#9CA3AF;margin-top:2px;">'+u.email+'</div>'
+          +'</div>'
+          +'<div style="display:flex;gap:8px;">'
+          +'<button onclick="openResetModal('+u.id+',\''+u.email+'\')" style="padding:6px 12px;border:1px solid #E5E7EB;border-radius:6px;background:#fff;font-size:11px;color:#1B2A4A;cursor:pointer;">Reset PW</button>'
+          +'<button onclick="deleteCandidateUser('+u.id+')" style="padding:6px 12px;border:none;border-radius:6px;background:#FEECEC;color:#A32D2D;font-size:11px;cursor:pointer;">Delete</button>'
+          +'</div>'
+          +'</div>';
+      }).join('');
+      document.getElementById('cu-list').innerHTML=html;
+    })
+    .catch(function(){document.getElementById('cu-list').innerHTML='<div style="color:#A32D2D;font-size:13px;text-align:center;padding:24px;">Failed to load users.</div>';});
+}
+
+function deleteCandidateUser(id){
+  if(!confirm('Delete this candidate account? They will need to register again.'))return;
+  var tok=localStorage.getItem('token')||'';
+  fetch('/auth/candidate-users/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+tok}})
+    .then(function(r){if(r.ok)loadCandidateUsers();else alert('Delete failed.');})
+    .catch(function(){alert('Error.');});
+}
+
+function openResetModal(id,email){
+  _cuResetUserId=id;
+  document.getElementById('cu-reset-label').textContent=email;
+  document.getElementById('cu-new-pw').value='';
+  document.getElementById('cu-reset-err').style.display='none';
+  document.getElementById('cu-reset-modal').style.display='flex';
+}
+function closeResetModal(){
+  document.getElementById('cu-reset-modal').style.display='none';
+  _cuResetUserId=null;
+}
+function confirmResetPassword(){
+  var pw=(document.getElementById('cu-new-pw').value||'').trim();
+  var errEl=document.getElementById('cu-reset-err');
+  if(pw.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.style.display='block';return;}
+  var tok=localStorage.getItem('token')||'';
+  fetch('/auth/candidate-users/'+_cuResetUserId+'/reset-password',{
+    method:'POST',headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
+    body:JSON.stringify({new_password:pw})
+  }).then(function(r){
+    if(r.ok){closeResetModal();alert('Password reset successfully.');}
+    else{errEl.textContent='Reset failed.';errEl.style.display='block';}
+  }).catch(function(){errEl.textContent='Error.';errEl.style.display='block';});
+}
+</script>
 
 <script src="app.js?v=1.6"></script>
 </body>
