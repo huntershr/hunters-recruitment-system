@@ -138,6 +138,7 @@ async def screen_cv(
         education=str(info.get("education") or ""),
         skills=str(info.get("skills") or ""),
         cv_text=cv_text,
+        last_title=str(info.get("last_title") or ""),
         owner_id=job.owner_id,
     )
     db.add(candidate)
@@ -219,6 +220,7 @@ async def upload_candidates(
                 "experience_years": ai_data.get("experience_years", 0),
                 "education": ai_data.get("education", ""),
                 "skills": ai_data.get("skills", ""),
+                "last_title": ai_data.get("last_title", ""),
                 "cv_text": text
             })
         else:
@@ -292,6 +294,7 @@ async def upload_candidates(
             skills=str(get_val(["skills", "expertise", "technologies"], "")),
             expected_salary=str(get_val(["salary", "expected"], "")),
             cv_text=raw_cv_text,
+            last_title=str(data.get("last_title", "") or ""),
             owner_id=current_user.id
         )
         db.add(new_candidate)
@@ -305,10 +308,65 @@ async def upload_candidates(
 @router.get("/", response_model=List[schemas.CandidateResponse])
 def read_candidates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.is_admin:
-        candidates = db.query(models.Candidate).offset(skip).limit(limit).all()
+        cands = db.query(models.Candidate).offset(skip).limit(limit).all()
+        result = []
+        for c in cands:
+            d = {col.name: getattr(c, col.name) for col in c.__table__.columns}
+            company_name = None
+            if c.owner and c.owner.company:
+                company_name = c.owner.company.company_name
+            d["company_name"] = company_name
+            result.append(d)
+        return result
     else:
         candidates = db.query(models.Candidate).filter(models.Candidate.owner_id == current_user.id).offset(skip).limit(limit).all()
-    return candidates
+        return candidates
+
+@router.get("/{candidate_id}/cv")
+def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Download the candidate's CV as an HTML file."""
+    if current_user.is_admin:
+        candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
+    else:
+        candidate = db.query(models.Candidate).filter(
+            models.Candidate.id == candidate_id,
+            models.Candidate.owner_id == current_user.id
+        ).first()
+
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    if not candidate.cv_text or not candidate.cv_text.strip():
+        raise HTTPException(status_code=404, detail="No CV text available for this candidate")
+
+    safe_name = (candidate.name or "Candidate").replace(" ", "_").replace("/", "_")
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CV - {candidate.name}</title>
+<style>
+  body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1B2A4A; line-height: 1.6; }}
+  h1 {{ color: #1B2A4A; border-bottom: 2px solid #C9A84C; padding-bottom: 8px; }}
+  pre {{ white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 13px; }}
+  .meta {{ color: #6B7280; font-size: 13px; margin-bottom: 20px; }}
+</style>
+</head>
+<body>
+<h1>{candidate.name}</h1>
+<div class="meta">
+  Email: {candidate.email or ''} &nbsp;|&nbsp;
+  Phone: {candidate.phone or ''} &nbsp;|&nbsp;
+  Experience: {candidate.experience_years or 0} years
+</div>
+<pre>{candidate.cv_text}</pre>
+</body>
+</html>"""
+
+    return StreamingResponse(
+        iter([html_content]),
+        media_type="text/html",
+        headers={"Content-Disposition": f'attachment; filename="CV_{safe_name}.html"'}
+    )
 
 @router.get("/{candidate_id}", response_model=schemas.CandidateResponse)
 def read_candidate(candidate_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

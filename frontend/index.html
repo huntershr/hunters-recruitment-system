@@ -507,6 +507,12 @@
                     <input type="text" class="pipeline-search" id="pipeline-search"
                            placeholder="Search candidates..." oninput="filterPipeline(this.value)">
                 </div>
+                <div id="company-filter-wrap" style="display:none;">
+                    <select id="company-filter" onchange="filterPipelineCompany(this.value)"
+                        style="border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px;color:#1B2A4A;background:#fff;cursor:pointer;outline:none;">
+                        <option value="">All Companies</option>
+                    </select>
+                </div>
                 <button class="btn-toggle active" id="board-toggle" onclick="setPipelineView('board')">
                     <svg viewBox="0 0 16 16"><rect x="1" y="1" width="4" height="14" rx="0.5"/><rect x="6" y="1" width="4" height="10" rx="0.5"/><rect x="11" y="1" width="4" height="12" rx="0.5"/></svg>
                     Board
@@ -543,6 +549,7 @@
                                     <th>Interviewer</th>
                                     <th>Score</th>
                                     <th>HR Notes</th>
+                                    <th class="admin-only-col" style="display:none;">Company</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>

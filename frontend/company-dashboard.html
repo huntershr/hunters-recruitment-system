@@ -1560,7 +1560,10 @@
                 <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); pointer-events:none; color:${stageColor};"><polyline points="6 9 12 15 18 9"/></svg>
             </div>`;
 
-            const resumeLink = cand.resume_url || cand.cv_url ? `<a href="${cand.resume_url || cand.cv_url}" target="_blank" style="color:#C9A84C; font-size:12px; font-weight:500; text-decoration:none;">View CV</a>` : `<span style="color:#9CA3AF; font-size:12px;">-</span>`;
+            const hasCV = cand.has_cv || (typeof cand.cv_text === 'string' && cand.cv_text.trim().length > 10);
+            const resumeLink = hasCV
+                ? `<a href="${API_URL}/candidates/${cand.id}/cv" download="CV_${escHtml(cand.full_name||cand.name||'Candidate').replace(/\s+/g,'_')}.html" style="color:#C9A84C; font-size:12px; font-weight:500; text-decoration:none;">↓ Download CV</a>`
+                : `<span style="color:#9CA3AF; font-size:12px;">-</span>`;
 
             html += `
                 <tr style="border-bottom:1px solid #F3F4F6; transition:background 0.15s;" onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='transparent'">
@@ -1577,7 +1580,7 @@
                     <td style="padding:12px 14px;">${stageBadge}</td>
                     <td style="padding:12px 14px; font-size:12px; color:#4B5563; white-space:nowrap; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${escHtml(cand.last_title || cand.lastTitle || '-')}</td>
                     <td style="padding:12px 14px; font-size:12px; color:#4B5563; white-space:nowrap; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${escHtml(cand.last_employer || cand.lastEmployer || '-')}</td>
-                    <td style="padding:12px 14px; font-size:12px; color:#4B5563;">${escHtml(cand.years_exp || cand.yearsExp || cand.experience_years || '-')}</td>
+                    <td style="padding:12px 14px; font-size:12px; color:#4B5563;">${escHtml(String(cand.years_exp ?? cand.yearsExp ?? cand.experience_years ?? '-'))}</td>
                     <td style="padding:12px 14px;">${resumeLink}</td>
                     <td style="padding:12px 14px;">
                         <input type="text" value="${escHtml(cand.interviewer || '')}" onchange="updateCandidateField(${cand.id}, 'interviewer', this.value)" placeholder="Add..." style="width:100px; padding:4px 8px; font-size:12px; border:1px solid transparent; border-radius:4px; outline:none; background:transparent; transition:border 0.2s;" onfocus="this.style.border='1px solid #C9A84C'; this.style.background='#fff'" onblur="this.style.border='1px solid transparent'; this.style.background='transparent'">
@@ -1654,8 +1657,8 @@
             c.stage || c.status || 'Applied',
             c.last_title || c.lastTitle || '',
             c.last_employer || c.lastEmployer || '',
-            c.years_exp || c.yearsExp || '',
-            c.resume_url || c.cv_url || '',
+            c.years_exp ?? c.yearsExp ?? c.experience_years ?? '',
+            c.has_cv ? `${API_URL}/candidates/${c.id}/cv` : '',
             c.interviewer || '',
             formatScore(c.evaluation_score || c.score) ?? '',
             c.notes || c.hr_notes || ''

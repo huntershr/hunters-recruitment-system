@@ -45,6 +45,15 @@ def startup_populate_db():
         # Create default admin user if it doesn't exist yet.
         # NOTE: In production (e.g. Railway) the DB may already contain users,
         # so we must not rely on "users table is empty" for seeding.
+        # Schema migrations for new columns (safe on existing DBs)
+        try:
+            from sqlalchemy import text as _text
+            db.execute(_text("ALTER TABLE candidates ADD COLUMN last_title VARCHAR"))
+            db.commit()
+            logging.info("Migration: added last_title column to candidates")
+        except Exception:
+            db.rollback()
+
         try:
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin_password = os.getenv("ADMIN_PASSWORD", "admin123")

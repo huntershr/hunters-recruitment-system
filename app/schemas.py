@@ -110,6 +110,8 @@ class CandidateCreate(CandidateBase):
 
 class CandidateResponse(CandidateBase):
     id: int
+    last_title: Optional[str] = None
+    company_name: Optional[str] = None
 
     class Config:
         from_attributes = True

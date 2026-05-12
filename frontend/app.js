@@ -25,6 +25,8 @@ let evaluations = [];
 let currentEvaluationId = null;
 let currentCandidateId = null;
 let editingJobId = null;
+let currentUser = null;
+let companyFilter = '';
 
 document.addEventListener("DOMContentLoaded", () => {
     console.log("Hunters AI Initializing...");
@@ -123,6 +125,7 @@ async function fetchData() {
         updateDashboard();
         renderJobs();
         renderCandidates();
+        buildCompanyFilter();
     } catch (err) {
         console.error("Failed to fetch data", err);
     }
@@ -472,12 +475,15 @@ function renderCandidateList(filter) {
     tbody.innerHTML = "";
 
     const lf = (filter || '').toLowerCase();
-    const filtered = lf ? candidates.filter(c => {
+    const filtered = candidates.filter(c => {
         const job = jobs.find(j => j.id === c.job_applied);
-        return c.name.toLowerCase().includes(lf) ||
-               (c.email || '').toLowerCase().includes(lf) ||
-               (job ? job.job_title.toLowerCase().includes(lf) : false);
-    }) : candidates;
+        const matchSearch = !lf ||
+            c.name.toLowerCase().includes(lf) ||
+            (c.email || '').toLowerCase().includes(lf) ||
+            (job ? job.job_title.toLowerCase().includes(lf) : false);
+        const matchCompany = !companyFilter || (c.company_name || '') === companyFilter;
+        return matchSearch && matchCompany;
+    });
 
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="12">
@@ -504,8 +510,9 @@ function renderCandidateList(filter) {
 
         const interviewer = localStorage.getItem(`hunters_interviewer_${c.id}`) || '';
         const hrNotes     = localStorage.getItem(`hunters_notes_${c.id}`) || '';
-        const location    = job ? (job.job_location || '—') : '—';
+        const location    = c.location || (job ? (job.job_location || '—') : '—');
         const hasCV       = c.cv_text && c.cv_text.trim().length > 10;
+        const safeNameDl  = (c.name || 'Candidate').replace(/\s+/g, '_');
 
         tbody.innerHTML += `
             <tr onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='transparent'">
@@ -518,11 +525,13 @@ function renderCandidateList(filter) {
                 <td>
                     <span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:${stageCol}22;color:${stageCol};">${stage}</span>
                 </td>
-                <td style="font-size:11px;color:#6B7280;">${c.education || '—'}</td>
-                <td style="font-size:11px;color:#6B7280;">${c.skills ? c.skills.split(',')[0].trim() || '—' : '—'}</td>
+                <td style="font-size:11px;color:#6B7280;">${c.last_title || '—'}</td>
+                <td style="font-size:11px;color:#6B7280;">—</td>
                 <td style="font-size:11px;color:#1B2A4A;font-weight:500;">${c.experience_years != null ? c.experience_years + ' yrs' : '—'}</td>
                 <td style="font-size:11px;">
-                    ${hasCV ? '<span style="color:#0F6E56;font-weight:500;">✓ CV</span>' : '<span style="color:#9CA3AF;">—</span>'}
+                    ${hasCV
+                        ? `<a href="/candidates/${c.id}/cv" download="CV_${safeNameDl}.html" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;">↓ CV</a>`
+                        : '<span style="color:#9CA3AF;">—</span>'}
                 </td>
                 <td style="min-width:110px;">
                     <input type="text" value="${interviewer.replace(/"/g,'&quot;')}" placeholder="Interviewer…"
@@ -539,6 +548,7 @@ function renderCandidateList(filter) {
                         onchange="localStorage.setItem('hunters_notes_${c.id}',this.value)"
                         style="width:100%;border:0.5px solid #E5E7EB;border-radius:6px;padding:4px 7px;font-size:11px;outline:none;color:#1B2A4A;">
                 </td>
+                <td class="admin-only-col" style="display:none;font-size:11px;color:#6B7280;">${c.company_name || '—'}</td>
                 <td>
                     <div style="display:flex;gap:5px;">
                         <button class="btn-action" style="font-size:10px;padding:4px 8px;" onclick="viewCandidate(${c.id})">View</button>
@@ -575,6 +585,12 @@ function filterPipeline(value) {
     pipelineFilter = value;
     renderKanban(value);
     renderCandidateList(value);
+}
+
+function filterPipelineCompany(val) {
+    companyFilter = val;
+    renderKanban(pipelineFilter);
+    renderCandidateList(pipelineFilter);
 }
 
 function viewCandidate(id) {
@@ -1271,13 +1287,40 @@ async function fetchUserInfo() {
         const res = await authFetch(`${API_URL}/auth/me`);
         if (!res.ok) return;
         const user = await res.json();
+        currentUser = user;
         const displayEl = document.getElementById("user-display-name");
         if (displayEl) {
             displayEl.innerText = user.full_name || user.email;
         }
+        if (user.is_admin) {
+            // Show admin-only UI elements
+            document.querySelectorAll('.admin-only-col').forEach(el => el.style.display = '');
+            const cf = document.getElementById('company-filter-wrap');
+            if (cf) cf.style.display = '';
+        }
     } catch (err) {
         console.error("Failed to fetch user info", err);
     }
+}
+
+function buildCompanyFilter() {
+    const sel = document.getElementById('company-filter');
+    if (!sel) return;
+    const companies = [...new Set(candidates.map(c => c.company_name).filter(Boolean))].sort();
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All Companies</option>';
+    companies.forEach(co => {
+        const opt = document.createElement('option');
+        opt.value = co;
+        opt.textContent = co;
+        if (co === cur) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+function filterCompany(val) {
+    companyFilter = val;
+    renderCandidateList(pipelineFilter);
 }
 
 let isEditMode = false;
