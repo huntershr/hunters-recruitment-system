@@ -141,10 +141,13 @@ class JobSavePayload(BaseModel):
     experience_years: int = 0
     salary_min: Optional[int] = None
     salary_max: Optional[int] = None
+    salary_range: Optional[str] = None
     description: Optional[str] = None
     required_skills: str = ""
     nice_to_have_skills: Optional[str] = None
     behavioral_skills: Optional[str] = None
+    education_level: Optional[str] = None
+    industry_experience: Optional[str] = None
     ai_weights: Optional[dict] = None
     hide_salary: bool = False
     company_id: Optional[str] = None

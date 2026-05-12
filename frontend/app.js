@@ -1112,24 +1112,27 @@ async function handleJobManualCreate(event) {
             if (h && h.value) return parseFloat(h.value) || def;
             return parseFloat(safeGet(rawId)) || def;
         };
+        const toPercent = (decimal) => Math.round(decimal * 100);
         const payload = {
-            job_title: safeGet("manual-job-title"),
-            job_location: safeGet("manual-job-location"),
-            job_description: safeGet("manual-job-desc"),
-            min_experience: parseInt(safeGet("manual-job-exp")) || 0,
+            title: safeGet("manual-job-title"),
+            location: safeGet("manual-job-location"),
+            description: safeGet("manual-job-desc"),
+            experience_years: parseInt(safeGet("manual-job-exp")) || 0,
             required_skills: safeGet("manual-job-skills"),
             nice_to_have_skills: safeGet("manual-job-nice"),
             education_level: safeGet("manual-job-edu"),
             salary_range: safeGet("manual-job-salary"),
             behavioral_skills: safeGet("manual-job-behavioral"),
             industry_experience: safeGet("manual-job-industry"),
-            weight_experience: getWeight("manual-job-w-exp-val", "manual-job-w-exp", 0.3),
-            weight_skills:     getWeight("manual-job-w-skills-val", "manual-job-w-skills", 0.4),
-            weight_education:  getWeight("manual-job-w-edu-val", "manual-job-w-edu", 0.2),
-            weight_behavioral: getWeight("manual-job-w-behavioral-val", "manual-job-w-behavioral", 0.1)
+            ai_weights: {
+                experience: toPercent(getWeight("manual-job-w-exp-val",          "manual-job-w-exp",          0.3)),
+                skills:     toPercent(getWeight("manual-job-w-skills-val",        "manual-job-w-skills",       0.4)),
+                education:  toPercent(getWeight("manual-job-w-edu-val",           "manual-job-w-edu",          0.2)),
+                behavioral: toPercent(getWeight("manual-job-w-behavioral-val",    "manual-job-w-behavioral",   0.1))
+            }
         };
 
-        if (!payload.job_title) {
+        if (!payload.title) {
             showToast('Error: Job Title is required!', 'error');
             return;
         }

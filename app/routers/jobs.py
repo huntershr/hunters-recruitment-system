@@ -15,12 +15,15 @@ def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
     edu_w   = weights.get("education",  20)
     beh_w   = weights.get("behavioral", 10)
 
-    salary_parts = []
-    if job.salary_min:
-        salary_parts.append(str(job.salary_min))
-    if job.salary_max:
-        salary_parts.append(str(job.salary_max))
-    salary_range = " - ".join(salary_parts) + " EGP" if salary_parts else ""
+    if job.salary_min or job.salary_max:
+        salary_parts = []
+        if job.salary_min:
+            salary_parts.append(str(job.salary_min))
+        if job.salary_max:
+            salary_parts.append(str(job.salary_max))
+        salary_range = " - ".join(salary_parts) + " EGP" if salary_parts else ""
+    else:
+        salary_range = job.salary_range or ""
 
     return dict(
         job_title        = job.title,
@@ -30,9 +33,9 @@ def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
         required_skills  = job.required_skills or "",
         nice_to_have_skills = job.nice_to_have_skills,
         behavioral_skills   = job.behavioral_skills,
-        education_level  = job.employment_type or "Not specified",
+        education_level  = job.education_level or job.employment_type or "Not specified",
         salary_range     = salary_range,
-        industry_experience = None,
+        industry_experience = job.industry_experience,
         weight_experience = round(exp_w / 100, 4),
         weight_skills     = round(skl_w / 100, 4),
         weight_education  = round(edu_w / 100, 4),
