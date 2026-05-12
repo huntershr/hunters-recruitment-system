@@ -146,7 +146,8 @@ async def generate_cv_ai(
     try:
         import google.generativeai as genai
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+        model = genai.GenerativeModel(model_name)
         prompt = f"""You are a professional CV writer at Hunters for HR Transformation & Execution.
 
 Create a polished, professional CV. Return ONLY valid JSON with no markdown fences:
@@ -209,7 +210,8 @@ async def extract_cv_ai(
             raise HTTPException(status_code=400, detail="Could not extract text from file")
         import google.generativeai as genai
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+        model = genai.GenerativeModel(model_name)
         prompt = f"""Extract structured profile data from this CV/resume text.
 Return ONLY valid JSON with no markdown fences:
 {{
