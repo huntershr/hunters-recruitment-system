@@ -368,6 +368,36 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function ini(n){return String(n||'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase()||'?';}
 function fixScore(r){if(r===null||r===undefined)return null;var n=Number(r);if(isNaN(n))return null;if(n<=1)return Math.round(n*100);if(n<=10)return Math.round(n*10);return Math.round(Math.min(100,n));}
 function scoreStyle(pct){if(pct===null)return{bg:'#F5F6F8',tx:'#6B7280'};if(pct>=75)return{bg:'#E1F5EE',tx:'#0F6E56'};if(pct>=50)return{bg:'#FAEEDA',tx:'#854F0B'};return{bg:'#FCEBEB',tx:'#A32D2D'};}
+function getCandidateMessage(score){
+  var s=score===null||score===undefined?-1:(score<=1?Math.round(score*100):score<=10?Math.round(score*10):Math.round(score));
+  if(s>=75)return{emoji:'🎉',status:'Great Match!',color:'#0F6E56',bg:'#E1F5EE',border:'#9FE1CB',message:'Your profile is a strong match for this role. Our HR team will review your application and be in touch soon.',next:'Expect to hear from us within 3-5 business days.',action:'While you wait, explore more opportunities that match your profile.'};
+  if(s>=50)return{emoji:'✓',status:'Application Received',color:'#854F0B',bg:'#FAEEDA',border:'#FAC775',message:'Thank you for applying! Your application has been submitted successfully and is under review by our recruitment team.',next:'Our team carefully reviews every application. We will be in touch if your profile is selected.',action:'In the meantime, consider updating your profile or applying to other positions.'};
+  return{emoji:'📩',status:'Application Submitted',color:'#185FA5',bg:'#E6F1FB',border:'#B5D4F4',message:'Thank you for your interest! Your application has been received and submitted to the employer.',next:'While this role may not be a perfect fit right now, we encourage you to explore other opportunities.',action:'Try our AI CV Writer to improve your profile and increase your chances next time.'};
+}
+function buildCandidateResultCard(msg){
+  var timeline=
+    '<div style="display:flex;align-items:center;justify-content:center;gap:0;margin:20px 0;">'+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:28px;height:28px;border-radius:50%;background:#1B2A4A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</div><div style="font-size:10px;color:#1B2A4A;font-weight:500;">Applied</div></div>'+
+      '<div style="width:40px;height:2px;background:#1B2A4A;margin-bottom:14px;"></div>'+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:28px;height:28px;border-radius:50%;background:#C9A84C;color:#1B2A4A;display:flex;align-items:center;justify-content:center;font-size:12px;">●</div><div style="font-size:10px;color:#C9A84C;font-weight:500;">Reviewing</div></div>'+
+      '<div style="width:40px;height:2px;background:#E5E7EB;margin-bottom:14px;"></div>'+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:28px;height:28px;border-radius:50%;background:#F0F2F8;color:#9CA3AF;display:flex;align-items:center;justify-content:center;font-size:12px;">3</div><div style="font-size:10px;color:#9CA3AF;">Interview</div></div>'+
+      '<div style="width:40px;height:2px;background:#E5E7EB;margin-bottom:14px;"></div>'+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:28px;height:28px;border-radius:50%;background:#F0F2F8;color:#9CA3AF;display:flex;align-items:center;justify-content:center;font-size:12px;">4</div><div style="font-size:10px;color:#9CA3AF;">Decision</div></div>'+
+    '</div>';
+  return '<div style="text-align:center;padding:28px 24px;max-width:480px;margin:0 auto;">'+
+    '<div style="width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 16px;background:'+msg.bg+';border:3px solid '+msg.border+';">'+msg.emoji+'</div>'+
+    '<div style="font-size:20px;font-weight:500;color:'+msg.color+';margin-bottom:12px;">'+esc(msg.status)+'</div>'+
+    '<p style="font-size:13px;color:#6B7280;line-height:1.7;margin-bottom:16px;">'+esc(msg.message)+'</p>'+
+    timeline+
+    '<div style="background:#F5F6F8;border-radius:10px;padding:12px 16px;font-size:12px;color:#6B7280;line-height:1.6;margin-bottom:20px;text-align:left;"><span style="font-weight:500;color:#1B2A4A;">What\'s next: </span>'+esc(msg.next)+'</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
+      '<button onclick="showPortalSection(\'all-jobs\');closeOverlay();" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;min-width:120px;">Browse More Jobs</button>'+
+      '<button onclick="showPortalSection(\'cv-writer\');closeOverlay();" style="flex:1;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;min-width:120px;">✨ Improve My CV</button>'+
+    '</div>'+
+    '<div style="margin-top:16px;font-size:11px;color:#9CA3AF;">Powered by Hunters AI · Your data is handled with care</div>'+
+  '</div>';
+}
 function daysAgo(d){if(!d)return'';var days=Math.floor((Date.now()-new Date(d))/ 86400000);return days===0?'Today':days===1?'Yesterday':days+' days ago';}
 function tok(){return localStorage.getItem('token')||'';}
 function hdrs(){return{'Authorization':'Bearer '+tok()};}
@@ -831,12 +861,11 @@ async function submitApply(){
     clearInterval(iv);var pb=document.getElementById('p-bar');if(pb)pb.style.width='100%';
     if(!res.ok){var e=await res.json();throw new Error(e.detail||'Screening failed');}
     var d=await res.json();
-    var pct=fixScore(d.score),sc=scoreStyle(pct);
-    var label=pct===null?'Pending':pct>=75?'Shortlisted 🎉':pct>=50?'Under Review':'Not Qualified';
-    var reason=(d.reason||'').split('. ').slice(0,2).join('. ');
-    // Save to my applications
+    var pct=fixScore(d.score);
+    var msg=getCandidateMessage(pct);
+    // Save to my applications (score kept internally for getCandidateMessage; never shown to candidate)
     var apps=JSON.parse(localStorage.getItem('hunters_portal_apps')||'[]');
-    apps.unshift({job_title:currentJob.job_title,company_name:currentJob.company_name||'',job_id:currentJob.id,candidate_id:d.candidate_id,applied_date:new Date().toISOString(),score:pct,decision:label,status:'Screened'});
+    apps.unshift({job_title:currentJob.job_title,company_name:currentJob.company_name||'',job_id:currentJob.id,candidate_id:d.candidate_id,applied_date:new Date().toISOString(),score:pct,decision:msg.status,status:'Under Review'});
     localStorage.setItem('hunters_portal_apps',JSON.stringify(apps.slice(0,50)));
     if(d.name||d.email){
       var pr=JSON.parse(localStorage.getItem('hunters_candidate_profile')||'{}');
@@ -844,14 +873,7 @@ async function submitApply(){
       if(d.email)pr.email=d.email;if(d.phone)pr.phone=d.phone;
       localStorage.setItem('hunters_candidate_profile',JSON.stringify(pr));
     }
-    form.innerHTML='<div style="text-align:center;padding:20px;">' +
-      '<div style="width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:500;margin:0 auto 12px;border:3px solid '+sc.tx+';color:'+sc.tx+';background:'+sc.bg+';">'+(pct!==null?pct+'%':'—')+'</div>' +
-      '<div style="display:inline-flex;padding:4px 16px;border-radius:20px;font-size:13px;font-weight:500;margin-bottom:14px;background:'+sc.bg+';color:'+sc.tx+';">'+esc(label)+'</div>' +
-      (reason?'<p style="font-size:13px;color:#6B7280;line-height:1.6;margin-bottom:16px;">'+esc(reason)+'</p>':'')+
-      '<div style="display:flex;gap:8px;">' +
-        '<button onclick="showPortalSection(\'my-applications\');closeOverlay();" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;cursor:pointer;font-weight:500;">My Applications</button>' +
-        '<button onclick="showPortalSection(\'cv-writer\');closeOverlay();" style="flex:1;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;">✨ Improve CV</button>' +
-      '</div></div>';
+    form.innerHTML=buildCandidateResultCard(msg);
   }catch(err){clearInterval(iv);
     var isImagePdf=err.message&&err.message.toLowerCase().includes('scanned');
     form.innerHTML='<div style="padding:16px;">' +
@@ -883,24 +905,20 @@ function renderMyApps(){
       '<div><div style="font-size:15px;font-weight:500;color:#1B2A4A;">My Applications</div><div style="font-size:12px;color:#9CA3AF;margin-top:2px;">'+apps.length+' application(s)</div></div>' +
       '<button onclick="clearApps()" style="font-size:12px;color:#A32D2D;background:none;border:none;cursor:pointer;">Clear All</button>' +
     '</div>' +
-    '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:680px;">' +
+    '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:480px;">' +
       '<thead style="background:#1B2A4A;color:#fff;"><tr>' +
         '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Job Title</th>' +
         '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Company</th>' +
         '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Applied</th>' +
-        '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">AI Score</th>' +
-        '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Decision</th>' +
-        '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Status</th>' +
+        '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Application Status</th>' +
       '</tr></thead><tbody>' +
     apps.map(function(a){
-      var sc=scoreStyle(a.score);
+      var m=getCandidateMessage(a.score);
       return '<tr style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background=\'#F8F9FF\'" onmouseout="this.style.background=\'transparent\'">' +
         '<td style="padding:12px 16px;font-size:13px;font-weight:500;color:#1B2A4A;">'+esc(a.job_title||'—')+'</td>' +
         '<td style="padding:12px 16px;font-size:12px;color:#6B7280;">'+esc(a.company_name||'—')+'</td>' +
         '<td style="padding:12px 16px;font-size:12px;color:#6B7280;">'+(a.applied_date?new Date(a.applied_date).toLocaleDateString():'—')+'</td>' +
-        '<td style="padding:12px 16px;">'+(a.score!==null&&a.score!==undefined?'<span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:'+sc.bg+';color:'+sc.tx+';">'+a.score+'%</span>':'<span style="font-size:12px;color:#9CA3AF;">Pending</span>')+'</td>' +
-        '<td style="padding:12px 16px;"><span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;background:'+sc.bg+';color:'+sc.tx+';">'+esc(a.decision||'—')+'</span></td>' +
-        '<td style="padding:12px 16px;"><span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;background:#E6F1FB;color:#185FA5;">'+esc(a.status||'Screened')+'</span></td>' +
+        '<td style="padding:12px 16px;">'+(a.score!==null&&a.score!==undefined?'<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;background:'+m.bg+';color:'+m.color+';">'+m.emoji+' '+esc(m.status)+'</span>':'<span style="font-size:12px;color:#9CA3AF;">Pending</span>')+'</td>' +
       '</tr>';
     }).join('')+
     '</tbody></table></div></div>';
@@ -1213,12 +1231,29 @@ function renderCVPreview(cv,pw){
 }
 
 function downloadCV(){
-  var cv=_cvData||{};var el=document.getElementById('cv-preview');
+  var cv=_cvData||{};
+  var el=document.getElementById('cv-preview');
   if(!el){showToast('Generate your CV first','error');return;}
-  var html=el.outerHTML.replace(/hunters-logo-blue\.jpeg/g,'hunters-logo-blue.jpeg').replace(/hunters-logo-white\.jpeg/g,'hunters-logo-white.jpeg');
-  var w=window.open('','_blank');
-  w.document.write('<html><head><title>CV - '+esc(cv.name||'CV')+'</title><style>body{margin:0;font-family:"Segoe UI",Arial,sans-serif;}@media print{body{margin:0;}button{display:none;}}</style></head><body>'+html+'</body></html>');
-  w.document.close();w.print();
+  showToast('Generating PDF…','info');
+  function doExport(){
+    var safeName=(cv.name||'CV').replace(/[^\w\s-]/g,'').trim();
+    var opt={
+      margin:0,
+      filename:'CV - '+safeName+'.pdf',
+      image:{type:'jpeg',quality:0.98},
+      html2canvas:{scale:2,useCORS:true,logging:false},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+    };
+    html2pdf().set(opt).from(el).save()
+      .then(function(){showToast('CV downloaded!','success');})
+      .catch(function(e){console.error('html2pdf error',e);showToast('PDF export failed','error');});
+  }
+  if(window.html2pdf){doExport();return;}
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+  s.onload=doExport;
+  s.onerror=function(){showToast('Could not load PDF library','error');};
+  document.head.appendChild(s);
 }
 
 /* ─── Init ─── */
