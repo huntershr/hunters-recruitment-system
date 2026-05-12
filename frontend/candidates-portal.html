@@ -853,8 +853,14 @@ async function submitApply(){
         '<button onclick="showPortalSection(\'cv-writer\');closeOverlay();" style="flex:1;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;">✨ Improve CV</button>' +
       '</div></div>';
   }catch(err){clearInterval(iv);
-    form.innerHTML='<div style="text-align:center;padding:20px;"><div style="color:#A32D2D;font-size:13px;margin-bottom:12px;">⚠ '+esc(err.message)+'</div>' +
-      '<button onclick="document.getElementById(\'apply-panel\').innerHTML=applyPanelHtml();_applyFile=null;" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:12px;cursor:pointer;">Try Again</button></div>';
+    var isImagePdf=err.message&&err.message.toLowerCase().includes('scanned');
+    form.innerHTML='<div style="padding:16px;">' +
+      '<div style="background:#FCEBEB;border-radius:10px;padding:14px 16px;margin-bottom:14px;">' +
+        '<div style="color:#A32D2D;font-size:13px;font-weight:500;margin-bottom:6px;">⚠ '+esc(err.message)+'</div>' +
+        (isImagePdf?'<div style="font-size:12px;color:#6B7280;line-height:1.6;">💡 <strong>How to fix:</strong> Open your CV in Word or Google Docs and re-save as PDF, or export it as a DOCX file. Scanned/photo CVs cannot be read by AI.</div>':'') +
+      '</div>' +
+      '<button onclick="document.getElementById(\'apply-panel\').innerHTML=applyPanelHtml();_applyFile=null;" style="width:100%;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:11px;font-size:12px;font-weight:500;cursor:pointer;">Upload a Different File</button>' +
+    '</div>';
   }
 }
 

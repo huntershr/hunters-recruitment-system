@@ -99,7 +99,10 @@ async def screen_cv(
         raise HTTPException(status_code=400, detail="Only PDF or DOCX files are supported")
 
     if not cv_text or not cv_text.strip():
-        raise HTTPException(status_code=422, detail="Could not extract text from the file")
+        raise HTTPException(
+            status_code=422,
+            detail="Your CV appears to be a scanned image — AI cannot read image-based PDFs. Please save your CV as a text-based PDF or upload a DOCX file instead."
+        )
 
     # AI: extract candidate info from CV
     info = extract_candidate_info(cv_text)
