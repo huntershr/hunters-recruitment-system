@@ -577,8 +577,13 @@ function showPortalSection(id){
 }
 
 /* ─── Jobs ─── */
-var EDU=['school','university','training','education','academy','college','kindergarten','institute','learning'];
-function isEdu(j){var c=(j.company_name||'').toLowerCase(),t=(j.job_title||'').toLowerCase();return EDU.some(function(k){return c.includes(k)||t.includes(k);});}
+var EDU=['school','university','training','education','academy','college','kindergarten','institute','learning','teacher','headmistress','hod','head of department','curriculum','cambridge','academic','subject teacher','floating teacher','consultant','key stage','english hod','english head'];
+function isEdu(j){
+  var c=(j.company_name||'').toLowerCase();
+  var t=(j.job_title||'').toLowerCase();
+  var ind=(j.industry_experience||'').toLowerCase();
+  return EDU.some(function(k){return c.includes(k)||t.includes(k)||ind.includes(k);});
+}
 
 async function loadJobs(){
   try{
