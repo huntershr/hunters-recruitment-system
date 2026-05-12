@@ -126,6 +126,8 @@ async def screen_cv(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    # Attribute to the job owner (employer) so it appears in their dashboard,
+    # not to the portal candidate's own user account
     candidate = models.Candidate(
         name=name,
         email=email,
@@ -136,7 +138,7 @@ async def screen_cv(
         education=str(info.get("education") or ""),
         skills=str(info.get("skills") or ""),
         cv_text=cv_text,
-        owner_id=current_user.id,
+        owner_id=job.owner_id,
     )
     db.add(candidate)
     db.commit()
@@ -302,7 +304,10 @@ async def upload_candidates(
 
 @router.get("/", response_model=List[schemas.CandidateResponse])
 def read_candidates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    candidates = db.query(models.Candidate).filter(models.Candidate.owner_id == current_user.id).offset(skip).limit(limit).all()
+    if current_user.is_admin:
+        candidates = db.query(models.Candidate).offset(skip).limit(limit).all()
+    else:
+        candidates = db.query(models.Candidate).filter(models.Candidate.owner_id == current_user.id).offset(skip).limit(limit).all()
     return candidates
 
 @router.get("/{candidate_id}", response_model=schemas.CandidateResponse)

@@ -1462,17 +1462,18 @@
         const sort   = document.getElementById('cand-sort').value;
 
         let filtered = allCandidatesData.filter(c => {
+            const displayName = c.full_name || c.name || '';
             const matchSearch = !search ||
-                (c.full_name || '').toLowerCase().includes(search) ||
+                displayName.toLowerCase().includes(search) ||
                 (c.email || '').toLowerCase().includes(search);
             const matchJob = !jobId || String(c.job_id) === jobId;
             return matchSearch && matchJob;
         });
 
         filtered.sort((a, b) => {
-            if (sort === 'score-desc') return (b.evaluation_score || 0) - (a.evaluation_score || 0);
-            if (sort === 'score-asc')  return (a.evaluation_score || 0) - (b.evaluation_score || 0);
-            if (sort === 'name-asc')   return (a.full_name || '').localeCompare(b.full_name || '');
+            if (sort === 'score-desc') return (b.evaluation_score || b.score || 0) - (a.evaluation_score || a.score || 0);
+            if (sort === 'score-asc')  return (a.evaluation_score || a.score || 0) - (b.evaluation_score || b.score || 0);
+            if (sort === 'name-asc')   return (a.full_name || a.name || '').localeCompare(b.full_name || b.name || '');
             return 0;
         });
 
@@ -1532,7 +1533,8 @@
         `;
 
         candidates.forEach((cand, idx) => {
-            const initials = (cand.full_name || '?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+            const displayName = cand.full_name || cand.name || '?';
+            const initials = displayName.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || '?';
             
             let scoreVal = formatScore(cand.evaluation_score || cand.score);
             let scoreHTML = '-';
@@ -1575,7 +1577,7 @@
                     <td style="padding:12px 14px;">${stageBadge}</td>
                     <td style="padding:12px 14px; font-size:12px; color:#4B5563; white-space:nowrap; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${escHtml(cand.last_title || cand.lastTitle || '-')}</td>
                     <td style="padding:12px 14px; font-size:12px; color:#4B5563; white-space:nowrap; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${escHtml(cand.last_employer || cand.lastEmployer || '-')}</td>
-                    <td style="padding:12px 14px; font-size:12px; color:#4B5563;">${escHtml(cand.years_exp || cand.yearsExp || '-')}</td>
+                    <td style="padding:12px 14px; font-size:12px; color:#4B5563;">${escHtml(cand.years_exp || cand.yearsExp || cand.experience_years || '-')}</td>
                     <td style="padding:12px 14px;">${resumeLink}</td>
                     <td style="padding:12px 14px;">
                         <input type="text" value="${escHtml(cand.interviewer || '')}" onchange="updateCandidateField(${cand.id}, 'interviewer', this.value)" placeholder="Add..." style="width:100px; padding:4px 8px; font-size:12px; border:1px solid transparent; border-radius:4px; outline:none; background:transparent; transition:border 0.2s;" onfocus="this.style.border='1px solid #C9A84C'; this.style.background='#fff'" onblur="this.style.border='1px solid transparent'; this.style.background='transparent'">

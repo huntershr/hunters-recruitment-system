@@ -16,8 +16,10 @@ router = APIRouter(
 
 @router.get("/results", response_model=List[schemas.EvaluationResponse])
 def list_evaluations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    # Only return evaluations for candidates owned by the current user
-    evals = db.query(models.Evaluation).join(models.Candidate).filter(models.Candidate.owner_id == current_user.id).offset(skip).limit(limit).all()
+    if current_user.is_admin:
+        evals = db.query(models.Evaluation).offset(skip).limit(limit).all()
+    else:
+        evals = db.query(models.Evaluation).join(models.Candidate).filter(models.Candidate.owner_id == current_user.id).offset(skip).limit(limit).all()
     
     # Process results to handle JSON strings in DB for list fields
     import json

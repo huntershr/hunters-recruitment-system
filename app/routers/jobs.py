@@ -134,15 +134,43 @@ def delete_job(job_id: int, db: Session = Depends(get_db), current_user: models.
     db.commit()
     return {"message": "Job deleted successfully"}
 
-@router.get("/{job_id}/candidates", response_model=List[schemas.CandidateResponse])
+@router.get("/{job_id}/candidates")
 def get_job_candidates(job_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    """Get all candidates for a specific job"""
+    """Get all candidates for a specific job with evaluation data included"""
     job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    candidates = db.query(models.Candidate).filter(models.Candidate.applied_job_id == job_id).all()
-    return candidates
+
+    candidates = db.query(models.Candidate).filter(models.Candidate.job_applied == job_id).all()
+
+    result = []
+    for c in candidates:
+        ev = c.evaluation
+        result.append({
+            "id": c.id,
+            "name": c.name,
+            "full_name": c.name,
+            "email": c.email,
+            "phone": c.phone or "",
+            "job_applied": c.job_applied,
+            "experience_years": c.experience_years or 0,
+            "expected_salary": c.expected_salary or "",
+            "education": c.education or "",
+            "skills": c.skills or "",
+            "cv_text": "",
+            "stage": "New",
+            "evaluation_score": ev.score if ev else None,
+            "score": ev.score if ev else None,
+            "decision": ev.decision if ev else None,
+            "evaluation": {
+                "score": ev.score,
+                "decision": ev.decision,
+                "reason": ev.reason,
+                "strengths": ev.strengths,
+                "weaknesses": ev.weaknesses,
+            } if ev else None,
+        })
+    return result
 
 # Admin endpoints for job approval
 @router.get("/admin/all")
