@@ -65,7 +65,7 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 <div id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">
-      <img src="hunters-logo.jpeg" alt="Hunters" style="height:52px;width:auto;" onerror="this.outerHTML='<div style=color:#1B2A4A;font-size:22px;font-weight:700;letter-spacing:0.04em;>HUNTERS</div>'">
+      <img src="hunters-logo-blue.jpeg" alt="Hunters" style="height:52px;width:auto;" onerror="this.outerHTML='<div style=color:#1B2A4A;font-size:22px;font-weight:700;letter-spacing:0.04em;>HUNTERS</div>'">
       <div style="color:#6B7280;font-size:13px;margin-top:8px;">Candidates Portal</div>
     </div>
     <div class="auth-tabs">
@@ -176,6 +176,22 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 <div id="toast-container"></div>
 
 <script>
+/* ─── Base URL (works locally + on Railway) ─── */
+var API_BASE=(function(){
+  if(window.location.protocol==='file:'){
+    /* Opened as a local file — API calls won't work.
+       Show a banner and fallback to empty (will still fail gracefully). */
+    document.addEventListener('DOMContentLoaded',function(){
+      var b=document.createElement('div');
+      b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#A32D2D;color:#fff;font-size:13px;text-align:center;padding:10px 16px;';
+      b.innerHTML='⚠️ Open this page from your <strong>live Railway URL</strong>, not as a local file. Local file mode cannot connect to the API.';
+      document.body.prepend(b);
+    });
+    return '';
+  }
+  return '';
+})();
+
 /* ─── Utilities ─── */
 function showToast(msg,type){
   var c={success:{bg:'#E1F5EE',tx:'#0F6E56',br:'#9FE1CB'},error:{bg:'#FCEBEB',tx:'#A32D2D',br:'#F5B8B8'},info:{bg:'#E6F1FB',tx:'#185FA5',br:'#B5D4F4'}}[type]||{bg:'#E6F1FB',tx:'#185FA5',br:'#B5D4F4'};
@@ -226,7 +242,7 @@ function doLogin(){
   if(!email||!pass){errEl.textContent='Please enter email and password.';errEl.style.display='block';return;}
   btn.textContent='Signing in…';btn.disabled=true;
   var fd=new URLSearchParams();fd.append('username',email);fd.append('password',pass);
-  fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd})
+  fetch(API_BASE+'/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd})
     .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
     .then(function(res){
       btn.textContent='Sign In';btn.disabled=false;
@@ -234,7 +250,7 @@ function doLogin(){
       localStorage.setItem('token',res.d.access_token);
       onAuthSuccess(res.d.access_token);
     })
-    .catch(function(){btn.textContent='Sign In';btn.disabled=false;errEl.textContent='Connection error. Try again.';errEl.style.display='block';});
+    .catch(function(){btn.textContent='Sign In';btn.disabled=false;errEl.textContent='Connection error. Open this page from your Railway URL, not as a local file.';errEl.style.display='block';});
 }
 
 function doRegister(){
@@ -246,13 +262,13 @@ function doRegister(){
   if(!name||!email||!pass){errEl.textContent='All fields are required.';errEl.style.display='block';return;}
   if(pass.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.style.display='block';return;}
   btn.textContent='Creating account…';btn.disabled=true;
-  fetch('/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:name,email:email,password:pass})})
+  fetch(API_BASE+'/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:name,email:email,password:pass})})
     .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
     .then(function(res){
       if(!res.ok){btn.textContent='Create Account & Continue';btn.disabled=false;errEl.textContent=res.d.detail||'Registration failed.';errEl.style.display='block';return;}
       /* auto-login after register */
       var fd=new URLSearchParams();fd.append('username',email);fd.append('password',pass);
-      return fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd})
+      return fetch(API_BASE+'/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd})
         .then(function(r2){return r2.json();})
         .then(function(d2){
           btn.textContent='Create Account & Continue';btn.disabled=false;
@@ -261,11 +277,11 @@ function doRegister(){
           onAuthSuccess(d2.access_token);
         });
     })
-    .catch(function(){btn.textContent='Create Account & Continue';btn.disabled=false;errEl.textContent='Connection error. Try again.';errEl.style.display='block';});
+    .catch(function(){btn.textContent='Create Account & Continue';btn.disabled=false;errEl.textContent='Connection error. Open this page from your Railway URL, not as a local file.';errEl.style.display='block';});
 }
 
 function onAuthSuccess(token){
-  fetch('/auth/me',{headers:{'Authorization':'Bearer '+token}})
+  fetch(API_BASE+'/auth/me',{headers:{'Authorization':'Bearer '+token}})
     .then(function(r){return r.json();})
     .then(function(u){
       portalUser=u;
@@ -278,7 +294,7 @@ function onAuthSuccess(token){
 function checkAuth(){
   var t=localStorage.getItem('token');
   if(!t){showAuthScreen();return;}
-  fetch('/auth/me',{headers:{'Authorization':'Bearer '+t}})
+  fetch(API_BASE+'/auth/me',{headers:{'Authorization':'Bearer '+t}})
     .then(function(r){if(!r.ok){showAuthScreen();return null;}return r.json();})
     .then(function(u){
       if(!u){showAuthScreen();return;}
