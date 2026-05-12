@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import List
 import logging
 
@@ -186,13 +187,20 @@ def get_public_jobs(db: Session = Depends(get_db)):
         models.User, models.Job.owner_id == models.User.id
     ).filter(
         models.Job.is_approved == True,
-        models.User.company_id.in_(approved_company_ids)
+        or_(
+            models.User.is_admin == True,
+            models.User.company_id.in_(approved_company_ids)
+        )
     ).all()
 
     result = []
     for job in jobs:
-        company_id = job.owner.company_id if job.owner else None
-        company_name = company_map.get(company_id, "Unknown Company") if company_id else "Unknown Company"
+        owner = job.owner
+        company_id = owner.company_id if owner else None
+        if owner and owner.is_admin:
+            company_name = "Hunters HR Solutions"
+        else:
+            company_name = company_map.get(company_id, "Unknown Company") if company_id else "Unknown Company"
         result.append({
             "id": job.id,
             "job_title": job.job_title,
