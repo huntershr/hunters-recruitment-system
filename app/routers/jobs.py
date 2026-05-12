@@ -159,6 +159,7 @@ def get_job_candidates(job_id: int, db: Session = Depends(get_db), current_user:
             "skills": c.skills or "",
             "cv_text": "",
             "last_title": c.last_title or "",
+            "last_employer": c.last_employer or "",
             "location": job.job_location or "",
             "has_cv": bool(c.cv_text and c.cv_text.strip()),
             "stage": "New",

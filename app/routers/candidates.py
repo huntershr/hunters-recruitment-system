@@ -139,6 +139,7 @@ async def screen_cv(
         skills=str(info.get("skills") or ""),
         cv_text=cv_text,
         last_title=str(info.get("last_title") or ""),
+        last_employer=str(info.get("last_employer") or ""),
         owner_id=job.owner_id,
     )
     db.add(candidate)
@@ -221,6 +222,7 @@ async def upload_candidates(
                 "education": ai_data.get("education", ""),
                 "skills": ai_data.get("skills", ""),
                 "last_title": ai_data.get("last_title", ""),
+                "last_employer": ai_data.get("last_employer", ""),
                 "cv_text": text
             })
         else:
@@ -295,6 +297,7 @@ async def upload_candidates(
             expected_salary=str(get_val(["salary", "expected"], "")),
             cv_text=raw_cv_text,
             last_title=str(data.get("last_title", "") or ""),
+            last_employer=str(data.get("last_employer", "") or ""),
             owner_id=current_user.id
         )
         db.add(new_candidate)

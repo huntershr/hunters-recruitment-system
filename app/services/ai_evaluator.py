@@ -142,26 +142,27 @@ def extract_candidate_info(cv_text):
     """
     Extracts structured candidate information from CV text using Gemini.
     """
-    prompt = f"""
-    You are an expert HR Data Analyst. Extract the following information from the CV text provided:
-    - Full Name
-    - Email Address
-    - Phone Number
-    - Total Years of Experience (as an integer)
-    - Highest Education Level
-    - Key Skills (comma separated)
-    - Current/Last Job Title
+    prompt = f"""You are an expert HR Data Analyst. Read the CV text below carefully and extract the following fields.
 
-    CV TEXT:
-    {cv_text[:5000]}
+FIELDS TO EXTRACT:
+1. name - Full name of the candidate
+2. email - Email address (or empty string if not found)
+3. phone - Phone number (or empty string if not found)
+4. experience_years - Total years of professional work experience as an INTEGER (count years across all jobs; if a fresh graduate with no work exp use 0)
+5. education - Highest education level and institution (e.g. "BSc Computer Science, Cairo University")
+6. skills - Key technical and professional skills as a comma-separated string
+7. last_title - The most recent or current job title (e.g. "Senior Software Engineer", "Marketing Manager")
+8. last_employer - The most recent or current employer/company name (e.g. "Microsoft", "Vodafone Egypt")
 
-    Return ONLY a valid JSON object with keys: "name", "email", "phone", "experience_years", "education", "skills", "last_title".
-    If a field is not found, use null or 0 for experience.
-    """
+CV TEXT:
+{cv_text[:6000]}
+
+Return ONLY a valid JSON object with exactly these 8 keys. Use null for any field not found, except experience_years which must always be an integer.
+Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678","experience_years":5,"education":"BSc Engineering, AUC","skills":"Python, SQL, Power BI","last_title":"Data Analyst","last_employer":"Raya Holding"}}"""
 
     model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
     max_retries = 3
-    
+
     for attempt in range(max_retries):
         try:
             model = genai.GenerativeModel(model_name)
@@ -172,7 +173,21 @@ def extract_candidate_info(cv_text):
                     response_mime_type="application/json",
                 )
             )
-            return json.loads(response.text.strip())
+            data = json.loads(response.text.strip())
+            # Ensure experience_years is always an integer
+            try:
+                import re as _re
+                raw_exp = data.get("experience_years")
+                if isinstance(raw_exp, (int, float)):
+                    data["experience_years"] = int(raw_exp)
+                elif isinstance(raw_exp, str):
+                    nums = _re.findall(r'\d+', raw_exp)
+                    data["experience_years"] = int(nums[0]) if nums else 0
+                else:
+                    data["experience_years"] = 0
+            except Exception:
+                data["experience_years"] = 0
+            return data
         except Exception as e:
             if "429" in str(e) and attempt < max_retries - 1:
                 wait_time = (2 ** attempt) + random.random()
@@ -188,7 +203,8 @@ def extract_candidate_info(cv_text):
                     "experience_years": 0,
                     "education": "",
                     "skills": "",
-                    "last_title": ""
+                    "last_title": "",
+                    "last_employer": "",
                 }
     return {}
 

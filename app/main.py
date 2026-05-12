@@ -55,6 +55,14 @@ def startup_populate_db():
             db.rollback()
 
         try:
+            from sqlalchemy import text as _text
+            db.execute(_text("ALTER TABLE candidates ADD COLUMN last_employer VARCHAR"))
+            db.commit()
+            logging.info("Migration: added last_employer column to candidates")
+        except Exception:
+            db.rollback()
+
+        try:
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
 

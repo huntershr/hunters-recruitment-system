@@ -74,6 +74,7 @@ class Candidate(Base):
     skills = Column(Text)
     cv_text = Column(Text)
     last_title = Column(String, nullable=True)
+    last_employer = Column(String, nullable=True)
     owner_id = Column(Integer, ForeignKey("users.id"))
 
     owner = relationship("User", back_populates="candidates")

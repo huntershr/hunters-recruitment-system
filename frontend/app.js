@@ -526,7 +526,7 @@ function renderCandidateList(filter) {
                     <span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:${stageCol}22;color:${stageCol};">${stage}</span>
                 </td>
                 <td style="font-size:11px;color:#6B7280;">${c.last_title || '—'}</td>
-                <td style="font-size:11px;color:#6B7280;">—</td>
+                <td style="font-size:11px;color:#6B7280;">${c.last_employer || '—'}</td>
                 <td style="font-size:11px;color:#1B2A4A;font-weight:500;">${c.experience_years != null ? c.experience_years + ' yrs' : '—'}</td>
                 <td style="font-size:11px;">
                     ${hasCV
