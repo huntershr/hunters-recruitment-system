@@ -151,9 +151,12 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 
 <!-- Tabs -->
 <div class="portal-tabs" id="portal-tabs" style="display:none;">
-  <button class="portal-tab active" onclick="showPortalSection('all-jobs')">All Jobs</button>
-  <button class="portal-tab" onclick="showPortalSection('edu-jobs')">Education Jobs</button>
-  <button class="portal-tab" onclick="showPortalSection('corp-jobs')">Corporate Jobs</button>
+  <!-- Employer-only tabs -->
+  <button class="portal-tab employer-tab" style="display:none;" onclick="showPortalSection('talent-pool')">Talent Pool</button>
+  <!-- Candidate-only tabs -->
+  <button class="portal-tab job-tab active" onclick="showPortalSection('all-jobs')">All Jobs</button>
+  <button class="portal-tab job-tab" onclick="showPortalSection('edu-jobs')">Education Jobs</button>
+  <button class="portal-tab job-tab" onclick="showPortalSection('corp-jobs')">Corporate Jobs</button>
   <button class="portal-tab candidate-tab" onclick="showPortalSection('my-applications')">My Applications</button>
   <button class="portal-tab candidate-tab" onclick="showPortalSection('profile')">My Profile</button>
 </div>
@@ -175,6 +178,14 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
       <div style="font-size:12px;color:#9CA3AF;">Total registered candidates grouped by their field — click a card to filter</div>
     </div>
     <div id="occupation-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;"></div>
+  </div>
+
+  <!-- Talent Pool (employer/admin only) -->
+  <div id="section-talent-pool" class="portal-section" style="display:none;">
+    <div class="filter-bar" style="margin-bottom:20px;">
+      <input type="text" id="q-talent" class="filter-input" style="flex:1;" placeholder="Search candidates by name, skills, education…" oninput="filterTalentPool()">
+    </div>
+    <div id="grid-talent-pool" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;"></div>
   </div>
 
   <!-- All Jobs -->
@@ -380,12 +391,23 @@ function hideAuthScreen(){
 
 function applyUserRole(user){
   var isEmployer = user.is_admin || !!user.company_id;
-  /* Candidate-only tabs and buttons */
+  /* Tab visibility */
+  document.querySelectorAll('.job-tab').forEach(function(t){t.style.display=isEmployer?'none':'';});
   document.querySelectorAll('.candidate-tab').forEach(function(t){t.style.display=isEmployer?'none':'';});
+  document.querySelectorAll('.employer-tab').forEach(function(t){t.style.display=isEmployer?'':'none';});
+  /* Header candidate buttons */
   var chb=document.getElementById('candidate-header-btns');
   if(chb) chb.style.display=isEmployer?'none':'flex';
   /* Occupation cards — employer/admin only */
-  if(isEmployer) loadOccupationCards();
+  document.getElementById('occupation-section').style.display=isEmployer?'block':'none';
+  if(isEmployer){
+    showPortalSection('talent-pool');
+    loadOccupationCards();
+    loadTalentPool();
+  } else {
+    showPortalSection('all-jobs');
+    loadJobs();
+  }
 }
 
 function switchAuthTab(tab){
@@ -451,11 +473,9 @@ function onAuthSuccess(token){
     .then(function(u){
       portalUser=u;
       var el=document.getElementById('portal-username');if(el)el.textContent=u.full_name||u.email;
-      hideAuthScreen();
-      loadJobs();
+      hideAuthScreen(); /* hideAuthScreen calls applyUserRole which loads the right data */
     });
 }
-/* hideAuthScreen already calls applyUserRole → no need to duplicate loadOccupationCards in checkAuth */
 
 function showEntryScreen(){
   document.getElementById('candidate-entry').style.display='flex';
@@ -490,8 +510,7 @@ function checkAuth(){
       portalUser=u;
       var el=document.getElementById('portal-username');if(el)el.textContent=u.full_name||u.email;
       document.getElementById('candidate-entry').style.display='none';
-      hideAuthScreen();
-      loadJobs();
+      hideAuthScreen(); /* applyUserRole called inside → loads correct data */
     })
     .catch(function(){showAuthScreen();});
 }
@@ -568,17 +587,78 @@ function loadOccupationCards(){
 
 function filterByOccupation(key){
   _activeOccupation=(_activeOccupation===key)?null:key;
-  /* highlight active card */
   document.querySelectorAll('[id^="occ-card-"]').forEach(function(card){
     var k=card.id.replace('occ-card-','');
     card.style.border=(_activeOccupation===k)?'1.5px solid #C9A84C':'0.5px solid rgba(0,0,0,0.06)';
     card.style.background=(_activeOccupation===k)?'#FFFBF0':'#fff';
   });
-  renderSection('all-jobs');
+  /* Filter the talent pool when in employer view */
+  if(!_activeOccupation){renderTalentPool(_allCandidates);return;}
+  var cat=occupationCategories.find(function(c){return c.key===_activeOccupation;});
+  if(!cat){renderTalentPool(_allCandidates);return;}
+  var filtered=_allCandidates.filter(function(c){
+    var text=((c.name||'')+' '+(c.skills||'')+' '+(c.education||'')).toLowerCase();
+    return cat.keywords.some(function(kw){return text.includes(kw);});
+  });
+  renderTalentPool(filtered);
+}
+
+/* ─── Talent Pool ─── */
+var _allCandidates=[];
+
+async function loadTalentPool(){
+  var grid=document.getElementById('grid-talent-pool');
+  if(!grid)return;
+  grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:#9CA3AF;">Loading candidates…</div>';
+  try{
+    var r=await fetch(API_BASE+'/candidates',{headers:hdrs()});
+    _allCandidates=await r.json();
+    if(!Array.isArray(_allCandidates))_allCandidates=[];
+    renderTalentPool(_allCandidates);
+  }catch(e){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:#9CA3AF;">Could not load candidates</div>';
+  }
+}
+
+function filterTalentPool(){
+  var q=(document.getElementById('q-talent').value||'').toLowerCase();
+  if(!q){renderTalentPool(_allCandidates);return;}
+  renderTalentPool(_allCandidates.filter(function(c){
+    return ((c.name||'')+(c.skills||'')+(c.education||'')).toLowerCase().includes(q);
+  }));
+}
+
+function renderTalentPool(candidates){
+  var grid=document.getElementById('grid-talent-pool');
+  if(!grid)return;
+  if(!candidates.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;"><div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">No candidates yet</div><div style="font-size:12px;color:#9CA3AF;">Candidates appear here when they apply to jobs</div></div>';
+    return;
+  }
+  grid.innerHTML=candidates.map(function(c){
+    var ev=c.evaluation||null;
+    var score=ev&&ev.score!=null?ev.score:null;
+    var decision=ev?ev.decision:'';
+    var decColor=decision==='Accept'?'#0F6E56':decision==='Reject'?'#A32D2D':'#B45309';
+    var initials=(c.name||'C').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+    var skillsList=(c.skills||'').split(',').slice(0,3).map(function(s){return s.trim();}).filter(Boolean);
+    return '<div class="job-card" style="cursor:default;">'
+      +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">'
+        +'<div style="width:44px;height:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;">'+esc(initials)+'</div>'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="font-size:14px;font-weight:500;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(c.name||'Candidate')+'</div>'
+          +(c.email?'<div style="font-size:11px;color:#9CA3AF;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(c.email)+'</div>':'')
+        +'</div>'
+        +(score!=null?'<div style="font-size:13px;font-weight:600;color:'+decColor+';">'+score.toFixed(0)+'%</div>':'')
+      +'</div>'
+      +'<div style="font-size:12px;color:#6B7280;margin-bottom:8px;">⏱ '+(c.experience_years||0)+' yrs exp · 🎓 '+esc((c.education||'Not specified').slice(0,45))+'</div>'
+      +(skillsList.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;">'+skillsList.map(function(s){return'<span style="background:#F0F4F8;color:#1B2A4A;font-size:10px;padding:2px 8px;border-radius:10px;">'+esc(s)+'</span>';}).join('')+'</div>':'')
+    +'</div>';
+  }).join('');
 }
 
 /* ─── Navigation ─── */
-var tabOrder=['all-jobs','edu-jobs','corp-jobs','my-applications','profile','cv-writer'];
+var tabOrder=['talent-pool','all-jobs','edu-jobs','corp-jobs','my-applications','profile','cv-writer'];
 function showPortalSection(id){
   if(id==='cv-writer'){openCVModal();return;}
   document.querySelectorAll('.portal-section').forEach(function(s){s.style.display='none';s.classList.remove('active');});
@@ -587,6 +667,7 @@ function showPortalSection(id){
   if(id==='my-applications')renderMyApps();
   if(id==='profile')renderProfile();
   if(['all-jobs','edu-jobs','corp-jobs'].includes(id))renderSection(id);
+  if(id==='talent-pool')filterTalentPool();
 }
 
 /* ─── Jobs ─── */
