@@ -114,6 +114,28 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
   </div>
 </div>
 
+<!-- Candidate Entry Screen (first-time visitors with no profile/token) -->
+<div id="candidate-entry" style="display:none;min-height:100vh;background:#F4F5FA;align-items:center;justify-content:center;padding:24px;position:fixed;inset:0;z-index:9998;">
+  <div style="background:#fff;border-radius:20px;padding:36px 32px;width:460px;max-width:calc(100vw - 32px);box-shadow:0 4px 32px rgba(0,0,0,0.10);text-align:center;">
+    <img src="hunters-logo-white.jpeg" alt="Hunters" style="height:56px;width:auto;margin-bottom:20px;" onerror="this.outerHTML='<div style=font-size:20px;font-weight:700;color:#1B2A4A;margin-bottom:20px;>HUNTERS</div>'">
+    <div style="font-size:20px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">Welcome to Candidates Portal</div>
+    <div style="font-size:13px;color:#9CA3AF;margin-bottom:28px;line-height:1.6;">Upload your CV and AI will create your profile automatically — then start applying to top opportunities.</div>
+    <div onclick="document.getElementById('entry-cv-upload').click()"
+      style="border:2px dashed #E5E7EB;border-radius:14px;padding:28px;cursor:pointer;margin-bottom:16px;transition:all 0.2s;"
+      onmouseover="this.style.borderColor='#1B2A4A';this.style.background='#F8F9FF';"
+      onmouseout="this.style.borderColor='#E5E7EB';this.style.background='#fff';">
+      <div style="font-size:32px;margin-bottom:10px;">📄</div>
+      <div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:4px;">Upload Your CV</div>
+      <div style="font-size:12px;color:#9CA3AF;">PDF or Word — AI creates your profile automatically</div>
+      <input type="file" id="entry-cv-upload" accept=".pdf,.docx" style="display:none;" onchange="entryUploadCV(this)">
+    </div>
+    <div style="font-size:12px;color:#9CA3AF;margin-bottom:12px;">— or —</div>
+    <button onclick="skipToPortal()" style="width:100%;background:#fff;border:0.5px solid #E5E7EB;border-radius:10px;padding:11px;font-size:13px;color:#6B7280;cursor:pointer;margin-bottom:10px;">Browse Jobs Without a Profile</button>
+    <button onclick="document.getElementById('candidate-entry').style.display='none';document.getElementById('auth-screen').classList.add('active');" style="background:none;border:none;font-size:12px;color:#9CA3AF;cursor:pointer;margin-top:2px;">Already have an account? Sign in →</button>
+    <div style="margin-top:16px;"><a href="landing.html" style="font-size:12px;color:#9CA3AF;text-decoration:none;">← Back to Home</a></div>
+  </div>
+</div>
+
 <!-- Header -->
 <div class="portal-header" id="portal-header" style="display:none;">
   <img src="hunters-logo-blue.jpeg" alt="Hunters" style="height:38px;width:auto;" onerror="this.outerHTML='<span style=color:#C9A84C;font-size:15px;font-weight:500;>HUNTERS</span>'">
@@ -136,6 +158,22 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 
 <!-- Body -->
 <div class="portal-body" id="portal-body" style="display:none;">
+
+  <!-- Occupation Cards (admin/company only) -->
+  <div id="occupation-section" style="display:none;margin-bottom:32px;">
+    <div style="margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:500;color:#1B2A4A;display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <svg width="16" height="16" fill="none" stroke="#C9A84C" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+        </svg>
+        Candidate Pool by Occupation
+      </div>
+      <div style="font-size:12px;color:#9CA3AF;">Total registered candidates grouped by their field — click a card to filter</div>
+    </div>
+    <div id="occupation-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;"></div>
+  </div>
 
   <!-- All Jobs -->
   <div id="section-all-jobs" class="portal-section active">
@@ -403,17 +441,48 @@ function onAuthSuccess(token){
     });
 }
 
+function showEntryScreen(){
+  document.getElementById('candidate-entry').style.display='flex';
+  document.getElementById('auth-screen').classList.remove('active');
+  document.getElementById('portal-header').style.display='none';
+  document.getElementById('portal-tabs').style.display='none';
+  document.getElementById('portal-body').style.display='none';
+}
+
+function skipToPortal(){
+  /* Let them browse without a profile — will hit auth screen if they try to apply */
+  document.getElementById('candidate-entry').style.display='none';
+  showAuthScreen();
+}
+
+async function entryUploadCV(input){
+  if(!input.files||!input.files.length)return;
+  /* Need auth first — redirect to register screen */
+  document.getElementById('candidate-entry').style.display='none';
+  showAuthScreen();
+  switchAuthTab('register');
+  showToast('Create an account first, then upload your CV in My Profile','info');
+}
+
 function checkAuth(){
   var t=localStorage.getItem('token');
-  if(!t){showAuthScreen();return;}
+  var hasProfile=!!localStorage.getItem('hunters_candidate_profile');
+  if(!t){
+    /* First-time visitor with no profile → entry screen */
+    if(!hasProfile){showEntryScreen();}
+    else{showAuthScreen();}
+    return;
+  }
   fetch(API_BASE+'/auth/me',{headers:{'Authorization':'Bearer '+t}})
     .then(function(r){if(!r.ok){showAuthScreen();return null;}return r.json();})
     .then(function(u){
       if(!u){showAuthScreen();return;}
       portalUser=u;
       var el=document.getElementById('portal-username');if(el)el.textContent=u.full_name||u.email;
+      document.getElementById('candidate-entry').style.display='none';
       hideAuthScreen();
       loadJobs();
+      loadOccupationCards();
     })
     .catch(function(){showAuthScreen();});
 }
@@ -423,6 +492,80 @@ function goBack(){
   fetch('/auth/me',{headers:{'Authorization':'Bearer '+t}}).then(function(r){return r.json();})
     .then(function(u){window.location.href=u&&u.is_admin?'index.html':'company-dashboard.html';})
     .catch(function(){window.location.href='index.html';});
+}
+
+/* ─── Occupation Cards ─── */
+var occupationCategories=[
+  {key:'hr',        label:'Human Resources',     icon:'👥', keywords:['hr','human resources','recruitment','talent','people','payroll','compensation']},
+  {key:'finance',   label:'Finance & Accounting', icon:'💰', keywords:['finance','accounting','financial','accountant','auditor','treasury','budget']},
+  {key:'sales',     label:'Sales & Business Dev', icon:'📈', keywords:['sales','business development','account manager','commercial','revenue']},
+  {key:'education', label:'Education & Training', icon:'🎓', keywords:['teacher','education','training','instructor','tutor','academic','school','university','curriculum']},
+  {key:'it',        label:'IT & Technology',      icon:'💻', keywords:['software','developer','engineer','it ','technology','data','system','network','cyber','web']},
+  {key:'marketing', label:'Marketing & PR',       icon:'📣', keywords:['marketing','brand','digital','social media','content','pr ','public relations','advertising']},
+  {key:'operations',label:'Operations & Admin',   icon:'⚙️', keywords:['operations','admin','coordinator','logistics','supply chain','procurement','office']},
+  {key:'other',     label:'Other',                icon:'🗂️', keywords:[]}
+];
+var _activeOccupation=null,_occGroups=null;
+
+function categorizeCandidates(candidates){
+  var groups={};
+  occupationCategories.forEach(function(cat){groups[cat.key]=[];});
+  candidates.forEach(function(c){
+    var text=[c.last_title||'',c.job_title||'',c.industry||'',c.last_employer||''].join(' ').toLowerCase();
+    var matched=false;
+    for(var i=0;i<occupationCategories.length;i++){
+      var cat=occupationCategories[i];
+      if(cat.key==='other')continue;
+      if(cat.keywords.some(function(kw){return text.includes(kw);})){groups[cat.key].push(c);matched=true;break;}
+    }
+    if(!matched)groups['other'].push(c);
+  });
+  return groups;
+}
+
+function loadOccupationCards(){
+  fetch(API_BASE+'/candidates',{headers:hdrs()})
+    .then(function(r){if(!r.ok)throw new Error('no access');return r.json();})
+    .then(function(data){
+      var candidates=Array.isArray(data)?data:(data.candidates||[]);
+      if(!candidates.length)return;
+      _occGroups=categorizeCandidates(candidates);
+      var groups=_occGroups;
+      var total=candidates.length;
+      var el=document.getElementById('occupation-cards');
+      if(!el)return;
+      /* Total card */
+      var html='<div style="background:linear-gradient(135deg,#1B2A4A,#2C3E6B);border-radius:12px;padding:16px;text-align:center;color:#fff;cursor:pointer;" onclick="filterByOccupation(null)">'
+        +'<div style="font-size:28px;font-weight:500;">'+total+'</div>'
+        +'<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;">Total Candidates</div>'
+        +'<div style="font-size:10px;color:#C9A84C;margin-top:6px;">in talent pool</div>'
+        +'</div>';
+      occupationCategories.forEach(function(cat){
+        var count=groups[cat.key].length;
+        if(!count)return;
+        var pct=total?Math.round(count/total*100):0;
+        html+='<div id="occ-card-'+cat.key+'" onclick="filterByOccupation(\''+cat.key+'\')" style="background:#fff;border:0.5px solid rgba(0,0,0,0.06);border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(0,0,0,0.04);" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 20px rgba(0,0,0,0.10)\'" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.04)\'">'
+          +'<div style="width:44px;height:44px;border-radius:50%;background:#F0F4F8;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:20px;">'+cat.icon+'</div>'
+          +'<div style="font-size:24px;font-weight:500;color:#1B2A4A;line-height:1;">'+count+'</div>'
+          +'<div style="font-size:11px;color:#9CA3AF;margin-top:4px;line-height:1.3;">'+cat.label+'</div>'
+          +'<div style="margin-top:8px;height:3px;background:#F0F2F8;border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:#C9A84C;border-radius:2px;"></div></div>'
+          +'</div>';
+      });
+      el.innerHTML=html;
+      document.getElementById('occupation-section').style.display='block';
+    })
+    .catch(function(){/* not admin/company — silently skip */});
+}
+
+function filterByOccupation(key){
+  _activeOccupation=(_activeOccupation===key)?null:key;
+  /* highlight active card */
+  document.querySelectorAll('[id^="occ-card-"]').forEach(function(card){
+    var k=card.id.replace('occ-card-','');
+    card.style.border=(_activeOccupation===k)?'1.5px solid #C9A84C':'0.5px solid rgba(0,0,0,0.06)';
+    card.style.background=(_activeOccupation===k)?'#FFFBF0':'#fff';
+  });
+  renderSection('all-jobs');
 }
 
 /* ─── Navigation ─── */
@@ -467,6 +610,13 @@ function renderSection(sid){
     if(typ&&!((j.education_level||'').includes(typ)||(j.employment_type||'').includes(typ)))return false;
     return true;
   });
+  /* Apply occupation filter if active (all-jobs only) */
+  if(_activeOccupation&&sid==='all-jobs'&&_occGroups){
+    var allowed=(_occGroups[_activeOccupation]||[]).map(function(c){return c.job_id;});
+    /* fallback: filter by job title/industry keywords */
+    var cat=occupationCategories.find(function(c){return c.key===_activeOccupation;});
+    if(cat){list=list.filter(function(j){var t=(j.job_title||'').toLowerCase();return cat.keywords.some(function(kw){return t.includes(kw);});});}
+  }
 
   if(!list.length){
     grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;"><div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">No jobs found</div><div style="font-size:12px;color:#9CA3AF;">Try adjusting filters</div></div>';

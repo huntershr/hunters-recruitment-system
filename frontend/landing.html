@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hunters HR — AI-Powered Recruitment Platform</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#F4F5FA;color:#1B2A4A;}
+    .hero{min-height:100vh;background:linear-gradient(135deg,#0D1B3E 0%,#1B2A4A 50%,#2C3E6B 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;}
+    .btn-card{border-radius:16px;padding:28px 36px;width:260px;cursor:pointer;text-align:center;transition:all 0.2s;}
+    .btn-card:hover{transform:translateY(-4px);}
+    .feat-divider{width:1px;background:rgba(255,255,255,0.1);}
+    /* Employer modal */
+    #employer-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:20px;}
+    .employer-modal-card{background:#fff;border-radius:20px;padding:36px 32px;width:400px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.3);animation:slideUp 0.22s ease;}
+    @keyframes slideUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:none;}}
+    .lnd-input{width:100%;padding:10px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;margin-bottom:12px;font-family:inherit;}
+    .lnd-input:focus{border-color:#1B2A4A;}
+    .lnd-btn{width:100%;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}
+  </style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+
+  <img src="hunters-logo-white.jpeg" alt="Hunters HR"
+    style="height:80px;width:auto;filter:brightness(0) invert(1);margin-bottom:32px;"
+    onerror="this.outerHTML='<div style=color:#C9A84C;font-size:26px;font-weight:700;letter-spacing:0.04em;margin-bottom:32px;>HUNTERS</div>'">
+
+  <h1 style="font-size:42px;font-weight:500;color:#FFFFFF;line-height:1.2;max-width:700px;margin-bottom:16px;">
+    Welcome to the<br>
+    <span style="color:#C9A84C;">AI-Powered</span> Recruitment Platform
+  </h1>
+
+  <p style="font-size:14px;color:rgba(255,255,255,0.65);margin-bottom:8px;font-weight:500;letter-spacing:0.05em;">
+    BY HUNTERS HR SOLUTIONS
+  </p>
+
+  <div style="width:48px;height:2px;background:#C9A84C;border-radius:2px;margin:20px auto;"></div>
+
+  <p style="font-size:15px;color:rgba(255,255,255,0.80);max-width:680px;line-height:1.8;margin-bottom:48px;">
+    Built for both companies and candidates, our platform transforms recruitment into a smarter, faster, and more connected experience. For organizations, the system streamlines hiring through AI-powered candidate matching, intelligent screening, structured evaluation tools, and centralized recruitment management — helping teams hire the right talent efficiently while reducing time and cost. For candidates, the platform offers a seamless journey to discover opportunities, showcase skills, track applications, and connect with employers that truly match their experience and career goals.
+  </p>
+
+  <!-- Two main buttons -->
+  <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-bottom:48px;">
+
+    <!-- Candidate -->
+    <div class="btn-card" onclick="window.location.href='candidates-portal.html'"
+      style="background:#FFFFFF;box-shadow:0 8px 32px rgba(0,0,0,0.2);"
+      onmouseover="this.style.boxShadow='0 16px 48px rgba(0,0,0,0.3)'"
+      onmouseout="this.style.boxShadow='0 8px 32px rgba(0,0,0,0.2)'">
+      <div style="width:56px;height:56px;border-radius:50%;background:#F0F4F8;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+        <svg width="28" height="28" fill="none" stroke="#1B2A4A" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+      <div style="font-size:18px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">I'm a Candidate</div>
+      <div style="font-size:12px;color:#9CA3AF;line-height:1.5;">Browse jobs, apply with AI screening, track your applications</div>
+      <div style="margin-top:14px;background:#1B2A4A;color:#fff;border-radius:8px;padding:8px 20px;font-size:12px;font-weight:500;display:inline-block;">
+        Enter Portal →
+      </div>
+    </div>
+
+    <!-- Employer -->
+    <div class="btn-card" onclick="showEmployerLogin()"
+      style="background:#C9A84C;box-shadow:0 8px 32px rgba(201,168,76,0.3);"
+      onmouseover="this.style.boxShadow='0 16px 48px rgba(201,168,76,0.4)'"
+      onmouseout="this.style.boxShadow='0 8px 32px rgba(201,168,76,0.3)'">
+      <div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+        <svg width="28" height="28" fill="none" stroke="#1B2A4A" stroke-width="1.5" viewBox="0 0 24 24">
+          <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+        </svg>
+      </div>
+      <div style="font-size:18px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">I'm an Employer</div>
+      <div style="font-size:12px;color:rgba(27,42,74,0.7);line-height:1.5;">Post jobs, screen candidates with AI, manage your pipeline</div>
+      <div style="margin-top:14px;background:#1B2A4A;color:#fff;border-radius:8px;padding:8px 20px;font-size:12px;font-weight:500;display:inline-block;">
+        Login / Register →
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Feature row -->
+  <div style="display:flex;gap:32px;flex-wrap:wrap;justify-content:center;">
+    <div style="text-align:center;color:rgba(255,255,255,0.6);">
+      <div style="font-size:22px;font-weight:500;color:#C9A84C;">AI-Powered</div>
+      <div style="font-size:11px;margin-top:2px;">CV Screening</div>
+    </div>
+    <div class="feat-divider"></div>
+    <div style="text-align:center;color:rgba(255,255,255,0.6);">
+      <div style="font-size:22px;font-weight:500;color:#C9A84C;">Smart</div>
+      <div style="font-size:11px;margin-top:2px;">Candidate Matching</div>
+    </div>
+    <div class="feat-divider"></div>
+    <div style="text-align:center;color:rgba(255,255,255,0.6);">
+      <div style="font-size:22px;font-weight:500;color:#C9A84C;">Real-time</div>
+      <div style="font-size:11px;margin-top:2px;">Pipeline Management</div>
+    </div>
+    <div class="feat-divider"></div>
+    <div style="text-align:center;color:rgba(255,255,255,0.6);">
+      <div style="font-size:22px;font-weight:500;color:#C9A84C;">Bilingual</div>
+      <div style="font-size:11px;margin-top:2px;">Arabic & English</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<div style="background:#0D1B3E;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+  <img src="hunters-logo-white.jpeg" alt="Hunters" style="height:32px;width:auto;filter:brightness(0) invert(1);"
+    onerror="this.outerHTML='<span style=color:rgba(255,255,255,0.5);font-size:13px;font-weight:500;>HUNTERS</span>'">
+  <div style="font-size:12px;color:rgba(255,255,255,0.4);">
+    &copy; 2026 Hunters for HR Transformation &amp; Execution. All rights reserved.
+  </div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.4);">
+    Powered by Gemini AI
+  </div>
+</div>
+
+<!-- Employer Login Modal -->
+<div id="employer-modal" onclick="if(event.target===this)hideEmployerLogin()">
+  <div class="employer-modal-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <div>
+        <img src="hunters-logo-white.jpeg" alt="Hunters" style="height:36px;width:auto;margin-bottom:8px;"
+          onerror="this.style.display='none'">
+        <div style="font-size:18px;font-weight:500;color:#1B2A4A;">Employer Access</div>
+        <div style="font-size:12px;color:#9CA3AF;margin-top:2px;">Login or register your company</div>
+      </div>
+      <button onclick="hideEmployerLogin()" style="background:none;border:none;font-size:24px;color:#9CA3AF;cursor:pointer;line-height:1;">&times;</button>
+    </div>
+
+    <div id="employer-login-form">
+      <label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:5px;">Email Address</label>
+      <input type="email" id="landing-email" class="lnd-input" placeholder="you@company.com" onkeydown="if(event.key==='Enter')handleLandingLogin()">
+
+      <label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:5px;">Password</label>
+      <input type="password" id="landing-password" class="lnd-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleLandingLogin()">
+
+      <div id="landing-error" style="display:none;background:#FCEBEB;border:0.5px solid #F5B8B8;border-radius:8px;padding:10px 14px;font-size:12px;color:#A32D2D;margin-bottom:12px;"></div>
+
+      <button class="lnd-btn" onclick="handleLandingLogin()" id="landing-login-btn"
+        style="background:#1B2A4A;color:#fff;margin-bottom:10px;">Login to Dashboard</button>
+
+      <a href="register-company.html"
+        style="display:block;width:100%;background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:11px;font-size:12px;color:#6B7280;cursor:pointer;text-align:center;text-decoration:none;">
+        Register Your Company
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+function showEmployerLogin(){document.getElementById('employer-modal').style.display='flex';}
+function hideEmployerLogin(){document.getElementById('employer-modal').style.display='none';}
+
+async function handleLandingLogin(){
+  var email=(document.getElementById('landing-email').value||'').trim();
+  var password=document.getElementById('landing-password').value||'';
+  var errDiv=document.getElementById('landing-error');
+  var btn=document.getElementById('landing-login-btn');
+  errDiv.style.display='none';
+  if(!email||!password){errDiv.textContent='Please enter your email and password.';errDiv.style.display='block';return;}
+  btn.textContent='Signing in…';btn.disabled=true;
+  /* Auth uses form-data (OAuth2PasswordRequestForm) */
+  var fd=new URLSearchParams();fd.append('username',email);fd.append('password',password);
+  try{
+    var res=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd});
+    var data=await res.json();
+    btn.textContent='Login to Dashboard';btn.disabled=false;
+    if(!res.ok){
+      errDiv.textContent=data.detail||'Invalid email or password.';
+      errDiv.style.display='block';return;
+    }
+    localStorage.setItem('token',data.access_token);
+    /* Route based on user type */
+    if(data.user_type==='admin'){window.location.href='index.html';}
+    else{window.location.href='company-dashboard.html';}
+  }catch(e){
+    btn.textContent='Login to Dashboard';btn.disabled=false;
+    errDiv.textContent='Connection error. Please try again.';errDiv.style.display='block';
+  }
+}
+
+/* Auto-redirect if already logged in */
+(function(){
+  var t=localStorage.getItem('token');
+  if(!t)return;
+  fetch('/auth/me',{headers:{'Authorization':'Bearer '+t}})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(u){
+      if(!u)return;
+      window.location.href=u.is_admin?'index.html':'company-dashboard.html';
+    }).catch(function(){});
+})();
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from .database import engine, Base, SessionLocal
 from .routers import jobs, candidates, evaluations, sheets, auth, public, companies
@@ -248,6 +248,11 @@ def health_check():
 try:
     frontend_path = Path(__file__).parent.parent / "frontend"
     if frontend_path.exists():
+        # Serve landing.html as the root entry point
+        @app.get("/")
+        async def root():
+            return FileResponse(str(frontend_path / "landing.html"))
+
         app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
         logging.info(f"Frontend mounted from: {frontend_path}")
     else:
