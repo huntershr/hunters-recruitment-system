@@ -1307,8 +1307,8 @@ async function startBulkProcessing() {
 
     for (let i = 0; i < bulkSelectedFiles.length; i++) {
         const file = bulkSelectedFiles[i];
-        updateFileStatus(i, 'processing', 'Extracting data…');
-        animateProgress(i, 0, 90, 3000);
+        updateFileStatus(i, 'processing', 'AI screening in progress…');
+        animateProgress(i, 0, 85, 30000);
 
         try {
             let result;
@@ -1318,15 +1318,13 @@ async function startBulkProcessing() {
                 bulkProcessingResults.push(result);
             } else {
                 const candidates = await parseExcelFile(file);
-                // Assume the API or processing returns scored candidates
                 for (let c of candidates) {
-                    // Mock screen each row or send to API
                     c.sourceFile = file.name;
-                    c.score = Math.random() * 100; // Mock score for Excel
-                    c.decision = c.score >= 75 ? 'Shortlist' : c.score >= 50 ? 'Review' : 'Reject';
+                    c.score = null;
+                    c.decision = 'Imported';
                     bulkProcessingResults.push(c);
                 }
-                result = { score: 100 }; // Dummy for Excel file completion
+                result = { score: null, name: `${candidates.length} rows from ${file.name}` };
             }
             
             updateFileStatus(i, 'complete', `Complete`, result);
@@ -1388,25 +1386,24 @@ function updateOverallProgress(done, total) {
     document.getElementById('bulk-processed-count').innerText = done;
 }
 
-// Mock API Call for PDF
 async function screenSingleCandidate(file, jobId) {
-    // In a real app, this would be:
-    // const formData = new FormData(); formData.append('cv', file); if(jobId) formData.append('job_id', jobId);
-    // const response = await fetch('/api/candidates/screen', { method: 'POST', ... });
-    // return response.json();
-    
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const score = Math.random() * 100;
-            resolve({
-                name: file.name.replace('.pdf', '').replace(/_/g, ' '),
-                email: 'mock@example.com',
-                phone: '+123456789',
-                score: score,
-                decision: score >= 75 ? 'Shortlist' : score >= 50 ? 'Review' : 'Reject'
-            });
-        }, 3000);
+    const token = localStorage.getItem('token');
+    const base = typeof API_URL !== 'undefined' ? API_URL : (window.API_URL || window.location.origin);
+    const formData = new FormData();
+    formData.append('file', file);
+    if (jobId) formData.append('job_id', jobId);
+
+    const response = await fetch(`${base}/candidates/screen-cv`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+        body: formData,
     });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Screening failed');
+    }
+    return response.json();
 }
 
 // Excel Parsing using SheetJS dynamically
@@ -1467,17 +1464,21 @@ function renderBulkResults() {
         }
 
         if (c.decision === 'Shortlist') shortlisted++;
-        else if (c.decision === 'Review') review++;
+        else if (c.decision === 'Review' || c.decision === 'Maybe') review++;
+        else if (c.decision === 'Imported') { /* Excel row, no score */ }
         else rejected++;
 
-        let scoreVal = Math.round(c.score);
-        let scoreHTML = `<span style="background:#FCEBEB; color:#A32D2D; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500;">${scoreVal}%</span>`;
-        if (scoreVal >= 75) scoreHTML = `<span style="background:#E1F5EE; color:#0F6E56; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500;">${scoreVal}%</span>`;
-        else if (scoreVal >= 50) scoreHTML = `<span style="background:#FAEEDA; color:#854F0B; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500;">${scoreVal}%</span>`;
+        let scoreHTML = `<span style="color:#9CA3AF; font-size:11px;">—</span>`;
+        if (c.score != null) {
+            const scoreVal = Math.round(c.score);
+            if (scoreVal >= 75) scoreHTML = `<span style="background:#E1F5EE; color:#0F6E56; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500;">${scoreVal}%</span>`;
+            else if (scoreVal >= 50) scoreHTML = `<span style="background:#FAEEDA; color:#854F0B; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500;">${scoreVal}%</span>`;
+            else scoreHTML = `<span style="background:#FCEBEB; color:#A32D2D; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500;">${scoreVal}%</span>`;
+        }
 
-        let decisionBadge = `<span style="color:#A32D2D; font-size:11px; font-weight:500;">Reject</span>`;
-        if (c.decision === 'Shortlist') decisionBadge = `<span style="color:#0F6E56; font-size:11px; font-weight:500;">Shortlist</span>`;
-        else if (c.decision === 'Review') decisionBadge = `<span style="color:#854F0B; font-size:11px; font-weight:500;">Review</span>`;
+        const decMap = { Shortlist:'#0F6E56', Review:'#854F0B', Maybe:'#854F0B', Reject:'#A32D2D', Imported:'#185FA5' };
+        const decColor = decMap[c.decision] || '#6B7280';
+        let decisionBadge = `<span style="color:${decColor}; font-size:11px; font-weight:500;">${huntersEsc(c.decision || '—')}</span>`;
 
         tbody.innerHTML += `
             <tr style="border-bottom:0.5px solid #F3F4F6;">

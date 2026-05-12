@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import logging
 import io
 import csv
+import json
 
 from .. import models, schemas
 from ..database import get_db, SessionLocal
-from ..services.ai_evaluator import evaluate_candidate
+from ..services.ai_evaluator import evaluate_candidate, extract_candidate_info, finalize_evaluation
 from ..services.file_processor import extract_text_from_pdf, extract_text_from_docx, process_excel_candidates
 from .auth import get_current_user
 
@@ -78,6 +79,93 @@ def run_evaluation_task(candidate_id: int, db: Session):
         update_candidate_row(candidate.email, eval_result)
     finally:
         db.close()
+
+@router.post("/screen-cv")
+async def screen_cv(
+    file: UploadFile = File(...),
+    job_id: Optional[int] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Screen a single PDF CV against a job using real AI. Returns immediate results."""
+    content = await file.read()
+    filename = (file.filename or "").lower()
+
+    if filename.endswith(".pdf"):
+        cv_text = extract_text_from_pdf(content)
+    elif filename.endswith(".docx"):
+        cv_text = extract_text_from_docx(content)
+    else:
+        raise HTTPException(status_code=400, detail="Only PDF or DOCX files are supported")
+
+    if not cv_text or not cv_text.strip():
+        raise HTTPException(status_code=422, detail="Could not extract text from the file")
+
+    # AI: extract candidate info from CV
+    info = extract_candidate_info(cv_text)
+
+    name  = info.get("name")  or file.filename.rsplit(".", 1)[0].replace("_", " ").title()
+    email = info.get("email") or f"bulk_{file.filename}@noemail.hunters"
+    phone = str(info.get("phone") or "")
+
+    if job_id is None:
+        return {
+            "candidate_id": None,
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "score": None,
+            "decision": "No job selected",
+            "reason": "Select a job to get an AI evaluation score.",
+        }
+
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    candidate = models.Candidate(
+        name=name,
+        email=email,
+        phone=phone,
+        job_applied=job_id,
+        experience_years=int(info.get("experience_years") or 0),
+        expected_salary="",
+        education=str(info.get("education") or ""),
+        skills=str(info.get("skills") or ""),
+        cv_text=cv_text,
+        owner_id=current_user.id,
+    )
+    db.add(candidate)
+    db.commit()
+    db.refresh(candidate)
+
+    # Synchronous AI evaluation — gives immediate result
+    raw = evaluate_candidate(job, candidate)
+    result = finalize_evaluation(raw)
+
+    db_eval = models.Evaluation(
+        candidate_id=candidate.id,
+        job_id=job.id,
+        score=result.get("score", 0.0),
+        decision=result.get("decision", "Reject"),
+        reason=result.get("reason", ""),
+        strengths=str(result.get("strengths", "") or ""),
+        weaknesses=str(result.get("weaknesses", "") or ""),
+        suggested_interview_questions=json.dumps(result.get("suggested_interview_questions", [])),
+    )
+    db.add(db_eval)
+    db.commit()
+
+    return {
+        "candidate_id": candidate.id,
+        "name": candidate.name,
+        "email": candidate.email,
+        "phone": candidate.phone,
+        "score": result.get("score", 0),
+        "decision": result.get("decision", "Reject"),
+        "reason": result.get("reason", ""),
+    }
+
 
 @router.post("/", response_model=schemas.CandidateResponse)
 def create_candidate(
