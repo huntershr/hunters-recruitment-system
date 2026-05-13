@@ -62,6 +62,7 @@
       <div style="margin-top:14px;background:#1B2A4A;color:#fff;border-radius:8px;padding:8px 20px;font-size:12px;font-weight:500;display:inline-block;">
         Enter Portal →
       </div>
+      <div style="font-size:10px;color:rgba(27,42,74,0.5);margin-top:6px;">No login required to browse jobs</div>
     </div>
 
     <!-- Employer -->
@@ -127,8 +128,8 @@
       <div>
         <img src="hunters-logo-white.jpeg" alt="Hunters" style="height:36px;width:auto;margin-bottom:8px;"
           onerror="this.outerHTML='<div style=font-size:14px;font-weight:700;color:#1B2A4A;margin-bottom:8px;>HUNTERS</div>'">
-        <div style="font-size:18px;font-weight:500;color:#1B2A4A;">Employer Access</div>
-        <div style="font-size:12px;color:#9CA3AF;margin-top:2px;">Login or register your company</div>
+        <div style="font-size:18px;font-weight:500;color:#1B2A4A;">Employer &amp; Admin Login</div>
+        <div style="font-size:12px;color:#9CA3AF;margin-top:2px;">This login is for companies and administrators only</div>
       </div>
       <button onclick="hideEmployerLogin()" style="background:none;border:none;font-size:24px;color:#9CA3AF;cursor:pointer;line-height:1;">&times;</button>
     </div>
@@ -149,6 +150,10 @@
         style="display:block;width:100%;background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:11px;font-size:12px;color:#6B7280;cursor:pointer;text-align:center;text-decoration:none;">
         Register Your Company
       </a>
+      <div style="margin-top:16px;padding-top:16px;border-top:0.5px solid #F3F4F6;text-align:center;">
+        <span style="font-size:12px;color:#9CA3AF;">Are you a candidate? </span>
+        <a href="candidates-portal.html" style="font-size:12px;color:#1B2A4A;font-weight:500;text-decoration:none;">Enter Candidate Portal →</a>
+      </div>
     </div>
   </div>
 </div>
@@ -180,6 +185,20 @@ async function handleLandingLogin(){
     localStorage.setItem('user_type',userType);
     localStorage.setItem('username',data.username||email);
     localStorage.setItem('company_id',data.company_id||'');
+    /* Candidate tried the employer modal — clear token and redirect them nicely */
+    if(userType==='candidate'){
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('username');
+      localStorage.removeItem('company_id');
+      errDiv.style.background='#E6F1FB';
+      errDiv.style.color='#185FA5';
+      errDiv.style.borderColor='#B5D4F4';
+      errDiv.innerHTML='👋 You\'re registered as a candidate. <a href="candidates-portal.html" style="color:#1B2A4A;font-weight:500;">Click here to enter the Candidate Portal →</a>';
+      errDiv.style.display='block';
+      btn.textContent='Login to Dashboard';btn.disabled=false;
+      return;
+    }
     /* Strict routing by user_type */
     if(userType==='admin'||userType==='superadmin'||userType==='super_admin'){
       window.location.href='index.html';
