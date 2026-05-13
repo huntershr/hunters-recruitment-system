@@ -37,6 +37,7 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
             company_name = company.company_name
             company_id = company.id
 
+    hide_salary = bool(job.hide_salary)
     return {
         "id": job.id,
         "job_title": job.job_title,
@@ -47,7 +48,7 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
         "nice_to_have_skills": job.nice_to_have_skills,
         "behavioral_skills": job.behavioral_skills,
         "education_level": job.education_level or "",
-        "salary_range": job.salary_range or "",
+        "salary_range": "" if hide_salary else (job.salary_range or ""),
         "industry_experience": job.industry_experience,
         "weight_experience": job.weight_experience,
         "weight_skills": job.weight_skills,
@@ -58,7 +59,7 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
         "salary_min": None,
         "salary_max": None,
         "employment_type": job.education_level,
-        "hide_salary": False,
+        "hide_salary": hide_salary,
         "company_name": company_name,
         "company_id": company_id,
     }
@@ -201,6 +202,7 @@ def get_public_jobs(db: Session = Depends(get_db)):
             company_name = "Hunters HR Solutions"
         else:
             company_name = company_map.get(company_id, "Unknown Company") if company_id else "Unknown Company"
+        hide_salary = bool(job.hide_salary)
         result.append({
             "id": job.id,
             "job_title": job.job_title,
@@ -211,7 +213,7 @@ def get_public_jobs(db: Session = Depends(get_db)):
             "nice_to_have_skills": job.nice_to_have_skills,
             "behavioral_skills": job.behavioral_skills,
             "education_level": job.education_level or "",
-            "salary_range": job.salary_range or "",
+            "salary_range": "" if hide_salary else (job.salary_range or ""),
             "weight_experience": job.weight_experience,
             "weight_skills": job.weight_skills,
             "weight_education": job.weight_education,
@@ -220,7 +222,7 @@ def get_public_jobs(db: Session = Depends(get_db)):
             "created_at": job.created_at.isoformat() if job.created_at else None,
             "company_name": company_name,
             "company_id": company_id,
-            "hide_salary": False,
+            "hide_salary": hide_salary,
             "salary_min": None,
             "salary_max": None,
             "employment_type": job.education_level,

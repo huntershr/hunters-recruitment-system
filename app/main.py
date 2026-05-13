@@ -63,6 +63,14 @@ def startup_populate_db():
             db.rollback()
 
         try:
+            from sqlalchemy import text as _text
+            db.execute(_text("ALTER TABLE jobs ADD COLUMN hide_salary BOOLEAN DEFAULT 0"))
+            db.commit()
+            logging.info("Migration: added hide_salary column to jobs")
+        except Exception:
+            db.rollback()
+
+        try:
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
 

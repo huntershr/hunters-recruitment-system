@@ -755,7 +755,7 @@ function renderSection(sid){
 
   grid.innerHTML=list.map(function(j){
     var ci=ini(j.company_name||'C');
-    var sal=j.salary_range&&!j.hide_salary?j.salary_range:'Competitive salary';
+    var sal=(function(){if(j.hide_salary===true||j.hide_salary===1||j.hide_salary==='true')return'Competitive salary';var r=j.salary_range||j.salary||'';if(r.trim())return r;var mn=j.salary_min||'',mx=j.salary_max||'';if(mn&&mx)return mn+' - '+mx+' EGP';return'Competitive salary';})();
     var emp=j.education_level||j.employment_type||'';
     var posted=daysAgo(j.created_at);
     var eduBadge=isEdu(j)?'<span style="font-size:10px;background:#E6F1FB;color:#185FA5;padding:2px 7px;border-radius:10px;margin-left:6px;">Education</span>':'';
@@ -789,7 +789,7 @@ function openJob(id){
   currentJob=allJobs.find(function(j){return j.id===id;});if(!currentJob)return;
   _applyFile=null;
   var j=currentJob,ci=ini(j.company_name||'C');
-  var sal=j.salary_range&&!j.hide_salary?j.salary_range:'Competitive salary';
+  var sal=(function(){if(j.hide_salary===true||j.hide_salary===1||j.hide_salary==='true')return'Competitive salary';var r=j.salary_range||j.salary||'';if(r.trim())return r;var mn=j.salary_min||'',mx=j.salary_max||'';if(mn&&mx)return mn+' - '+mx+' EGP';return'Competitive salary';})();
   document.getElementById('overlay-inner').innerHTML=
     '<div style="background:#1B2A4A;padding:20px 28px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;">' +
       '<div style="display:flex;align-items:center;gap:14px;">' +

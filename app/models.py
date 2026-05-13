@@ -44,6 +44,7 @@ class Job(Base):
     nice_to_have_skills = Column(Text)
     education_level = Column(String)
     salary_range = Column(String, nullable=True)
+    hide_salary = Column(Boolean, default=False, nullable=True)
     behavioral_skills = Column(Text, nullable=True)
     industry_experience = Column(Text, nullable=True)
     weight_experience = Column(Float, default=0.3)
