@@ -926,13 +926,28 @@
 
 <script>
 // Protect admin dashboard from non-admin users
-console.log('index.html loaded - user_type:', localStorage.getItem('user_type'), 'token exists:', !!localStorage.getItem('token'));
 (function() {
     var token = localStorage.getItem('token');
-    var userType = (localStorage.getItem('user_type') || '').toLowerCase();
-    if (!token) { window.location.href = 'landing.html'; return; }
+    var userType = (localStorage.getItem('user_type') || '').toLowerCase().trim();
+
+    if (!token) { return; }
+
     if (userType === 'candidate') { window.location.href = 'candidates-portal.html'; return; }
     if (userType === 'company' || userType === 'employer') { window.location.href = 'company-dashboard.html'; return; }
+
+    // Token exists but user_type not yet set — verify with backend
+    if (!userType) {
+        fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(user) {
+                if (!user) { localStorage.clear(); return; }
+                var ut = user.is_admin ? 'admin' : (user.company_id ? 'company' : 'candidate');
+                localStorage.setItem('user_type', ut);
+                if (ut === 'candidate') { window.location.href = 'candidates-portal.html'; }
+                else if (ut === 'company') { window.location.href = 'company-dashboard.html'; }
+            })
+            .catch(function() { localStorage.clear(); });
+    }
 })();
 
 var _cuResetUserId=null;

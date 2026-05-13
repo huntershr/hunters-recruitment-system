@@ -1054,28 +1054,30 @@ async function handleLogin(event) {
         }
 
         localStorage.setItem("token", data.access_token);
-        
-        // Check if user is company or admin and route accordingly
+        localStorage.setItem("username", data.username || data.full_name || '');
+        localStorage.setItem("company_id", data.company_id || '');
+
+        // Route by user_type returned directly from login response
         try {
             const userResponse = await fetch(`${API_URL}/auth/me`, {
                 headers: { 'Authorization': `Bearer ${data.access_token}` }
             });
-            
+
             if (userResponse.ok) {
                 const user = await userResponse.json();
-                
+
                 if (user.is_admin) {
-                    // Admin user - go to admin dashboard
+                    localStorage.setItem('user_type', 'admin');
                     checkAuth();
                 } else if (user.company_id) {
-                    // Company user - go to company dashboard
+                    localStorage.setItem('user_type', 'company');
+                    localStorage.setItem('company_id', user.company_id || '');
                     window.location.href = 'company-dashboard.html';
                 } else {
-                    // Regular user (shouldn't happen in current setup)
-                    checkAuth();
+                    localStorage.setItem('user_type', 'candidate');
+                    window.location.href = 'candidates-portal.html';
                 }
             } else {
-                // Fallback to admin dashboard
                 checkAuth();
             }
         } catch (error) {
