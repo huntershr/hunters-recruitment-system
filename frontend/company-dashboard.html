@@ -1536,12 +1536,20 @@
             const displayName = cand.full_name || cand.name || '?';
             const initials = displayName.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || '?';
             
-            let scoreVal = formatScore(cand.evaluation_score || cand.score);
-            let scoreHTML = '-';
-            if (scoreVal != null) {
-                if (scoreVal >= 75) scoreHTML = `<span style="background:#E1F5EE; color:#0F6E56; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500; white-space:nowrap;">${scoreVal}%</span>`;
-                else if (scoreVal >= 50) scoreHTML = `<span style="background:#FAEEDA; color:#854F0B; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500; white-space:nowrap;">${scoreVal}%</span>`;
-                else scoreHTML = `<span style="background:#FCEBEB; color:#A32D2D; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:500; white-space:nowrap;">${scoreVal}%</span>`;
+            const rawScore = cand.evaluation_score ?? cand.score;
+            let scoreVal = formatScore(rawScore);
+            // Treat 0 as failed evaluation, not a real score
+            if (scoreVal === 0) scoreVal = null;
+            let scoreHTML;
+            if (scoreVal !== null) {
+                const bg  = scoreVal >= 75 ? '#E1F5EE' : scoreVal >= 50 ? '#FAEEDA' : '#FCEBEB';
+                const col = scoreVal >= 75 ? '#0F6E56' : scoreVal >= 50 ? '#854F0B' : '#A32D2D';
+                scoreHTML = `<span style="background:${bg}; color:${col}; padding:5px 10px; border-radius:12px; font-size:12px; font-weight:600; white-space:nowrap;">${scoreVal}%</span>`;
+            } else {
+                scoreHTML = `<button onclick="reEvaluateCandidate(${cand.id}, this)" title="Score unavailable — click to re-evaluate"
+                    style="background:#F3F4F6; color:#6B7280; border:1px dashed #D1D5DB; border-radius:10px; padding:4px 10px; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap;">
+                    <span style="font-size:13px;">↻</span> Re-evaluate
+                </button>`;
             }
 
             const stage = cand.stage || cand.status || 'Applied';
@@ -1641,6 +1649,26 @@
         
         exportCandidatesDataToCSV(selectedCandidates);
         showToast('Exported ' + selectedCandidates.length + ' candidates', 'success');
+    }
+
+    async function reEvaluateCandidate(candidateId, btn) {
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span style="font-size:13px;">⏳</span> Evaluating…'; }
+        const token = localStorage.getItem('token');
+        showToast('Running AI evaluation — this may take a few seconds…', 'info');
+        try {
+            const resp = await fetch(`${API_URL}/re-evaluate/${candidateId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) throw new Error(await resp.text());
+            const data = await resp.json();
+            showToast(`Re-evaluation complete — score: ${Math.round(data.score)}%`, 'success');
+            // Refresh the candidates table to show new score
+            await loadCandidates();
+        } catch (e) {
+            showToast('Re-evaluation failed. Please try again.', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span style="font-size:13px;">↻</span> Re-evaluate'; }
+        }
     }
 
     function downloadCandidateCV(id, safeName) {

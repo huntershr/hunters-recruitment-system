@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 import logging
+import json
 
 from .. import models, schemas
 from ..database import get_db
@@ -78,6 +79,56 @@ def trigger_evaluation_manually(candidate_id: int, db: Session = Depends(get_db)
     # Parse back for the response model
     db_eval_dict = {col.name: getattr(db_eval, col.name) for col in db_eval.__table__.columns}
     db_eval_dict["suggested_interview_questions"] = json.loads(db_eval_dict["suggested_interview_questions"])
+    return db_eval_dict
+
+@router.post("/re-evaluate/{candidate_id}", response_model=schemas.EvaluationResponse)
+def re_evaluate_candidate(candidate_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Delete the existing evaluation and run a fresh AI evaluation for this candidate."""
+    if current_user.is_admin:
+        candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
+    else:
+        candidate = db.query(models.Candidate).filter(
+            models.Candidate.id == candidate_id,
+            models.Candidate.owner_id == current_user.id
+        ).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    job = db.query(models.Job).filter(models.Job.id == candidate.job_applied).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Delete stale evaluation
+    db.query(models.Evaluation).filter(models.Evaluation.candidate_id == candidate_id).delete()
+    db.commit()
+
+    logger.info(f"Re-evaluating candidate {candidate_id}")
+    eval_result = evaluate_candidate(job, candidate)
+
+    def list_to_str(val):
+        if isinstance(val, list):
+            return "\n".join([f"- {i}" for i in val])
+        return str(val)
+
+    db_eval = models.Evaluation(
+        candidate_id=candidate.id,
+        job_id=job.id,
+        score=eval_result.get("score", 0.0),
+        decision=eval_result.get("decision", "Reject"),
+        reason=eval_result.get("reason", "Failed to evaluate"),
+        strengths=list_to_str(eval_result.get("strengths", "")),
+        weaknesses=list_to_str(eval_result.get("weaknesses", "")),
+        suggested_interview_questions=json.dumps(eval_result.get("suggested_interview_questions", []))
+    )
+    db.add(db_eval)
+    db.commit()
+    db.refresh(db_eval)
+
+    db_eval_dict = {col.name: getattr(db_eval, col.name) for col in db_eval.__table__.columns}
+    try:
+        db_eval_dict["suggested_interview_questions"] = json.loads(db_eval_dict["suggested_interview_questions"])
+    except Exception:
+        db_eval_dict["suggested_interview_questions"] = []
     return db_eval_dict
 
 @router.put("/update/{evaluation_id}", response_model=schemas.EvaluationResponse)

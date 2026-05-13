@@ -135,7 +135,7 @@ async function fetchData() {
 function evalScorePercent(raw) {
     if (raw === null || raw === undefined || raw === "") return null;
     const n = Number(raw);
-    if (Number.isNaN(n)) return null;
+    if (Number.isNaN(n) || n === 0) return null;  // 0 = failed evaluation
     if (n <= 1) return Math.round(n * 100);
     if (n <= 10) return Math.round(n * 10);
     return Math.round(Math.min(100, n));
@@ -540,8 +540,10 @@ function renderCandidateList(filter) {
                 </td>
                 <td>
                     ${pct !== null
-                        ? `<span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:${sc.bg};color:${sc.text};">${pct}%</span>`
-                        : '<span class="skeleton skeleton-badge"></span>'}
+                        ? `<span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:${sc.bg};color:${sc.text};">${pct}%</span>`
+                        : (ev
+                            ? `<button onclick="adminReEvaluate(${c.id},this)" style="background:#F3F4F6;color:#6B7280;border:1px dashed #D1D5DB;border-radius:10px;padding:3px 8px;font-size:10px;cursor:pointer;white-space:nowrap;">↻ Re-eval</button>`
+                            : '<span style="color:#9CA3AF;font-size:11px;">Pending</span>')}
                 </td>
                 <td style="min-width:130px;">
                     <input type="text" value="${hrNotes.replace(/"/g,'&quot;')}" placeholder="Notes…"
@@ -591,6 +593,21 @@ function filterPipelineCompany(val) {
     companyFilter = val;
     renderKanban(pipelineFilter);
     renderCandidateList(pipelineFilter);
+}
+
+async function adminReEvaluate(candidateId, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ …'; }
+    showToast('Running AI evaluation…', 'info');
+    try {
+        const resp = await authFetch(`/re-evaluate/${candidateId}`, { method: 'POST' });
+        if (!resp.ok) throw new Error();
+        const data = await resp.json();
+        showToast(`Re-evaluation complete — score: ${Math.round(data.score)}%`, 'success');
+        fetchData();
+    } catch {
+        showToast('Re-evaluation failed.', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '↻ Re-eval'; }
+    }
 }
 
 function downloadAdminCV(id, safeName) {
