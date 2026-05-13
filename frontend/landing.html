@@ -186,19 +186,6 @@ async function handleLandingLogin(){
   }
 }
 
-/* Auto-redirect if already logged in */
-(function(){
-  var t=localStorage.getItem('token');
-  if(!t)return;
-  var userType=localStorage.getItem('user_type');
-  if(userType==='candidate'){window.location.href='candidates-portal.html';return;}
-  fetch('/auth/me',{headers:{'Authorization':'Bearer '+t}})
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(u){
-      if(!u)return;
-      window.location.href=u.is_admin?'index.html':'company-dashboard.html';
-    }).catch(function(){});
-})();
 </script>
 </body>
 </html>
