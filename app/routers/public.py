@@ -178,12 +178,15 @@ def get_public_jobs(db: Session = Depends(get_db)):
     Get all approved public job postings with company info.
     Only shows jobs from approved companies.
     """
+    import traceback as _tb
+    print("=== PUBLIC JOBS ENDPOINT CALLED ===")
     try:
         approved_companies = db.query(models.Company).filter(
             models.Company.is_approved == True
         ).all()
         approved_company_ids = [c.id for c in approved_companies]
         company_map = {c.id: c.company_name for c in approved_companies}
+        print(f"=== APPROVED COMPANIES: {len(approved_company_ids)} ===")
 
         # Build filter: approved jobs from admin users OR approved companies
         filters = [models.Job.is_approved == True]
@@ -195,9 +198,15 @@ def get_public_jobs(db: Session = Depends(get_db)):
         else:
             filters.append(models.User.is_admin == True)
 
-        jobs = db.query(models.Job).join(
-            models.User, models.Job.owner_id == models.User.id
-        ).filter(*filters).all()
+        try:
+            jobs = db.query(models.Job).join(
+                models.User, models.Job.owner_id == models.User.id
+            ).filter(*filters).all()
+            print(f"=== JOBS QUERY OK: {len(jobs)} rows ===")
+        except Exception as qe:
+            print(f"=== JOBS QUERY FAILED: {qe} ===")
+            print(_tb.format_exc())
+            raise
 
         result = []
         for job in jobs:
@@ -234,9 +243,13 @@ def get_public_jobs(db: Session = Depends(get_db)):
                     "employment_type": job.education_level,
                 })
             except Exception as job_err:
+                print(f"=== ERROR SERIALIZING JOB {job.id}: {job_err} ===")
                 logger.error(f"Error serializing job {job.id}: {job_err}")
                 continue
+        print(f"=== RETURNING {len(result)} JOBS ===")
         return result
     except Exception as e:
+        print(f"=== PUBLIC JOBS 500 ERROR: {e} ===")
+        print(_tb.format_exc())
         logger.error(f"get_public_jobs error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to load jobs: {str(e)}")

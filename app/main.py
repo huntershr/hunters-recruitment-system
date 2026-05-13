@@ -64,10 +64,11 @@ def startup_populate_db():
 
         try:
             from sqlalchemy import text as _text
-            db.execute(_text("ALTER TABLE jobs ADD COLUMN hide_salary BOOLEAN DEFAULT 0"))
+            db.execute(_text("ALTER TABLE jobs ADD COLUMN hide_salary BOOLEAN DEFAULT FALSE"))
             db.commit()
             logging.info("Migration: added hide_salary column to jobs")
-        except Exception:
+        except Exception as _e:
+            logging.info(f"Migration hide_salary (column likely exists): {_e}")
             db.rollback()
 
         try:
