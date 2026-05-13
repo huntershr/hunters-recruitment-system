@@ -528,9 +528,14 @@ function showEntryScreen(){
 }
 
 function skipToPortal(){
-  /* Let them browse without a profile — will hit auth screen if they try to apply */
+  /* Browse without login — show portal content directly */
   document.getElementById('candidate-entry').style.display='none';
-  showAuthScreen();
+  document.getElementById('auth-screen').classList.remove('active');
+  document.getElementById('portal-header').style.display='';
+  document.getElementById('portal-tabs').style.display='';
+  document.getElementById('portal-body').style.display='';
+  showPortalSection('all-jobs');
+  loadJobs();
 }
 
 async function entryUploadCV(input){
@@ -544,7 +549,7 @@ async function entryUploadCV(input){
 
 function checkAuth(){
   var t=localStorage.getItem('token');
-  if(!t){showAuthScreen();return;}
+  if(!t){showEntryScreen();loadJobs();return;}
   fetch(API_BASE+'/auth/me',{headers:{'Authorization':'Bearer '+t}})
     .then(function(r){if(!r.ok){showAuthScreen();return null;}return r.json();})
     .then(function(u){
@@ -715,14 +720,29 @@ function isEdu(j){
 }
 
 async function loadJobs(){
+  console.log('loadJobs called, token:', !!localStorage.getItem('token'));
   try{
-    var r=await fetch('/public/jobs');allJobs=await r.json();
-    if(!Array.isArray(allJobs))allJobs=[];
+    var r=await fetch('/public/jobs',{cache:'no-store'});
+    if(!r.ok){
+      console.error('loadJobs: endpoint returned',r.status,r.statusText);
+      var errBody='';try{errBody=JSON.stringify(await r.json());}catch(e){}
+      console.error('loadJobs error body:',errBody);
+      document.getElementById('grid-all-jobs').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;"><div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">Could not load jobs</div><div style="font-size:12px;color:#9CA3AF;">Server error '+r.status+' — please try again shortly</div></div>';
+      return;
+    }
+    var data=await r.json();
+    allJobs=Array.isArray(data)?data:(data.jobs||data.items||data.results||[]);
+    console.log('Jobs loaded from /public/jobs — count:',allJobs.length);
     var locs=[...new Set(allJobs.map(function(j){return j.job_location;}).filter(Boolean))];
     var sel=document.getElementById('loc-all');
     if(sel)sel.innerHTML='<option value="">All Locations</option>'+locs.map(function(l){return'<option>'+esc(l)+'</option>';}).join('');
     renderSection('all-jobs');
-  }catch(e){allJobs=[];document.getElementById('grid-all-jobs').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:#9CA3AF;">Could not load jobs</div>';}
+  }catch(e){
+    console.error('loadJobs fetch failed:',e);
+    allJobs=[];
+    var g=document.getElementById('grid-all-jobs');
+    if(g)g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;"><div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">💼 No jobs available right now</div><div style="font-size:12px;color:#9CA3AF;">Check back soon for new opportunities</div></div>';
+  }
 }
 
 function renderSection(sid){
