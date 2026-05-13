@@ -178,53 +178,65 @@ def get_public_jobs(db: Session = Depends(get_db)):
     Get all approved public job postings with company info.
     Only shows jobs from approved companies.
     """
-    approved_companies = db.query(models.Company).filter(
-        models.Company.is_approved == True
-    ).all()
-    approved_company_ids = [c.id for c in approved_companies]
-    company_map = {c.id: c.company_name for c in approved_companies}
+    try:
+        approved_companies = db.query(models.Company).filter(
+            models.Company.is_approved == True
+        ).all()
+        approved_company_ids = [c.id for c in approved_companies]
+        company_map = {c.id: c.company_name for c in approved_companies}
 
-    jobs = db.query(models.Job).join(
-        models.User, models.Job.owner_id == models.User.id
-    ).filter(
-        models.Job.is_approved == True,
-        or_(
-            models.User.is_admin == True,
-            models.User.company_id.in_(approved_company_ids)
-        )
-    ).all()
-
-    result = []
-    for job in jobs:
-        owner = job.owner
-        company_id = owner.company_id if owner else None
-        if owner and owner.is_admin:
-            company_name = "Hunters HR Solutions"
+        # Build filter: approved jobs from admin users OR approved companies
+        filters = [models.Job.is_approved == True]
+        if approved_company_ids:
+            filters.append(or_(
+                models.User.is_admin == True,
+                models.User.company_id.in_(approved_company_ids)
+            ))
         else:
-            company_name = company_map.get(company_id, "Unknown Company") if company_id else "Unknown Company"
-        hide_salary = bool(job.hide_salary)
-        result.append({
-            "id": job.id,
-            "job_title": job.job_title,
-            "job_description": job.job_description or "",
-            "job_location": job.job_location or "",
-            "min_experience": job.min_experience,
-            "required_skills": job.required_skills or "",
-            "nice_to_have_skills": job.nice_to_have_skills,
-            "behavioral_skills": job.behavioral_skills,
-            "education_level": job.education_level or "",
-            "salary_range": "" if hide_salary else (job.salary_range or ""),
-            "weight_experience": job.weight_experience,
-            "weight_skills": job.weight_skills,
-            "weight_education": job.weight_education,
-            "weight_behavioral": job.weight_behavioral,
-            "is_approved": job.is_approved,
-            "created_at": job.created_at.isoformat() if job.created_at else None,
-            "company_name": company_name,
-            "company_id": company_id,
-            "hide_salary": hide_salary,
-            "salary_min": None,
-            "salary_max": None,
-            "employment_type": job.education_level,
-        })
-    return result
+            filters.append(models.User.is_admin == True)
+
+        jobs = db.query(models.Job).join(
+            models.User, models.Job.owner_id == models.User.id
+        ).filter(*filters).all()
+
+        result = []
+        for job in jobs:
+            try:
+                owner = job.owner
+                company_id = owner.company_id if owner else None
+                if owner and owner.is_admin:
+                    company_name = "Hunters HR Solutions"
+                else:
+                    company_name = company_map.get(company_id, "Unknown Company") if company_id else "Unknown Company"
+                hide_salary = bool(getattr(job, 'hide_salary', False))
+                result.append({
+                    "id": job.id,
+                    "job_title": job.job_title,
+                    "job_description": job.job_description or "",
+                    "job_location": job.job_location or "",
+                    "min_experience": job.min_experience,
+                    "required_skills": job.required_skills or "",
+                    "nice_to_have_skills": job.nice_to_have_skills,
+                    "behavioral_skills": job.behavioral_skills,
+                    "education_level": job.education_level or "",
+                    "salary_range": "" if hide_salary else (job.salary_range or ""),
+                    "weight_experience": job.weight_experience,
+                    "weight_skills": job.weight_skills,
+                    "weight_education": job.weight_education,
+                    "weight_behavioral": job.weight_behavioral,
+                    "is_approved": job.is_approved,
+                    "created_at": job.created_at.isoformat() if job.created_at else None,
+                    "company_name": company_name,
+                    "company_id": company_id,
+                    "hide_salary": hide_salary,
+                    "salary_min": None,
+                    "salary_max": None,
+                    "employment_type": job.education_level,
+                })
+            except Exception as job_err:
+                logger.error(f"Error serializing job {job.id}: {job_err}")
+                continue
+        return result
+    except Exception as e:
+        logger.error(f"get_public_jobs error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to load jobs: {str(e)}")

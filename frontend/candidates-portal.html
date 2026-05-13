@@ -340,13 +340,14 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 <div id="toast-container"></div>
 
 <script>
-// Access rules: portal is public — candidates and unauthenticated users stay here.
-// Company/admin users who land here are not redirected (they may review the portal).
+// Portal requires login — redirect unauthenticated users to landing page
 (function() {
     var token = localStorage.getItem('token');
-    var userType = localStorage.getItem('user_type');
-    // No redirect for any user type — portal is intentionally public
-    void token; void userType;
+    if (!token) { window.location.href = 'landing.html'; return; }
+    var userType = (localStorage.getItem('user_type') || '').toLowerCase();
+    if (userType === 'company' || userType === 'employer') {
+        window.location.href = 'company-dashboard.html'; return;
+    }
 })();
 
 /* ─── Base URL (works locally + on Railway) ─── */
@@ -549,7 +550,7 @@ async function entryUploadCV(input){
 
 function checkAuth(){
   var t=localStorage.getItem('token');
-  if(!t){showEntryScreen();loadJobs();return;}
+  if(!t){window.location.href='landing.html';return;}
   fetch(API_BASE+'/auth/me',{headers:{'Authorization':'Bearer '+t}})
     .then(function(r){if(!r.ok){showAuthScreen();return null;}return r.json();})
     .then(function(u){

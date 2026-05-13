@@ -18,6 +18,7 @@
     .lnd-input{width:100%;padding:10px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;margin-bottom:12px;font-family:inherit;}
     .lnd-input:focus{border-color:#1B2A4A;}
     .lnd-btn{width:100%;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}
+    .lnd-lbl{font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:5px;}
   </style>
 </head>
 <body>
@@ -48,7 +49,7 @@
   <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-bottom:48px;">
 
     <!-- Candidate -->
-    <div class="btn-card" onclick="window.location.href='candidates-portal.html'"
+    <div class="btn-card" onclick="showCandidateLogin()"
       style="background:#FFFFFF;box-shadow:0 8px 32px rgba(0,0,0,0.2);"
       onmouseover="this.style.boxShadow='0 16px 48px rgba(0,0,0,0.3)'"
       onmouseout="this.style.boxShadow='0 8px 32px rgba(0,0,0,0.2)'">
@@ -60,9 +61,8 @@
       <div style="font-size:18px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">I'm a Candidate</div>
       <div style="font-size:12px;color:#9CA3AF;line-height:1.5;">Browse jobs, apply with AI screening, track your applications</div>
       <div style="margin-top:14px;background:#1B2A4A;color:#fff;border-radius:8px;padding:8px 20px;font-size:12px;font-weight:500;display:inline-block;">
-        Enter Portal →
+        Login / Register →
       </div>
-      <div style="font-size:10px;color:rgba(27,42,74,0.5);margin-top:6px;">No login required to browse jobs</div>
     </div>
 
     <!-- Employer -->
@@ -121,6 +121,47 @@
   </div>
 </div>
 
+<!-- Candidate Login/Register Modal -->
+<div id="candidate-modal" onclick="if(event.target===this)hideCandidateLogin()" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:20px;padding:36px 32px;width:400px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.3);animation:slideUp 0.22s ease;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <div style="font-size:18px;font-weight:500;color:#1B2A4A;">Candidate Access</div>
+        <div style="font-size:12px;color:#9CA3AF;margin-top:2px;">Login or create your profile</div>
+      </div>
+      <button onclick="hideCandidateLogin()" style="background:none;border:none;font-size:24px;color:#9CA3AF;cursor:pointer;line-height:1;">&times;</button>
+    </div>
+    <div style="display:flex;border:0.5px solid #E5E7EB;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+      <button id="cand-login-tab" onclick="switchCandidateTab('login')"
+        style="flex:1;padding:8px;font-size:12px;font-weight:500;border:none;background:#1B2A4A;color:#fff;cursor:pointer;">Login</button>
+      <button id="cand-register-tab" onclick="switchCandidateTab('register')"
+        style="flex:1;padding:8px;font-size:12px;font-weight:500;border:none;background:#fff;color:#6B7280;cursor:pointer;">Register</button>
+    </div>
+    <!-- Login form -->
+    <div id="cand-login-form">
+      <label class="lnd-lbl">Email</label>
+      <input type="email" id="cand-email" class="lnd-input" placeholder="your@email.com" onkeydown="if(event.key==='Enter')handleCandidateLogin()">
+      <label class="lnd-lbl">Password</label>
+      <input type="password" id="cand-password" class="lnd-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleCandidateLogin()">
+      <div id="cand-error" style="display:none;background:#FCEBEB;border:0.5px solid #F5B8B8;border-radius:8px;padding:10px 14px;font-size:12px;color:#A32D2D;margin-bottom:12px;"></div>
+      <button class="lnd-btn" onclick="handleCandidateLogin()" id="cand-login-btn"
+        style="background:#1B2A4A;color:#fff;margin-bottom:10px;">Login to Portal</button>
+    </div>
+    <!-- Register form -->
+    <div id="cand-register-form" style="display:none;">
+      <label class="lnd-lbl">Full Name</label>
+      <input type="text" id="cand-reg-name" class="lnd-input" placeholder="Your full name">
+      <label class="lnd-lbl">Email</label>
+      <input type="email" id="cand-reg-email" class="lnd-input" placeholder="your@email.com">
+      <label class="lnd-lbl">Password</label>
+      <input type="password" id="cand-reg-password" class="lnd-input" placeholder="Create a password">
+      <div id="cand-reg-error" style="display:none;background:#FCEBEB;border:0.5px solid #F5B8B8;border-radius:8px;padding:10px 14px;font-size:12px;color:#A32D2D;margin-bottom:12px;"></div>
+      <button class="lnd-btn" onclick="handleCandidateRegister()" id="cand-reg-btn"
+        style="background:#1B2A4A;color:#fff;">Create Account &amp; Enter Portal</button>
+    </div>
+  </div>
+</div>
+
 <!-- Employer Login Modal -->
 <div id="employer-modal" onclick="if(event.target===this)hideEmployerLogin()">
   <div class="employer-modal-card">
@@ -159,6 +200,74 @@
 </div>
 
 <script>
+/* ── Candidate modal ── */
+function showCandidateLogin(){document.getElementById('candidate-modal').style.display='flex';}
+function hideCandidateLogin(){document.getElementById('candidate-modal').style.display='none';}
+function switchCandidateTab(tab){
+  var isLogin=tab==='login';
+  document.getElementById('cand-login-form').style.display=isLogin?'block':'none';
+  document.getElementById('cand-register-form').style.display=isLogin?'none':'block';
+  document.getElementById('cand-login-tab').style.background=isLogin?'#1B2A4A':'#fff';
+  document.getElementById('cand-login-tab').style.color=isLogin?'#fff':'#6B7280';
+  document.getElementById('cand-register-tab').style.background=isLogin?'#fff':'#1B2A4A';
+  document.getElementById('cand-register-tab').style.color=isLogin?'#6B7280':'#fff';
+}
+async function handleCandidateLogin(){
+  var email=(document.getElementById('cand-email').value||'').trim();
+  var password=document.getElementById('cand-password').value||'';
+  var errDiv=document.getElementById('cand-error');
+  var btn=document.getElementById('cand-login-btn');
+  errDiv.style.display='none';
+  if(!email||!password){errDiv.textContent='Please enter email and password.';errDiv.style.display='block';return;}
+  btn.textContent='Signing in…';btn.disabled=true;
+  try{
+    var fd=new URLSearchParams();fd.append('username',email);fd.append('password',password);
+    var res=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd});
+    var data=await res.json();
+    btn.textContent='Login to Portal';btn.disabled=false;
+    if(!res.ok){errDiv.textContent=data.detail||'Invalid email or password.';errDiv.style.display='block';return;}
+    var userType=(data.user_type||'').toLowerCase();
+    if(userType!=='candidate'){
+      errDiv.textContent='This login is for candidates only. Use the Employer button instead.';
+      errDiv.style.display='block';return;
+    }
+    localStorage.setItem('token',data.access_token);
+    localStorage.setItem('user_type','candidate');
+    localStorage.setItem('username',data.username||email);
+    window.location.href='candidates-portal.html';
+  }catch(e){btn.textContent='Login to Portal';btn.disabled=false;errDiv.textContent='Connection error. Please try again.';errDiv.style.display='block';}
+}
+async function handleCandidateRegister(){
+  var name=(document.getElementById('cand-reg-name').value||'').trim();
+  var email=(document.getElementById('cand-reg-email').value||'').trim();
+  var password=document.getElementById('cand-reg-password').value||'';
+  var errDiv=document.getElementById('cand-reg-error');
+  var btn=document.getElementById('cand-reg-btn');
+  errDiv.style.display='none';
+  if(!name||!email||!password){errDiv.textContent='Please fill all fields.';errDiv.style.display='block';return;}
+  btn.textContent='Creating account…';btn.disabled=true;
+  try{
+    var res=await fetch('/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:name,email:email,password:password})});
+    var data=await res.json();
+    if(!res.ok){btn.textContent='Create Account & Enter Portal';btn.disabled=false;errDiv.textContent=data.detail||'Registration failed.';errDiv.style.display='block';return;}
+    /* Auto-login after register */
+    var fd=new URLSearchParams();fd.append('username',email);fd.append('password',password);
+    var loginRes=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd});
+    var loginData=await loginRes.json();
+    btn.textContent='Create Account & Enter Portal';btn.disabled=false;
+    if(loginRes.ok){
+      localStorage.setItem('token',loginData.access_token);
+      localStorage.setItem('user_type','candidate');
+      localStorage.setItem('username',name);
+      window.location.href='candidates-portal.html';
+    }else{
+      errDiv.textContent='Registered! Please use the Login tab.';errDiv.style.display='block';
+      switchCandidateTab('login');
+    }
+  }catch(e){btn.textContent='Create Account & Enter Portal';btn.disabled=false;errDiv.textContent='Connection error. Please try again.';errDiv.style.display='block';}
+}
+
+/* ── Employer modal ── */
 function showEmployerLogin(){document.getElementById('employer-modal').style.display='flex';}
 function hideEmployerLogin(){document.getElementById('employer-modal').style.display='none';}
 
