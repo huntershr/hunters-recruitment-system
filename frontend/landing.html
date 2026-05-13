@@ -176,10 +176,21 @@ async function handleLandingLogin(){
       errDiv.style.display='block';return;
     }
     localStorage.setItem('token',data.access_token);
-    localStorage.setItem('user_type', data.user_type || 'company');
-    /* Route based on user type */
-    if(data.user_type==='admin'){window.location.href='index.html';}
-    else{window.location.href='company-dashboard.html';}
+    var userType=(data.user_type||'').toLowerCase().trim();
+    localStorage.setItem('user_type',userType);
+    localStorage.setItem('username',data.username||email);
+    localStorage.setItem('company_id',data.company_id||'');
+    /* Strict routing by user_type */
+    if(userType==='admin'||userType==='superadmin'||userType==='super_admin'){
+      window.location.href='index.html';
+    }else if(userType==='company'||userType==='employer'){
+      window.location.href='company-dashboard.html';
+    }else if(userType==='candidate'){
+      window.location.href='candidates-portal.html';
+    }else{
+      console.warn('Unknown user_type:',data.user_type,'— redirecting to portal');
+      window.location.href='candidates-portal.html';
+    }
   }catch(e){
     btn.textContent='Login to Dashboard';btn.disabled=false;
     errDiv.textContent='Connection error. Please try again.';errDiv.style.display='block';

@@ -35,7 +35,9 @@ class CompanyUpdate(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-    user_type: str  # "admin" or "company"
+    user_type: str  # "admin", "company", or "candidate"
+    username: Optional[str] = None
+    company_id: Optional[int] = None
 
 class TokenData(BaseModel):
     email: Optional[str] = None

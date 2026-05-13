@@ -122,10 +122,18 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     access_token = create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
+    if user.is_admin:
+        user_type = "admin"
+    elif user.company_id:
+        user_type = "company"
+    else:
+        user_type = "candidate"
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user_type": "admin" if user.is_admin else "company",
+        "user_type": user_type,
+        "username": user.full_name or user.email,
+        "company_id": user.company_id,
     }
 
 @router.get("/me", response_model=schemas.UserResponse)

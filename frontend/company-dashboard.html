@@ -1021,12 +1021,13 @@
 </div><!-- /main -->
 
 <script>
-    // Protect company dashboard from candidates
+    // Protect company dashboard — only company users allowed
     (function() {
         const token = localStorage.getItem('token');
-        const userType = localStorage.getItem('user_type');
+        const userType = (localStorage.getItem('user_type') || '').toLowerCase();
         if (!token) { window.location.href = 'landing.html'; return; }
         if (userType === 'candidate') { window.location.href = 'candidates-portal.html'; return; }
+        if (userType === 'admin' || userType === 'superadmin' || userType === 'super_admin') { window.location.href = 'index.html'; return; }
     })();
 
     const API_URL = window.location.origin;
