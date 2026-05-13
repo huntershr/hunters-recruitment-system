@@ -146,7 +146,7 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
       <button onclick="showPortalSection('profile')" style="color:rgba(255,255,255,0.7);background:none;border:none;font-size:12px;cursor:pointer;">My Profile</button>
       <button onclick="openCVModal()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:500;cursor:pointer;">✨ AI CV Writer</button>
     </div>
-    <button onclick="goBack()" style="color:rgba(255,255,255,0.55);background:none;border:0.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;">← Dashboard</button>
+    <button onclick="window.location.href='landing.html'" style="color:rgba(255,255,255,0.55);background:none;border:0.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;">← Home</button>
   </div>
 </div>
 
@@ -340,6 +340,15 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 <div id="toast-container"></div>
 
 <script>
+// Access rules: portal is public — candidates and unauthenticated users stay here.
+// Company/admin users who land here are not redirected (they may review the portal).
+(function() {
+    var token = localStorage.getItem('token');
+    var userType = localStorage.getItem('user_type');
+    // No redirect for any user type — portal is intentionally public
+    void token; void userType;
+})();
+
 /* ─── Base URL (works locally + on Railway) ─── */
 var API_BASE=(function(){
   if(window.location.protocol==='file:'){
@@ -465,6 +474,7 @@ function doLogin(){
       btn.textContent='Sign In';btn.disabled=false;
       if(!res.ok){errEl.textContent=res.d.detail||'Incorrect email or password.';errEl.style.display='block';return;}
       localStorage.setItem('token',res.d.access_token);
+      localStorage.setItem('user_type','candidate');
       onAuthSuccess(res.d.access_token);
     })
     .catch(function(){btn.textContent='Sign In';btn.disabled=false;errEl.textContent='Connection error. Open this page from your Railway URL, not as a local file.';errEl.style.display='block';});
@@ -492,6 +502,7 @@ function doRegister(){
           btn.textContent='Create Account & Continue';btn.disabled=false;
           if(!d2.access_token){errEl.textContent='Registered! Please sign in.';errEl.style.display='block';switchAuthTab('login');return;}
           localStorage.setItem('token',d2.access_token);
+          localStorage.setItem('user_type','candidate');
           onAuthSuccess(d2.access_token);
         });
     })
@@ -544,13 +555,6 @@ function checkAuth(){
       hideAuthScreen(); /* applyUserRole called inside → loads correct data */
     })
     .catch(function(){showAuthScreen();});
-}
-
-function goBack(){
-  var t=tok();if(!t){showAuthScreen();return;}
-  fetch('/auth/me',{headers:{'Authorization':'Bearer '+t}}).then(function(r){return r.json();})
-    .then(function(u){window.location.href=u&&u.is_admin?'index.html':'company-dashboard.html';})
-    .catch(function(){window.location.href='index.html';});
 }
 
 /* ─── Occupation Cards ─── */

@@ -1021,6 +1021,14 @@
 </div><!-- /main -->
 
 <script>
+    // Protect company dashboard from candidates
+    (function() {
+        const token = localStorage.getItem('token');
+        const userType = localStorage.getItem('user_type');
+        if (!token) { window.location.href = 'landing.html'; return; }
+        if (userType === 'candidate') { window.location.href = 'candidates-portal.html'; return; }
+    })();
+
     const API_URL = window.location.origin;
     window.API_URL = API_URL;
     let currentUser = null;

@@ -925,6 +925,14 @@
 </div>
 
 <script>
+// Protect admin dashboard from non-admin users
+(function() {
+    var token = localStorage.getItem('token');
+    var userType = localStorage.getItem('user_type');
+    if (!token) { window.location.href = 'landing.html'; return; }
+    if (userType === 'candidate') { window.location.href = 'candidates-portal.html'; return; }
+})();
+
 var _cuResetUserId=null;
 
 function openCandidateUsersModal(){

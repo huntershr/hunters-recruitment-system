@@ -176,6 +176,7 @@ async function handleLandingLogin(){
       errDiv.style.display='block';return;
     }
     localStorage.setItem('token',data.access_token);
+    localStorage.setItem('user_type', data.user_type || 'company');
     /* Route based on user type */
     if(data.user_type==='admin'){window.location.href='index.html';}
     else{window.location.href='company-dashboard.html';}
