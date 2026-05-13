@@ -185,6 +185,7 @@ async function handleLandingLogin(){
     localStorage.setItem('user_type',userType);
     localStorage.setItem('username',data.username||email);
     localStorage.setItem('company_id',data.company_id||'');
+    console.log('Login complete - user_type set to:', userType, '- about to redirect to:', userType==='candidate'?'candidates-portal.html':'dashboard');
     /* Candidate tried the employer modal — clear token and redirect them nicely */
     if(userType==='candidate'){
       localStorage.removeItem('token');

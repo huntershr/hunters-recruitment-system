@@ -926,6 +926,7 @@
 
 <script>
 // Protect admin dashboard from non-admin users
+console.log('index.html loaded - user_type:', localStorage.getItem('user_type'), 'token exists:', !!localStorage.getItem('token'));
 (function() {
     var token = localStorage.getItem('token');
     var userType = (localStorage.getItem('user_type') || '').toLowerCase();
