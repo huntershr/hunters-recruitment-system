@@ -594,8 +594,7 @@ function filterPipelineCompany(val) {
 }
 
 function downloadAdminCV(id, safeName) {
-    const token = localStorage.getItem('token');
-    showToast('Preparing CV download…', 'info');
+    showToast('Generating PDF…', 'info');
     authFetch(`/candidates/${id}/cv`)
         .then(res => {
             if (!res.ok) throw new Error('Not available');
@@ -605,14 +604,14 @@ function downloadAdminCV(id, safeName) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `CV_${safeName || id}.html`;
+            a.download = `CV_${safeName || id}.pdf`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            showToast('CV downloaded! Open and press Ctrl+P → Save as PDF.', 'success');
+            showToast('CV PDF downloaded successfully.', 'success');
         })
-        .catch(() => showToast('CV text not available for this candidate.', 'error'));
+        .catch(() => showToast('CV not available for this candidate.', 'error'));
 }
 
 function viewCandidate(id) {

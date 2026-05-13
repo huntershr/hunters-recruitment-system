@@ -1645,7 +1645,7 @@
 
     function downloadCandidateCV(id, safeName) {
         const token = localStorage.getItem('token');
-        showToast('Preparing CV download…', 'info');
+        showToast('Generating PDF…', 'info');
         fetch(`${API_URL}/candidates/${id}/cv`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
@@ -1657,14 +1657,14 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `CV_${safeName || id}.html`;
+            a.download = `CV_${safeName || id}.pdf`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            showToast('CV downloaded! Open the file and press Ctrl+P → Save as PDF.', 'success');
+            showToast('CV PDF downloaded successfully.', 'success');
         })
-        .catch(() => showToast('CV text not available for this candidate.', 'error'));
+        .catch(() => showToast('CV not available for this candidate.', 'error'));
     }
 
     function exportCandidatesDataToCSV(candidates) {

@@ -327,7 +327,7 @@ def read_candidates(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
 
 @router.get("/{candidate_id}/cv")
 def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    """Download the candidate's CV as an HTML file."""
+    """Download the candidate's CV as a PDF file."""
     if current_user.is_admin:
         candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
     else:
@@ -341,35 +341,94 @@ def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), curr
     if not candidate.cv_text or not candidate.cv_text.strip():
         raise HTTPException(status_code=404, detail="No CV text available for this candidate")
 
-    safe_name = (candidate.name or "Candidate").replace(" ", "_").replace("/", "_")
-    html_content = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>CV - {candidate.name}</title>
-<style>
-  body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1B2A4A; line-height: 1.6; }}
-  h1 {{ color: #1B2A4A; border-bottom: 2px solid #C9A84C; padding-bottom: 8px; }}
-  pre {{ white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 13px; }}
-  .meta {{ color: #6B7280; font-size: 13px; margin-bottom: 20px; }}
-</style>
-</head>
-<body>
-<h1>{candidate.name}</h1>
-<div class="meta">
-  Email: {candidate.email or ''} &nbsp;|&nbsp;
-  Phone: {candidate.phone or ''} &nbsp;|&nbsp;
-  Experience: {candidate.experience_years or 0} years
-</div>
-<pre>{candidate.cv_text}</pre>
-</body>
-</html>"""
+    pdf_bytes = _build_cv_pdf(candidate)
+    safe_name = "".join(c for c in (candidate.name or "Candidate") if c.isalnum() or c in " _-").strip().replace(" ", "_")
 
     return StreamingResponse(
-        iter([html_content]),
-        media_type="text/html",
-        headers={"Content-Disposition": f'attachment; filename="CV_{safe_name}.html"'}
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="CV_{safe_name}.pdf"'}
     )
+
+
+def _safe(text: str) -> str:
+    """Encode text to latin-1, replacing unsupported characters."""
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
+
+def _build_cv_pdf(candidate) -> bytes:
+    from fpdf import FPDF
+
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.add_page()
+
+    # ── Navy top bar ──────────────────────────────────────────
+    pdf.set_fill_color(27, 42, 74)
+    pdf.rect(0, 0, 210, 10, "F")
+    pdf.ln(14)
+
+    # ── Name ──────────────────────────────────────────────────
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.set_text_color(27, 42, 74)
+    pdf.cell(0, 10, _safe(candidate.name or "Candidate"), new_x="LMARGIN", new_y="NEXT")
+
+    # ── Gold divider ──────────────────────────────────────────
+    pdf.set_draw_color(201, 168, 76)
+    pdf.set_line_width(0.8)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(4)
+
+    # ── Contact / meta row ────────────────────────────────────
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(107, 114, 128)
+    meta_parts = []
+    if candidate.email:         meta_parts.append(candidate.email)
+    if candidate.phone:         meta_parts.append(candidate.phone)
+    if candidate.last_title:    meta_parts.append(candidate.last_title)
+    if candidate.last_employer: meta_parts.append(candidate.last_employer)
+    if candidate.experience_years is not None:
+        meta_parts.append(f"{candidate.experience_years} yrs exp")
+    if meta_parts:
+        pdf.cell(0, 5, _safe("   |   ".join(meta_parts)), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(5)
+
+    # ── Thin separator ────────────────────────────────────────
+    pdf.set_draw_color(229, 231, 235)
+    pdf.set_line_width(0.3)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+
+    # ── CV body text ──────────────────────────────────────────
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(27, 42, 74)
+
+    for line in (candidate.cv_text or "").split("\n"):
+        stripped = line.rstrip()
+        safe_line = _safe(stripped)
+
+        if not stripped:
+            pdf.ln(2)
+            continue
+
+        # Detect section headers (all-caps short lines or lines ending with ':')
+        is_header = (stripped.isupper() and len(stripped) < 60) or stripped.endswith(":")
+        if is_header:
+            pdf.ln(2)
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.set_text_color(27, 42, 74)
+            pdf.multi_cell(0, 5, safe_line)
+            pdf.set_font("Helvetica", "", 10)
+        else:
+            pdf.multi_cell(0, 5, safe_line)
+
+    # ── Footer ────────────────────────────────────────────────
+    pdf.set_y(-12)
+    pdf.set_font("Helvetica", "I", 7)
+    pdf.set_text_color(156, 163, 175)
+    pdf.cell(0, 5, "Generated by Hunters AI Recruitment System  |  hunters-egypt.com", align="C")
+
+    return bytes(pdf.output())
 
 @router.get("/{candidate_id}", response_model=schemas.CandidateResponse)
 def read_candidate(candidate_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
