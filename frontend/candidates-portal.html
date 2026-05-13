@@ -712,12 +712,19 @@ function showPortalSection(id){
 }
 
 /* ─── Jobs ─── */
-var EDU=['school','university','training','education','academy','college','kindergarten','institute','learning','teacher','headmistress','hod','head of department','curriculum','cambridge','academic','subject teacher','floating teacher','consultant','key stage','english hod','english head'];
+/* Company-name keywords that signal an education-sector employer */
+var EDU_COMPANY=['school','university','college','kindergarten','academy','cambridge','montessori','nursery','education','educational','learning centre','learning center'];
+/* Job-title keywords — only used as a secondary check, never alone */
+var EDU_TITLE=['teacher','lecturer','professor','tutor','instructor','principal','headmaster','headmistress','head of department','hod','curriculum','subject teacher','floating teacher','key stage','english hod','english head','school counselor','teaching assistant'];
 function isEdu(j){
   var c=(j.company_name||'').toLowerCase();
   var t=(j.job_title||'').toLowerCase();
-  var ind=(j.industry_experience||'').toLowerCase();
-  return EDU.some(function(k){return c.includes(k)||t.includes(k)||ind.includes(k);});
+  var companyIsEdu=EDU_COMPANY.some(function(k){return c.includes(k);});
+  /* A job is Education ONLY when the company itself is in education.
+     Job title alone (e.g. "Consultant") never determines the category. */
+  if(!companyIsEdu)return false;
+  /* Company is educational — classify as Education regardless of title */
+  return true;
 }
 
 async function loadJobs(){
