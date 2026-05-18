@@ -631,6 +631,10 @@ function downloadAdminCV(id, safeName) {
         .catch(() => showToast('CV not available for this candidate.', 'error'));
 }
 
+function downloadCandidateCV(id, safeName) {
+    downloadAdminCV(id, safeName);
+}
+
 function viewCandidate(id) {
     const candidate = candidates.find(c => c.id === id);
     const eval = evaluations.find(e => e.candidate_id === id);

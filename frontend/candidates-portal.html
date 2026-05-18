@@ -580,7 +580,7 @@ function categorizeCandidates(candidates){
   var groups={};
   occupationCategories.forEach(function(cat){groups[cat.key]=[];});
   candidates.forEach(function(c){
-    var text=[c.last_title||'',c.job_title||'',c.industry||'',c.last_employer||''].join(' ').toLowerCase();
+    var text=[c.last_title||'',c.skills||'',c.education||'',c.last_employer||''].join(' ').toLowerCase();
     var matched=false;
     for(var i=0;i<occupationCategories.length;i++){
       var cat=occupationCategories[i];
@@ -773,12 +773,21 @@ async function loadJobs(){
     var sel=document.getElementById('loc-all');
     if(sel)sel.innerHTML='<option value="">All Locations</option>'+locs.map(function(l){return'<option>'+esc(l)+'</option>';}).join('');
     renderSection('all-jobs');
+    checkUrlJobParam();
   }catch(e){
     console.error('loadJobs fetch failed:',e);
     allJobs=[];
     var g=document.getElementById('grid-all-jobs');
     if(g)g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;"><div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">💼 No jobs available right now</div><div style="font-size:12px;color:#9CA3AF;">Check back soon for new opportunities</div></div>';
   }
+}
+
+function checkUrlJobParam(){
+  var params=new URLSearchParams(window.location.search);
+  var jid=parseInt(params.get('job_id'));
+  if(!jid)return;
+  var job=allJobs.find(function(j){return j.id===jid;});
+  if(job){openJob(jid);}
 }
 
 function renderSection(sid){

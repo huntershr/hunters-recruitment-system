@@ -291,13 +291,15 @@ function huntersJobCardInner(job, opts) {
         ? o.applyViaModal
             ? `<button type="button" onclick="event.stopPropagation();huntersOpenApplyModal(${job.id})" style="display:block;width:100%;text-align:center;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:500;margin-top:4px;cursor:pointer;">Apply</button>`
             : `<a href="/apply.html?job_id=${job.id}" style="display:block;width:100%;text-align:center;background:#1B2A4A;color:#fff;text-decoration:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:500;margin-top:4px;">Apply Now</a>`
-        : `<div style="display:flex;gap:6px;align-items:center;">
+        : `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                 <button type="button" onclick="event.stopPropagation();openEditJobModal(${job.id})" style="background:#fff;color:#1B2A4A;border:0.5px solid #1B2A4A;border-radius:7px;padding:5px 12px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
                     <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Edit</button>
                 <button type="button" onclick="event.stopPropagation();huntersViewJob(${job.id})" style="background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
                     <svg width="12" height="12" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
                 <button type="button" onclick="event.stopPropagation();huntersShareJob(${job.id})" title="Copy share link" style="background:#fff;color:#C9A84C;border:0.5px solid #C9A84C;border-radius:7px;padding:5px 8px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;">
                     <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
+                ${!huntersIsAdmin ? `<a href="candidates-portal.html?job_id=${job.id}" target="_blank" onclick="event.stopPropagation()" style="background:#F0F4FF;color:#1B2A4A;border:0.5px solid #C9A84C;border-radius:7px;padding:5px 8px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:3px;text-decoration:none;" title="Preview as candidate">
+                    <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Preview</a>` : ''}
                 ${pendingBtns}
            </div>`;
 

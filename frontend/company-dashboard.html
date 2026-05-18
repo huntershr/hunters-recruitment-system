@@ -1444,6 +1444,8 @@
             const currentFilterVal = jobFilter.value;
             jobFilter.innerHTML = '<option value="">All Jobs</option>';
 
+            const seenIds = new Set();
+
             for (const job of jobs) {
                 jobFilter.innerHTML += `<option value="${job.id}">${escHtml(job.job_title)}</option>`;
                 const candResp = await fetch(`${API_URL}/jobs/${job.id}/candidates`, {
@@ -1451,10 +1453,32 @@
                 });
                 if (candResp.ok) {
                     const cands = await candResp.json();
-                    cands.forEach(c => { c.job_title = job.job_title; c.job_id = job.id; });
-                    allCandidatesData = allCandidatesData.concat(cands);
+                    cands.forEach(c => {
+                        c.job_title = job.job_title; c.job_id = job.id;
+                        if (!seenIds.has(c.id)) { seenIds.add(c.id); allCandidatesData.push(c); }
+                    });
                 }
             }
+
+            // Also fetch from /candidates to catch any candidates not linked to a specific job
+            try {
+                const allCandsResp = await fetch(`${API_URL}/candidates`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (allCandsResp.ok) {
+                    const allCands = await allCandsResp.json();
+                    if (Array.isArray(allCands)) {
+                        allCands.forEach(c => {
+                            if (!seenIds.has(c.id)) {
+                                const matchJob = jobs.find(j => j.id === c.job_applied);
+                                if (matchJob) { c.job_title = matchJob.job_title; c.job_id = matchJob.id; }
+                                seenIds.add(c.id);
+                                allCandidatesData.push(c);
+                            }
+                        });
+                    }
+                }
+            } catch (e) { /* non-critical fallback */ }
 
             if (currentFilterVal) jobFilter.value = currentFilterVal;
 
@@ -1536,6 +1560,7 @@
                         <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Interviewer</th>
                         <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Score</th>
                         <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">HR Notes</th>
+                        <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1606,6 +1631,9 @@
                     <td style="padding:12px 14px;">${scoreHTML}</td>
                     <td style="padding:12px 14px;">
                         <input type="text" value="${escHtml(cand.notes || cand.hr_notes || '')}" onchange="updateCandidateField(${cand.id}, 'notes', this.value)" placeholder="Add notes..." style="width:120px; padding:4px 8px; font-size:12px; border:1px solid transparent; border-radius:4px; outline:none; background:transparent; transition:border 0.2s;" onfocus="this.style.border='1px solid #C9A84C'; this.style.background='#fff'" onblur="this.style.border='1px solid transparent'; this.style.background='transparent'">
+                    </td>
+                    <td style="padding:12px 14px;white-space:nowrap;">
+                        ${cand.evaluation ? `<button onclick="viewApplicantReport(allCandidatesData.find(c=>c.id===${cand.id}))" style="background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:500;cursor:pointer;white-space:nowrap;">View Report</button>` : `<span style="font-size:11px;color:#9CA3AF;">No report</span>`}
                     </td>
                 </tr>
             `;
@@ -2052,6 +2080,52 @@
             const el = document.getElementById(s.slider);
             if (el) el.addEventListener('input', updateWeights);
         });
+    }
+
+    /* ──────────────────────────────
+       AI Report Modal
+    ────────────────────────────── */
+    function viewApplicantReport(cand) {
+        const ev = cand.evaluation || {};
+        const rawScore = ev.score != null ? ev.score : (cand.evaluation_score ?? cand.score);
+        const score = formatScore(rawScore);
+        const decision = ev.decision || cand.decision || 'Pending';
+        const decColor = decision === 'Accept' || decision === 'Shortlist' ? '#0F6E56' : decision === 'Reject' ? '#A32D2D' : '#854F0B';
+        const decBg = decision === 'Accept' || decision === 'Shortlist' ? '#E1F5EE' : decision === 'Reject' ? '#FCEBEB' : '#FAEEDA';
+        const scorePct = score != null ? score + '%' : 'N/A';
+        const name = cand.full_name || cand.name || 'Candidate';
+        const cvSafe = name.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+        const strengths = (ev.strengths || '').split('\n').filter(Boolean).map(s => s.replace(/^-\s*/, ''));
+        const weaknesses = (ev.weaknesses || '').split('\n').filter(Boolean).map(s => s.replace(/^-\s*/, ''));
+
+        document.getElementById('ai-report-modal').style.display = 'flex';
+        document.getElementById('ai-report-body').innerHTML = `
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+                <div style="width:48px;height:48px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:500;flex-shrink:0;">${escHtml(name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?')}</div>
+                <div>
+                    <div style="font-size:17px;font-weight:500;color:#1B2A4A;">${escHtml(name)}</div>
+                    <div style="font-size:12px;color:#9CA3AF;">${escHtml(cand.email || '')} ${cand.job_title ? '· Applied for: ' + escHtml(cand.job_title) : ''}</div>
+                </div>
+                <div style="margin-left:auto;text-align:right;">
+                    <div style="font-size:28px;font-weight:500;color:${decColor};">${scorePct}</div>
+                    <span style="display:inline-block;padding:3px 10px;border-radius:12px;background:${decBg};color:${decColor};font-size:11px;font-weight:500;">${escHtml(decision)}</span>
+                </div>
+            </div>
+            ${ev.reason ? `<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">AI Summary</div><div style="background:#F8F9FF;border-radius:10px;padding:14px 16px;font-size:13px;color:#374151;line-height:1.7;">${escHtml(ev.reason)}</div></div>` : ''}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                ${strengths.length ? `<div><div style="font-size:11px;font-weight:600;color:#0F6E56;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Strengths</div><ul style="margin:0;padding-left:16px;font-size:13px;color:#374151;line-height:1.9;">${strengths.map(s=>`<li>${escHtml(s)}</li>`).join('')}</ul></div>` : ''}
+                ${weaknesses.length ? `<div><div style="font-size:11px;font-weight:600;color:#A32D2D;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Areas to Improve</div><ul style="margin:0;padding-left:16px;font-size:13px;color:#374151;line-height:1.9;">${weaknesses.map(w=>`<li>${escHtml(w)}</li>`).join('')}</ul></div>` : ''}
+            </div>
+            <div style="display:flex;gap:10px;padding-top:16px;border-top:0.5px solid #E5E7EB;">
+                ${cand.has_cv ? `<button onclick="downloadCandidateCV(${cand.id},'${cvSafe}')" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:500;cursor:pointer;">↓ Download CV PDF</button>` : ''}
+                <button onclick="closeApplicantModal()" style="flex:1;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:500;cursor:pointer;">Close</button>
+            </div>`;
+        document.getElementById('ai-report-cand-id') && (document.getElementById('ai-report-cand-id').value = cand.id);
+    }
+
+    function closeApplicantModal() {
+        document.getElementById('ai-report-modal').style.display = 'none';
     }
 
     /* ── Boot ── */
@@ -2784,5 +2858,16 @@ async function runBulkScreening() {
   if (typeof loadCandidatesList === 'function') loadCandidatesList();
 }
 </script>
+
+<!-- AI Report Modal -->
+<div id="ai-report-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9000;align-items:center;justify-content:center;padding:24px 16px;" onclick="if(event.target===this)closeApplicantModal()">
+    <div style="background:#fff;border-radius:20px;width:680px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto;animation:huntersModalIn 0.2s ease-out;box-shadow:0 24px 64px rgba(0,0,0,0.22);">
+        <div style="background:#1B2A4A;padding:18px 24px;border-radius:20px 20px 0 0;display:flex;align-items:center;justify-content:space-between;">
+            <div style="color:#fff;font-size:15px;font-weight:500;">AI Evaluation Report</div>
+            <button onclick="closeApplicantModal()" style="color:rgba(255,255,255,0.6);background:none;border:none;font-size:24px;cursor:pointer;line-height:1;">&times;</button>
+        </div>
+        <div id="ai-report-body" style="padding:24px;"></div>
+    </div>
+</div>
 </body>
 </html>
