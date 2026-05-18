@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from .database import engine, Base, SessionLocal
-from .routers import jobs, candidates, evaluations, sheets, auth, public, companies
+from .routers import jobs, candidates, evaluations, sheets, auth, public, companies, admin
 from .routers.auth import get_current_user
 from . import models, auth_utils
 from .services.ai_evaluator import generate_job_details
@@ -119,6 +119,7 @@ def startup_populate_db():
 app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(public.router)
+app.include_router(admin.router)
 
 app.include_router(jobs.router)
 app.include_router(candidates.router)

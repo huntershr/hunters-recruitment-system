@@ -165,6 +165,9 @@
         }
 
         /* Responsive breakpoints */
+        @media(max-width:1300px){
+          #stats-grid{grid-template-columns:repeat(3,1fr)!important;}
+        }
         @media(max-width:1100px){
           .stats-grid{grid-template-columns:repeat(2,1fr)!important;}
         }
@@ -297,6 +300,29 @@
                 </svg>
                 Candidates
             </li>
+            <li class="admin-only-nav" data-view="companies-view" onclick="loadAdminCompanies()" style="display:none;">
+                <svg viewBox="0 0 16 16" fill="none" width="14" height="14" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.5;flex-shrink:0;">
+                    <rect x="2" y="6" width="12" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M5 6V4a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Companies
+            </li>
+            <li class="admin-only-nav" data-view="subscribers-view" onclick="loadAdminUsers()" style="display:none;">
+                <svg viewBox="0 0 16 16" fill="none" width="14" height="14" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.5;flex-shrink:0;">
+                    <circle cx="6" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M1 14c0-2.76 2.24-5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M11 10l1.5 1.5L15 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Users
+            </li>
+            <li class="admin-only-nav" data-view="analytics-view" onclick="loadAdminAnalytics()" style="display:none;">
+                <svg viewBox="0 0 16 16" fill="none" width="14" height="14" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.5;flex-shrink:0;">
+                    <rect x="1" y="1" width="4" height="14" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    <rect x="6" y="5" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    <rect x="11" y="2" width="4" height="13" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                Analytics
+            </li>
             <li data-action="portal" onclick="window.location.href='candidates-portal.html'" style="cursor:pointer;">
                 <svg viewBox="0 0 16 16" fill="none" width="14" height="14"
                      style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.5;flex-shrink:0;">
@@ -354,7 +380,17 @@
                 Overview
             </div>
 
-            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+            <div class="stats-grid" id="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+                <div class="stat-card admin-only-stat" style="display:none;">
+                    <div class="stat-value" id="stat-total-companies">0</div>
+                    <div class="stat-label">Total Companies</div>
+                    <div class="stat-trend green"><span id="stat-pending-companies-label">—</span></div>
+                </div>
+                <div class="stat-card admin-only-stat" style="display:none;">
+                    <div class="stat-value" id="stat-pending-companies">0</div>
+                    <div class="stat-label">Pending Approval</div>
+                    <div class="stat-trend amber"><span>Awaiting review</span></div>
+                </div>
                 <div class="stat-card">
                     <div class="stat-value" id="total-jobs">0</div>
                     <div class="stat-label">Active Jobs</div>
@@ -379,7 +415,12 @@
                         <span id="shortlisted-trend">—</span>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card admin-only-stat" style="display:none;">
+                    <div class="stat-value" id="stat-active-users">0</div>
+                    <div class="stat-label">Active Users</div>
+                    <div class="stat-trend green"><span id="stat-total-users-label">—</span></div>
+                </div>
+                <div class="stat-card non-admin-stat">
                     <div class="stat-value" id="total-pending">0</div>
                     <div class="stat-label">Pending Screening</div>
                     <div class="stat-trend amber">
@@ -387,6 +428,26 @@
                         <span>Needs action</span>
                     </div>
                 </div>
+            </div>
+
+            <!-- Quick Actions (admin only) -->
+            <div id="admin-quick-actions" style="display:none;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
+                <button onclick="showView('companies-view',loadAdminCompanies)"
+                    style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;">
+                    🏢 Manage Companies
+                </button>
+                <button onclick="showView('candidates-view')"
+                    style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;">
+                    👥 View All Candidates
+                </button>
+                <button onclick="showView('subscribers-view',loadAdminUsers)"
+                    style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;">
+                    👤 Manage Users
+                </button>
+                <button onclick="showView('analytics-view',loadAdminAnalytics)"
+                    style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;">
+                    📊 Analytics
+                </button>
             </div>
 
             <div class="section-header">
@@ -560,6 +621,15 @@
             </div>
 
         </div>
+
+        <!-- ─── COMPANIES VIEW (admin) ────────── -->
+        <div id="companies-view" class="view"></div>
+
+        <!-- ─── SUBSCRIBERS / USERS VIEW (admin) -->
+        <div id="subscribers-view" class="view"></div>
+
+        <!-- ─── ANALYTICS VIEW (admin) ──────── -->
+        <div id="analytics-view" class="view"></div>
 
     </div><!-- /page-body -->
 </div><!-- /app-wrapper -->

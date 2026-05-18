@@ -1335,8 +1335,16 @@ async function fetchUserInfo() {
         if (user.is_admin) {
             // Show admin-only UI elements
             document.querySelectorAll('.admin-only-col').forEach(el => el.style.display = '');
+            document.querySelectorAll('.admin-only-nav').forEach(el => el.style.display = '');
+            document.querySelectorAll('.admin-only-stat').forEach(el => el.style.display = '');
+            document.querySelectorAll('.non-admin-stat').forEach(el => el.style.display = 'none');
             const cf = document.getElementById('company-filter-wrap');
             if (cf) cf.style.display = '';
+            const qa = document.getElementById('admin-quick-actions');
+            if (qa) qa.style.display = 'flex';
+            const grid = document.getElementById('stats-grid');
+            if (grid) grid.style.gridTemplateColumns = 'repeat(6,1fr)';
+            loadAdminStats();
         }
     } catch (err) {
         console.error("Failed to fetch user info", err);
@@ -1444,4 +1452,620 @@ async function deleteJob(id) {
         console.error("Delete job error:", err);
         showToast('Error deleting job.', 'error');
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ADMIN PANEL — FULL CRUD
+// ═══════════════════════════════════════════════════════════════
+
+function showView(viewId, loadFn) {
+    document.querySelectorAll('.nav-links li').forEach(l => l.classList.remove('active'));
+    const navItem = document.querySelector(`.nav-links li[data-view="${viewId}"]`);
+    if (navItem) navItem.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const view = document.getElementById(viewId);
+    if (view) view.classList.add('active');
+    if (typeof loadFn === 'function') loadFn();
+}
+
+// ── Stats ──────────────────────────────────────────────────────
+async function loadAdminStats() {
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/admin/stats', {
+            headers: { 'Authorization': 'Bearer ' + token }, cache: 'no-store'
+        });
+        if (!res.ok) return;
+        const s = await res.json();
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+        set('stat-total-companies', s.total_companies);
+        set('stat-pending-companies', s.pending_companies);
+        set('stat-pending-companies-label', s.pending_companies + ' pending');
+        set('stat-active-users', s.active_users);
+        set('stat-total-users-label', s.total_users + ' total users');
+        set('total-jobs', s.total_jobs);
+        set('total-candidates', s.total_candidates);
+        set('jobs-trend', s.total_jobs + ' total');
+        set('candidates-trend', s.total_candidates + ' total');
+    } catch (e) { console.error('loadAdminStats error', e); }
+}
+
+// ── Reusable Modals ────────────────────────────────────────────
+function createAdminModal(title, bodyHTML, onSave) {
+    const existing = document.getElementById('admin-crud-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'admin-crud-modal';
+    modal.style.cssText = 'display:flex;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:3000;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;width:680px;max-width:calc(100vw - 40px);max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.2);">
+            <div style="background:#1B2A4A;padding:16px 24px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1;">
+                <span style="color:#fff;font-size:14px;font-weight:500;">${title}</span>
+                <button onclick="closeAdminModal()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:20px;cursor:pointer;">✕</button>
+            </div>
+            <div style="padding:24px;">${bodyHTML}</div>
+            ${onSave ? `
+            <div style="padding:14px 24px;border-top:0.5px solid #F3F4F6;display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:#fff;z-index:1;">
+                <button onclick="closeAdminModal()" style="background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:8px 16px;font-size:12px;color:#6B7280;cursor:pointer;">Cancel</button>
+                <button id="admin-modal-save" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:500;cursor:pointer;">Save Changes</button>
+            </div>` : `
+            <div style="padding:14px 24px;border-top:0.5px solid #F3F4F6;display:flex;justify-content:flex-end;">
+                <button onclick="closeAdminModal()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:500;cursor:pointer;">Close</button>
+            </div>`}
+        </div>`;
+    document.body.appendChild(modal);
+    if (onSave) document.getElementById('admin-modal-save').onclick = onSave;
+    return modal;
+}
+
+function createConfirmModal(title, message, onConfirm) {
+    const existing = document.getElementById('admin-crud-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'admin-crud-modal';
+    modal.style.cssText = 'display:flex;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:3000;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;width:420px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.2);padding:28px;">
+            <div style="font-size:16px;font-weight:500;color:#1B2A4A;margin-bottom:10px;">${title}</div>
+            <div style="font-size:13px;color:#6B7280;line-height:1.6;margin-bottom:20px;">${message}</div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button onclick="closeAdminModal()" style="background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:8px 16px;font-size:12px;color:#6B7280;cursor:pointer;">Cancel</button>
+                <button id="confirm-action-btn" style="background:#CC2B2B;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:500;cursor:pointer;">Confirm Delete</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('confirm-action-btn').onclick = onConfirm;
+}
+
+function closeAdminModal() {
+    const modal = document.getElementById('admin-crud-modal');
+    if (modal) modal.remove();
+}
+
+function exportAdminData(type) {
+    const data = type === 'companies' ? window._adminCompanies :
+                 type === 'candidates' ? window._adminCandidates :
+                 type === 'users' ? window._adminUsers : [];
+    if (!data || !data.length) { showToast('No data to export', 'info'); return; }
+    const headers = Object.keys(data[0]);
+    const rows = data.map(row => headers.map(h => `"${String(row[h]||'').replace(/"/g,'""')}"`).join(','));
+    const csv = '﻿' + [headers.join(','), ...rows].join('\r\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = `hunters_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    showToast(type + ' exported successfully', 'success');
+}
+
+// ── Companies CRUD ─────────────────────────────────────────────
+async function loadAdminCompanies() {
+    const view = document.getElementById('companies-view');
+    if (view) view.innerHTML = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading…</div>';
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/admin/companies/full', {
+            headers: { 'Authorization': 'Bearer ' + token }, cache: 'no-store'
+        });
+        const companies = await res.json();
+        window._adminCompanies = companies;
+        renderAdminCompaniesTable(companies);
+    } catch (e) { console.error('loadAdminCompanies', e); }
+}
+
+function renderAdminCompaniesTable(companies) {
+    const view = document.getElementById('companies-view');
+    if (!view) return;
+    view.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div style="font-size:15px;font-weight:500;color:#1B2A4A;">Companies (${companies.length})</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <input id="company-search" placeholder="Search…" oninput="filterAdminCompanies(this.value)"
+                    style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;width:190px;">
+                <select id="company-status-filter" onchange="filterAdminCompaniesByStatus(this.value)"
+                    style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;background:#fff;color:#1B2A4A;">
+                    <option value="">All Status</option>
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                </select>
+                <button onclick="exportAdminData('companies')"
+                    style="background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:7px 14px;font-size:12px;color:#6B7280;cursor:pointer;">⬇ Export</button>
+            </div>
+        </div>
+        <div style="background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,0.06);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:1000px;">
+                    <thead>
+                        <tr style="background:#1B2A4A;">
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Company</th>
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Email</th>
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Admin User</th>
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Status</th>
+                            <th style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:500;">Jobs</th>
+                            <th style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:500;">Candidates</th>
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Registered</th>
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-companies-tbody">
+                        ${companies.map((c,i) => `
+                        <tr style="background:${i%2===0?'#fff':'#fafbfc'};border-bottom:0.5px solid #F3F4F6;"
+                            data-id="${c.id}" data-status="${c.status}"
+                            data-search="${(c.name+c.email+(c.admin_name||'')).toLowerCase()}">
+                            <td style="padding:10px 14px;">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <div style="width:30px;height:30px;border-radius:8px;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;flex-shrink:0;">${(c.name||'?').slice(0,2).toUpperCase()}</div>
+                                    <div>
+                                        <div style="font-weight:500;color:#1B2A4A;">${c.name||'—'}</div>
+                                        <div style="font-size:10px;color:#9CA3AF;">${c.website||''}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding:10px 14px;color:#6B7280;">${c.email||'—'}</td>
+                            <td style="padding:10px 14px;">
+                                <div style="color:#1B2A4A;">${c.admin_name||'—'}</div>
+                                <div style="font-size:10px;color:#9CA3AF;">${c.admin_email||''}</div>
+                            </td>
+                            <td style="padding:10px 14px;">
+                                <span style="background:${c.status==='approved'?'#E1F5EE':'#FAEEDA'};color:${c.status==='approved'?'#0F6E56':'#854F0B'};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">${c.status||'—'}</span>
+                            </td>
+                            <td style="padding:10px 14px;text-align:center;color:#1B2A4A;font-weight:500;">${c.job_count||0}</td>
+                            <td style="padding:10px 14px;text-align:center;color:#1B2A4A;font-weight:500;">${c.candidate_count||0}</td>
+                            <td style="padding:10px 14px;color:#9CA3AF;font-size:11px;">${c.created_at?new Date(c.created_at).toLocaleDateString('en-GB'):'—'}</td>
+                            <td style="padding:10px 14px;">
+                                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                                    <button onclick="editCompanyAdmin('${c.id}')" style="background:#1B2A4A;color:#fff;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Edit</button>
+                                    <button onclick="viewCompanyAdmin('${c.id}')" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">View</button>
+                                    <button onclick="toggleCompanyStatus('${c.id}','${c.status}')" style="background:${c.status==='approved'?'#FAEEDA':'#E1F5EE'};color:${c.status==='approved'?'#854F0B':'#0F6E56'};border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">${c.status==='approved'?'Suspend':'Approve'}</button>
+                                    <button onclick="deleteCompanyAdmin('${c.id}','${c.name}')" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Delete</button>
+                                </div>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+}
+
+function filterAdminCompanies(q) {
+    document.querySelectorAll('#admin-companies-tbody tr').forEach(row => {
+        row.style.display = !q || (row.dataset.search||'').includes(q.toLowerCase()) ? '' : 'none';
+    });
+}
+
+function filterAdminCompaniesByStatus(status) {
+    document.querySelectorAll('#admin-companies-tbody tr').forEach(row => {
+        row.style.display = !status || row.dataset.status === status ? '' : 'none';
+    });
+}
+
+async function editCompanyAdmin(companyId) {
+    const c = (window._adminCompanies||[]).find(x => String(x.id) === String(companyId));
+    if (!c) return;
+    createAdminModal('Edit Company — ' + c.name, `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            ${[
+                {id:'ec-name',   label:'Company Name',     val: c.name},
+                {id:'ec-email',  label:'Company Email',    val: c.email},
+                {id:'ec-web',    label:'Website',          val: c.website},
+                {id:'ec-reg',    label:'Registration No.', val: c.registration_number},
+                {id:'ec-aname',  label:'Admin Name',       val: c.admin_name},
+                {id:'ec-aemail', label:'Admin Email',      val: c.admin_email},
+                {id:'ec-apass',  label:'Reset Password',   val: '', ph:'Leave blank to keep current'},
+            ].map(f=>`<div><label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:4px;">${f.label}</label>
+                <input id="${f.id}" value="${(f.val||'').replace(/"/g,'&quot;')}" placeholder="${f.ph||''}"
+                style="width:100%;padding:8px 10px;border:0.5px solid #E5E7EB;border-radius:7px;font-size:12px;color:#1B2A4A;outline:none;box-sizing:border-box;"></div>`).join('')}
+            <div style="grid-column:span 2;">
+                <label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:4px;">Status</label>
+                <select id="ec-status" style="width:100%;padding:8px 10px;border:0.5px solid #E5E7EB;border-radius:7px;font-size:12px;color:#1B2A4A;outline:none;background:#fff;">
+                    <option value="approved" ${c.status==='approved'?'selected':''}>Approved</option>
+                    <option value="pending" ${c.status==='pending'?'selected':''}>Pending</option>
+                </select>
+            </div>
+        </div>`, async () => {
+        const token = localStorage.getItem('token');
+        const body = {
+            name: document.getElementById('ec-name').value,
+            email: document.getElementById('ec-email').value,
+            website: document.getElementById('ec-web').value,
+            registration_number: document.getElementById('ec-reg').value,
+            admin_name: document.getElementById('ec-aname').value,
+            admin_email: document.getElementById('ec-aemail').value,
+            status: document.getElementById('ec-status').value,
+        };
+        const pw = document.getElementById('ec-apass').value;
+        if (pw) body.new_password = pw;
+        const res = await fetch(`/api/admin/companies/${companyId}`, {
+            method:'PATCH', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+            body: JSON.stringify(body)
+        });
+        if (res.ok) { showToast('Company updated','success'); closeAdminModal(); loadAdminCompanies(); loadAdminStats(); }
+        else showToast('Update failed','error');
+    });
+}
+
+async function toggleCompanyStatus(id, currentStatus) {
+    const newStatus = currentStatus === 'approved' ? 'pending' : 'approved';
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/admin/companies/${id}`, {
+        method:'PATCH', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body: JSON.stringify({status: newStatus})
+    });
+    if (res.ok) { showToast('Company ' + newStatus,'success'); loadAdminCompanies(); loadAdminStats(); }
+}
+
+async function deleteCompanyAdmin(id, name) {
+    createConfirmModal(`Delete ${name}?`,
+        'This will permanently delete the company, all its jobs, candidates, and user account.',
+        async () => {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/admin/companies/${id}`, {
+                method:'DELETE', headers:{'Authorization':'Bearer '+token}
+            });
+            if (res.ok) { showToast('Company deleted','success'); closeAdminModal(); loadAdminCompanies(); loadAdminStats(); }
+            else showToast('Delete failed','error');
+        });
+}
+
+function viewCompanyAdmin(companyId) {
+    const c = (window._adminCompanies||[]).find(x => String(x.id) === String(companyId));
+    if (!c) return;
+    createAdminModal('Company Details — ' + c.name, `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            ${[
+                ['Company Name', c.name], ['Email', c.email],
+                ['Website', c.website], ['Reg. Number', c.registration_number],
+                ['Status', c.status], ['Admin User', c.admin_name],
+                ['Admin Email', c.admin_email], ['Total Jobs', c.job_count],
+                ['Total Candidates', c.candidate_count],
+                ['Registered', c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—'],
+            ].map(([label,val]) => `<div>
+                <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">${label}</div>
+                <div style="font-size:13px;color:#1B2A4A;">${val||'—'}</div></div>`).join('')}
+        </div>`, null);
+}
+
+// ── Candidates CRUD ────────────────────────────────────────────
+async function loadAdminCandidates() {
+    const view = document.getElementById('candidates-view');
+    if (view) { /* candidates-view is also used by employer; admin loads all */ }
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/admin/candidates/full', {
+            headers:{'Authorization':'Bearer '+token}, cache:'no-store'
+        });
+        const cands = await res.json();
+        window._adminCandidates = cands;
+        return cands;
+    } catch(e) { console.error('loadAdminCandidates', e); return []; }
+}
+
+async function editCandidateAdmin(candidateId) {
+    const cands = window._adminCandidates || await loadAdminCandidates();
+    const c = cands.find(x => String(x.id) === String(candidateId));
+    if (!c) return;
+    createAdminModal('Edit Candidate — ' + c.name, `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            ${[
+                {id:'ecand-name',   label:'Name',         val: c.name},
+                {id:'ecand-email',  label:'Email',        val: c.email},
+                {id:'ecand-phone',  label:'Phone',        val: c.phone},
+                {id:'ecand-title',  label:'Last Title',   val: c.last_title},
+                {id:'ecand-emp',    label:'Last Employer',val: c.last_employer},
+                {id:'ecand-score',  label:'Score (0-100)',val: c.score},
+            ].map(f=>`<div><label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:4px;">${f.label}</label>
+                <input id="${f.id}" value="${(f.val||'').toString().replace(/"/g,'&quot;')}"
+                style="width:100%;padding:8px 10px;border:0.5px solid #E5E7EB;border-radius:7px;font-size:12px;color:#1B2A4A;outline:none;box-sizing:border-box;"></div>`).join('')}
+            <div style="grid-column:span 2;">
+                <label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:4px;">Decision</label>
+                <select id="ecand-decision" style="width:100%;padding:8px 10px;border:0.5px solid #E5E7EB;border-radius:7px;font-size:12px;color:#1B2A4A;outline:none;background:#fff;">
+                    <option ${c.decision==='Shortlist'?'selected':''}>Shortlist</option>
+                    <option ${c.decision==='Maybe'?'selected':''}>Maybe</option>
+                    <option ${c.decision==='Reject'?'selected':''}>Reject</option>
+                    <option ${c.decision==='Pending'?'selected':''}>Pending</option>
+                </select>
+            </div>
+        </div>`, async () => {
+        const token = localStorage.getItem('token');
+        const body = {
+            name: document.getElementById('ecand-name').value,
+            email: document.getElementById('ecand-email').value,
+            phone: document.getElementById('ecand-phone').value,
+            last_title: document.getElementById('ecand-title').value,
+            last_employer: document.getElementById('ecand-emp').value,
+            score: parseFloat(document.getElementById('ecand-score').value) || 0,
+            decision: document.getElementById('ecand-decision').value,
+        };
+        const res = await fetch(`/api/admin/candidates/${candidateId}`, {
+            method:'PATCH', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+            body: JSON.stringify(body)
+        });
+        if (res.ok) { showToast('Candidate updated','success'); closeAdminModal(); window._adminCandidates = null; }
+        else showToast('Update failed','error');
+    });
+}
+
+async function deleteCandidateAdmin(id, name) {
+    createConfirmModal(`Delete ${name}?`, 'This will permanently delete the candidate and their evaluation.',
+        async () => {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/admin/candidates/${id}`, {
+                method:'DELETE', headers:{'Authorization':'Bearer '+token}
+            });
+            if (res.ok) { showToast('Candidate deleted','success'); closeAdminModal(); loadAdminStats(); fetchData(); }
+            else showToast('Delete failed','error');
+        });
+}
+
+// ── Users CRUD ─────────────────────────────────────────────────
+async function loadAdminUsers() {
+    const view = document.getElementById('subscribers-view');
+    if (view) view.innerHTML = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading…</div>';
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/admin/users/full', {
+            headers:{'Authorization':'Bearer '+token}, cache:'no-store'
+        });
+        const users = await res.json();
+        window._adminUsers = users;
+        renderAdminUsersTable(users);
+    } catch(e) { console.error('loadAdminUsers', e); }
+}
+
+function _userTypeBadge(type) {
+    const cfg = {
+        admin:     {bg:'#1B2A4A',color:'#fff'},
+        company:   {bg:'#C9A84C',color:'#1B2A4A'},
+        candidate: {bg:'#E6F1FB',color:'#185FA5'},
+    };
+    const c = cfg[type] || cfg.candidate;
+    return `<span style="background:${c.bg};color:${c.color};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">${type}</span>`;
+}
+
+function renderAdminUsersTable(users) {
+    const view = document.getElementById('subscribers-view');
+    if (!view) return;
+    view.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div style="font-size:15px;font-weight:500;color:#1B2A4A;">Users (${users.length})</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <input id="user-search" placeholder="Search…" oninput="filterAdminUsers(this.value)"
+                    style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;width:190px;">
+                <select id="user-type-filter" onchange="filterAdminUsersByType(this.value)"
+                    style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;background:#fff;color:#1B2A4A;">
+                    <option value="">All Types</option>
+                    <option value="admin">Admin</option>
+                    <option value="company">Company</option>
+                    <option value="candidate">Candidate</option>
+                </select>
+                <button onclick="exportAdminData('users')"
+                    style="background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:7px 14px;font-size:12px;color:#6B7280;cursor:pointer;">⬇ Export</button>
+            </div>
+        </div>
+        <div style="background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,0.06);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:800px;">
+                    <thead>
+                        <tr style="background:#1B2A4A;">
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Name</th>
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Email</th>
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Type</th>
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Company</th>
+                            <th style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:500;">Active</th>
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-users-tbody">
+                        ${users.map((u,i)=>`
+                        <tr style="background:${i%2===0?'#fff':'#fafbfc'};border-bottom:0.5px solid #F3F4F6;"
+                            data-id="${u.id}" data-type="${u.user_type}"
+                            data-search="${(u.full_name+u.email+(u.company_name||'')).toLowerCase()}">
+                            <td style="padding:10px 14px;font-weight:500;color:#1B2A4A;">${u.full_name||'—'}</td>
+                            <td style="padding:10px 14px;color:#6B7280;">${u.email}</td>
+                            <td style="padding:10px 14px;">${_userTypeBadge(u.user_type)}</td>
+                            <td style="padding:10px 14px;color:#6B7280;">${u.company_name||'—'}</td>
+                            <td style="padding:10px 14px;text-align:center;">
+                                <span style="background:${u.is_active?'#E1F5EE':'#F3F4F6'};color:${u.is_active?'#0F6E56':'#9CA3AF'};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">${u.is_active?'Active':'Inactive'}</span>
+                            </td>
+                            <td style="padding:10px 14px;">
+                                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                                    <button onclick="editUserAdmin('${u.id}')" style="background:#1B2A4A;color:#fff;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Edit</button>
+                                    <button onclick="toggleUserActive('${u.id}',${u.is_active})" style="background:${u.is_active?'#FAEEDA':'#E1F5EE'};color:${u.is_active?'#854F0B':'#0F6E56'};border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">${u.is_active?'Deactivate':'Activate'}</button>
+                                    <button onclick="deleteUserAdmin('${u.id}','${(u.full_name||u.email).replace(/'/g,"\\'")}')" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Delete</button>
+                                </div>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+}
+
+function filterAdminUsers(q) {
+    document.querySelectorAll('#admin-users-tbody tr').forEach(row => {
+        row.style.display = !q || (row.dataset.search||'').includes(q.toLowerCase()) ? '' : 'none';
+    });
+}
+
+function filterAdminUsersByType(type) {
+    document.querySelectorAll('#admin-users-tbody tr').forEach(row => {
+        row.style.display = !type || row.dataset.type === type ? '' : 'none';
+    });
+}
+
+async function editUserAdmin(userId) {
+    const u = (window._adminUsers||[]).find(x => String(x.id) === String(userId));
+    if (!u) return;
+    createAdminModal('Edit User — ' + (u.full_name||u.email), `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            ${[
+                {id:'eu-name',  label:'Full Name', val: u.full_name},
+                {id:'eu-email', label:'Email',     val: u.email},
+                {id:'eu-pass',  label:'New Password (leave blank to keep)', val:'', ph:'Enter new password…'},
+            ].map(f=>`<div style="grid-column:span ${f.id==='eu-pass'?2:1}"><label style="font-size:11px;font-weight:500;color:#555;display:block;margin-bottom:4px;">${f.label}</label>
+                <input id="${f.id}" value="${(f.val||'').replace(/"/g,'&quot;')}" placeholder="${f.ph||''}"
+                ${f.id==='eu-pass'?'type="password"':''}
+                style="width:100%;padding:8px 10px;border:0.5px solid #E5E7EB;border-radius:7px;font-size:12px;color:#1B2A4A;outline:none;box-sizing:border-box;"></div>`).join('')}
+        </div>`, async () => {
+        const token = localStorage.getItem('token');
+        const body = {
+            full_name: document.getElementById('eu-name').value,
+            email: document.getElementById('eu-email').value,
+        };
+        const pw = document.getElementById('eu-pass').value;
+        if (pw) body.new_password = pw;
+        const res = await fetch(`/api/admin/users/${userId}`, {
+            method:'PATCH', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+            body: JSON.stringify(body)
+        });
+        if (res.ok) { showToast('User updated','success'); closeAdminModal(); loadAdminUsers(); }
+        else showToast('Update failed','error');
+    });
+}
+
+async function toggleUserActive(id, isActive) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/admin/users/${id}`, {
+        method:'PATCH', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body: JSON.stringify({is_active: !isActive})
+    });
+    if (res.ok) { showToast('User ' + (!isActive?'activated':'deactivated'),'success'); loadAdminUsers(); loadAdminStats(); }
+}
+
+async function deleteUserAdmin(id, name) {
+    createConfirmModal(`Delete ${name}?`, 'This will permanently delete this user account.',
+        async () => {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/admin/users/${id}`, {
+                method:'DELETE', headers:{'Authorization':'Bearer '+token}
+            });
+            if (res.ok) { showToast('User deleted','success'); closeAdminModal(); loadAdminUsers(); loadAdminStats(); }
+            else { const d = await res.json(); showToast(d.detail||'Delete failed','error'); }
+        });
+}
+
+// ── Analytics ──────────────────────────────────────────────────
+async function loadAdminAnalytics() {
+    const view = document.getElementById('analytics-view');
+    if (view) view.innerHTML = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading…</div>';
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/admin/analytics', {
+            headers:{'Authorization':'Bearer '+token}, cache:'no-store'
+        });
+        const data = await res.json();
+        renderAdminAnalytics(data);
+    } catch(e) { console.error('loadAdminAnalytics', e); }
+}
+
+function renderAdminAnalytics(d) {
+    const view = document.getElementById('analytics-view');
+    if (!view) return;
+
+    const overviewCards = [
+        {label:'Total Companies',  val: d.total_companies,  sub: d.approved_companies + ' approved'},
+        {label:'Total Jobs',       val: d.total_jobs,       sub: d.approved_jobs + ' approved'},
+        {label:'Total Candidates', val: d.total_candidates, sub:''},
+        {label:'Active Users',     val: d.active_users,     sub: d.total_users + ' total'},
+    ];
+
+    const maxDecision = Math.max(...(d.candidates_by_decision||[]).map(x=>x.count), 1);
+    const decisionBars = (d.candidates_by_decision||[]).map(x => {
+        const pct = Math.round((x.count / maxDecision) * 100);
+        const color = x.stage==='Shortlist'?'#0F6E56':x.stage==='Maybe'?'#854F0B':x.stage==='Reject'?'#A32D2D':'#6B7280';
+        return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:90px;font-size:12px;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${x.stage}</div>
+            <div style="flex:1;background:#F3F4F6;border-radius:4px;height:10px;">
+                <div style="width:${pct}%;background:${color};border-radius:4px;height:10px;transition:width 0.4s;"></div>
+            </div>
+            <div style="width:28px;text-align:right;font-size:12px;font-weight:500;color:${color};">${x.count}</div>
+        </div>`;
+    }).join('') || '<div style="font-size:12px;color:#9CA3AF;">No evaluation data yet</div>';
+
+    const topRows = (d.top_companies||[]).map((c,i) => `
+        <tr style="background:${i%2===0?'#fff':'#fafbfc'};border-bottom:0.5px solid #F3F4F6;">
+            <td style="padding:10px 14px;font-weight:500;color:#1B2A4A;">${c.name}</td>
+            <td style="padding:10px 14px;text-align:center;color:#1B2A4A;font-weight:500;">${c.job_count}</td>
+            <td style="padding:10px 14px;text-align:center;color:#1B2A4A;font-weight:500;">${c.candidate_count}</td>
+            <td style="padding:10px 14px;text-align:center;">
+                <span style="background:${c.avg_score>=75?'#E1F5EE':c.avg_score>=50?'#FAEEDA':'#F3F4F6'};color:${c.avg_score>=75?'#0F6E56':c.avg_score>=50?'#854F0B':'#9CA3AF'};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">${c.avg_score}%</span>
+            </td>
+            <td style="padding:10px 14px;text-align:center;color:#0F6E56;font-weight:500;">${c.shortlisted_count}</td>
+            <td style="padding:10px 14px;">
+                <span style="background:${c.status==='approved'?'#E1F5EE':'#FAEEDA'};color:${c.status==='approved'?'#0F6E56':'#854F0B'};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500;">${c.status}</span>
+            </td>
+        </tr>`).join('') || `<tr><td colspan="6" style="padding:24px;text-align:center;color:#9CA3AF;font-size:12px;">No companies yet</td></tr>`;
+
+    view.innerHTML = `
+        <div style="font-size:15px;font-weight:500;color:#1B2A4A;margin-bottom:16px;">Analytics Overview</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
+            ${overviewCards.map(c=>`
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px;">
+                <div style="font-size:30px;font-weight:500;color:#1B2A4A;">${c.val}</div>
+                <div style="font-size:11px;color:#888;margin-top:3px;">${c.label}</div>
+                ${c.sub?`<div style="font-size:10px;color:#C9A84C;margin-top:2px;">${c.sub}</div>`:''}
+            </div>`).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;">
+                <div style="font-size:13px;font-weight:500;color:#1B2A4A;margin-bottom:14px;">Candidates by Decision</div>
+                ${decisionBars}
+            </div>
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;">
+                <div style="font-size:13px;font-weight:500;color:#1B2A4A;margin-bottom:14px;">Quick Stats</div>
+                ${[
+                    ['Approved Companies', d.approved_companies, d.total_companies],
+                    ['Approved Jobs', d.approved_jobs, d.total_jobs],
+                    ['Active Users', d.active_users, d.total_users],
+                ].map(([label,val,total]) => {
+                    const pct = total ? Math.round((val/total)*100) : 0;
+                    return `<div style="margin-bottom:12px;">
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                            <span style="color:#1B2A4A;">${label}</span>
+                            <span style="color:#6B7280;">${val} / ${total}</span>
+                        </div>
+                        <div style="background:#F3F4F6;border-radius:4px;height:8px;">
+                            <div style="width:${pct}%;background:#1B2A4A;border-radius:4px;height:8px;transition:width 0.4s;"></div>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>
+        <div style="font-size:13px;font-weight:500;color:#1B2A4A;margin-bottom:12px;">Top Companies</div>
+        <div style="background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,0.06);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:600px;">
+                    <thead>
+                        <tr style="background:#1B2A4A;">
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Company</th>
+                            <th style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:500;">Jobs</th>
+                            <th style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:500;">Candidates</th>
+                            <th style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:500;">Avg Score</th>
+                            <th style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:500;">Shortlisted</th>
+                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>${topRows}</tbody>
+                </table>
+            </div>
+        </div>`;
 }
