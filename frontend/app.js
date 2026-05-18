@@ -448,7 +448,7 @@ function renderKanban(filter) {
     board.innerHTML = cols.map(col => {
         const colCandidates = candidates.filter(c => {
             const ev = evaluations.find(e => e.candidate_id === c.id);
-            const dec = ev ? ev.decision.toLowerCase() : null;
+            const dec = ev ? (ev.decision || '').toLowerCase() : null;
             const inCol = col.decisions.includes(dec);
             if (!inCol) return false;
             if (lf) {

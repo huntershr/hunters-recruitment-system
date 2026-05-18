@@ -672,29 +672,40 @@ async function loadTalentPool(){
   if(!grid)return;
   grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:#9CA3AF;">Loading candidates…</div>';
   try{
-    var r=await fetch(API_BASE+'/candidates',{headers:hdrs()});
-    _allCandidates=await r.json();
-    if(!Array.isArray(_allCandidates))_allCandidates=[];
+    /* Fetch candidates and evaluations in parallel */
+    var results=await Promise.all([
+      fetch(API_BASE+'/candidates',{headers:hdrs()}).then(function(r){return r.ok?r.json():[];}),
+      fetch(API_BASE+'/results',{headers:hdrs()}).then(function(r){return r.ok?r.json():[];}).catch(function(){return[];})
+    ]);
+    _allCandidates=Array.isArray(results[0])?results[0]:[];
+    var evals=Array.isArray(results[1])?results[1]:[];
 
-    /* For admin: also include registered portal users who haven't applied yet */
+    /* Attach evaluation objects to each candidate */
+    var evalMap={};
+    evals.forEach(function(ev){if(ev&&ev.candidate_id)evalMap[ev.candidate_id]=ev;});
+    _allCandidates.forEach(function(c){c.evaluation=evalMap[c.id]||null;});
+
+    /* For admin: also include registered portal users (may or may not have applied) */
     if(portalUser&&portalUser.is_admin){
+      var candUsers=[];
       try{
         var ru=await fetch(API_BASE+'/api/admin/candidate-users',{headers:hdrs()});
-        var candUsers=await ru.json();
-        if(Array.isArray(candUsers)){
-          var seenEmails=new Set(_allCandidates.map(function(c){return(c.email||'').toLowerCase();}));
-          candUsers.forEach(function(u){
-            if(!seenEmails.has((u.email||'').toLowerCase())){
-              _allCandidates.push({
-                id:-(u.user_id),name:u.name||u.email,email:u.email,phone:u.phone||'',
-                experience_years:u.years_exp||0,education:u.education||'',skills:u.skills||'',
-                last_title:u.last_title||'',last_employer:u.last_employer||'',has_cv:false,
-                evaluation:null,is_registered_user:true
-              });
-            }
+        var ruData=await ru.json();
+        if(ru.ok&&Array.isArray(ruData))candUsers=ruData;
+      }catch(e2){/* non-critical */}
+      var seenEmails=new Set(_allCandidates.map(function(c){return(c.email||'').toLowerCase();}));
+      candUsers.forEach(function(u){
+        if(!seenEmails.has((u.email||'').toLowerCase())){
+          var synthEv=(u.score!=null||u.decision)?{candidate_id:-(u.user_id),score:u.score,decision:u.decision||'Pending',reason:u.reason||'',strengths:u.strengths||'',weaknesses:u.weaknesses||''}:null;
+          _allCandidates.push({
+            id:-(u.user_id),name:u.name||u.email,email:u.email,phone:u.phone||'',
+            experience_years:u.years_exp||0,education:u.education||'',skills:u.skills||'',
+            last_title:u.last_title||'',last_employer:u.last_employer||'',
+            cv_text:u.has_cv?'has_cv':'',has_cv:u.has_cv||false,
+            evaluation:synthEv,is_registered_user:true
           });
         }
-      }catch(e2){/* non-critical */}
+      });
     }
 
     renderTalentPool(_allCandidates);
@@ -727,7 +738,7 @@ function renderTalentPool(candidates){
     var decBg=decision==='Shortlist'||decision==='Accept'?'#E1F5EE':decision==='Reject'?'#FCEBEB':'#FAEEDA';
     var initials=(c.name||'C').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
     var skillsList=(c.skills||'').split(',').slice(0,3).map(function(s){return s.trim();}).filter(Boolean);
-    var hasCV=c.has_cv&&c.id>0;
+    var hasCV=c.id>0&&(c.has_cv||!!(c.cv_text&&c.cv_text.trim().length>10));
     var safeName=(c.name||'Candidate').replace(/[^a-zA-Z0-9_-]/g,'_');
     var isReg=!!c.is_registered_user;
     return '<div class="job-card" style="cursor:default;">'
