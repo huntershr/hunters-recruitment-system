@@ -349,6 +349,60 @@ def admin_delete_user(
     return {"message": "User deleted"}
 
 
+# ── Candidate Users (registered portal users + their applications) ────────────
+
+@router.get("/candidate-users")
+def get_candidate_users(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _admin(current_user)
+    users = db.query(models.User).filter(
+        models.User.is_admin == False,
+        models.User.company_id == None,
+    ).all()
+
+    result = []
+    for u in users:
+        cand = (
+            db.query(models.Candidate)
+            .filter(models.Candidate.email == u.email)
+            .order_by(models.Candidate.id.desc())
+            .first()
+        )
+        ev = (
+            db.query(models.Evaluation)
+            .filter(models.Evaluation.candidate_id == cand.id)
+            .first()
+            if cand else None
+        )
+        job = (
+            db.query(models.Job).filter(models.Job.id == cand.job_applied).first()
+            if cand else None
+        )
+        result.append({
+            "user_id": u.id,
+            "candidate_id": cand.id if cand else None,
+            "name": u.full_name or (cand.name if cand else ""),
+            "email": u.email,
+            "phone": cand.phone if cand else "",
+            "last_title": cand.last_title if cand else "",
+            "last_employer": cand.last_employer if cand else "",
+            "years_exp": cand.experience_years if cand else 0,
+            "skills": cand.skills if cand else "",
+            "education": cand.education if cand else "",
+            "has_cv": bool(cand and cand.cv_text and cand.cv_text.strip()),
+            "job_applied": cand.job_applied if cand else None,
+            "job_title": job.job_title if job else "",
+            "score": _norm_score(ev.score) if ev else None,
+            "decision": ev.decision if ev else None,
+            "reason": ev.reason if ev else "",
+            "strengths": ev.strengths if ev else "",
+            "weaknesses": ev.weaknesses if ev else "",
+        })
+    return result
+
+
 # ── Analytics ─────────────────────────────────────────────────────────────────
 
 @router.get("/analytics")

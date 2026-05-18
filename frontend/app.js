@@ -117,10 +117,54 @@ async function fetchData() {
         candidates = await candsRes.json();
         evaluations = await evalsRes.json();
 
-        // Ensure they are arrays
         if (!Array.isArray(jobs)) jobs = [];
         if (!Array.isArray(candidates)) candidates = [];
         if (!Array.isArray(evaluations)) evaluations = [];
+
+        // For admin: also include registered candidate-type users who haven't applied yet
+        if (currentUser && currentUser.is_admin) {
+            try {
+                const cuRes = await authFetch('/api/admin/candidate-users');
+                const candUsers = await cuRes.json();
+                if (Array.isArray(candUsers)) {
+                    const seenEmails = new Set(candidates.map(c => (c.email || '').toLowerCase()));
+                    candUsers.forEach(u => {
+                        const email = (u.email || '').toLowerCase();
+                        if (!seenEmails.has(email)) {
+                            // User registered but never applied — give a synthetic negative ID
+                            const synId = -(u.user_id);
+                            candidates.push({
+                                id: synId,
+                                user_id: u.user_id,
+                                name: u.name || u.email,
+                                email: u.email,
+                                phone: u.phone || '',
+                                job_applied: null,
+                                experience_years: u.years_exp || 0,
+                                expected_salary: '',
+                                education: u.education || '',
+                                skills: u.skills || '',
+                                last_title: u.last_title || '',
+                                last_employer: u.last_employer || '',
+                                has_cv: false,
+                                cv_text: '',
+                                is_registered_user: true,
+                            });
+                            evaluations.push({
+                                id: synId,
+                                candidate_id: synId,
+                                score: null,
+                                decision: 'Pending',
+                                reason: 'Registered on the portal — has not applied to a job yet.',
+                                strengths: '',
+                                weaknesses: '',
+                                suggested_interview_questions: [],
+                            });
+                        }
+                    });
+                }
+            } catch (e) { /* non-critical */ }
+        }
 
         updateDashboard();
         renderJobs();
@@ -511,7 +555,7 @@ function renderCandidateList(filter) {
         const interviewer = localStorage.getItem(`hunters_interviewer_${c.id}`) || '';
         const hrNotes     = localStorage.getItem(`hunters_notes_${c.id}`) || '';
         const location    = c.location || (job ? (job.job_location || '—') : '—');
-        const hasCV       = c.cv_text && c.cv_text.trim().length > 10;
+        const hasCV       = c.id > 0 && c.cv_text && c.cv_text.trim().length > 10;
         const safeNameDl  = (c.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
 
         tbody.innerHTML += `
@@ -637,46 +681,64 @@ function downloadCandidateCV(id, safeName) {
 
 function viewCandidate(id) {
     const candidate = candidates.find(c => c.id === id);
-    const eval = evaluations.find(e => e.candidate_id === id);
+    if (!candidate) return;
+    const ev = evaluations.find(e => e.candidate_id === id);
     currentCandidateId = id;
-    
-    document.getElementById("modal-candidate-name").innerText = `${candidate.name}'s AI Report`;
+
+    const isRegisteredOnly = candidate.is_registered_user === true;
+    const hasRealCV = !isRegisteredOnly && id > 0 && (candidate.has_cv || (candidate.cv_text && candidate.cv_text.trim().length > 10));
+    const safeName = (candidate.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    document.getElementById("modal-candidate-name").innerText = `${candidate.name}'s Profile`;
     document.getElementById("modal-candidate-phone").innerText = candidate.phone || '-';
-    document.getElementById("modal-candidate-expected-salary").innerText = candidate.expected_salary || '-';
-    
-    if (eval) {
-        currentEvaluationId = eval.id;
-        const pct = evalScorePercent(eval.score) ?? 0;
+    document.getElementById("modal-candidate-expected-salary").innerText = candidate.expected_salary || (isRegisteredOnly ? 'Not specified' : '-');
+
+    // CV download button — inject or update
+    const modalContent = document.getElementById("candidate-detail-modal");
+    let cvBtn = document.getElementById("modal-cv-download-btn");
+    if (!cvBtn) {
+        cvBtn = document.createElement("button");
+        cvBtn.id = "modal-cv-download-btn";
+        cvBtn.style.cssText = "margin:12px 0 0;width:100%;padding:10px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;";
+        const footer = modalContent.querySelector(".modal-footer") || modalContent.querySelector(".modal-content");
+        if (footer) footer.appendChild(cvBtn);
+    }
+    if (hasRealCV) {
+        cvBtn.style.display = 'block';
+        cvBtn.textContent = '↓ Download CV PDF';
+        cvBtn.onclick = () => downloadAdminCV(id, safeName);
+    } else {
+        cvBtn.style.display = 'none';
+    }
+
+    if (ev) {
+        currentEvaluationId = ev.id;
+        const pct = evalScorePercent(ev.score) ?? 0;
         document.getElementById("modal-candidate-score").innerText = `${pct}%`;
         document.getElementById("modal-candidate-score").style.background = `conic-gradient(var(--primary) ${pct}%, var(--bg-dark) 0)`;
-        
-        document.getElementById("modal-candidate-decision").innerText = eval.decision;
-        document.getElementById("modal-candidate-decision").className = `decision-badge badge ${eval.decision.toLowerCase()}`;
-        
-        document.getElementById("modal-candidate-reason").innerText = eval.reason;
-        document.getElementById("modal-candidate-strengths").innerText = eval.strengths || "None noted.";
-        document.getElementById("modal-candidate-weaknesses").innerText = eval.weaknesses || "None noted.";
-        
+        document.getElementById("modal-candidate-decision").innerText = ev.decision || 'Pending';
+        document.getElementById("modal-candidate-decision").className = `decision-badge badge ${(ev.decision || 'pending').toLowerCase()}`;
+        document.getElementById("modal-candidate-reason").innerText = ev.reason || (isRegisteredOnly ? 'Registered on the portal — has not applied to a job yet.' : 'No evaluation reason available.');
+        document.getElementById("modal-candidate-strengths").innerText = ev.strengths || "None noted.";
+        document.getElementById("modal-candidate-weaknesses").innerText = ev.weaknesses || "None noted.";
         const qList = document.getElementById("modal-candidate-questions");
         qList.innerHTML = "";
-        if (eval.suggested_interview_questions && eval.suggested_interview_questions.length > 0) {
-            eval.suggested_interview_questions.forEach(q => {
-                qList.innerHTML += `<li>${q}</li>`;
-            });
+        const qs = ev.suggested_interview_questions || [];
+        if (qs.length > 0) {
+            qs.forEach(q => { qList.innerHTML += `<li>${q}</li>`; });
         } else {
             qList.innerHTML = "<li>No specific questions generated.</li>";
         }
     } else {
         document.getElementById("modal-candidate-score").innerText = "0%";
-        document.getElementById("modal-candidate-score").style.background =
-            `conic-gradient(var(--primary) 0%, var(--bg-dark) 0)`;
+        document.getElementById("modal-candidate-score").style.background = `conic-gradient(var(--primary) 0%, var(--bg-dark) 0)`;
         document.getElementById("modal-candidate-decision").innerText = "Pending";
-        document.getElementById("modal-candidate-reason").innerText = "Evaluation is currently running or failed.";
+        document.getElementById("modal-candidate-reason").innerText = isRegisteredOnly ? "Registered on the portal — has not applied to a job yet." : "Evaluation is currently running or failed.";
         document.getElementById("modal-candidate-strengths").innerText = "-";
         document.getElementById("modal-candidate-weaknesses").innerText = "-";
         document.getElementById("modal-candidate-questions").innerHTML = "";
     }
-    
+
     document.getElementById("candidate-detail-modal").classList.add("active");
 }
 
