@@ -601,16 +601,17 @@ function loadOccupationCards(){
       if(portalUser&&portalUser.is_admin){
         try{
           var ru=await fetch(API_BASE+'/api/admin/candidate-users',{headers:hdrs()});
-          var candUsers=await ru.json();
-          if(Array.isArray(candUsers)){
+          var ruData=await ru.json();
+          if(ru.ok&&Array.isArray(ruData)){
             var seen=new Set(candidates.map(function(c){return(c.email||'').toLowerCase();}));
-            candUsers.forEach(function(u){
+            ruData.forEach(function(u){
               if(!seen.has((u.email||'').toLowerCase())){
                 candidates.push({
-                  id:-(u.user_id),name:u.name||u.email,email:u.email,
+                  id:-(u.user_id),real_candidate_id:u.candidate_id||null,
+                  name:u.name||u.email,email:u.email,
                   skills:u.skills||'',education:u.education||'',
                   last_title:u.last_title||'',last_employer:u.last_employer||'',
-                  experience_years:u.years_exp||0,has_cv:false,is_registered_user:true
+                  experience_years:u.years_exp||0,has_cv:u.has_cv||false,is_registered_user:true
                 });
               }
             });
@@ -696,9 +697,11 @@ async function loadTalentPool(){
       var seenEmails=new Set(_allCandidates.map(function(c){return(c.email||'').toLowerCase();}));
       candUsers.forEach(function(u){
         if(!seenEmails.has((u.email||'').toLowerCase())){
-          var synthEv=(u.score!=null||u.decision)?{candidate_id:-(u.user_id),score:u.score,decision:u.decision||'Pending',reason:u.reason||'',strengths:u.strengths||'',weaknesses:u.weaknesses||''}:null;
+          var synthEv=(u.score!=null||u.decision)?{candidate_id:u.candidate_id||-(u.user_id),score:u.score,decision:u.decision||'Pending',reason:u.reason||'',strengths:u.strengths||'',weaknesses:u.weaknesses||''}:null;
           _allCandidates.push({
-            id:-(u.user_id),name:u.name||u.email,email:u.email,phone:u.phone||'',
+            id:-(u.user_id),
+            real_candidate_id:u.candidate_id||null,  /* positive Candidate.id for CV download */
+            name:u.name||u.email,email:u.email,phone:u.phone||'',
             experience_years:u.years_exp||0,education:u.education||'',skills:u.skills||'',
             last_title:u.last_title||'',last_employer:u.last_employer||'',
             cv_text:u.has_cv?'has_cv':'',has_cv:u.has_cv||false,
@@ -738,7 +741,9 @@ function renderTalentPool(candidates){
     var decBg=decision==='Shortlist'||decision==='Accept'?'#E1F5EE':decision==='Reject'?'#FCEBEB':'#FAEEDA';
     var initials=(c.name||'C').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
     var skillsList=(c.skills||'').split(',').slice(0,3).map(function(s){return s.trim();}).filter(Boolean);
-    var hasCV=c.id>0&&(c.has_cv||!!(c.cv_text&&c.cv_text.trim().length>10));
+    /* cvId: real Candidate.id — synthetic users store it in real_candidate_id */
+    var cvId=c.id>0?c.id:(c.real_candidate_id||null);
+    var hasCV=!!cvId&&!!(c.has_cv||(c.cv_text&&c.cv_text.length>10&&c.cv_text!=='has_cv'));
     var safeName=(c.name||'Candidate').replace(/[^a-zA-Z0-9_-]/g,'_');
     var isReg=!!c.is_registered_user;
     return '<div class="job-card" style="cursor:default;">'
@@ -753,7 +758,7 @@ function renderTalentPool(candidates){
       +'<div style="font-size:12px;color:#6B7280;margin-bottom:8px;">⏱ '+(c.experience_years||0)+' yrs exp'+(c.last_title?' · '+esc(c.last_title.slice(0,30)):'')+'</div>'
       +(skillsList.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">'+skillsList.map(function(s){return'<span style="background:#F0F4F8;color:#1B2A4A;font-size:10px;padding:2px 8px;border-radius:10px;">'+esc(s)+'</span>';}).join('')+'</div>':'<div style="margin-bottom:10px;"></div>')
       +'<div style="display:flex;gap:6px;">'
-        +(hasCV?'<button onclick="portalDownloadCV('+c.id+',\''+safeName+'\')" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:7px 0;font-size:11px;font-weight:500;cursor:pointer;">↓ Download CV</button>':'<span style="flex:1;font-size:11px;color:#9CA3AF;display:flex;align-items:center;justify-content:center;">No CV uploaded</span>')
+        +(hasCV?'<button onclick="portalDownloadCV('+cvId+',\''+safeName+'\')" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:7px 0;font-size:11px;font-weight:500;cursor:pointer;">↓ Download CV</button>':'<span style="flex:1;font-size:11px;color:#9CA3AF;display:flex;align-items:center;justify-content:center;">No CV uploaded</span>')
         +(ev&&ev.reason?'<button onclick="portalViewReport('+JSON.stringify(c).replace(/'/g,"&#39;")+','+JSON.stringify(ev).replace(/'/g,"&#39;")+')" style="background:#F0F4FF;color:#1B2A4A;border:0.5px solid #C9A84C;border-radius:7px;padding:7px 10px;font-size:11px;font-weight:500;cursor:pointer;">View Report</button>':'')
       +'</div>'
     +'</div>';

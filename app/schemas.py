@@ -98,14 +98,14 @@ class JobApprovalResponse(JobResponse):
 # Candidate Schemas
 class CandidateBase(BaseModel):
     name: str
-    email: str
-    phone: str
-    job_applied: int
-    experience_years: int
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    job_applied: Optional[int] = None
+    experience_years: Optional[int] = None
     expected_salary: Optional[str] = None
-    education: str
-    skills: str
-    cv_text: str
+    education: Optional[str] = None
+    skills: Optional[str] = None
+    cv_text: Optional[str] = None
 
 class CandidateCreate(CandidateBase):
     pass
@@ -121,9 +121,9 @@ class CandidateResponse(CandidateBase):
 
 # Evaluation Schemas
 class EvaluationBase(BaseModel):
-    score: float
-    decision: str
-    reason: str
+    score: Optional[float] = None
+    decision: Optional[str] = None
+    reason: Optional[str] = None
     strengths: Optional[str] = None
     weaknesses: Optional[str] = None
     suggested_interview_questions: Optional[List[str]] = None
