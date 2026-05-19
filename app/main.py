@@ -489,6 +489,49 @@ CV Text:
 def health_check():
     return {"status": "healthy"}
 
+@app.get("/_verify_14")
+def verify_14():
+    """Temporary Phase-1.4 verification — read-only, remove after check."""
+    from sqlalchemy import text as _t
+    db = SessionLocal()
+    try:
+        marker      = db.execute(_t("SELECT name, applied_at FROM _schema_migrations WHERE name = 'phase_1_4_data_split'")).fetchone()
+        total_apps  = db.execute(_t("SELECT COUNT(*) FROM applications")).scalar()
+        type_a      = db.execute(_t("SELECT COUNT(*) FROM applications WHERE candidate_id IS NOT NULL")).scalar()
+        type_b      = db.execute(_t("SELECT COUNT(*) FROM applications WHERE candidate_id IS NULL")).scalar()
+        reparented  = db.execute(_t("SELECT COUNT(*) FROM evaluations WHERE application_id IS NOT NULL")).scalar()
+        unlinked    = db.execute(_t("SELECT COUNT(*) FROM evaluations WHERE application_id IS NULL")).scalar()
+        remaining   = db.execute(_t("SELECT COUNT(*) FROM candidates")).scalar()
+        orphans     = db.execute(_t(
+            "SELECT COUNT(*) FROM applications a WHERE a.candidate_id IS NOT NULL "
+            "AND NOT EXISTS (SELECT 1 FROM candidates c WHERE c.id = a.candidate_id)"
+        )).scalar()
+        apps_detail = db.execute(_t(
+            "SELECT a.id, a.job_id, a.candidate_id, a.applicant_name, a.applicant_email, "
+            "a.stage, e.score, e.decision "
+            "FROM applications a LEFT JOIN evaluations e ON e.application_id = a.id "
+            "ORDER BY a.id"
+        )).fetchall()
+        cands_remaining = db.execute(_t(
+            "SELECT id, name, email, user_id FROM candidates ORDER BY id"
+        )).fetchall()
+        return {
+            "migration_marker": dict(marker._mapping) if marker else None,
+            "a_total_applications": total_apps,
+            "b_type_a_linked": type_a,
+            "c_type_b_anonymous": type_b,
+            "d_evaluations_reparented": reparented,
+            "e_evaluations_unlinked_RED_FLAG": unlinked,
+            "f_candidates_remaining": remaining,
+            "g_orphan_applications": orphans,
+            "applications_detail": [dict(r._mapping) for r in apps_detail],
+            "candidates_remaining_detail": [dict(r._mapping) for r in cands_remaining],
+        }
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
 
 
 
