@@ -448,6 +448,7 @@ function applyUserRole(user){
   } else {
     showPortalSection('all-jobs');
     loadJobs();
+    migrateLocalStorageProfile(); /* fire-and-forget: migrates localStorage → backend once */
   }
 }
 
@@ -773,7 +774,7 @@ function showPortalSection(id){
   var el=document.getElementById('section-'+id);if(el){el.style.display='block';el.classList.add('active');}
   document.querySelectorAll('.portal-tab').forEach(function(t,i){t.classList.toggle('active',tabOrder[i]===id);});
   if(id==='my-applications')renderMyApps();
-  if(id==='profile')renderProfile();
+  if(id==='profile'){renderProfile();}
   if(['all-jobs','edu-jobs','corp-jobs'].includes(id))renderSection(id);
   if(id==='talent-pool')filterTalentPool();
 }
@@ -1003,12 +1004,6 @@ async function submitApply(){
     var apps=JSON.parse(localStorage.getItem('hunters_portal_apps')||'[]');
     apps.unshift({job_title:currentJob.job_title,company_name:currentJob.company_name||'',job_id:currentJob.id,candidate_id:d.candidate_id,applied_date:new Date().toISOString(),score:pct,decision:msg.status,status:'Under Review'});
     localStorage.setItem('hunters_portal_apps',JSON.stringify(apps.slice(0,50)));
-    if(d.name||d.email){
-      var pr=JSON.parse(localStorage.getItem('hunters_candidate_profile')||'{}');
-      if(d.name&&!d.name.includes('@'))pr.name=d.name;
-      if(d.email)pr.email=d.email;if(d.phone)pr.phone=d.phone;
-      localStorage.setItem('hunters_candidate_profile',JSON.stringify(pr));
-    }
     form.innerHTML=buildCandidateResultCard(msg);
   }catch(err){clearInterval(iv);
     var isImagePdf=err.message&&err.message.toLowerCase().includes('scanned');
@@ -1061,19 +1056,77 @@ function renderMyApps(){
 }
 function clearApps(){if(confirm('Clear all application history?')){localStorage.removeItem('hunters_portal_apps');renderMyApps();}}
 
+/* ─── Profile localStorage → backend migration (runs once per user per browser) ─── */
+async function migrateLocalStorageProfile(){
+  if(!portalUser)return;
+  var migratedKey='hunters_profile_migrated_'+portalUser.id;
+  if(localStorage.getItem(migratedKey)==='true')return;
+  var stored=localStorage.getItem('hunters_candidate_profile');
+  if(!stored){localStorage.setItem(migratedKey,'true');return;}
+  var localData;
+  try{localData=JSON.parse(stored);}catch(e){
+    localStorage.setItem(migratedKey,'true');
+    localStorage.removeItem('hunters_candidate_profile');
+    return;
+  }
+  var backendProfile;
+  try{
+    var resp=await fetch(API_BASE+'/api/candidate/profile',{headers:hdrs()});
+    if(resp.status===404){return;} /* No Candidate row yet — retry after first apply */
+    if(!resp.ok){return;}
+    backendProfile=await resp.json();
+  }catch(e){return;}
+  var backendIsEmpty=(!backendProfile.summary&&
+    (!backendProfile.experiences||backendProfile.experiences.length===0)&&
+    (!backendProfile.education_history||backendProfile.education_history.length===0));
+  if(backendIsEmpty){
+    try{
+      var putResp=await fetch(API_BASE+'/api/candidate/profile',{
+        method:'PUT',
+        headers:Object.assign({},hdrs(),{'Content-Type':'application/json'}),
+        body:JSON.stringify({
+          name:localData.name,phone:localData.phone,photo_url:localData.photo_url,
+          summary:localData.summary,location:localData.location,
+          experiences:(localData.experiences||[]).map(function(e){return{title:e.title||'',employer:e.company||e.employer||'',start:e.start||e.duration||'',end:e.end||null,description:e.description||null};}),
+          education_history:localData.education_history||[],
+          languages:localData.languages||[],
+          skills:Array.isArray(localData.skills)?localData.skills.join(', '):(localData.skills||'')
+        })
+      });
+      if(putResp.ok){
+        showToast('Profile synced to your account','success');
+        localStorage.removeItem('hunters_candidate_profile');
+        localStorage.setItem(migratedKey,'true');
+      }
+    }catch(e){return;}
+  }else{
+    localStorage.removeItem('hunters_candidate_profile');
+    localStorage.setItem(migratedKey,'true');
+  }
+}
+
 /* ─── Profile ─── */
-function renderProfile(){
-  var pr=JSON.parse(localStorage.getItem('hunters_candidate_profile')||'{}');
-  _profileSkills=pr.skills?[...pr.skills]:[];
-  _profileExps=pr.experiences?[...pr.experiences]:[];
+async function renderProfile(){
+  var pr={};
+  try{
+    var resp=await fetch(API_BASE+'/api/candidate/profile',{headers:hdrs()});
+    if(resp.status===401||resp.status===403){window.location.reload();return;}
+    if(resp.ok){pr=await resp.json();}
+    else if(resp.status!==404){showToast('Could not load profile','error');console.error('renderProfile',resp.status);}
+  }catch(e){showToast('Could not load profile','error');console.error('renderProfile',e);}
+  var hasNoRow=(Object.keys(pr).length===0);
+  _profileSkills=pr.skills?pr.skills.split(',').map(function(s){return s.trim();}).filter(Boolean):[];
+  _profileExps=(pr.experiences||[]).map(function(e){return{title:e.title||'',company:e.employer||e.company||'',duration:e.start?(e.start+(e.end?'–'+e.end:'')):'',start:e.start||'',end:e.end||null,description:e.description||null};});
   var name=pr.name||(portalUser?portalUser.full_name:'')||'';
   var email=pr.email||(portalUser?portalUser.email:'')||'';
-  var photo=localStorage.getItem('hunters_profile_photo')||'';
+  var photo=pr.photo_url||localStorage.getItem('hunters_profile_photo')||'';
   var avatarHtml=photo
     ?'<img src="'+photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
     :'<span style="color:#C9A84C;font-size:26px;font-weight:500;">'+ini(name||'?')+'</span>';
   document.getElementById('profile-content').innerHTML=
     '<div style="max-width:660px;margin:0 auto;">' +
+      /* No-Candidate-row banner */
+      (hasNoRow?'<div style="background:#FEF3C7;border:0.5px solid #FCD34D;border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#92400E;">Apply to a job to save your profile, or fill it in and apply — your profile will be created automatically.</div>':'')+
       /* Auto-fill banner */
       '<div id="cv-autofill-banner" style="background:#EEF2FF;border:0.5px solid #C7D2FE;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">' +
         '<svg width="20" height="20" fill="none" stroke="#4F46E5" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
@@ -1147,8 +1200,7 @@ async function extractCVForProfile(file){
     if(d.skills&&d.skills.length){_profileSkills=d.skills;var st=document.getElementById('skill-tags');if(st)st.innerHTML=renderSkillTags();}
     if(d.experiences&&d.experiences.length){_profileExps=d.experiences;var el2=document.getElementById('exp-list');if(el2)el2.innerHTML=renderExpList();}
 
-    /* Auto-save to localStorage immediately */
-    saveProfile();
+    await saveProfile();
 
     /* Restore banner with success state */
     if(banner)banner.innerHTML='<div style="display:flex;align-items:center;gap:10px;color:#0F6E56;"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="font-size:13px;font-weight:500;">Profile auto-filled and saved! Review the fields below.</span></div>';
@@ -1174,18 +1226,31 @@ function removeSkill(i){_profileSkills.splice(i,1);document.getElementById('skil
 function addExp(){var t=prompt('Job Title:');if(!t)return;var c=prompt('Company/Employer:')||'';var d=prompt('Duration (e.g. 2 years):')||'';_profileExps.push({title:t,company:c,duration:d});document.getElementById('exp-list').innerHTML=renderExpList();}
 function removeExp(i){_profileExps.splice(i,1);document.getElementById('exp-list').innerHTML=renderExpList();}
 
-function saveProfile(){
-  var pr={
+async function saveProfile(){
+  var payload={
     name:(document.getElementById('profile-name')||{}).value||'',
     phone:(document.getElementById('profile-phone')||{}).value||'',
-    email:(document.getElementById('profile-email')||{}).value||'',
-    industry:(document.getElementById('profile-industry')||{}).value||'',
     education:(document.getElementById('profile-edu')||{}).value||'',
-    skills:_profileSkills,
-    experiences:_profileExps
+    skills:_profileSkills.join(', '),
+    experiences:_profileExps.map(function(e){return{title:e.title||'',employer:e.company||e.employer||'',start:e.start||e.duration||'',end:e.end||null,description:e.description||null};}),
+    education_history:[],
+    languages:[]
   };
-  localStorage.setItem('hunters_candidate_profile',JSON.stringify(pr));
-  showToast('Profile saved!','success');
+  try{
+    var r=await fetch(API_BASE+'/api/candidate/profile',{
+      method:'PUT',
+      headers:Object.assign({},hdrs(),{'Content-Type':'application/json'}),
+      body:JSON.stringify(payload)
+    });
+    if(r.ok){showToast('Profile saved!','success');return;}
+    if(r.status===404){showToast('Profile cannot be saved until you apply to a job.','error');return;}
+    if(r.status===400){var e=await r.json().catch(function(){return{};});showToast('Validation error: '+(e.detail||'Bad request'),'error');return;}
+    if(r.status===401||r.status===403){window.location.reload();return;}
+    showToast('Save failed (server error). Your changes are not lost — try again.','error');
+  }catch(e){
+    showToast('Save failed (network error). Your changes are not lost — try again.','error');
+    console.error('saveProfile',e);
+  }
 }
 
 /* ─── Photo Upload ─── */
@@ -1214,23 +1279,26 @@ var _modalSkills=[],_modalExps=[],_cvFile=null;
 
 function openCVModal(){
   var modal=document.getElementById('cv-modal');modal.classList.add('active');
-  /* pre-fill manual tab from saved profile */
-  var pr=JSON.parse(localStorage.getItem('hunters_candidate_profile')||'{}');
+  /* pre-fill from in-memory profile globals (populated by renderProfile from backend) */
   var photo=localStorage.getItem('hunters_profile_photo')||'';
-  _modalSkills=pr.skills?[...pr.skills]:[];
-  _modalExps=pr.experiences?[...pr.experiences]:[];
+  _modalSkills=[..._profileSkills];
+  _modalExps=[..._profileExps];
+  var profileName=document.getElementById('profile-name');
+  var profilePhone=document.getElementById('profile-phone');
+  var profileEdu=document.getElementById('profile-edu');
   var setVal=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
-  setVal('m-name',pr.name||(portalUser?portalUser.full_name:'')||'');
-  setVal('m-email',pr.email||(portalUser?portalUser.email:'')||'');
-  setVal('m-phone',pr.phone||'');
-  setVal('m-industry',pr.industry||'');
-  setVal('m-edu',pr.education||'');
+  setVal('m-name',(profileName&&profileName.value)||(portalUser?portalUser.full_name:'')||'');
+  setVal('m-email',portalUser?portalUser.email:'');
+  setVal('m-phone',(profilePhone&&profilePhone.value)||'');
+  setVal('m-industry','');
+  setVal('m-edu',(profileEdu&&profileEdu.value)||'');
   renderModalSkillTags();renderModalExpList();
   /* sync photo */
+  var nameForAvatar=(profileName&&profileName.value)||(portalUser&&portalUser.full_name)||'?';
   ['cv-photo-upload','cv-photo-manual'].forEach(function(id){
     var c=document.getElementById(id);if(!c)return;
     if(photo){c.innerHTML='<img src="'+photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="photo-overlay"><svg width="18" height="18" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>';}
-    else{var ini_=ini(pr.name||portalUser&&portalUser.full_name||'?');c.innerHTML='<span style="color:#C9A84C;font-size:24px;font-weight:500;">'+ini_+'</span><div class="photo-overlay"><svg width="18" height="18" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>';}
+    else{var ini_=ini(nameForAvatar);c.innerHTML='<span style="color:#C9A84C;font-size:24px;font-weight:500;">'+ini_+'</span><div class="photo-overlay"><svg width="18" height="18" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>';}
   });
   /* clear progress/preview */
   var prog=document.getElementById('cv-modal-progress'),prev=document.getElementById('cv-modal-preview');
