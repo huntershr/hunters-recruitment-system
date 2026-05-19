@@ -155,7 +155,7 @@ FIELDS TO EXTRACT:
 8. last_employer - The most recent or current employer/company name (e.g. "Microsoft", "Vodafone Egypt")
 
 CV TEXT:
-{cv_text[:6000]}
+{(cv_text or '')[:6000]}
 
 Return ONLY a valid JSON object with exactly these 8 keys. Use null for any field not found, except experience_years which must always be an integer.
 Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678","experience_years":5,"education":"BSc Engineering, AUC","skills":"Python, SQL, Power BI","last_title":"Data Analyst","last_employer":"Raya Holding"}}"""
@@ -233,7 +233,7 @@ def evaluate_candidate(job, candidate):
     - Stated Skills: {candidate.skills}
     - Education: {candidate.education}
     - CV TEXT EXTRACT:
-    {candidate.cv_text[:3000]}
+    {(candidate.cv_text or '')[:3000]}
 
     SCORING CRITERIA (Weights):
     - Experience Relevance: {job.weight_experience}x

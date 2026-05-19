@@ -77,6 +77,8 @@ def run_evaluation_task(candidate_id: int, db: Session):
         # Send results back to Google Sheets
         from ..services.google_sheets import update_candidate_row
         update_candidate_row(candidate.email, eval_result)
+    except Exception as e:
+        logger.error(f"Evaluation task failed for candidate {candidate_id}: {e}")
     finally:
         db.close()
 
@@ -111,6 +113,17 @@ async def screen_cv(
     email = info.get("email") or f"bulk_{file.filename}@noemail.hunters"
     phone = str(info.get("phone") or "")
 
+    # Portal candidates (non-admin, non-company): always use their account email
+    # so the Candidate record is reliably linked back to their User record by email.
+    # AI extraction may return a different email or fall back to a placeholder,
+    # breaking the User→Candidate lookup used by the pipeline and talent pool.
+    is_portal_candidate = not current_user.is_admin and not current_user.company_id
+    if is_portal_candidate:
+        email = current_user.email
+        # Also fix name if AI returned nothing useful or an email string
+        if not name or "@" in name:
+            name = current_user.full_name or name
+
     if job_id is None:
         return {
             "candidate_id": None,
@@ -126,41 +139,71 @@ async def screen_cv(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Attribute to the job owner (employer) so it appears in their dashboard,
-    # not to the portal candidate's own user account
-    candidate = models.Candidate(
-        name=name,
-        email=email,
-        phone=phone,
-        job_applied=job_id,
-        experience_years=int(info.get("experience_years") or 0),
-        expected_salary="",
-        education=str(info.get("education") or ""),
-        skills=str(info.get("skills") or ""),
-        cv_text=cv_text,
-        last_title=str(info.get("last_title") or ""),
-        last_employer=str(info.get("last_employer") or ""),
-        owner_id=job.owner_id,
+    # Check for an existing Candidate record for this user+job to avoid duplicates
+    # (portal candidate re-applies to the same job after fixing their CV, etc.)
+    existing = (
+        db.query(models.Candidate)
+        .filter(models.Candidate.email == email, models.Candidate.job_applied == job_id)
+        .first()
     )
-    db.add(candidate)
-    db.commit()
-    db.refresh(candidate)
+    if existing:
+        # Update CV text and re-run screening on the existing record
+        existing.cv_text = cv_text
+        existing.name = name
+        existing.phone = phone or existing.phone
+        existing.experience_years = int(info.get("experience_years") or 0) or existing.experience_years
+        existing.education = str(info.get("education") or "") or existing.education
+        existing.skills = str(info.get("skills") or "") or existing.skills
+        existing.last_title = str(info.get("last_title") or "") or existing.last_title
+        existing.last_employer = str(info.get("last_employer") or "") or existing.last_employer
+        db.commit()
+        db.refresh(existing)
+        candidate = existing
+    else:
+        # Attribute to the job owner (employer) so it appears in their dashboard
+        candidate = models.Candidate(
+            name=name,
+            email=email,
+            phone=phone,
+            job_applied=job_id,
+            experience_years=int(info.get("experience_years") or 0),
+            expected_salary="",
+            education=str(info.get("education") or ""),
+            skills=str(info.get("skills") or ""),
+            cv_text=cv_text,
+            last_title=str(info.get("last_title") or ""),
+            last_employer=str(info.get("last_employer") or ""),
+            owner_id=job.owner_id,
+        )
+        db.add(candidate)
+        db.commit()
+        db.refresh(candidate)
 
     # Synchronous AI evaluation — gives immediate result
     raw = evaluate_candidate(job, candidate)
     result = finalize_evaluation(raw)
 
-    db_eval = models.Evaluation(
-        candidate_id=candidate.id,
-        job_id=job.id,
-        score=result.get("score", 0.0),
-        decision=result.get("decision", "Reject"),
-        reason=result.get("reason", ""),
-        strengths=str(result.get("strengths", "") or ""),
-        weaknesses=str(result.get("weaknesses", "") or ""),
-        suggested_interview_questions=json.dumps(result.get("suggested_interview_questions", [])),
-    )
-    db.add(db_eval)
+    # Upsert evaluation: re-applying overwrites the previous result on the same Candidate row
+    db_eval = db.query(models.Evaluation).filter(models.Evaluation.candidate_id == candidate.id).first()
+    if db_eval:
+        db_eval.score = result.get("score", 0.0)
+        db_eval.decision = result.get("decision", "Reject")
+        db_eval.reason = result.get("reason", "")
+        db_eval.strengths = str(result.get("strengths", "") or "")
+        db_eval.weaknesses = str(result.get("weaknesses", "") or "")
+        db_eval.suggested_interview_questions = json.dumps(result.get("suggested_interview_questions", []))
+    else:
+        db_eval = models.Evaluation(
+            candidate_id=candidate.id,
+            job_id=job.id,
+            score=result.get("score", 0.0),
+            decision=result.get("decision", "Reject"),
+            reason=result.get("reason", ""),
+            strengths=str(result.get("strengths", "") or ""),
+            weaknesses=str(result.get("weaknesses", "") or ""),
+            suggested_interview_questions=json.dumps(result.get("suggested_interview_questions", [])),
+        )
+        db.add(db_eval)
     db.commit()
 
     return {
