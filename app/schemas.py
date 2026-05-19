@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 
 # Company Schemas
@@ -115,6 +115,31 @@ class CandidateResponse(CandidateBase):
     last_title: Optional[str] = None
     last_employer: Optional[str] = None
     company_name: Optional[str] = None
+    user_id: Optional[int] = None
+    photo_url: Optional[str] = None
+    summary: Optional[str] = None
+    location: Optional[str] = None
+    experiences: Optional[Any] = None
+    education_history: Optional[Any] = None
+    languages: Optional[Any] = None
+
+    class Config:
+        from_attributes = True
+
+# Application Schemas
+class ApplicationCreate(BaseModel):
+    job_id: int
+    candidate_id: Optional[int] = None
+    applicant_name: Optional[str] = None
+    applicant_email: Optional[str] = None
+    applicant_phone: Optional[str] = None
+    cv_file_path: Optional[str] = None
+    expected_salary: Optional[str] = None
+    stage: Optional[str] = "New"
+
+class ApplicationResponse(ApplicationCreate):
+    id: int
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

@@ -30,7 +30,10 @@ class User(Base):
 
     company = relationship("Company", back_populates="users")
     jobs = relationship("Job", back_populates="owner")
-    candidates = relationship("Candidate", back_populates="owner")
+    # Candidates owned/managed by this user (employer relationship via owner_id)
+    candidates = relationship("Candidate", back_populates="owner", foreign_keys="[Candidate.owner_id]")
+    # The single Candidate profile row belonging to this user as a job-seeker (via user_id)
+    candidate_profile = relationship("Candidate", back_populates="user", foreign_keys="[Candidate.user_id]", uselist=False)
 
 class Job(Base):
     __tablename__ = "jobs"
@@ -59,6 +62,7 @@ class Job(Base):
 
     owner = relationship("User", back_populates="jobs")
     candidates = relationship("Candidate", back_populates="job")
+    applications = relationship("Application", back_populates="job")
 
 
 class Candidate(Base):
@@ -71,16 +75,45 @@ class Candidate(Base):
     job_applied = Column(Integer, ForeignKey("jobs.id"))
     experience_years = Column(Integer)
     expected_salary = Column(String, nullable=True)
-    education = Column(String)
+    education = Column(String)       # legacy VARCHAR — keep for existing data
     skills = Column(Text)
     cv_text = Column(Text)
     last_title = Column(String, nullable=True)
     last_employer = Column(String, nullable=True)
-    owner_id = Column(Integer, ForeignKey("users.id"))
+    owner_id = Column(Integer, ForeignKey("users.id"))   # employer who manages this record
+    # Phase 1.1 — new columns (all nullable, additive)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # the candidate's own User account
+    photo_url = Column(Text, nullable=True)
+    summary = Column(Text, nullable=True)
+    location = Column(String, nullable=True)
+    experiences = Column(JSON, nullable=True)       # [{title, company, from, to, desc}]
+    education_history = Column(JSON, nullable=True) # [{degree, institution, year}]  (replaces legacy education VARCHAR in future)
+    languages = Column(JSON, nullable=True)         # [{language, level}]
 
-    owner = relationship("User", back_populates="candidates")
+    owner = relationship("User", back_populates="candidates", foreign_keys=[owner_id])
+    user = relationship("User", back_populates="candidate_profile", foreign_keys=[user_id])
     job = relationship("Job", back_populates="candidates")
     evaluation = relationship("Evaluation", back_populates="candidate", uselist=False)
+    applications = relationship("Application", back_populates="candidate")
+
+
+class Application(Base):
+    __tablename__ = "applications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=True)
+    applicant_name = Column(Text, nullable=True)
+    applicant_email = Column(Text, nullable=True)
+    applicant_phone = Column(Text, nullable=True)
+    cv_file_path = Column(Text, nullable=True)
+    expected_salary = Column(Text, nullable=True)
+    stage = Column(Text, default='New')
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    job = relationship("Job", back_populates="applications")
+    candidate = relationship("Candidate", back_populates="applications")
+    evaluation = relationship("Evaluation", back_populates="application", uselist=False)
 
 
 class Evaluation(Base):
@@ -89,6 +122,7 @@ class Evaluation(Base):
     id = Column(Integer, primary_key=True, index=True)
     candidate_id = Column(Integer, ForeignKey("candidates.id"), unique=True)
     job_id = Column(Integer, ForeignKey("jobs.id"))
+    application_id = Column(Integer, ForeignKey("applications.id"), nullable=True)
     score = Column(Float)
     decision = Column(String) # Accept / Maybe / Reject
     reason = Column(Text)
@@ -97,3 +131,4 @@ class Evaluation(Base):
     suggested_interview_questions = Column(JSON, nullable=True)
 
     candidate = relationship("Candidate", back_populates="evaluation")
+    application = relationship("Application", back_populates="evaluation")

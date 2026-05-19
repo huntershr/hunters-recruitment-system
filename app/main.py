@@ -71,6 +71,40 @@ def startup_populate_db():
             logging.info(f"Migration hide_salary (column likely exists): {_e}")
             db.rollback()
 
+        # Phase 1.1 — additive schema migrations
+        _phase11_columns = [
+            ("candidates", "user_id",           "INTEGER REFERENCES users(id)"),
+            ("candidates", "photo_url",          "TEXT"),
+            ("candidates", "summary",            "TEXT"),
+            ("candidates", "location",           "VARCHAR"),
+            ("candidates", "experiences",        "JSONB"),
+            ("candidates", "education_history",  "JSONB"),
+            ("candidates", "languages",          "JSONB"),
+            ("evaluations", "application_id",    "INTEGER REFERENCES applications(id)"),
+        ]
+        for _tbl, _col, _typedef in _phase11_columns:
+            try:
+                from sqlalchemy import text as _text
+                db.execute(_text(f"ALTER TABLE {_tbl} ADD COLUMN IF NOT EXISTS {_col} {_typedef}"))
+                db.commit()
+                logging.info(f"Migration: {_tbl}.{_col} ensured")
+            except Exception as _e:
+                logging.info(f"Migration {_tbl}.{_col} skipped: {_e}")
+                db.rollback()
+
+        # Phase 1.4 guard table
+        try:
+            from sqlalchemy import text as _text
+            db.execute(_text(
+                "CREATE TABLE IF NOT EXISTS _schema_migrations "
+                "(name TEXT PRIMARY KEY, applied_at TIMESTAMP DEFAULT NOW())"
+            ))
+            db.commit()
+            logging.info("Migration: _schema_migrations table ensured")
+        except Exception as _e:
+            logging.info(f"Migration _schema_migrations skipped: {_e}")
+            db.rollback()
+
         try:
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
