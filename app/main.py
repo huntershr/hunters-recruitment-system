@@ -174,6 +174,118 @@ def startup_populate_db():
             logging.error(f"Phase 1.2 backfill failed: {_e}")
             db.rollback()
 
+        # Phase 1.4 — data split (DESTRUCTIVE, single transaction, guarded)
+        try:
+            from sqlalchemy import text as _text
+            already_run = db.execute(_text(
+                "SELECT 1 FROM _schema_migrations WHERE name = 'phase_1_4_data_split'"
+            )).fetchone()
+            if already_run:
+                logging.info("Phase 1.4 data split already applied — skipping")
+            else:
+                logging.info("Phase 1.4: starting data split — all steps in one transaction")
+
+                # Step 1 — Application rows for Type A (user_id IS NOT NULL)
+                db.execute(_text("""
+                    INSERT INTO applications (job_id, candidate_id, stage, created_at)
+                    SELECT job_applied, id, 'New', NOW()
+                    FROM candidates
+                    WHERE user_id IS NOT NULL AND job_applied IS NOT NULL
+                """))
+                logging.info("Phase 1.4 step 1: Type A application rows inserted")
+
+                # Step 2 — Application rows for Type B (user_id IS NULL, anonymous)
+                db.execute(_text("""
+                    INSERT INTO applications
+                      (job_id, candidate_id, applicant_name, applicant_email,
+                       applicant_phone, expected_salary, stage, created_at)
+                    SELECT job_applied, NULL, name, email, phone, expected_salary, 'New', NOW()
+                    FROM candidates
+                    WHERE user_id IS NULL AND job_applied IS NOT NULL
+                """))
+                logging.info("Phase 1.4 step 2: Type B application rows inserted")
+
+                # Step 3 — Reparent evaluations: set application_id
+                db.execute(_text("""
+                    UPDATE evaluations e
+                    SET application_id = a.id
+                    FROM applications a
+                    WHERE (
+                        a.candidate_id = e.candidate_id
+                        OR (
+                            a.applicant_email IS NOT NULL
+                            AND LOWER(a.applicant_email) = LOWER(
+                                (SELECT email FROM candidates WHERE id = e.candidate_id)
+                            )
+                        )
+                    )
+                    AND a.job_id = e.job_id
+                    AND e.application_id IS NULL
+                """))
+                logging.info("Phase 1.4 step 3: evaluations reparented to applications")
+
+                # Verify step 3 — abort entire transaction if any eval couldn't be reparented
+                unlinked_check = db.execute(_text(
+                    "SELECT COUNT(*) FROM evaluations WHERE application_id IS NULL"
+                )).scalar()
+                if unlinked_check > 0:
+                    raise Exception(
+                        f"Phase 1.4 abort: {unlinked_check} evaluation(s) could not be "
+                        f"reparented — rolling back entire transaction"
+                    )
+
+                # Step 3b — Nullify candidate_id on Type B evaluations before deletion
+                # Required: evaluations.candidate_id has FK → candidates.id (NO ACTION)
+                # Setting to NULL satisfies the constraint and keeps the eval linked via application_id
+                db.execute(_text("""
+                    UPDATE evaluations
+                    SET candidate_id = NULL
+                    WHERE candidate_id IN (SELECT id FROM candidates WHERE user_id IS NULL)
+                """))
+                logging.info("Phase 1.4 step 3b: candidate_id nullified on Type B evaluations (FK safety)")
+
+                # Step 4 — Delete Type B Candidate rows (FK-safe now that their evals are nulled)
+                db.execute(_text("DELETE FROM candidates WHERE user_id IS NULL"))
+                logging.info("Phase 1.4 step 4: Type B candidate rows deleted")
+
+                # Step 5 — Mark migration complete
+                db.execute(_text(
+                    "INSERT INTO _schema_migrations (name) VALUES ('phase_1_4_data_split')"
+                ))
+
+                db.commit()
+                logging.info("Phase 1.4: transaction committed successfully")
+
+                # Post-migration report (read-only, after commit)
+                total_apps    = db.execute(_text("SELECT COUNT(*) FROM applications")).scalar()
+                type_a_apps   = db.execute(_text("SELECT COUNT(*) FROM applications WHERE candidate_id IS NOT NULL")).scalar()
+                type_b_apps   = db.execute(_text("SELECT COUNT(*) FROM applications WHERE candidate_id IS NULL")).scalar()
+                reparented    = db.execute(_text("SELECT COUNT(*) FROM evaluations WHERE application_id IS NOT NULL")).scalar()
+                still_unlinked = db.execute(_text("SELECT COUNT(*) FROM evaluations WHERE application_id IS NULL")).scalar()
+                remaining_cands = db.execute(_text("SELECT COUNT(*) FROM candidates")).scalar()
+                orphan_apps   = db.execute(_text(
+                    "SELECT COUNT(*) FROM applications a "
+                    "WHERE a.candidate_id IS NOT NULL "
+                    "AND NOT EXISTS (SELECT 1 FROM candidates c WHERE c.id = a.candidate_id)"
+                )).scalar()
+
+                logging.info(f"Phase 1.4 report | a) total applications: {total_apps}")
+                logging.info(f"Phase 1.4 report | b) type_a (linked to candidate): {type_a_apps}")
+                logging.info(f"Phase 1.4 report | c) type_b (anonymous): {type_b_apps}")
+                logging.info(f"Phase 1.4 report | d) evaluations reparented: {reparented}")
+                logging.info(f"Phase 1.4 report | e) evaluations still unlinked (RED FLAG if >0): {still_unlinked}")
+                logging.info(f"Phase 1.4 report | f) candidates remaining: {remaining_cands}")
+                logging.info(f"Phase 1.4 report | g) orphan applications: {orphan_apps}")
+
+                if still_unlinked > 0:
+                    logging.error(f"Phase 1.4 RED FLAG: {still_unlinked} evaluations are still unlinked!")
+                if orphan_apps > 0:
+                    logging.error(f"Phase 1.4 RED FLAG: {orphan_apps} orphan applications found!")
+
+        except Exception as _e:
+            logging.error(f"Phase 1.4 data split FAILED — rolled back: {_e}")
+            db.rollback()
+
         try:
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
