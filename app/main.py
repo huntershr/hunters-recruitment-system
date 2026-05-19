@@ -307,32 +307,6 @@ CV Text:
 def health_check():
     return {"status": "healthy"}
 
-@app.get("/_schema_verify")
-def schema_verify():
-    """Temporary Phase-1.1 schema verification endpoint — remove after check."""
-    from sqlalchemy import text as _t
-    db = SessionLocal()
-    try:
-        cols = db.execute(_t(
-            "SELECT column_name, data_type, udt_name, is_nullable, column_default "
-            "FROM information_schema.columns "
-            "WHERE table_name IN ('candidates','applications','evaluations','_schema_migrations') "
-            "ORDER BY table_name, ordinal_position"
-        )).fetchall()
-        fks = db.execute(_t(
-            "SELECT conname, conrelid::regclass AS on_table, confrelid::regclass AS references_table "
-            "FROM pg_constraint "
-            "WHERE conrelid::regclass::text IN ('candidates','applications','evaluations') "
-            "AND contype = 'f' ORDER BY on_table, conname"
-        )).fetchall()
-        return {
-            "columns": [dict(r._mapping) for r in cols],
-            "foreign_keys": [dict(r._mapping) for r in fks],
-        }
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        db.close()
 
 # Mount the frontend directory to serve HTML/JS/CSS
 try:
