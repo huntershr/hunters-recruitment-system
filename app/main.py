@@ -365,39 +365,6 @@ CV Text:
 def health_check():
     return {"status": "healthy"}
 
-@app.get("/_phase12_verify")
-def phase12_verify():
-    """Temporary Phase-1.2 verification endpoint — remove after check."""
-    from sqlalchemy import text as _t
-    db = SessionLocal()
-    try:
-        marker = db.execute(_t(
-            "SELECT name, applied_at FROM _schema_migrations WHERE name = 'phase_1_2_email_backfill'"
-        )).fetchone()
-        total = db.execute(_t("SELECT COUNT(*) FROM candidates")).scalar()
-        linked = db.execute(_t("SELECT COUNT(*) FROM candidates WHERE user_id IS NOT NULL")).scalar()
-        unlinked = db.execute(_t("SELECT COUNT(*) FROM candidates WHERE user_id IS NULL")).scalar()
-        dupes = db.execute(_t(
-            "SELECT email, COUNT(*) AS cnt FROM candidates "
-            "WHERE user_id IS NULL GROUP BY email HAVING COUNT(*) > 1"
-        )).fetchall()
-        degraded = db.execute(_t(
-            "SELECT id, name, email FROM candidates WHERE name LIKE '%@%'"
-        )).fetchall()
-        linked_rows = db.execute(_t(
-            "SELECT c.id, c.name, c.email, c.user_id FROM candidates c WHERE c.user_id IS NOT NULL"
-        )).fetchall()
-        return {
-            "migration_marker": dict(marker._mapping) if marker else None,
-            "counts": {"total": total, "linked": linked, "unlinked": unlinked},
-            "duplicate_unlinked_emails": [dict(r._mapping) for r in dupes],
-            "degraded_name_rows": [dict(r._mapping) for r in degraded],
-            "linked_candidates": [dict(r._mapping) for r in linked_rows],
-        }
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        db.close()
 
 
 # Mount the frontend directory to serve HTML/JS/CSS
