@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, List, Any
+from pydantic import BaseModel, Field, EmailStr, field_validator, AnyHttpUrl
+from typing import Optional, List, Any, Union
 from datetime import datetime
 
 # Company Schemas
@@ -188,3 +188,70 @@ class ApprovalData(BaseModel):
 
 class RejectionData(BaseModel):
     rejection_reason: str
+
+# ── Profile Schemas (Phase 1.3) ────────────────────────────────────────────────
+
+class ExperienceItem(BaseModel):
+    title: str
+    employer: str
+    start: str
+    end: Optional[str] = None
+    description: Optional[str] = None
+
+class EducationItem(BaseModel):
+    degree: str
+    institution: str
+    year: Optional[str] = None
+
+class LanguageItem(BaseModel):
+    language: str
+    proficiency: Optional[str] = None
+
+class ProfileResponse(BaseModel):
+    id: int
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    photo_url: Optional[str] = None
+    summary: Optional[str] = None
+    location: Optional[str] = None
+    experiences: List[ExperienceItem] = []
+    education_history: List[EducationItem] = []
+    languages: List[Union[LanguageItem, str]] = []
+    skills: Optional[str] = None
+    education: Optional[str] = None
+    last_title: Optional[str] = None
+    last_employer: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class AdminProfileResponse(ProfileResponse):
+    user_id: Optional[int] = None
+    registration_date: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    photo_url: Optional[str] = None
+    summary: Optional[str] = None
+    location: Optional[str] = None
+    experiences: Optional[List[ExperienceItem]] = None
+    education_history: Optional[List[EducationItem]] = None
+    languages: Optional[List[Union[LanguageItem, str]]] = None
+    skills: Optional[str] = None
+    education: Optional[str] = None
+    last_title: Optional[str] = None
+    last_employer: Optional[str] = None
+
+    @field_validator("photo_url", mode="before")
+    @classmethod
+    def validate_photo_url(cls, v):
+        if v is None or v == "":
+            return v
+        if not (v.startswith("http://") or v.startswith("https://")):
+            raise ValueError("photo_url must be a valid http/https URL")
+        return v
