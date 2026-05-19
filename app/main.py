@@ -105,6 +105,64 @@ def startup_populate_db():
             logging.info(f"Migration _schema_migrations skipped: {_e}")
             db.rollback()
 
+        # Phase 1.2 — email backfill (guarded, runs once)
+        try:
+            from sqlalchemy import text as _text
+            already_run = db.execute(_text(
+                "SELECT 1 FROM _schema_migrations WHERE name = 'phase_1_2_email_backfill'"
+            )).fetchone()
+            if already_run:
+                logging.info("Phase 1.2 backfill already applied — skipping")
+            else:
+                logging.info("Phase 1.2: running email backfill...")
+                db.execute(_text("""
+                    UPDATE candidates c
+                    SET user_id = u.id
+                    FROM users u
+                    WHERE LOWER(c.email) = LOWER(u.email)
+                      AND c.user_id IS NULL
+                      AND c.id = (
+                        SELECT MAX(id) FROM candidates c2
+                        WHERE LOWER(c2.email) = LOWER(c.email)
+                          AND c2.name NOT LIKE '%@%'
+                      )
+                """))
+                db.execute(_text(
+                    "INSERT INTO _schema_migrations (name) VALUES ('phase_1_2_email_backfill') "
+                    "ON CONFLICT (name) DO NOTHING"
+                ))
+                db.commit()
+                logging.info("Phase 1.2: backfill committed and migration marker inserted")
+
+                # Reporting — read-only diagnostics logged to stdout
+                total = db.execute(_text("SELECT COUNT(*) FROM candidates")).scalar()
+                linked = db.execute(_text("SELECT COUNT(*) FROM candidates WHERE user_id IS NOT NULL")).scalar()
+                unlinked = db.execute(_text("SELECT COUNT(*) FROM candidates WHERE user_id IS NULL")).scalar()
+                logging.info(f"Phase 1.2 report | total candidates: {total} | type_a (user_id set): {linked} | unlinked: {unlinked}")
+
+                dupes = db.execute(_text(
+                    "SELECT email, COUNT(*) AS cnt FROM candidates "
+                    "WHERE user_id IS NULL GROUP BY email HAVING COUNT(*) > 1"
+                )).fetchall()
+                if dupes:
+                    for row in dupes:
+                        logging.info(f"Phase 1.2 report | duplicate unlinked email: {row[0]} (count: {row[1]})")
+                else:
+                    logging.info("Phase 1.2 report | no duplicate unlinked emails")
+
+                degraded = db.execute(_text(
+                    "SELECT id, name, email FROM candidates WHERE name LIKE '%@%'"
+                )).fetchall()
+                if degraded:
+                    for row in degraded:
+                        logging.info(f"Phase 1.2 report | degraded name row: id={row[0]} name={row[1]} email={row[2]}")
+                else:
+                    logging.info("Phase 1.2 report | no degraded name-as-email rows found")
+
+        except Exception as _e:
+            logging.error(f"Phase 1.2 backfill failed: {_e}")
+            db.rollback()
+
         try:
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
