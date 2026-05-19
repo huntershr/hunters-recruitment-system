@@ -489,52 +489,6 @@ CV Text:
 def health_check():
     return {"status": "healthy"}
 
-@app.get("/_t1t4t6_verify")
-def t1t4t6_verify():
-    """Temporary Phase-1.5 API-layer tests — remove after check."""
-    from sqlalchemy import text as _t
-    db = SessionLocal()
-    results = {}
-    try:
-        # T1/T4 — write a known summary for Ahmed (candidate id=8, user_id=12),
-        # then immediately read it back from a fresh SELECT (simulates cross-browser read)
-        SENTINEL = "T1 backend persistence test — 2026-05-19"
-        original = db.execute(_t("SELECT summary FROM candidates WHERE id=8")).scalar()
-        db.execute(_t("UPDATE candidates SET summary=:s WHERE id=8"), {"s": SENTINEL})
-        db.commit()
-        readback = db.execute(_t("SELECT summary FROM candidates WHERE id=8")).scalar()
-        results["T1_T4_write"] = SENTINEL
-        results["T1_T4_readback"] = readback
-        results["T1_T4_pass"] = (readback == SENTINEL)
-        # restore
-        db.execute(_t("UPDATE candidates SET summary=:s WHERE id=8"), {"s": original})
-        db.commit()
-        results["T1_T4_restored"] = db.execute(_t("SELECT summary FROM candidates WHERE id=8")).scalar()
-
-        # T6 — immutable field guard: verify PUT handler raises 400 for email field
-        # Simulate the check logic directly
-        immutable_fields = ("id", "email", "user_id")
-        test_payload = {"email": "hacker@evil.com", "name": "Test"}
-        blocked = [f for f in immutable_fields if f in test_payload]
-        results["T6_immutable_blocked"] = blocked
-        results["T6_pass"] = len(blocked) > 0
-
-        # T3 — confirm user_id=14 has no Candidate row (already tested, reconfirm)
-        no_row = db.execute(_t("SELECT id FROM candidates WHERE user_id=14")).fetchone()
-        results["T3_no_row_for_user14"] = "404 would be returned" if not no_row else f"id={no_row[0]}"
-
-        # Ahmed current state sanity check
-        ahmed = db.execute(_t(
-            "SELECT id, name, email, user_id, summary FROM candidates WHERE id=8"
-        )).fetchone()
-        results["ahmed_state_after_restore"] = dict(ahmed._mapping) if ahmed else None
-
-        return results
-    except Exception as e:
-        db.rollback()
-        return {"error": str(e)}
-    finally:
-        db.close()
 
 
 
