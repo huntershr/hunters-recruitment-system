@@ -394,7 +394,7 @@ def phase13_test():
             results["t2_put_persisted"] = updated[0] if updated else None
 
             # restore original summary
-            original_summary = ahmed["summary"]
+            original_summary = dict(ahmed._mapping)["summary"]
             db.execute(_t(
                 "UPDATE candidates SET summary = :s WHERE user_id = 12"
             ), {"s": original_summary})
