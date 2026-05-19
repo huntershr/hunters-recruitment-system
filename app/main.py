@@ -377,6 +377,45 @@ CV Text:
 def health_check():
     return {"status": "healthy"}
 
+@app.get("/_preflight_14")
+def preflight_14():
+    """Temporary Phase-1.4 pre-flight audit — read-only, remove after check."""
+    from sqlalchemy import text as _t
+    db = SessionLocal()
+    try:
+        # A) All 8 candidates
+        candidates = db.execute(_t(
+            "SELECT id, name, email, job_applied, user_id, owner_id, last_title "
+            "FROM candidates ORDER BY id"
+        )).fetchall()
+
+        # B) Evaluations joined to candidates
+        evals = db.execute(_t(
+            "SELECT e.id AS eval_id, e.candidate_id, e.job_id, e.score, e.decision, c.name "
+            "FROM evaluations e "
+            "LEFT JOIN candidates c ON c.id = e.candidate_id "
+            "ORDER BY e.candidate_id"
+        )).fetchall()
+
+        # C) Applications table count
+        app_count = db.execute(_t("SELECT COUNT(*) FROM applications")).scalar()
+
+        # D) Evaluations pre-linked to applications
+        prelinked = db.execute(_t(
+            "SELECT COUNT(*) FROM evaluations WHERE application_id IS NOT NULL"
+        )).scalar()
+
+        return {
+            "A_candidates": [dict(r._mapping) for r in candidates],
+            "B_evaluations": [dict(r._mapping) for r in evals],
+            "C_applications_count": app_count,
+            "D_evaluations_prelinked": prelinked,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
 
 
 
