@@ -532,35 +532,6 @@ def health_check():
     return {"status": "healthy"}
 
 
-@app.get("/_verify_15_heal")
-def verify_15_heal():
-    """Temporary read-only endpoint — remove after verification."""
-    from sqlalchemy import text as _text
-    db = SessionLocal()
-    try:
-        null_count = db.execute(_text(
-            "SELECT COUNT(*) FROM candidates WHERE user_id IS NULL"
-        )).scalar()
-        total = db.execute(_text("SELECT COUNT(*) FROM candidates")).scalar()
-        marker = db.execute(_text(
-            "SELECT applied_at FROM _schema_migrations WHERE name = 'phase_1_5_heal_user_ids'"
-        )).fetchone()
-        rows = db.execute(_text(
-            "SELECT id, name, email, user_id FROM candidates ORDER BY id"
-        )).fetchall()
-        return {
-            "total_candidates": total,
-            "user_id_null_count": null_count,
-            "migration_marker_applied_at": str(marker[0]) if marker else None,
-            "candidates": [
-                {"id": r[0], "name": r[1], "email": r[2], "user_id": r[3]}
-                for r in rows
-            ],
-        }
-    finally:
-        db.close()
-
-
 
 
 
