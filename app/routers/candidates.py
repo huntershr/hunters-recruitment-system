@@ -114,9 +114,10 @@ async def screen_cv(
     phone = str(info.get("phone") or "")
 
     # Portal candidates (non-admin, non-company): always use their account email
-    # so the Candidate record is reliably linked back to their User record by email.
-    # AI extraction may return a different email or fall back to a placeholder,
-    # breaking the User→Candidate lookup used by the pipeline and talent pool.
+    # and user_id so the Candidate record is reliably linked back to their User
+    # record. AI extraction may return a different email or fall back to a
+    # placeholder, breaking the User→Candidate lookup used by the pipeline,
+    # talent pool, and GET /api/candidate/profile (which queries WHERE user_id=…).
     is_portal_candidate = not current_user.is_admin and not current_user.company_id
     if is_portal_candidate:
         email = current_user.email
@@ -156,6 +157,8 @@ async def screen_cv(
         existing.skills = str(info.get("skills") or "") or existing.skills
         existing.last_title = str(info.get("last_title") or "") or existing.last_title
         existing.last_employer = str(info.get("last_employer") or "") or existing.last_employer
+        if is_portal_candidate and existing.user_id is None:
+            existing.user_id = current_user.id
         db.commit()
         db.refresh(existing)
         candidate = existing
@@ -174,6 +177,7 @@ async def screen_cv(
             last_title=str(info.get("last_title") or ""),
             last_employer=str(info.get("last_employer") or ""),
             owner_id=job.owner_id,
+            user_id=current_user.id if is_portal_candidate else None,
         )
         db.add(candidate)
         db.commit()

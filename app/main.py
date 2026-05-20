@@ -286,6 +286,48 @@ def startup_populate_db():
             logging.error(f"Phase 1.4 data split FAILED — rolled back: {_e}")
             db.rollback()
 
+        # Phase 1.5 heal — backfill user_id for any Candidate rows created with NULL
+        # user_id after Phase 1.4 (e.g. portal applies before the screen-cv fix landed).
+        # Guarded so it runs once; "MAX(id) GROUP BY email" keeps canonical-row selection
+        # consistent with Phase 1.2.
+        try:
+            from sqlalchemy import text as _text
+            already_run = db.execute(_text(
+                "SELECT 1 FROM _schema_migrations WHERE name = 'phase_1_5_heal_user_ids'"
+            )).fetchone()
+            if already_run:
+                logging.info("Phase 1.5 heal already applied — skipping")
+            else:
+                logging.info("Phase 1.5: healing Candidate rows with user_id=NULL...")
+                result = db.execute(_text("""
+                    UPDATE candidates c
+                    SET user_id = u.id
+                    FROM users u
+                    WHERE LOWER(c.email) = LOWER(u.email)
+                      AND c.user_id IS NULL
+                      AND c.id IN (SELECT MAX(id) FROM candidates GROUP BY email)
+                """))
+                healed = result.rowcount
+                db.execute(_text(
+                    "INSERT INTO _schema_migrations (name) VALUES ('phase_1_5_heal_user_ids') "
+                    "ON CONFLICT (name) DO NOTHING"
+                ))
+                db.commit()
+                logging.info(f"Phase 1.5 heal: {healed} row(s) healed and migration marker inserted")
+
+                still_null = db.execute(_text(
+                    "SELECT COUNT(*) FROM candidates WHERE user_id IS NULL"
+                )).scalar()
+                logging.info(f"Phase 1.5 heal report | candidates with user_id=NULL after heal: {still_null}")
+                if still_null > 0:
+                    logging.warning(
+                        f"Phase 1.5 heal: {still_null} candidate(s) still have user_id=NULL "
+                        f"— their email does not match any User row (expected 0 post-Phase-1.4)"
+                    )
+        except Exception as _e:
+            logging.error(f"Phase 1.5 heal FAILED: {_e}")
+            db.rollback()
+
         try:
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
@@ -488,6 +530,35 @@ CV Text:
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/_verify_15_heal")
+def verify_15_heal():
+    """Temporary read-only endpoint — remove after verification."""
+    from sqlalchemy import text as _text
+    db = SessionLocal()
+    try:
+        null_count = db.execute(_text(
+            "SELECT COUNT(*) FROM candidates WHERE user_id IS NULL"
+        )).scalar()
+        total = db.execute(_text("SELECT COUNT(*) FROM candidates")).scalar()
+        marker = db.execute(_text(
+            "SELECT applied_at FROM _schema_migrations WHERE name = 'phase_1_5_heal_user_ids'"
+        )).fetchone()
+        rows = db.execute(_text(
+            "SELECT id, name, email, user_id FROM candidates ORDER BY id"
+        )).fetchall()
+        return {
+            "total_candidates": total,
+            "user_id_null_count": null_count,
+            "migration_marker_applied_at": str(marker[0]) if marker else None,
+            "candidates": [
+                {"id": r[0], "name": r[1], "email": r[2], "user_id": r[3]}
+                for r in rows
+            ],
+        }
+    finally:
+        db.close()
 
 
 
