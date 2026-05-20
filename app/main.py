@@ -328,6 +328,20 @@ def startup_populate_db():
             logging.error(f"Phase 1.5 heal FAILED: {_e}")
             db.rollback()
 
+        # Phase 2 — drop unique constraint on evaluations.candidate_id
+        # Phase 2 allows multiple Evaluations per Candidate (one per Application).
+        # The old unique=True enforced one-to-one but is incompatible with re-applies.
+        try:
+            from sqlalchemy import text as _text
+            db.execute(_text(
+                "ALTER TABLE evaluations DROP CONSTRAINT IF EXISTS evaluations_candidate_id_key"
+            ))
+            db.commit()
+            logging.info("Migration: evaluations.candidate_id unique constraint dropped (Phase 2)")
+        except Exception as _e:
+            logging.info(f"Migration Phase 2 unique constraint drop: {_e}")
+            db.rollback()
+
         try:
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
@@ -530,6 +544,55 @@ CV Text:
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/_verify_phase2")
+def verify_phase2():
+    """Temporary read-only endpoint — remove after Phase 2 verification."""
+    from sqlalchemy import text as _text
+    db = SessionLocal()
+    try:
+        apps_total = db.execute(_text("SELECT COUNT(*) FROM applications")).scalar()
+        apps_type_a = db.execute(_text("SELECT COUNT(*) FROM applications WHERE candidate_id IS NOT NULL")).scalar()
+        apps_type_b = db.execute(_text("SELECT COUNT(*) FROM applications WHERE candidate_id IS NULL")).scalar()
+        evals_with_app = db.execute(_text("SELECT COUNT(*) FROM evaluations WHERE application_id IS NOT NULL")).scalar()
+        evals_no_cand = db.execute(_text("SELECT COUNT(*) FROM evaluations WHERE candidate_id IS NULL")).scalar()
+        evals_total = db.execute(_text("SELECT COUNT(*) FROM evaluations")).scalar()
+        unique_exists = db.execute(_text(
+            "SELECT COUNT(*) FROM information_schema.table_constraints "
+            "WHERE table_name='evaluations' AND constraint_type='UNIQUE' "
+            "AND constraint_name='evaluations_candidate_id_key'"
+        )).scalar()
+        recent_apps = db.execute(_text(
+            "SELECT id, job_id, candidate_id, applicant_name, applicant_email, stage, created_at "
+            "FROM applications ORDER BY id DESC LIMIT 5"
+        )).fetchall()
+        recent_evals = db.execute(_text(
+            "SELECT id, candidate_id, application_id, job_id, decision, score "
+            "FROM evaluations ORDER BY id DESC LIMIT 5"
+        )).fetchall()
+        return {
+            "applications_total": apps_total,
+            "applications_type_a": apps_type_a,
+            "applications_type_b": apps_type_b,
+            "evaluations_total": evals_total,
+            "evaluations_with_application_id": evals_with_app,
+            "evaluations_candidate_id_null": evals_no_cand,
+            "evaluations_unique_constraint_still_exists": bool(unique_exists),
+            "recent_applications": [
+                {"id": r[0], "job_id": r[1], "candidate_id": r[2],
+                 "applicant_name": r[3], "applicant_email": r[4],
+                 "stage": r[5], "created_at": str(r[6])}
+                for r in recent_apps
+            ],
+            "recent_evaluations": [
+                {"id": r[0], "candidate_id": r[1], "application_id": r[2],
+                 "job_id": r[3], "decision": r[4], "score": r[5]}
+                for r in recent_evals
+            ],
+        }
+    finally:
+        db.close()
 
 
 

@@ -93,7 +93,7 @@ class Candidate(Base):
     owner = relationship("User", back_populates="candidates", foreign_keys=[owner_id])
     user = relationship("User", back_populates="candidate_profile", foreign_keys=[user_id])
     job = relationship("Job", back_populates="candidates")
-    evaluation = relationship("Evaluation", back_populates="candidate", uselist=False)
+    evaluations = relationship("Evaluation", back_populates="candidate")
     applications = relationship("Application", back_populates="candidate")
 
 
@@ -120,7 +120,7 @@ class Evaluation(Base):
     __tablename__ = "evaluations"
 
     id = Column(Integer, primary_key=True, index=True)
-    candidate_id = Column(Integer, ForeignKey("candidates.id"), unique=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=True)
     job_id = Column(Integer, ForeignKey("jobs.id"))
     application_id = Column(Integer, ForeignKey("applications.id"), nullable=True)
     score = Column(Float)
@@ -130,5 +130,5 @@ class Evaluation(Base):
     weaknesses = Column(Text, nullable=True) # Bonus feature
     suggested_interview_questions = Column(JSON, nullable=True)
 
-    candidate = relationship("Candidate", back_populates="evaluation")
+    candidate = relationship("Candidate", back_populates="evaluations")
     application = relationship("Application", back_populates="evaluation")

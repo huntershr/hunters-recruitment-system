@@ -146,7 +146,9 @@ def get_job_candidates(job_id: int, db: Session = Depends(get_db), current_user:
 
     result = []
     for c in candidates:
-        ev = c.evaluation
+        ev = db.query(models.Evaluation).filter(
+            models.Evaluation.candidate_id == c.id
+        ).order_by(models.Evaluation.id.desc()).first()
         result.append({
             "id": c.id,
             "name": c.name,

@@ -3,13 +3,67 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import List
 import logging
+import json
 
 from .. import models, schemas, database
 from ..services.file_processor import extract_text_from_file
-from ..services.ai_evaluator import extract_candidate_info
-from .candidates import run_evaluation_task
+from ..services.ai_evaluator import extract_candidate_info, evaluate_candidate, finalize_evaluation
 
 logger = logging.getLogger(__name__)
+
+
+def run_evaluation_task_for_application(application_id: int, cv_text: str, db: Session):
+    """Background evaluation for Type B (anonymous) applications — no Candidate row."""
+    try:
+        application = db.query(models.Application).filter(
+            models.Application.id == application_id
+        ).first()
+        if not application:
+            logger.error(f"Application {application_id} not found for evaluation")
+            return
+
+        job = db.query(models.Job).filter(models.Job.id == application.job_id).first()
+        if not job:
+            logger.error(f"Job {application.job_id} not found for application {application_id}")
+            return
+
+        info = extract_candidate_info(cv_text)
+
+        import types
+        applicant = types.SimpleNamespace(
+            name=application.applicant_name or "",
+            experience_years=int(info.get("experience_years") or 0),
+            skills=str(info.get("skills") or ""),
+            education=str(info.get("education") or ""),
+            cv_text=cv_text,
+        )
+
+        raw = evaluate_candidate(job, applicant)
+        result = finalize_evaluation(raw)
+
+        def _list_to_str(val):
+            if isinstance(val, list):
+                return "\n".join(f"- {i}" for i in val)
+            return str(val)
+
+        db_eval = models.Evaluation(
+            application_id=application.id,
+            candidate_id=None,
+            job_id=job.id,
+            score=result.get("score", 0.0),
+            decision=result.get("decision", "Reject"),
+            reason=result.get("reason", "Failed to evaluate"),
+            strengths=_list_to_str(result.get("strengths", "")),
+            weaknesses=_list_to_str(result.get("weaknesses", "")),
+            suggested_interview_questions=json.dumps(result.get("suggested_interview_questions", [])),
+        )
+        db.add(db_eval)
+        db.commit()
+        logger.info(f"Finished evaluation for application {application_id}")
+    except Exception as e:
+        logger.error(f"Evaluation task failed for application {application_id}: {e}")
+    finally:
+        db.close()
 
 router = APIRouter(
     prefix="/public",
@@ -79,39 +133,35 @@ async def public_apply(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # 1. Process File
     content = await file.read()
     cv_text = extract_text_from_file(file.filename, content)
-    
-    # 2. Extract Info if needed (optional since we have form data)
-    # But we want to store the full CV text
-    
-    # 3. Create Candidate
-    new_candidate = models.Candidate(
-        name=name,
-        email=email,
-        phone=phone,
+
+    # Phase 2 Type B: create Application directly — no Candidate row.
+    # Email match to an existing User does NOT auto-link (T5); explicit
+    # auth is required for Type A.
+    application = models.Application(
+        job_id=job_id,
+        candidate_id=None,
+        applicant_name=name,
+        applicant_email=email,
+        applicant_phone=phone,
         expected_salary=expected_salary,
-        job_applied=job_id,
-        experience_years=0, # Will be updated by AI if we want, or extracted
-        education="",
-        skills="",
-        cv_text=cv_text,
-        owner_id=job.owner_id # Map to the job owner
+        stage="New",
     )
-    
-    db.add(new_candidate)
+    db.add(application)
     db.commit()
-    db.refresh(new_candidate)
-    
-    # 4. Trigger AI Screening in background
-    from .candidates import SessionLocal # Import here to avoid circular
-    background_tasks.add_task(run_evaluation_task, new_candidate.id, SessionLocal())
+    db.refresh(application)
+
+    from ..database import SessionLocal
+    background_tasks.add_task(
+        run_evaluation_task_for_application,
+        application.id, cv_text, SessionLocal()
+    )
 
     return {
         "message": "Application submitted successfully",
-        "candidate_id": new_candidate.id,
-        "job_id": job_id
+        "application_id": application.id,
+        "job_id": job_id,
     }
 
 @router.get("/evaluation/{candidate_id}")

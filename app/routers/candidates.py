@@ -140,78 +140,125 @@ async def screen_cv(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Check for an existing Candidate record for this user+job to avoid duplicates
-    # (portal candidate re-applies to the same job after fixing their CV, etc.)
-    existing = (
-        db.query(models.Candidate)
-        .filter(models.Candidate.email == email, models.Candidate.job_applied == job_id)
-        .first()
-    )
-    if existing:
-        # Update CV text and re-run screening on the existing record
-        existing.cv_text = cv_text
-        existing.name = name
-        existing.phone = phone or existing.phone
-        existing.experience_years = int(info.get("experience_years") or 0) or existing.experience_years
-        existing.education = str(info.get("education") or "") or existing.education
-        existing.skills = str(info.get("skills") or "") or existing.skills
-        existing.last_title = str(info.get("last_title") or "") or existing.last_title
-        existing.last_employer = str(info.get("last_employer") or "") or existing.last_employer
-        if is_portal_candidate and existing.user_id is None:
-            existing.user_id = current_user.id
-        db.commit()
-        db.refresh(existing)
-        candidate = existing
-    else:
-        # Attribute to the job owner (employer) so it appears in their dashboard
-        candidate = models.Candidate(
-            name=name,
-            email=email,
-            phone=phone,
-            job_applied=job_id,
-            experience_years=int(info.get("experience_years") or 0),
-            expected_salary="",
-            education=str(info.get("education") or ""),
-            skills=str(info.get("skills") or ""),
-            cv_text=cv_text,
-            last_title=str(info.get("last_title") or ""),
-            last_employer=str(info.get("last_employer") or ""),
-            owner_id=job.owner_id,
-            user_id=current_user.id if is_portal_candidate else None,
+    # ── Phase 2: Candidate + Application creation ─────────────────────────────
+    #
+    # Portal (Type A): one Candidate per User (profile container), keyed by
+    # user_id.  Subsequent applies to ANY job update the same profile row and
+    # each creates a new Application row.
+    #
+    # Admin/company: legacy email+job lookup unchanged.  Also creates an
+    # Application row so every apply is represented in the applications table.
+
+    if is_portal_candidate:
+        candidate = (
+            db.query(models.Candidate)
+            .filter(models.Candidate.user_id == current_user.id)
+            .first()
         )
-        db.add(candidate)
-        db.commit()
-        db.refresh(candidate)
+        if candidate:
+            candidate.cv_text = cv_text
+            candidate.name = name
+            candidate.phone = phone or candidate.phone
+            candidate.job_applied = job_id
+            candidate.experience_years = int(info.get("experience_years") or 0) or candidate.experience_years
+            candidate.education = str(info.get("education") or "") or candidate.education
+            candidate.skills = str(info.get("skills") or "") or candidate.skills
+            candidate.last_title = str(info.get("last_title") or "") or candidate.last_title
+            candidate.last_employer = str(info.get("last_employer") or "") or candidate.last_employer
+            db.commit()
+            db.refresh(candidate)
+        else:
+            candidate = models.Candidate(
+                name=name,
+                email=email,
+                phone=phone,
+                job_applied=job_id,
+                experience_years=int(info.get("experience_years") or 0),
+                expected_salary="",
+                education=str(info.get("education") or ""),
+                skills=str(info.get("skills") or ""),
+                cv_text=cv_text,
+                last_title=str(info.get("last_title") or ""),
+                last_employer=str(info.get("last_employer") or ""),
+                owner_id=job.owner_id,
+                user_id=current_user.id,
+            )
+            db.add(candidate)
+            db.commit()
+            db.refresh(candidate)
+    else:
+        # Admin/company: upsert by email+job (legacy behavior)
+        existing = (
+            db.query(models.Candidate)
+            .filter(models.Candidate.email == email, models.Candidate.job_applied == job_id)
+            .first()
+        )
+        if existing:
+            existing.cv_text = cv_text
+            existing.name = name
+            existing.phone = phone or existing.phone
+            existing.experience_years = int(info.get("experience_years") or 0) or existing.experience_years
+            existing.education = str(info.get("education") or "") or existing.education
+            existing.skills = str(info.get("skills") or "") or existing.skills
+            existing.last_title = str(info.get("last_title") or "") or existing.last_title
+            existing.last_employer = str(info.get("last_employer") or "") or existing.last_employer
+            db.commit()
+            db.refresh(existing)
+            candidate = existing
+        else:
+            candidate = models.Candidate(
+                name=name,
+                email=email,
+                phone=phone,
+                job_applied=job_id,
+                experience_years=int(info.get("experience_years") or 0),
+                expected_salary="",
+                education=str(info.get("education") or ""),
+                skills=str(info.get("skills") or ""),
+                cv_text=cv_text,
+                last_title=str(info.get("last_title") or ""),
+                last_employer=str(info.get("last_employer") or ""),
+                owner_id=job.owner_id,
+                user_id=None,
+            )
+            db.add(candidate)
+            db.commit()
+            db.refresh(candidate)
+
+    # Always create a new Application row for each apply event (Phase 2)
+    application = models.Application(
+        job_id=job_id,
+        candidate_id=candidate.id,
+        stage="New",
+    )
+    db.add(application)
+    db.commit()
+    db.refresh(application)
 
     # Synchronous AI evaluation — gives immediate result
     raw = evaluate_candidate(job, candidate)
     result = finalize_evaluation(raw)
 
-    # Upsert evaluation: re-applying overwrites the previous result on the same Candidate row
-    db_eval = db.query(models.Evaluation).filter(models.Evaluation.candidate_id == candidate.id).first()
-    if db_eval:
-        db_eval.score = result.get("score", 0.0)
-        db_eval.decision = result.get("decision", "Reject")
-        db_eval.reason = result.get("reason", "")
-        db_eval.strengths = str(result.get("strengths", "") or "")
-        db_eval.weaknesses = str(result.get("weaknesses", "") or "")
-        db_eval.suggested_interview_questions = json.dumps(result.get("suggested_interview_questions", []))
-    else:
-        db_eval = models.Evaluation(
-            candidate_id=candidate.id,
-            job_id=job.id,
-            score=result.get("score", 0.0),
-            decision=result.get("decision", "Reject"),
-            reason=result.get("reason", ""),
-            strengths=str(result.get("strengths", "") or ""),
-            weaknesses=str(result.get("weaknesses", "") or ""),
-            suggested_interview_questions=json.dumps(result.get("suggested_interview_questions", [])),
-        )
-        db.add(db_eval)
+    # Phase 2: always create a new Evaluation linked to the new Application.
+    # Dual-write: candidate_id also set so existing admin UI reads (via
+    # candidate_id) keep working during the transition to Phase 3-4.
+    db_eval = models.Evaluation(
+        application_id=application.id,
+        candidate_id=candidate.id,
+        job_id=job.id,
+        score=result.get("score", 0.0),
+        decision=result.get("decision", "Reject"),
+        reason=result.get("reason", ""),
+        strengths=str(result.get("strengths", "") or ""),
+        weaknesses=str(result.get("weaknesses", "") or ""),
+        suggested_interview_questions=json.dumps(result.get("suggested_interview_questions", [])),
+    )
+    db.add(db_eval)
     db.commit()
 
     return {
         "candidate_id": candidate.id,
+        "application_id": application.id,
         "name": candidate.name,
         "email": candidate.email,
         "phone": candidate.phone,
