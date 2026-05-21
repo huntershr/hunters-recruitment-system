@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+import ast
 
 from .. import models, schemas, database
 from ..routers.auth import get_current_user
@@ -126,3 +127,108 @@ def get_admin_candidate_profile(
     # candidates table has no created_at column — surface as null for now
     profile["registration_date"] = getattr(candidate, "created_at", None)
     return profile
+
+
+# ── GET /api/candidate/application/{application_id}/summary ───────────────────
+
+def _parse_list_field(raw) -> list:
+    """Parse strengths/weaknesses TEXT column into a Python list.
+
+    The column may contain a Python list literal ("['a', 'b']"),
+    newline/bullet-separated text, or a plain string.
+    """
+    if not raw:
+        return []
+    if isinstance(raw, list):
+        return [str(i).strip() for i in raw if str(i).strip()]
+    s = raw.strip()
+    try:
+        parsed = ast.literal_eval(s)
+        if isinstance(parsed, list):
+            return [str(i).strip() for i in parsed if str(i).strip()]
+    except Exception:
+        pass
+    lines = [ln.lstrip("-• ").strip() for ln in s.split("\n") if ln.strip()]
+    return lines if lines else [s]
+
+
+def _reframe_weakness(text: str) -> str:
+    negative = ("lacks", "missing", "does not", "no mention of")
+    if any(text.lower().startswith(p) for p in negative):
+        return f"Strengthen this area: {text}"
+    return f"Consider building: {text}"
+
+
+def _match_label_tier(score: float):
+    if score >= 80:
+        return "Strong Match", "strong"
+    if score >= 60:
+        return "Good Match", "good"
+    return "Some Gaps", "gaps"
+
+
+@router.get("/api/candidate/application/{application_id}/summary")
+def get_application_summary(
+    application_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    application = db.query(models.Application).filter(
+        models.Application.id == application_id
+    ).first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found.")
+
+    # Authorization: must belong to this user's candidate profile
+    if application.candidate_id is None:
+        raise HTTPException(status_code=403, detail="You can only view your own applications.")
+    candidate = db.query(models.Candidate).filter(
+        models.Candidate.id == application.candidate_id
+    ).first()
+    if not candidate or candidate.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only view your own applications.")
+
+    evaluation = db.query(models.Evaluation).filter(
+        models.Evaluation.application_id == application_id
+    ).first()
+    if not evaluation:
+        return {
+            "status": "processing",
+            "application_id": application_id,
+            "message": "AI is still reviewing your application...",
+        }
+
+    # Job + company name
+    job = db.query(models.Job).filter(models.Job.id == application.job_id).first()
+    job_title = job.job_title if job else "Unknown Job"
+    company_name = "Hunters HR Solutions"
+    if job:
+        owner = db.query(models.User).filter(models.User.id == job.owner_id).first()
+        if owner and owner.company_id:
+            company = db.query(models.Company).filter(
+                models.Company.id == owner.company_id
+            ).first()
+            if company:
+                company_name = company.company_name
+
+    strengths_raw = _parse_list_field(evaluation.strengths)[:3]
+    weaknesses_raw = _parse_list_field(evaluation.weaknesses)[:2]
+
+    strengths = [s[:200] for s in strengths_raw]
+    improvement_areas = [_reframe_weakness(w[:200]) for w in weaknesses_raw]
+
+    score = float(evaluation.score or 0)
+    match_label, match_tier = _match_label_tier(score)
+
+    return {
+        "status": "ready",
+        "application_id": application_id,
+        "job_title": job_title,
+        "company_name": company_name,
+        "match_label": match_label,
+        "match_tier": match_tier,
+        "strengths": strengths,
+        "improvement_areas": improvement_areas,
+        "stage": application.stage or "Applied",
+        "submitted_at": application.created_at.isoformat() if application.created_at else None,
+    }

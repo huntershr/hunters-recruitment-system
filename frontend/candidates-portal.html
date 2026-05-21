@@ -408,6 +408,77 @@ function buildCandidateResultCard(msg){
     '<div style="margin-top:16px;font-size:11px;color:#9CA3AF;">Powered by Hunters AI · Your data is handled with care</div>'+
   '</div>';
 }
+/* ─── Phase 2.5: Rich post-apply result card ─── */
+function buildRichResultCard(s){
+  var tier={
+    strong:{bg:'#E1F5EE',color:'#0F6E56',border:'#9FE1CB',icon:'✓'},
+    good:  {bg:'#E6F1FB',color:'#185FA5',border:'#B5D4F4',icon:'👍'},
+    gaps:  {bg:'#FAEEDA',color:'#854F0B',border:'#FAC775',icon:'🎯'}
+  }[s.match_tier]||{bg:'#F5F6F8',color:'#6B7280',border:'#E5E7EB',icon:'●'};
+  var badge='<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 18px;border-radius:20px;font-size:13px;font-weight:600;background:'+tier.bg+';color:'+tier.color+';border:1px solid '+tier.border+';">'+tier.icon+' '+esc(s.match_label)+'</span>';
+  var strHtml=s.strengths&&s.strengths.length?
+    '<div style="margin:20px 0;text-align:left;"><div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:10px;">✨ What\'s strong in your application:</div><ul style="margin:0;padding:0;list-style:none;">'+
+    s.strengths.map(function(x){return'<li style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:6px;"><span style="color:#0F6E56;margin-right:8px;">•</span>'+esc(x)+'</li>';}).join('')+
+    '</ul></div>':'';
+  var impHtml=s.improvement_areas&&s.improvement_areas.length?
+    '<div style="margin:16px 0;text-align:left;"><div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:10px;">📈 Areas to strengthen:</div><ul style="margin:0;padding:0;list-style:none;">'+
+    s.improvement_areas.map(function(x){return'<li style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:6px;"><span style="color:#C9A84C;margin-right:8px;">•</span>'+esc(x)+'</li>';}).join('')+
+    '</ul></div>':'';
+  var timeline=
+    '<div style="display:flex;align-items:center;justify-content:center;gap:0;margin:20px 0;">'+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:28px;height:28px;border-radius:50%;background:#1B2A4A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</div><div style="font-size:10px;color:#1B2A4A;font-weight:500;">Applied</div></div>'+
+      '<div style="width:40px;height:2px;background:#1B2A4A;margin-bottom:14px;"></div>'+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:28px;height:28px;border-radius:50%;background:#C9A84C;color:#1B2A4A;display:flex;align-items:center;justify-content:center;font-size:12px;">●</div><div style="font-size:10px;color:#C9A84C;font-weight:500;">Reviewing</div></div>'+
+      '<div style="width:40px;height:2px;background:#E5E7EB;margin-bottom:14px;"></div>'+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:28px;height:28px;border-radius:50%;background:#F0F2F8;color:#9CA3AF;display:flex;align-items:center;justify-content:center;font-size:12px;">3</div><div style="font-size:10px;color:#9CA3AF;">Interview</div></div>'+
+      '<div style="width:40px;height:2px;background:#E5E7EB;margin-bottom:14px;"></div>'+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:28px;height:28px;border-radius:50%;background:#F0F2F8;color:#9CA3AF;display:flex;align-items:center;justify-content:center;font-size:12px;">4</div><div style="font-size:10px;color:#9CA3AF;">Decision</div></div>'+
+    '</div>';
+  return'<div style="text-align:center;padding:28px 24px;max-width:480px;margin:0 auto;">'+
+    '<div style="font-size:20px;font-weight:600;color:#1B2A4A;margin-bottom:4px;">✓ Application Received</div>'+
+    '<div style="font-size:13px;color:#6B7280;margin-bottom:16px;">'+esc(s.job_title)+(s.company_name?' · '+esc(s.company_name):'')+  '</div>'+
+    '<div style="margin-bottom:20px;">'+badge+'</div>'+
+    strHtml+impHtml+timeline+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
+      '<button onclick="showPortalSection(\'all-jobs\');closeOverlay();" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;min-width:120px;">Browse More Jobs</button>'+
+      '<button onclick="showPortalSection(\'cv-writer\');closeOverlay();" style="flex:1;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;min-width:120px;">✨ Improve My CV</button>'+
+    '</div>'+
+    '<div style="margin-top:16px;font-size:11px;color:#9CA3AF;">Powered by Hunters AI · Your data is handled with care</div>'+
+  '</div>';
+}
+function buildProcessingCard(){
+  return'<div style="text-align:center;padding:40px 24px;max-width:480px;margin:0 auto;">'+
+    '<div style="font-size:20px;font-weight:600;color:#1B2A4A;margin-bottom:16px;">✓ Application Received</div>'+
+    '<div id="p25-spinner" style="width:36px;height:36px;border:3px solid #E5E7EB;border-top-color:#C9A84C;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px;"></div>'+
+    '<div style="font-size:13px;color:#6B7280;margin-bottom:8px;">Your AI report is being generated.</div>'+
+    '<div style="font-size:12px;color:#9CA3AF;margin-bottom:24px;">This usually takes a few seconds.</div>'+
+    '<div id="p25-slot"></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;">'+
+      '<button onclick="showPortalSection(\'all-jobs\');closeOverlay();" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;min-width:120px;">Browse More Jobs</button>'+
+      '<button onclick="showPortalSection(\'cv-writer\');closeOverlay();" style="flex:1;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;min-width:120px;">✨ Improve My CV</button>'+
+    '</div>'+
+  '</div>';
+}
+function pollForSummary(appId,form){
+  var attempts=0,max=6;
+  var iv=setInterval(async function(){
+    attempts++;
+    try{
+      var r=await fetch('/api/candidate/application/'+appId+'/summary',{headers:hdrs()});
+      if(r.ok){
+        var data=await r.json();
+        if(data.status==='ready'){clearInterval(iv);form.innerHTML=buildRichResultCard(data);return;}
+      }
+    }catch(e){}
+    if(attempts>=max){
+      clearInterval(iv);
+      var sp=document.getElementById('p25-spinner');if(sp)sp.style.display='none';
+      var sl=document.getElementById('p25-slot');
+      if(sl)sl.innerHTML='<div style="font-size:12px;color:#9CA3AF;">Report is taking longer than expected. <a href="javascript:location.reload()" style="color:#1B2A4A;font-weight:500;">Refresh</a> to check.</div>';
+    }
+  },5000);
+}
+
 function daysAgo(d){if(!d)return'';var days=Math.floor((Date.now()-new Date(d))/ 86400000);return days===0?'Today':days===1?'Yesterday':days+' days ago';}
 function tok(){return localStorage.getItem('token')||'';}
 function hdrs(){return{'Authorization':'Bearer '+tok()};}
@@ -1000,10 +1071,22 @@ async function submitApply(){
     var d=await res.json();
     var pct=fixScore(d.score);
     var msg=getCandidateMessage(pct);
-    // Save to my applications (score kept internally for getCandidateMessage; never shown to candidate)
+    // Save to my applications
     var apps=JSON.parse(localStorage.getItem('hunters_portal_apps')||'[]');
-    apps.unshift({job_title:currentJob.job_title,company_name:currentJob.company_name||'',job_id:currentJob.id,candidate_id:d.candidate_id,applied_date:new Date().toISOString(),score:pct,decision:msg.status,status:'Under Review'});
+    apps.unshift({job_title:currentJob.job_title,company_name:currentJob.company_name||'',job_id:currentJob.id,candidate_id:d.candidate_id,application_id:d.application_id,applied_date:new Date().toISOString(),score:pct,decision:msg.status,status:'Under Review'});
     localStorage.setItem('hunters_portal_apps',JSON.stringify(apps.slice(0,50)));
+    // Phase 2.5: rich result card for Type A (portal) candidates
+    if(d.application_id){
+      try{
+        var sumRes=await fetch('/api/candidate/application/'+d.application_id+'/summary',{headers:hdrs()});
+        if(sumRes.ok){
+          var summary=await sumRes.json();
+          if(summary.status==='ready'){form.innerHTML=buildRichResultCard(summary);return;}
+          if(summary.status==='processing'){form.innerHTML=buildProcessingCard();pollForSummary(d.application_id,form);return;}
+        }
+      }catch(e){}
+    }
+    // Type B / fallback: simple card
     form.innerHTML=buildCandidateResultCard(msg);
   }catch(err){clearInterval(iv);
     var isImagePdf=err.message&&err.message.toLowerCase().includes('scanned');
