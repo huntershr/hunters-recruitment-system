@@ -19,6 +19,40 @@ function showToast(message, type = 'success') {
     document.head.appendChild(s);
 })();
 
+function escHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function parseListField(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.map(String).filter(s => s.trim());
+
+    // Try standard JSON parse (handles ["a","b"] arrays)
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.map(String).filter(s => s.trim());
+    } catch (e) {}
+
+    // Try Python list literal: replace single quotes with double quotes
+    try {
+        const jsonified = raw.trim()
+            .replace(/'/g, '"');
+        const parsed = JSON.parse(jsonified);
+        if (Array.isArray(parsed)) return parsed.map(String).filter(s => s.trim());
+    } catch (e) {}
+
+    // Fallback: split by newline or bullet characters
+    return raw
+        .replace(/^\[|\]$/g, '')
+        .split(/[\n•]+/)
+        .map(s => s.trim().replace(/^[-•*]\s*/, '').replace(/^['"]|['"]$/g, ''))
+        .filter(s => s.length > 0);
+}
+
 let jobs = [];
 let candidates = [];
 let evaluations = [];
@@ -719,13 +753,19 @@ function viewCandidate(id) {
         document.getElementById("modal-candidate-decision").innerText = ev.decision || 'Pending';
         document.getElementById("modal-candidate-decision").className = `decision-badge badge ${(ev.decision || 'pending').toLowerCase()}`;
         document.getElementById("modal-candidate-reason").innerText = ev.reason || (isRegisteredOnly ? 'Registered on the portal — has not applied to a job yet.' : 'No evaluation reason available.');
-        document.getElementById("modal-candidate-strengths").innerText = ev.strengths || "None noted.";
-        document.getElementById("modal-candidate-weaknesses").innerText = ev.weaknesses || "None noted.";
+        const strList = parseListField(ev.strengths);
+        document.getElementById("modal-candidate-strengths").innerHTML = strList.length
+            ? `<ul style="margin:4px 0 0;padding-left:18px;line-height:1.8;">${strList.map(s => `<li>${escHtml(s)}</li>`).join('')}</ul>`
+            : '<span style="color:#9CA3AF;">None noted.</span>';
+        const wkList = parseListField(ev.weaknesses);
+        document.getElementById("modal-candidate-weaknesses").innerHTML = wkList.length
+            ? `<ul style="margin:4px 0 0;padding-left:18px;line-height:1.8;">${wkList.map(s => `<li>${escHtml(s)}</li>`).join('')}</ul>`
+            : '<span style="color:#9CA3AF;">None noted.</span>';
         const qList = document.getElementById("modal-candidate-questions");
         qList.innerHTML = "";
-        const qs = ev.suggested_interview_questions || [];
+        const qs = parseListField(ev.suggested_interview_questions);
         if (qs.length > 0) {
-            qs.forEach(q => { qList.innerHTML += `<li>${q}</li>`; });
+            qs.forEach(q => { qList.innerHTML += `<li>${escHtml(q)}</li>`; });
         } else {
             qList.innerHTML = "<li>No specific questions generated.</li>";
         }
@@ -1304,6 +1344,8 @@ function exportScreeningCard(id) {
     }
 
     const printPct = evalScorePercent(ev.score);
+    const printStrengths = parseListField(ev.strengths).map(s => `• ${s}`).join('<br>') || (ev.strengths || '—');
+    const printWeaknesses = parseListField(ev.weaknesses).map(s => `• ${s}`).join('<br>') || (ev.weaknesses || '—');
 
     const printWindow = window.open('', '_blank');
     const html = `
@@ -1377,8 +1419,8 @@ function exportScreeningCard(id) {
 
                 <div class="section-title">📝 SCREENER NOTES & RECOMMENDATION</div>
                 <div class="notes-section">
-                    <strong>Strengths:</strong><br>${ev.strengths}<br><br>
-                    <strong>Weaknesses:</strong><br>${ev.weaknesses}
+                    <strong>Strengths:</strong><br>${printStrengths}<br><br>
+                    <strong>Weaknesses:</strong><br>${printWeaknesses}
                 </div>
             </div>
         </body>

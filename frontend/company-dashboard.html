@@ -2020,6 +2020,25 @@
             .replace(/"/g, '&quot;');
     }
 
+    function parseListField(raw) {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw.map(String).filter(s => s.trim());
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed.map(String).filter(s => s.trim());
+        } catch (e) {}
+        try {
+            const jsonified = raw.trim().replace(/'/g, '"');
+            const parsed = JSON.parse(jsonified);
+            if (Array.isArray(parsed)) return parsed.map(String).filter(s => s.trim());
+        } catch (e) {}
+        return raw
+            .replace(/^\[|\]$/g, '')
+            .split(/[\n•]+/)
+            .map(s => s.trim().replace(/^[-•*]\s*/, '').replace(/^['"]|['"]$/g, ''))
+            .filter(s => s.length > 0);
+    }
+
     /* ── Hide Salary Toggle ── */
     document.addEventListener('DOMContentLoaded', function() {
         const toggle = document.getElementById('hide-salary-toggle');
@@ -2096,8 +2115,8 @@
         const name = cand.full_name || cand.name || 'Candidate';
         const cvSafe = name.replace(/[^a-zA-Z0-9_-]/g, '_');
 
-        const strengths = (ev.strengths || '').split('\n').filter(Boolean).map(s => s.replace(/^-\s*/, ''));
-        const weaknesses = (ev.weaknesses || '').split('\n').filter(Boolean).map(s => s.replace(/^-\s*/, ''));
+        const strengths = parseListField(ev.strengths);
+        const weaknesses = parseListField(ev.weaknesses);
 
         document.getElementById('ai-report-modal').style.display = 'flex';
         document.getElementById('ai-report-body').innerHTML = `
