@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import Any, Dict
+import json
 
 from .. import models, database
 from ..routers.auth import get_current_user
@@ -401,6 +402,132 @@ def get_candidate_users(
             "weaknesses": ev.weaknesses if ev else "",
         })
     return result
+
+
+# ── Applications (Phase 3 — unified view: Type A + Type B) ───────────────────
+
+@router.get("/applications")
+def list_admin_applications(
+    skip: int = 0,
+    limit: int = 500,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Unified application list for admin UI.
+    SuperAdmin: all applications.
+    CompanyAdmin: applications for jobs owned by users in their company.
+    Returns both Type A (candidate_id set) and Type B (applicant_* fields).
+    """
+    if not current_user.is_admin and not current_user.company_id:
+        raise HTTPException(status_code=403, detail="Company admin or super admin access required")
+
+    # Build a job_id filter subquery for company scoping
+    if current_user.is_admin:
+        job_id_filter = None
+    else:
+        co_user_ids = (
+            db.query(models.User.id)
+            .filter(models.User.company_id == current_user.company_id)
+            .subquery()
+        )
+        co_job_ids = (
+            db.query(models.Job.id)
+            .filter(models.Job.owner_id.in_(co_user_ids))
+            .subquery()
+        )
+        job_id_filter = models.Application.job_id.in_(co_job_ids)
+
+    # Total count (separate query — no joinedload inflation)
+    count_q = db.query(func.count(models.Application.id))
+    if job_id_filter is not None:
+        count_q = count_q.filter(job_id_filter)
+    total_count = count_q.scalar()
+
+    # Fetch with eager loads to avoid N+1
+    fetch_q = (
+        db.query(models.Application)
+        .options(
+            joinedload(models.Application.candidate),
+            joinedload(models.Application.evaluation),
+            joinedload(models.Application.job)
+            .joinedload(models.Job.owner)
+            .joinedload(models.User.company),
+        )
+        .order_by(models.Application.id.desc())
+    )
+    if job_id_filter is not None:
+        fetch_q = fetch_q.filter(job_id_filter)
+
+    applications = fetch_q.offset(skip).limit(limit).all()
+
+    result = []
+    for app in applications:
+        job = app.job
+        candidate = app.candidate      # None for Type B
+        evaluation = app.evaluation    # None if still processing
+
+        # Company name via job → owner → company
+        company_name = "Hunters HR Solutions"
+        if job and job.owner and job.owner.company:
+            company_name = job.owner.company.company_name
+
+        # Name / email / phone: prefer candidate profile, fall back to applicant_* fields
+        name  = (candidate.name  if candidate else None) or app.applicant_name  or ""
+        email = (candidate.email if candidate else None) or app.applicant_email or ""
+        phone = (candidate.phone if candidate else None) or app.applicant_phone or ""
+
+        # Normalize score → 0-100 float or None
+        score = None
+        if evaluation and evaluation.score is not None:
+            raw = float(evaluation.score)
+            if raw <= 1:
+                score = round(raw * 100, 1)
+            elif raw <= 10:
+                score = round(raw * 10, 1)
+            else:
+                score = round(min(100.0, raw), 1)
+
+        # Interview questions: stored as JSON string or already a list
+        iq = None
+        if evaluation and evaluation.suggested_interview_questions is not None:
+            iq_raw = evaluation.suggested_interview_questions
+            if isinstance(iq_raw, str):
+                try:
+                    iq = json.loads(iq_raw)
+                except Exception:
+                    iq = []
+            elif isinstance(iq_raw, list):
+                iq = iq_raw
+            else:
+                iq = []
+
+        result.append({
+            "application_id": app.id,
+            "job_id": app.job_id,
+            "job_title": job.job_title if job else "",
+            "company_name": company_name,
+            "candidate_id": candidate.id if candidate else None,
+            "candidate_type": "registered" if (candidate and candidate.user_id) else "external",
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "skills": candidate.skills if candidate else None,
+            "experience_years": candidate.experience_years if candidate else None,
+            "last_title": candidate.last_title if candidate else None,
+            "cv_available": bool(candidate and candidate.cv_text and candidate.cv_text.strip()),
+            "score": score,
+            "decision": evaluation.decision if evaluation else None,
+            "strengths": evaluation.strengths if evaluation else None,
+            "weaknesses": evaluation.weaknesses if evaluation else None,
+            "suggested_interview_questions": iq,
+            "reason": evaluation.reason if evaluation else None,
+            "stage": app.stage or "New",
+            "applied_at": app.created_at.isoformat() if app.created_at else None,
+            "evaluation_id": evaluation.id if evaluation else None,
+        })
+
+    return {"total_count": total_count, "applications": result}
 
 
 # ── Analytics ─────────────────────────────────────────────────────────────────
