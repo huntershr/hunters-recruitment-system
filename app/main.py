@@ -556,6 +556,68 @@ def health_check():
     return {"status": "healthy"}
 
 
+@app.get("/_verify_phase3_step2")
+def verify_phase3_step2():
+    """Temporary — Step 2 verification. Remove after test."""
+    db = SessionLocal()
+    try:
+        from sqlalchemy import text as _text
+        from . import models as _m
+
+        # 1. Confirm applications.cv_text column exists
+        col_check = db.execute(_text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name='applications' AND column_name='cv_text'"
+        )).fetchone()
+
+        # 2. Ahmed's candidate info (candidate_id=8 from Step 1)
+        ahmed_cand = db.query(_m.Candidate).filter(_m.Candidate.id == 8).first()
+        ahmed_cv_available = bool(ahmed_cand and ahmed_cand.cv_text and ahmed_cand.cv_text.strip())
+
+        # 3. Type B applications — check if any have cv_text (historical will be NULL)
+        type_b_apps = db.query(_m.Application).filter(_m.Application.candidate_id.is_(None)).all()
+        type_b_summary = [
+            {
+                "application_id": a.id,
+                "applicant_name": a.applicant_name,
+                "cv_text_stored": bool(a.cv_text and a.cv_text.strip()),
+                "cv_text_preview": (a.cv_text or "")[:80] if a.cv_text else None,
+            }
+            for a in type_b_apps
+        ]
+
+        # 4. Test the company-join auth logic for Ahmed (simulate company admin check)
+        # Ahmed applied to job_id=1. Find who owns job 1.
+        app_for_ahmed = db.query(_m.Application).filter(
+            _m.Application.candidate_id == 8
+        ).first()
+        job_owner = None
+        company_name = None
+        if app_for_ahmed:
+            job = db.query(_m.Job).filter(_m.Job.id == app_for_ahmed.job_id).first()
+            if job:
+                owner = db.query(_m.User).filter(_m.User.id == job.owner_id).first()
+                company = db.query(_m.Company).filter(_m.Company.id == (owner.company_id if owner else None)).first() if owner and owner.company_id else None
+                job_owner = {"user_id": owner.id if owner else None, "company_id": owner.company_id if owner else None}
+                company_name = company.company_name if company else "Hunters HR (admin-owned)"
+
+        return {
+            "cv_text_column_exists": col_check is not None,
+            "ahmed_cv_available": ahmed_cv_available,
+            "type_b_app_count": len(type_b_apps),
+            "type_b_summary": type_b_summary,
+            "ahmed_application": {
+                "application_id": app_for_ahmed.id if app_for_ahmed else None,
+                "job_id": app_for_ahmed.job_id if app_for_ahmed else None,
+                "job_owner": job_owner,
+                "company_name": company_name,
+            },
+            "note": "Historical Type B apps have cv_text=NULL (not stored before Phase 3). New apps will store it.",
+        }
+    finally:
+        db.close()
+
+
 
 
 
