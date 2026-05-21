@@ -556,6 +556,32 @@ def health_check():
     return {"status": "healthy"}
 
 
+@app.get("/_verify_phase3_step3")
+def verify_phase3_step3():
+    """Temporary — Step 3 verification. Remove after test."""
+    db = SessionLocal()
+    try:
+        from . import models as _m
+        ev = db.query(_m.Evaluation).filter(
+            _m.Evaluation.candidate_id == 8
+        ).order_by(_m.Evaluation.id.desc()).first()
+        if not ev:
+            return {"error": "No evaluation found for candidate_id=8"}
+        return {
+            "evaluation_id": ev.id,
+            "score": ev.score,
+            "decision": ev.decision,
+            "strengths_raw": ev.strengths,
+            "weaknesses_raw": ev.weaknesses,
+            "strengths_type": type(ev.strengths).__name__,
+            "strengths_first_char": ev.strengths[0] if ev.strengths else None,
+            "suggested_interview_questions_raw": ev.suggested_interview_questions,
+            "suggested_interview_questions_type": type(ev.suggested_interview_questions).__name__,
+        }
+    finally:
+        db.close()
+
+
 
 
 
