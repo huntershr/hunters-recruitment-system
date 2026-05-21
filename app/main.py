@@ -546,6 +546,68 @@ def health_check():
     return {"status": "healthy"}
 
 
+@app.get("/_verify_phase3_step1")
+def verify_phase3_step1():
+    """Temporary verification endpoint — Phase 3 Step 1. Remove after test."""
+    import json as _json
+    db = SessionLocal()
+    try:
+        from . import models as _m
+        from sqlalchemy.orm import joinedload as _jl
+
+        apps = (
+            db.query(_m.Application)
+            .options(
+                _jl(_m.Application.candidate),
+                _jl(_m.Application.evaluation),
+                _jl(_m.Application.job)
+                .joinedload(_m.Job.owner)
+                .joinedload(_m.User.company),
+            )
+            .order_by(_m.Application.id.asc())
+            .all()
+        )
+
+        total = len(apps)
+        summary = []
+        for a in apps:
+            c = a.candidate
+            ev = a.evaluation
+            job = a.job
+            raw_score = ev.score if ev else None
+            if raw_score is not None:
+                n = float(raw_score)
+                if n <= 1: n = round(n * 100, 1)
+                elif n <= 10: n = round(n * 10, 1)
+                else: n = round(min(100.0, n), 1)
+            else:
+                n = None
+            summary.append({
+                "application_id": a.id,
+                "candidate_type": "registered" if (c and c.user_id) else "external",
+                "name": (c.name if c else None) or a.applicant_name or "",
+                "email": (c.email if c else None) or a.applicant_email or "",
+                "score": n,
+                "cv_available": bool(c and c.cv_text and c.cv_text.strip()),
+                "job_title": job.job_title if job else "",
+                "skills": c.skills if c else None,
+                "candidate_id": c.id if c else None,
+            })
+
+        ahmed = next((x for x in summary if "ahamouda551" in (x.get("email") or "")), None)
+        external_apps = [x for x in summary if x["candidate_type"] == "external"]
+
+        return {
+            "total_count": total,
+            "first_3": summary[:3],
+            "ahmed": ahmed,
+            "external_count": len(external_apps),
+            "external_sample": external_apps[:2],
+        }
+    finally:
+        db.close()
+
+
 
 
 
