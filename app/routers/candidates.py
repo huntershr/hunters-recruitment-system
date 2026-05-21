@@ -439,16 +439,28 @@ def read_candidates(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
 @router.get("/{candidate_id}/cv")
 def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """Download the candidate's CV as a PDF file."""
-    if current_user.is_admin:
-        candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
-    else:
-        candidate = db.query(models.Candidate).filter(
-            models.Candidate.id == candidate_id,
-            models.Candidate.owner_id == current_user.id
-        ).first()
-
+    candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
+
+    if not current_user.is_admin:
+        allowed = candidate.owner_id == current_user.id
+        if not allowed and current_user.company_id:
+            # Company admin: allow if candidate applied to any job owned by their company
+            has_company_app = (
+                db.query(models.Application)
+                .join(models.Job, models.Application.job_id == models.Job.id)
+                .join(models.User, models.Job.owner_id == models.User.id)
+                .filter(
+                    models.Application.candidate_id == candidate_id,
+                    models.User.company_id == current_user.company_id,
+                )
+                .first()
+            )
+            allowed = has_company_app is not None
+        if not allowed:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     if not candidate.cv_text or not candidate.cv_text.strip():
         raise HTTPException(status_code=404, detail="No CV text available for this candidate")
 

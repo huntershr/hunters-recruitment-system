@@ -342,6 +342,16 @@ def startup_populate_db():
             logging.info(f"Migration Phase 2 unique constraint drop: {_e}")
             db.rollback()
 
+        # Phase 3 — add cv_text to applications for Type B CV storage
+        try:
+            from sqlalchemy import text as _text
+            db.execute(_text("ALTER TABLE applications ADD COLUMN IF NOT EXISTS cv_text TEXT"))
+            db.commit()
+            logging.info("Migration: applications.cv_text column ensured (Phase 3)")
+        except Exception as _e:
+            logging.info(f"Migration applications.cv_text skipped: {_e}")
+            db.rollback()
+
         try:
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin_password = os.getenv("ADMIN_PASSWORD", "admin123")

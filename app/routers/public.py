@@ -163,6 +163,7 @@ async def public_apply(
         applicant_phone=phone,
         expected_salary=expected_salary,
         stage="New",
+        cv_text=cv_text,
     )
     db.add(application)
     db.commit()

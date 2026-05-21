@@ -107,6 +107,7 @@ class Application(Base):
     applicant_email = Column(Text, nullable=True)
     applicant_phone = Column(Text, nullable=True)
     cv_file_path = Column(Text, nullable=True)
+    cv_text = Column(Text, nullable=True)
     expected_salary = Column(Text, nullable=True)
     stage = Column(Text, default='New')
     created_at = Column(DateTime, default=datetime.utcnow)
