@@ -136,6 +136,22 @@ async def public_apply(
     content = await file.read()
     cv_text = extract_text_from_file(file.filename, content)
 
+    # Duplicate check: one Type B Application per (email, job) pair
+    existing_app = (
+        db.query(models.Application)
+        .filter(
+            models.Application.applicant_email.ilike(email),
+            models.Application.job_id == job_id,
+            models.Application.candidate_id.is_(None),
+        )
+        .first()
+    )
+    if existing_app:
+        raise HTTPException(
+            status_code=409,
+            detail="An application with this email already exists for this job.",
+        )
+
     # Phase 2 Type B: create Application directly — no Candidate row.
     # Email match to an existing User does NOT auto-link (T5); explicit
     # auth is required for Type A.

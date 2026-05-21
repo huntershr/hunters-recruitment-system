@@ -129,6 +129,35 @@ def get_admin_candidate_profile(
     return profile
 
 
+# ── GET /api/candidate/has-applied/{job_id} ───────────────────────────────────
+
+@router.get("/api/candidate/has-applied/{job_id}")
+def has_applied(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    candidate = (
+        db.query(models.Candidate)
+        .filter(models.Candidate.user_id == current_user.id)
+        .first()
+    )
+    if not candidate:
+        return {"has_applied": False, "application_id": None}
+    app = (
+        db.query(models.Application)
+        .filter(
+            models.Application.candidate_id == candidate.id,
+            models.Application.job_id == job_id,
+        )
+        .first()
+    )
+    return {
+        "has_applied": app is not None,
+        "application_id": app.id if app else None,
+    }
+
+
 # ── GET /api/candidate/application/{application_id}/summary ───────────────────
 
 def _parse_list_field(raw) -> list:

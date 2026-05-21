@@ -989,7 +989,16 @@ function tagHtml(str,bg,tx){
   return str.split(/[,;]+/).filter(Boolean).map(function(s){s=s.trim();return s?'<span style="display:inline-flex;padding:4px 10px;background:'+bg+';color:'+tx+';border-radius:20px;font-size:11px;font-weight:500;margin:3px 3px 0 0;">'+esc(s)+'</span>':''}).join('');
 }
 
-function openJob(id){
+function alreadyAppliedPanelHtml(){
+  return'<div style="text-align:center;padding:32px 20px;">'+
+    '<div style="font-size:36px;margin-bottom:12px;">📋</div>'+
+    '<div style="font-size:15px;font-weight:600;color:#1B2A4A;margin-bottom:8px;">Already Applied</div>'+
+    '<div style="font-size:13px;color:#6B7280;line-height:1.6;margin-bottom:20px;">You have already submitted an application for this position.</div>'+
+    '<button onclick="showPortalSection(\'my-apps\');closeOverlay();" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;">View My Applications →</button>'+
+  '</div>';
+}
+
+async function openJob(id){
   currentJob=allJobs.find(function(j){return j.id===id;});if(!currentJob)return;
   _applyFile=null;
   var j=currentJob,ci=ini(j.company_name||'C');
@@ -1019,6 +1028,14 @@ function openJob(id){
       '<div id="apply-panel" style="padding:24px;overflow-y:auto;max-height:72vh;">'+applyPanelHtml()+'</div>' +
     '</div>';
   document.getElementById('job-overlay').classList.add('active');
+  // A.4: replace Apply panel for portal candidates who already applied to this job
+  var isPortal=portalUser&&!portalUser.is_admin&&!portalUser.company_id;
+  if(isPortal){
+    try{
+      var hr=await fetch('/api/candidate/has-applied/'+id,{headers:hdrs()});
+      if(hr.ok){var hd=await hr.json();if(hd.has_applied){var panel=document.getElementById('apply-panel');if(panel)panel.innerHTML=alreadyAppliedPanelHtml();}}
+    }catch(e){}
+  }
 }
 
 function applyPanelHtml(){
@@ -1067,7 +1084,19 @@ async function submitApply(){
     var fd=new FormData();fd.append('file',_applyFile);fd.append('job_id',String(currentJob.id));
     var res=await fetch('/candidates/screen-cv',{method:'POST',headers:hdrs(),body:fd});
     clearInterval(iv);var pb=document.getElementById('p-bar');if(pb)pb.style.width='100%';
-    if(!res.ok){var e=await res.json();throw new Error(e.detail||'Screening failed');}
+    if(!res.ok){
+      var e=await res.json();
+      if(res.status===409){
+        form.innerHTML='<div style="padding:20px;text-align:center;">'+
+          '<div style="font-size:36px;margin-bottom:12px;">📋</div>'+
+          '<div style="font-size:15px;font-weight:600;color:#1B2A4A;margin-bottom:8px;">Already Applied</div>'+
+          '<div style="font-size:13px;color:#6B7280;line-height:1.6;margin-bottom:20px;">'+esc(e.detail||'You have already applied to this job.')+'<br><span style="font-size:12px;">Check My Applications for your status.</span></div>'+
+          '<button onclick="showPortalSection(\'my-apps\');closeOverlay();" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;">View My Applications →</button>'+
+        '</div>';
+        return;
+      }
+      throw new Error(e.detail||'Screening failed');
+    }
     var d=await res.json();
     var pct=fixScore(d.score);
     var msg=getCandidateMessage(pct);

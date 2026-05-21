@@ -225,7 +225,24 @@ async def screen_cv(
             db.commit()
             db.refresh(candidate)
 
-    # Always create a new Application row for each apply event (Phase 2)
+    # Duplicate check: one Application per (candidate, job) pair
+    if is_portal_candidate:
+        existing_app = (
+            db.query(models.Application)
+            .filter(
+                models.Application.candidate_id == candidate.id,
+                models.Application.job_id == job_id,
+            )
+            .first()
+        )
+        if existing_app:
+            # Profile was already refreshed above — just block the new Application
+            raise HTTPException(
+                status_code=409,
+                detail="You have already applied to this job. Check My Applications for status.",
+            )
+
+    # Create a new Application row for each apply event (Phase 2)
     application = models.Application(
         job_id=job_id,
         candidate_id=candidate.id,
