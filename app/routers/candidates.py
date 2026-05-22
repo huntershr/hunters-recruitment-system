@@ -436,6 +436,44 @@ def read_candidates(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
         candidates = db.query(models.Candidate).filter(models.Candidate.owner_id == current_user.id).offset(skip).limit(limit).all()
         return candidates
 
+@router.get("/talent-pool")
+def get_talent_pool(
+    skip: int = 0,
+    limit: int = 200,
+    search: str = "",
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Registered candidates (user_id IS NOT NULL) visible to company users for talent browsing."""
+    if not current_user.is_admin and not current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    q = db.query(models.Candidate).filter(models.Candidate.user_id.isnot(None))
+    if search.strip():
+        s = f"%{search.strip()}%"
+        q = q.filter(
+            models.Candidate.name.ilike(s) |
+            models.Candidate.skills.ilike(s) |
+            models.Candidate.last_title.ilike(s) |
+            models.Candidate.location.ilike(s)
+        )
+    candidates = q.order_by(models.Candidate.id.desc()).offset(skip).limit(limit).all()
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "email": c.email,
+            "last_title": c.last_title,
+            "last_employer": c.last_employer,
+            "experience_years": c.experience_years,
+            "location": c.location,
+            "skills": c.skills,
+            "photo_url": c.photo_url,
+            "cv_available": bool(c.cv_text and c.cv_text.strip()),
+        }
+        for c in candidates
+    ]
+
+
 @router.get("/{candidate_id}/cv")
 def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """Download the candidate's CV as a PDF file."""
@@ -446,7 +484,7 @@ def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), curr
     if not current_user.is_admin:
         allowed = candidate.owner_id == current_user.id
         if not allowed and current_user.company_id:
-            # Company admin: allow if candidate applied to any job owned by their company
+            # Allow if candidate applied to a job owned by this company
             has_company_app = (
                 db.query(models.Application)
                 .join(models.Job, models.Application.job_id == models.Job.id)
@@ -458,6 +496,9 @@ def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), curr
                 .first()
             )
             allowed = has_company_app is not None
+        # Also allow talent pool: registered candidate (user_id set) visible to any company user
+        if not allowed and current_user.company_id and candidate.user_id:
+            allowed = True
         if not allowed:
             raise HTTPException(status_code=403, detail="Access denied")
 

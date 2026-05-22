@@ -594,6 +594,13 @@
             </svg>
             Candidates
         </button>
+        <button class="nav-item" data-page="talent-pool" onclick="navigateTo('talent-pool')">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+            Talent Pool
+        </button>
         <button class="nav-item" data-page="profile" onclick="navigateTo('profile')">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
@@ -846,6 +853,44 @@
 
             <div style="overflow-x:auto;">
                 <div id="candidates-list-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Talent Pool ── -->
+    <div id="talent-pool" class="content-area">
+        <div style="background:#FFFFFF;border-radius:16px;border-left:4px solid #1B2A4A;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <div>
+                <h1 style="display:flex;align-items:center;gap:8px;margin:0 0 4px 0;font-size:22px;font-weight:500;color:#1B2A4A;">
+                    <svg width="18" height="18" fill="none" stroke="#C9A84C" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                        <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+                    </svg>
+                    Talent Pool
+                </h1>
+                <p style="margin:0;font-size:13px;color:#9CA3AF;">Browse registered candidates who have created profiles on the platform</p>
+            </div>
+        </div>
+        <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;">
+            <div style="padding:16px 20px;border-bottom:1px solid #E5E7EB;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="talent-search" placeholder="Search by name, title, skills, or location…" oninput="filterTalentPool()"
+                    style="flex:1;padding:10px 14px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;min-width:240px;outline:none;color:#1B2A4A;">
+                <button onclick="filterTalentPool()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;">Search</button>
+            </div>
+            <div id="talent-pool-container" style="overflow-x:auto;min-height:80px;"></div>
+        </div>
+    </div>
+
+    <!-- Talent Pool Profile Modal -->
+    <div id="talent-profile-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:4000;align-items:center;justify-content:center;padding:20px;">
+        <div style="background:#fff;border-radius:16px;width:680px;max-width:calc(100vw - 40px);max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.2);">
+            <div style="background:#1B2A4A;padding:16px 24px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1;">
+                <span id="talent-modal-title" style="color:#fff;font-size:14px;font-weight:500;"></span>
+                <button onclick="closeTalentModal()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:20px;cursor:pointer;">✕</button>
+            </div>
+            <div id="talent-modal-body" style="padding:24px;"></div>
+            <div style="padding:14px 24px;border-top:0.5px solid #F3F4F6;display:flex;justify-content:flex-end;position:sticky;bottom:0;background:#fff;z-index:1;">
+                <button onclick="closeTalentModal()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:500;cursor:pointer;">Close</button>
             </div>
         </div>
     </div>
@@ -1198,7 +1243,7 @@
 
     function setRouteHashForPage(page) {
         if (__huntersHashSync) return;
-        const map = { overview: 'overview', jobs: 'my-jobs', candidates: 'candidates', profile: 'company-profile', 'public-profile': 'public-profile' };
+        const map = { overview: 'overview', jobs: 'my-jobs', candidates: 'candidates', 'talent-pool': 'talent-pool', profile: 'company-profile', 'public-profile': 'public-profile' };
         const h = map[page];
         if (!h) return;
         const cur = (window.location.hash || '').replace(/^#/, '').split('?')[0];
@@ -1220,6 +1265,10 @@
         }
         if (base === 'candidates') {
             navigateTo('candidates', { fromHash: true });
+            return;
+        }
+        if (base === 'talent-pool') {
+            navigateTo('talent-pool', { fromHash: true });
             return;
         }
         if (base === 'company-profile' || base === 'profile') {
@@ -1252,9 +1301,10 @@
         const navItem = document.querySelector(`[data-page="${page}"]`);
         if (navItem) navItem.classList.add('active');
 
-        if (page === 'jobs')       loadJobsList();
-        if (page === 'candidates') loadCandidatesList();
-        if (page === 'profile')    loadProfileData();
+        if (page === 'jobs')         loadJobsList();
+        if (page === 'candidates')   loadCandidatesList();
+        if (page === 'talent-pool')  loadTalentPool();
+        if (page === 'profile')      loadProfileData();
         if (page === 'public-profile') {
             window.__huntersCurrentCompany = currentCompany;
             if (typeof renderHuntersPublicProfile === 'function') {
@@ -2007,6 +2057,185 @@
     function handleLogout() {
         localStorage.removeItem('token');
         window.location.href = 'index.html';
+    }
+
+    /* ──────────────────────────────
+       Talent Pool
+    ────────────────────────────── */
+    let _talentSearchTimer = null;
+
+    async function loadTalentPool(search) {
+        const q = search ? `?search=${encodeURIComponent(search)}&limit=200` : '?limit=200';
+        const container = document.getElementById('talent-pool-container');
+        container.innerHTML = '<div style="padding:32px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>';
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/candidates/talent-pool${q}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Failed to load talent pool');
+            const pool = await res.json();
+            renderTalentPool(pool);
+        } catch (e) {
+            container.innerHTML = `<div style="padding:32px;text-align:center;color:#CC2B2B;font-size:13px;">${escHtml(e.message)}</div>`;
+        }
+    }
+
+    function filterTalentPool() {
+        clearTimeout(_talentSearchTimer);
+        const q = (document.getElementById('talent-search') || {}).value || '';
+        _talentSearchTimer = setTimeout(() => loadTalentPool(q), 300);
+    }
+
+    function renderTalentPool(pool) {
+        const container = document.getElementById('talent-pool-container');
+        if (!pool.length) {
+            container.innerHTML = '<div style="padding:48px;text-align:center;color:#9CA3AF;font-size:13px;">No registered candidates found.</div>';
+            return;
+        }
+        const skillPill = s => `<span style="display:inline-block;background:#F0F2F8;color:#1B2A4A;font-size:10px;padding:2px 8px;border-radius:10px;margin:1px;">${escHtml(s)}</span>`;
+        let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+        html += `<thead><tr style="background:#F9FAFB;">
+            <th style="padding:10px 16px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;">Candidate</th>
+            <th style="padding:10px 16px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;">Role / Company</th>
+            <th style="padding:10px 16px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;">Skills</th>
+            <th style="padding:10px 8px;text-align:center;color:#6B7280;font-size:11px;font-weight:500;">Exp</th>
+            <th style="padding:10px 16px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;">Actions</th>
+        </tr></thead><tbody>`;
+        pool.forEach(c => {
+            const skills = (c.skills || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 3);
+            const safeName = (c.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
+            html += `<tr style="border-top:0.5px solid #F3F4F6;" onmouseover="this.style.background='#FAFBFF'" onmouseout="this.style.background=''">
+                <td style="padding:12px 16px;">
+                    <div style="font-weight:500;color:#1B2A4A;">${escHtml(c.name || '')}</div>
+                    ${c.location ? `<div style="font-size:11px;color:#9CA3AF;margin-top:2px;">📍 ${escHtml(c.location)}</div>` : ''}
+                </td>
+                <td style="padding:12px 16px;">
+                    <div style="color:#1B2A4A;font-size:12px;">${escHtml(c.last_title || '—')}</div>
+                    ${c.last_employer ? `<div style="font-size:11px;color:#6B7280;">${escHtml(c.last_employer)}</div>` : ''}
+                </td>
+                <td style="padding:12px 16px;max-width:200px;">
+                    <div style="display:flex;flex-wrap:wrap;gap:2px;">${skills.map(skillPill).join('') || '<span style="color:#9CA3AF;font-size:11px;">—</span>'}</div>
+                </td>
+                <td style="padding:12px 8px;text-align:center;color:#6B7280;font-size:12px;">${c.experience_years != null ? c.experience_years + ' yr' : '—'}</td>
+                <td style="padding:12px 16px;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button onclick="viewTalentProfile(${c.id})" style="font-size:11px;padding:5px 10px;background:#1B2A4A;color:#fff;border:none;border-radius:6px;cursor:pointer;">Profile</button>
+                        ${c.cv_available ? `<button onclick="downloadTalentCV(${c.id},'${safeName}')" style="font-size:11px;padding:5px 10px;background:#0F6E56;color:#fff;border:none;border-radius:6px;cursor:pointer;">↓ CV</button>` : ''}
+                        <button onclick="inviteToApply(${c.id},${JSON.stringify(c.name || '')})" style="font-size:11px;padding:5px 10px;background:#C9A84C;color:#fff;border:none;border-radius:6px;cursor:pointer;">Invite</button>
+                        ${c.email ? `<a href="mailto:${escHtml(c.email)}" style="font-size:11px;padding:5px 10px;background:#F4F5FA;color:#1B2A4A;border-radius:6px;text-decoration:none;display:inline-block;">Email</a>` : ''}
+                    </div>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    async function viewTalentProfile(candidateId) {
+        const overlay = document.getElementById('talent-profile-overlay');
+        document.getElementById('talent-modal-title').textContent = 'Loading…';
+        document.getElementById('talent-modal-body').innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;">Loading profile…</div>';
+        overlay.style.display = 'flex';
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/admin/candidate/${candidateId}/profile`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Failed to load profile');
+            const p = await res.json();
+            document.getElementById('talent-modal-title').textContent = `${p.name} — Candidate Profile`;
+            const pill = txt => `<span style="display:inline-block;background:#F0F2F8;color:#1B2A4A;font-size:11px;padding:3px 10px;border-radius:12px;margin:2px;">${escHtml(String(txt))}</span>`;
+            const sec = (t, body) => `<div style="margin-top:18px;"><div style="font-size:10px;font-weight:600;color:#9CA3AF;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:0.5px solid #F3F4F6;">${t}</div>${body}</div>`;
+            const skillTags = (p.skills || '').split(',').map(s => s.trim()).filter(Boolean).map(pill).join('') || '<span style="color:#9CA3AF;font-size:12px;">No skills listed</span>';
+            const expHtml = (p.experiences || []).length
+                ? p.experiences.map(e => `<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:0.5px solid #F3F4F6;">
+                    <div style="font-size:12px;font-weight:500;color:#1B2A4A;">${escHtml(e.title || e.role || '')}</div>
+                    <div style="font-size:11px;color:#0F6E56;">${escHtml(e.employer || e.company || '')}${e.start ? ' · ' + escHtml(e.start) + (e.end ? ' – ' + escHtml(e.end) : ' – Present') : ''}</div>
+                    ${e.description ? `<div style="font-size:11px;color:#6B7280;margin-top:4px;">${escHtml(e.description)}</div>` : ''}
+                  </div>`).join('')
+                : '<div style="color:#9CA3AF;font-size:12px;">No experience listed</div>';
+            const eduHtml = (p.education_history || []).length
+                ? p.education_history.map(e => `<div style="margin-bottom:8px;"><span style="font-size:12px;font-weight:500;color:#1B2A4A;">${escHtml(e.degree || '')}</span><span style="font-size:11px;color:#6B7280;"> — ${escHtml(e.institution || '')}</span>${e.year ? ` <span style="font-size:11px;color:#9CA3AF;">(${escHtml(String(e.year))})</span>` : ''}</div>`).join('')
+                : (p.education ? `<div style="font-size:12px;">${escHtml(p.education)}</div>` : '<div style="color:#9CA3AF;font-size:12px;">No education listed</div>');
+            const langHtml = (p.languages || []).length
+                ? p.languages.map(l => typeof l === 'string' ? pill(l) : pill(`${l.language || ''}${l.proficiency ? ' · ' + l.proficiency : ''}`)).join('')
+                : '<span style="color:#9CA3AF;font-size:12px;">Not specified</span>';
+            const metaLine = [p.location ? '📍 ' + escHtml(p.location) : '', p.email ? '✉ ' + escHtml(p.email) : '', p.phone ? '📞 ' + escHtml(p.phone) : ''].filter(Boolean).join('  ·  ');
+            document.getElementById('talent-modal-body').innerHTML = `<div>
+                <div style="display:flex;align-items:flex-start;gap:16px;padding-bottom:16px;border-bottom:0.5px solid #F3F4F6;">
+                    ${p.photo_url ? `<img src="${escHtml(p.photo_url)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:16px;font-weight:600;color:#1B2A4A;">${escHtml(p.name || '—')}</div>
+                        ${(p.last_title || p.last_employer) ? `<div style="font-size:12px;color:#0F6E56;margin-top:2px;">${escHtml([p.last_title, p.last_employer].filter(Boolean).join(' at '))}</div>` : ''}
+                        ${metaLine ? `<div style="font-size:11px;color:#6B7280;margin-top:4px;word-break:break-all;">${metaLine}</div>` : ''}
+                        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                            ${p.experience_years != null ? pill(p.experience_years + ' yrs exp') : ''}
+                            ${p.expected_salary ? pill('💰 ' + p.expected_salary) : ''}
+                        </div>
+                    </div>
+                </div>
+                ${p.summary ? sec('About', `<div style="font-size:12px;color:#374151;line-height:1.6;">${escHtml(p.summary)}</div>`) : ''}
+                ${sec('Experience', expHtml)}
+                ${sec('Education', eduHtml)}
+                ${sec('Skills', `<div style="display:flex;flex-wrap:wrap;gap:4px;">${skillTags}</div>`)}
+                ${sec('Languages', `<div style="display:flex;flex-wrap:wrap;gap:6px;">${langHtml}</div>`)}
+            </div>`;
+        } catch (e) {
+            document.getElementById('talent-modal-body').innerHTML = `<div style="padding:32px;text-align:center;color:#CC2B2B;">${escHtml(e.message)}</div>`;
+        }
+    }
+
+    function closeTalentModal() {
+        document.getElementById('talent-profile-overlay').style.display = 'none';
+    }
+
+    function downloadTalentCV(candidateId, safeName) {
+        const token = localStorage.getItem('token');
+        fetch(`${API_URL}/candidates/${candidateId}/cv`, { headers: { 'Authorization': `Bearer ${token}` } })
+            .then(res => {
+                if (!res.ok) return res.text().then(t => { let m = 'CV not available'; try { m = JSON.parse(t).detail || m; } catch(_) {} throw new Error(m); });
+                return res.blob();
+            })
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `CV_${safeName}.pdf`;
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            })
+            .catch(err => alert(err.message || 'CV not available'));
+    }
+
+    async function inviteToApply(candidateId, candidateName) {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const jobs = (await res.json()).filter(j => j.is_approved);
+            if (!jobs.length) { alert('No approved jobs to invite to.'); return; }
+            const options = jobs.map(j => `<option value="${j.id}">${escHtml(j.job_title)}</option>`).join('');
+            document.getElementById('talent-modal-title').textContent = `Invite to Apply — ${candidateName}`;
+            document.getElementById('talent-modal-body').innerHTML = `
+                <p style="font-size:13px;color:#374151;margin-bottom:16px;">Select a job to invite <strong>${escHtml(candidateName)}</strong> to apply for:</p>
+                <select id="invite-job-select" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;color:#1B2A4A;">${options}</select>
+                <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+                    <button onclick="closeTalentModal()" style="background:#F4F5FA;color:#1B2A4A;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;">Cancel</button>
+                    <button onclick="confirmInvite(${candidateId},${JSON.stringify(candidateName)},document.getElementById('invite-job-select').value)"
+                        style="background:#C9A84C;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;">Send Invitation</button>
+                </div>`;
+            document.getElementById('talent-profile-overlay').style.display = 'flex';
+        } catch(e) { alert('Failed to load jobs: ' + e.message); }
+    }
+
+    function confirmInvite(candidateId, candidateName, jobId) {
+        if (!jobId) { alert('Please select a job.'); return; }
+        document.getElementById('talent-modal-body').innerHTML = `
+            <div style="text-align:center;padding:32px;">
+                <div style="font-size:36px;margin-bottom:12px;">✉️</div>
+                <div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:8px;">Invitation Noted</div>
+                <div style="font-size:12px;color:#6B7280;line-height:1.6;">Contact ${escHtml(candidateName)} directly via email or phone to invite them to apply.<br>In-platform email sending is coming in a future update.</div>
+            </div>`;
     }
 
     /* ──────────────────────────────
