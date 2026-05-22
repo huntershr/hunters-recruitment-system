@@ -56,8 +56,10 @@ function parseListField(raw) {
 let jobs = [];
 let candidates = [];
 let evaluations = [];
+let applications = [];   // Phase 3: flat application list from /api/admin/applications
 let currentEvaluationId = null;
 let currentCandidateId = null;
+let currentApplicationId = null;  // Phase 3: tracks selected application
 let editingJobId = null;
 let currentUser = null;
 let companyFilter = '';
@@ -155,50 +157,14 @@ async function fetchData() {
         if (!Array.isArray(candidates)) candidates = [];
         if (!Array.isArray(evaluations)) evaluations = [];
 
-        // For admin: also include registered candidate-type users who haven't applied yet
-        if (currentUser && currentUser.is_admin) {
-            try {
-                const cuRes = await authFetch('/api/admin/candidate-users');
-                const candUsers = await cuRes.json();
-                if (Array.isArray(candUsers)) {
-                    const seenEmails = new Set(candidates.map(c => (c.email || '').toLowerCase()));
-                    candUsers.forEach(u => {
-                        const email = (u.email || '').toLowerCase();
-                        if (!seenEmails.has(email)) {
-                            // User registered but never applied — give a synthetic negative ID
-                            const synId = -(u.user_id);
-                            candidates.push({
-                                id: synId,
-                                user_id: u.user_id,
-                                name: u.name || u.email,
-                                email: u.email,
-                                phone: u.phone || '',
-                                job_applied: null,
-                                experience_years: u.years_exp || 0,
-                                expected_salary: '',
-                                education: u.education || '',
-                                skills: u.skills || '',
-                                last_title: u.last_title || '',
-                                last_employer: u.last_employer || '',
-                                has_cv: false,
-                                cv_text: '',
-                                is_registered_user: true,
-                            });
-                            evaluations.push({
-                                id: synId,
-                                candidate_id: synId,
-                                score: null,
-                                decision: 'Pending',
-                                reason: 'Registered on the portal — has not applied to a job yet.',
-                                strengths: '',
-                                weaknesses: '',
-                                suggested_interview_questions: [],
-                            });
-                        }
-                    });
-                }
-            } catch (e) { /* non-critical */ }
-        }
+        // Phase 3: load flat application list for pipeline views
+        try {
+            const appRes = await authFetch('/api/admin/applications');
+            if (appRes.ok) {
+                const appData = await appRes.json();
+                applications = Array.isArray(appData.applications) ? appData.applications : [];
+            }
+        } catch (e) { /* non-critical — pipeline degrades gracefully */ }
 
         updateDashboard();
         renderJobs();
@@ -470,61 +436,121 @@ function renderKanban(filter) {
     if (!board) return;
 
     const cols = [
-        { id: 'new',       label: 'New',       accent: '#378ADD', decisions: [null, 'pending'] },
-        { id: 'screening', label: 'Screening', accent: '#EF9F27', decisions: ['maybe'] },
-        { id: 'interview', label: 'Interview', accent: '#1D9E75', decisions: ['shortlist'] },
-        { id: 'offer',     label: 'Offer',     accent: '#C9A84C', decisions: ['offer'] },
-        { id: 'rejected',  label: 'Rejected',  accent: '#CC2B2B', decisions: ['reject'] },
+        { id: 'new',       label: 'New',        accent: '#378ADD', decisions: [null, 'pending', 'new'] },
+        { id: 'screening', label: 'Screening',  accent: '#EF9F27', decisions: ['maybe', 'screening'] },
+        { id: 'interview', label: 'Interview',  accent: '#1D9E75', decisions: ['shortlist', 'interview'] },
+        { id: 'offer',     label: 'Offer',      accent: '#C9A84C', decisions: ['offer'] },
+        { id: 'rejected',  label: 'Rejected',   accent: '#CC2B2B', decisions: ['reject', 'rejected'] },
     ];
 
     const lf = (filter || '').toLowerCase();
+    const cf = (companyFilter || '').toLowerCase();
+
+    // Use applications array if populated, fall back to old candidates+evaluations join
+    const useApps = applications.length > 0;
 
     board.innerHTML = cols.map(col => {
-        const colCandidates = candidates.filter(c => {
-            const ev = evaluations.find(e => e.candidate_id === c.id);
-            const dec = ev ? (ev.decision || '').toLowerCase() : null;
-            const inCol = col.decisions.includes(dec);
-            if (!inCol) return false;
-            if (lf) {
-                const job = jobs.find(j => j.id === c.job_applied);
-                return c.name.toLowerCase().includes(lf) ||
-                       (c.email || '').toLowerCase().includes(lf) ||
-                       (job ? job.job_title.toLowerCase().includes(lf) : false);
-            }
-            return true;
-        });
+        let colItems;
+        if (useApps) {
+            colItems = applications.filter(app => {
+                const dec = (app.decision || '').toLowerCase() || null;
+                const inCol = col.decisions.includes(dec);
+                if (!inCol) return false;
+                if (lf) {
+                    return (app.name || '').toLowerCase().includes(lf) ||
+                           (app.email || '').toLowerCase().includes(lf) ||
+                           (app.job_title || '').toLowerCase().includes(lf);
+                }
+                if (cf) {
+                    return (app.company_name || '').toLowerCase() === cf;
+                }
+                return true;
+            });
+        } else {
+            colItems = candidates.filter(c => {
+                const ev = evaluations.find(e => e.candidate_id === c.id);
+                const dec = ev ? (ev.decision || '').toLowerCase() : null;
+                return col.decisions.includes(dec);
+            });
+        }
 
-        const cards = colCandidates.map(c => {
-            const ev = evaluations.find(e => e.candidate_id === c.id);
-            const job = jobs.find(j => j.id === c.job_applied);
-            const score = ev ? ev.score : null;
-            let dotColor = '#9CA3AF';
-            let scoreText = 'Pending';
-            const pct = evalScorePercent(score);
-            if (pct !== null) {
-                dotColor = pct >= 75 ? '#0F6E56' : pct >= 50 ? '#854F0B' : '#A32D2D';
-                scoreText = `${pct}%`;
-            }
-            return `
-                <div class="kanban-card" onclick="viewCandidate(${c.id})">
-                    <div class="kanban-card-name">${c.name}</div>
-                    <div class="kanban-card-role">${job ? job.job_title : '—'}</div>
-                    <div class="kanban-card-score">
-                        <span class="score-dot" style="background:${dotColor};"></span>
-                        <span style="color:${dotColor};">${scoreText}</span>
+        const cards = colItems.map(item => {
+            if (useApps) {
+                const app = item;
+                const pct = evalScorePercent(app.score);
+                let dotColor = '#9CA3AF', scoreText = 'Pending';
+                if (pct !== null) {
+                    dotColor = pct >= 80 ? '#0F6E56' : pct >= 60 ? '#1A6FC4' : pct >= 40 ? '#854F0B' : '#A32D2D';
+                    scoreText = `${pct}%`;
+                }
+                const initials = (app.name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                const skillTags = parseListField(app.skills).slice(0, 3).map(s =>
+                    `<span style="background:#F0F2F8;color:#1B2A4A;font-size:9px;padding:1px 6px;border-radius:8px;">${escHtml(s)}</span>`
+                ).join('');
+                const typeBadge = app.candidate_type === 'registered'
+                    ? `<span style="background:#F0F2F8;color:#6B7280;font-size:9px;padding:1px 6px;border-radius:8px;">Registered</span>`
+                    : `<span style="background:#FFF7E0;color:#9B6F00;font-size:9px;padding:1px 6px;border-radius:8px;">External</span>`;
+                const expLine = [app.last_title, app.experience_years != null ? app.experience_years + ' yrs' : null]
+                    .filter(Boolean).join(' · ');
+                return `
+                    <div class="kanban-card" onclick="viewApplication(${app.application_id})" style="cursor:pointer;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                            <div style="width:30px;height:30px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${escHtml(initials)}</div>
+                            <div style="min-width:0;">
+                                <div class="kanban-card-name" style="font-size:12px;">${escHtml(app.name)}</div>
+                                <div style="font-size:10px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(app.email || '')}</div>
+                            </div>
+                        </div>
+                        <div class="kanban-card-role" style="font-size:10px;margin-bottom:4px;">${escHtml(app.job_title || '—')} · ${escHtml(app.company_name || '')}</div>
+                        ${expLine ? `<div style="font-size:10px;color:#9CA3AF;margin-bottom:4px;">${escHtml(expLine)}</div>` : ''}
+                        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">${typeBadge}${skillTags}</div>
+                        <div class="kanban-card-score" style="justify-content:space-between;">
+                            <span style="display:flex;align-items:center;gap:4px;">
+                                <span class="score-dot" style="background:${dotColor};"></span>
+                                <span style="color:${dotColor};font-size:11px;font-weight:600;">${scoreText}</span>
+                            </span>
+                            <div style="display:flex;gap:4px;">
+                                ${app.evaluation_id
+                                    ? `<button onclick="event.stopPropagation();viewApplication(${app.application_id})" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;color:#1B2A4A;">Report</button>`
+                                    : ''}
+                                ${app.cv_available
+                                    ? `<button onclick="event.stopPropagation();downloadAppCV(${app.application_id},'${escHtml(app.name).replace(/[^a-zA-Z0-9_-]/g,'_')}')" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;color:#0F6E56;">CV</button>`
+                                    : ''}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                const c = item;
+                const ev = evaluations.find(e => e.candidate_id === c.id);
+                const job = jobs.find(j => j.id === c.job_applied);
+                const pct = evalScorePercent(ev ? ev.score : null);
+                let dotColor = '#9CA3AF', scoreText = 'Pending';
+                if (pct !== null) {
+                    dotColor = pct >= 75 ? '#0F6E56' : pct >= 50 ? '#854F0B' : '#A32D2D';
+                    scoreText = `${pct}%`;
+                }
+                return `
+                    <div class="kanban-card" onclick="viewCandidate(${c.id})">
+                        <div class="kanban-card-name">${escHtml(c.name)}</div>
+                        <div class="kanban-card-role">${job ? escHtml(job.job_title) : '—'}</div>
+                        <div class="kanban-card-score">
+                            <span class="score-dot" style="background:${dotColor};"></span>
+                            <span style="color:${dotColor};">${scoreText}</span>
+                        </div>
+                    </div>
+                `;
+            }
         }).join('');
 
         return `
             <div class="kanban-col" style="border-top:3px solid ${col.accent};">
                 <div class="kanban-col-header">
                     <span class="kanban-col-title">${col.label}</span>
-                    <span class="kanban-col-count">${colCandidates.length}</span>
+                    <span class="kanban-col-count">${colItems.length}</span>
                 </div>
                 <div class="kanban-col-body">
-                    ${cards}
+                    ${colItems.length === 0 ? '<div style="text-align:center;color:#D1D5DB;font-size:11px;padding:20px 0;">No applications</div>' : cards}
                     <button class="kanban-add-card" onclick="openCandidateModal()">+ Add candidate</button>
                 </div>
             </div>
@@ -553,91 +579,149 @@ function renderCandidateList(filter) {
     tbody.innerHTML = "";
 
     const lf = (filter || '').toLowerCase();
-    const filtered = candidates.filter(c => {
-        const job = jobs.find(j => j.id === c.job_applied);
-        const matchSearch = !lf ||
-            c.name.toLowerCase().includes(lf) ||
-            (c.email || '').toLowerCase().includes(lf) ||
-            (job ? job.job_title.toLowerCase().includes(lf) : false);
-        const matchCompany = !companyFilter || (c.company_name || '') === companyFilter;
-        return matchSearch && matchCompany;
-    });
+    const cf = (companyFilter || '').toLowerCase();
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="12">
-            <div class="empty-state">
-                <div class="empty-title">No candidates found</div>
-                <div class="empty-sub">${lf ? 'No results for "' + lf + '"' : 'Add candidates to get started'}</div>
-            </div>
-        </td></tr>`;
-        return;
-    }
+    // Phase 3: use applications array if populated
+    const useApps = applications.length > 0;
 
-    filtered.forEach(c => {
-        const ev = evaluations.find(e => e.candidate_id === c.id);
-        const job = jobs.find(j => j.id === c.job_applied);
-        const score = ev ? ev.score : null;
-        const decision = ev ? ev.decision : null;
-        const stage = _decisionToStage(decision);
-        const stageCol = _stageColor(stage);
-        const pct = evalScorePercent(score);
-        const sc = pct === null ? { bg: '#F5F6F8', text: '#6B7280' }
-                 : pct >= 75   ? { bg: '#E1F5EE', text: '#0F6E56' }
-                 : pct >= 50   ? { bg: '#FAEEDA', text: '#854F0B' }
-                 :               { bg: '#FCEBEB', text: '#A32D2D' };
+    if (useApps) {
+        const filtered = applications.filter(app => {
+            const matchSearch = !lf ||
+                (app.name || '').toLowerCase().includes(lf) ||
+                (app.email || '').toLowerCase().includes(lf) ||
+                (app.job_title || '').toLowerCase().includes(lf);
+            const matchCompany = !cf || (app.company_name || '').toLowerCase() === cf;
+            return matchSearch && matchCompany;
+        });
 
-        const interviewer = localStorage.getItem(`hunters_interviewer_${c.id}`) || '';
-        const hrNotes     = localStorage.getItem(`hunters_notes_${c.id}`) || '';
-        const location    = c.location || (job ? (job.job_location || '—') : '—');
-        const hasCV       = c.id > 0 && c.cv_text && c.cv_text.trim().length > 10;
-        const safeNameDl  = (c.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8">
+                <div class="empty-state">
+                    <div class="empty-title">No applications found</div>
+                    <div class="empty-sub">${lf ? 'No results for "' + escHtml(lf) + '"' : 'No applications yet'}</div>
+                </div>
+            </td></tr>`;
+            return;
+        }
 
-        tbody.innerHTML += `
-            <tr onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='transparent'">
-                <td style="min-width:150px;">
-                    <strong style="font-size:12px;">${c.name}</strong>
-                </td>
-                <td style="font-size:11px;color:#6B7280;">${c.phone || '—'}</td>
-                <td style="font-size:11px;color:#6B7280;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.email || '—'}</td>
-                <td style="font-size:11px;color:#6B7280;">${location}</td>
-                <td>
-                    <span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:${stageCol}22;color:${stageCol};">${stage}</span>
-                </td>
-                <td style="font-size:11px;color:#6B7280;">${c.last_title || '—'}</td>
-                <td style="font-size:11px;color:#6B7280;">${c.last_employer || '—'}</td>
-                <td style="font-size:11px;color:#1B2A4A;font-weight:500;">${c.experience_years != null ? c.experience_years + ' yrs' : '—'}</td>
-                <td style="font-size:11px;">
-                    ${hasCV
-                        ? `<a href="#" onclick="downloadAdminCV(${c.id},'${safeNameDl}');return false;" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;cursor:pointer;">↓ CV</a>`
-                        : '<span style="color:#9CA3AF;">—</span>'}
-                </td>
-                <td style="min-width:110px;">
-                    <input type="text" value="${interviewer.replace(/"/g,'&quot;')}" placeholder="Interviewer…"
-                        onchange="localStorage.setItem('hunters_interviewer_${c.id}',this.value)"
-                        style="width:100%;border:0.5px solid #E5E7EB;border-radius:6px;padding:4px 7px;font-size:11px;outline:none;color:#1B2A4A;">
-                </td>
-                <td>
-                    ${pct !== null
-                        ? `<span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:${sc.bg};color:${sc.text};">${pct}%</span>`
-                        : (ev
-                            ? `<button onclick="adminReEvaluate(${c.id},this)" style="background:#F3F4F6;color:#6B7280;border:1px dashed #D1D5DB;border-radius:10px;padding:3px 8px;font-size:10px;cursor:pointer;white-space:nowrap;">↻ Re-eval</button>`
-                            : '<span style="color:#9CA3AF;font-size:11px;">Pending</span>')}
-                </td>
-                <td style="min-width:130px;">
-                    <input type="text" value="${hrNotes.replace(/"/g,'&quot;')}" placeholder="Notes…"
-                        onchange="localStorage.setItem('hunters_notes_${c.id}',this.value)"
-                        style="width:100%;border:0.5px solid #E5E7EB;border-radius:6px;padding:4px 7px;font-size:11px;outline:none;color:#1B2A4A;">
-                </td>
-                <td class="admin-only-col" style="display:none;font-size:11px;color:#6B7280;">${c.company_name || '—'}</td>
-                <td>
-                    <div style="display:flex;gap:5px;">
+        filtered.forEach(app => {
+            const pct = evalScorePercent(app.score);
+            const sc = pct === null ? { bg: '#F5F6F8', text: '#6B7280' }
+                     : pct >= 80   ? { bg: '#E1F5EE', text: '#0F6E56' }
+                     : pct >= 60   ? { bg: '#E6F1FB', text: '#1A6FC4' }
+                     : pct >= 40   ? { bg: '#FAEEDA', text: '#854F0B' }
+                     :               { bg: '#FCEBEB', text: '#A32D2D' };
+            const stage = _decisionToStage(app.decision);
+            const stageCol = _stageColor(stage);
+            const safeName = (app.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
+            const initials = (app.name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+            const typeBadge = app.candidate_type === 'registered'
+                ? `<span style="background:#F0F2F8;color:#6B7280;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:4px;">Reg</span>`
+                : `<span style="background:#FFF7E0;color:#9B6F00;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:4px;">Ext</span>`;
+
+            tbody.innerHTML += `
+                <tr onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='transparent'">
+                    <td style="min-width:160px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:28px;height:28px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;">${escHtml(initials)}</div>
+                            <div>
+                                <strong style="font-size:12px;">${escHtml(app.name)}</strong>${typeBadge}
+                                <div style="font-size:10px;color:#9CA3AF;">${escHtml(app.email || '')}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="font-size:11px;color:#6B7280;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        <div>${escHtml(app.job_title || '—')}</div>
+                        <div style="font-size:10px;color:#9CA3AF;">${escHtml(app.company_name || '')}</div>
+                    </td>
+                    <td>
+                        ${pct !== null
+                            ? `<span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:${sc.bg};color:${sc.text};">${pct}%</span>`
+                            : '<span style="color:#9CA3AF;font-size:11px;">Pending</span>'}
+                    </td>
+                    <td style="font-size:11px;color:#6B7280;">${app.candidate_type === 'registered' ? 'Registered' : 'External'}</td>
+                    <td>
+                        <span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:${stageCol}22;color:${stageCol};">${stage}</span>
+                    </td>
+                    <td style="font-size:11px;color:#6B7280;">
+                        ${app.experience_years != null ? app.experience_years + ' yrs' : '—'}
+                        ${app.last_title ? `<div style="font-size:10px;color:#9CA3AF;">${escHtml(app.last_title)}</div>` : ''}
+                    </td>
+                    <td style="font-size:11px;">
+                        ${app.cv_available
+                            ? `<a href="#" onclick="downloadAppCV(${app.application_id},'${safeName}');return false;" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;cursor:pointer;">↓ CV</a>`
+                            : '<span style="color:#9CA3AF;">—</span>'}
+                    </td>
+                    <td>
+                        <div style="display:flex;gap:5px;">
+                            <button class="btn-action" style="font-size:10px;padding:4px 8px;" onclick="viewApplication(${app.application_id})">View Report</button>
+                            ${app.candidate_type === 'registered' && app.candidate_id
+                                ? `<button class="btn-action" style="font-size:10px;padding:4px 8px;color:#1A6FC4;border-color:#1A6FC4;" onclick="viewCandidate(${app.candidate_id})">Profile</button>`
+                                : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        // Fallback: old candidates+evaluations join
+        const filtered = candidates.filter(c => {
+            const job = jobs.find(j => j.id === c.job_applied);
+            const matchSearch = !lf ||
+                c.name.toLowerCase().includes(lf) ||
+                (c.email || '').toLowerCase().includes(lf) ||
+                (job ? job.job_title.toLowerCase().includes(lf) : false);
+            const matchCompany = !companyFilter || (c.company_name || '') === companyFilter;
+            return matchSearch && matchCompany;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8">
+                <div class="empty-state">
+                    <div class="empty-title">No candidates found</div>
+                    <div class="empty-sub">${lf ? 'No results for "' + escHtml(lf) + '"' : 'Add candidates to get started'}</div>
+                </div>
+            </td></tr>`;
+            return;
+        }
+
+        filtered.forEach(c => {
+            const ev = evaluations.find(e => e.candidate_id === c.id);
+            const job = jobs.find(j => j.id === c.job_applied);
+            const score = ev ? ev.score : null;
+            const decision = ev ? ev.decision : null;
+            const stage = _decisionToStage(decision);
+            const stageCol = _stageColor(stage);
+            const pct = evalScorePercent(score);
+            const sc = pct === null ? { bg: '#F5F6F8', text: '#6B7280' }
+                     : pct >= 75   ? { bg: '#E1F5EE', text: '#0F6E56' }
+                     : pct >= 50   ? { bg: '#FAEEDA', text: '#854F0B' }
+                     :               { bg: '#FCEBEB', text: '#A32D2D' };
+            const hasCV = c.id > 0 && c.cv_text && c.cv_text.trim().length > 10;
+            const safeName = (c.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+            tbody.innerHTML += `
+                <tr onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='transparent'">
+                    <td style="min-width:150px;"><strong style="font-size:12px;">${escHtml(c.name)}</strong></td>
+                    <td style="font-size:11px;color:#6B7280;">${job ? escHtml(job.job_title) : '—'}</td>
+                    <td>
+                        ${pct !== null
+                            ? `<span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:${sc.bg};color:${sc.text};">${pct}%</span>`
+                            : '<span style="color:#9CA3AF;font-size:11px;">Pending</span>'}
+                    </td>
+                    <td style="font-size:11px;color:#6B7280;">Registered</td>
+                    <td><span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:${stageCol}22;color:${stageCol};">${stage}</span></td>
+                    <td style="font-size:11px;color:#6B7280;">${c.experience_years != null ? c.experience_years + ' yrs' : '—'}</td>
+                    <td style="font-size:11px;">
+                        ${hasCV ? `<a href="#" onclick="downloadAdminCV(${c.id},'${safeName}');return false;" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;cursor:pointer;">↓ CV</a>` : '<span style="color:#9CA3AF;">—</span>'}
+                    </td>
+                    <td>
                         <button class="btn-action" style="font-size:10px;padding:4px 8px;" onclick="viewCandidate(${c.id})">View</button>
-                        <button class="btn-action" style="color:var(--red);border-color:var(--red);font-size:10px;padding:4px 6px;" onclick="deleteCandidate(${c.id})">✕</button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
+                    </td>
+                </tr>
+            `;
+        });
+    }
 }
 
 function setPipelineView(view) {
@@ -711,6 +795,98 @@ function downloadAdminCV(id, safeName) {
 
 function downloadCandidateCV(id, safeName) {
     downloadAdminCV(id, safeName);
+}
+
+// Phase 3: download CV via application ID (handles both Type A and Type B)
+function downloadAppCV(applicationId, safeName) {
+    showToast('Generating PDF…', 'info');
+    authFetch(`/api/admin/applications/${applicationId}/cv`)
+        .then(res => {
+            if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Not available'); });
+            return res.blob();
+        })
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `CV_${safeName || applicationId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('CV PDF downloaded successfully.', 'success');
+        })
+        .catch(err => showToast(err.message || 'CV not available for this application.', 'error'));
+}
+
+// Phase 3: open the candidate detail modal for a specific application
+function viewApplication(applicationId) {
+    const app = applications.find(a => a.application_id === applicationId);
+    if (!app) { showToast('Application not found.', 'error'); return; }
+    currentApplicationId = applicationId;
+    currentCandidateId = app.candidate_id || null;
+
+    const safeName = (app.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    document.getElementById("modal-candidate-name").innerText = `${app.name}'s Report`;
+    document.getElementById("modal-candidate-phone").innerText = app.phone || '—';
+    document.getElementById("modal-candidate-expected-salary").innerText = '—';
+
+    // CV button
+    const modalContent = document.getElementById("candidate-detail-modal");
+    let cvBtn = document.getElementById("modal-cv-download-btn");
+    if (!cvBtn) {
+        cvBtn = document.createElement("button");
+        cvBtn.id = "modal-cv-download-btn";
+        cvBtn.style.cssText = "margin:12px 0 0;width:100%;padding:10px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;";
+        const footer = modalContent.querySelector(".modal-footer") || modalContent.querySelector(".modal-content");
+        if (footer) footer.appendChild(cvBtn);
+    }
+    if (app.cv_available) {
+        cvBtn.style.display = 'block';
+        cvBtn.textContent = '↓ Download CV PDF';
+        cvBtn.onclick = () => downloadAppCV(applicationId, safeName);
+    } else {
+        cvBtn.style.display = 'none';
+    }
+
+    if (app.evaluation_id) {
+        currentEvaluationId = app.evaluation_id;
+        const pct = evalScorePercent(app.score) ?? 0;
+        document.getElementById("modal-candidate-score").innerText = `${pct}%`;
+        document.getElementById("modal-candidate-score").style.background = `conic-gradient(var(--primary) ${pct}%, var(--bg-dark) 0)`;
+        document.getElementById("modal-candidate-decision").innerText = app.decision || 'Pending';
+        document.getElementById("modal-candidate-decision").className = `decision-badge badge ${(app.decision || 'pending').toLowerCase()}`;
+        document.getElementById("modal-candidate-reason").innerText = app.reason || 'No evaluation reason available.';
+
+        const strList = parseListField(app.strengths);
+        document.getElementById("modal-candidate-strengths").innerHTML = strList.length
+            ? `<ul style="margin:4px 0 0;padding-left:18px;line-height:1.8;">${strList.map(s => `<li>${escHtml(s)}</li>`).join('')}</ul>`
+            : '<span style="color:#9CA3AF;">None noted.</span>';
+        const wkList = parseListField(app.weaknesses);
+        document.getElementById("modal-candidate-weaknesses").innerHTML = wkList.length
+            ? `<ul style="margin:4px 0 0;padding-left:18px;line-height:1.8;">${wkList.map(s => `<li>${escHtml(s)}</li>`).join('')}</ul>`
+            : '<span style="color:#9CA3AF;">None noted.</span>';
+        const qList = document.getElementById("modal-candidate-questions");
+        qList.innerHTML = "";
+        const qs = parseListField(app.suggested_interview_questions);
+        if (qs.length > 0) {
+            qs.forEach(q => { qList.innerHTML += `<li>${escHtml(q)}</li>`; });
+        } else {
+            qList.innerHTML = "<li>No specific questions generated.</li>";
+        }
+    } else {
+        currentEvaluationId = null;
+        document.getElementById("modal-candidate-score").innerText = "0%";
+        document.getElementById("modal-candidate-score").style.background = `conic-gradient(var(--primary) 0%, var(--bg-dark) 0)`;
+        document.getElementById("modal-candidate-decision").innerText = "Pending";
+        document.getElementById("modal-candidate-reason").innerText = "No evaluation available for this application.";
+        document.getElementById("modal-candidate-strengths").innerText = "—";
+        document.getElementById("modal-candidate-weaknesses").innerText = "—";
+        document.getElementById("modal-candidate-questions").innerHTML = "";
+    }
+
+    document.getElementById("candidate-detail-modal").classList.add("active");
 }
 
 function viewCandidate(id) {
@@ -1462,7 +1638,8 @@ async function fetchUserInfo() {
 function buildCompanyFilter() {
     const sel = document.getElementById('company-filter');
     if (!sel) return;
-    const companies = [...new Set(candidates.map(c => c.company_name).filter(Boolean))].sort();
+    const source = applications.length > 0 ? applications : candidates;
+    const companies = [...new Set(source.map(x => x.company_name).filter(Boolean))].sort();
     const cur = sel.value;
     sel.innerHTML = '<option value="">All Companies</option>';
     companies.forEach(co => {
