@@ -158,18 +158,27 @@ async function fetchData() {
         if (!Array.isArray(evaluations)) evaluations = [];
 
         // Phase 3: load flat application list for pipeline views
+        console.log('[fetchData] Fetching /api/admin/applications…');
         try {
             const appRes = await authFetch('/api/admin/applications');
+            console.log('[fetchData] /api/admin/applications status:', appRes.status);
             if (appRes.ok) {
                 const appData = await appRes.json();
                 applications = Array.isArray(appData.applications) ? appData.applications : [];
+                console.log('[fetchData] applications loaded:', applications.length, 'items');
+            } else {
+                console.warn('[fetchData] /api/admin/applications returned non-OK status:', appRes.status);
             }
-        } catch (e) { /* non-critical — pipeline degrades gracefully */ }
+        } catch (e) {
+            console.error('[fetchData] /api/admin/applications fetch failed:', e);
+        }
 
-        updateDashboard();
-        renderJobs();
-        renderCandidates();
-        buildCompanyFilter();
+        // Run each render step independently so a crash in one does not block others
+        try { updateDashboard(); } catch (e) { console.error('[fetchData] updateDashboard crash:', e); }
+        try { renderJobs(); } catch (e) { console.error('[fetchData] renderJobs crash:', e); }
+        try { renderCandidates(); } catch (e) { console.error('[fetchData] renderCandidates crash:', e); }
+        try { buildCompanyFilter(); } catch (e) { /* non-critical */ }
+
     } catch (err) {
         console.error("Failed to fetch data", err);
     }
@@ -207,7 +216,7 @@ function updateDashboard() {
     document.getElementById("total-jobs").innerText = jobs.length;
     document.getElementById("total-candidates").innerText = candidates.length;
 
-    const shortlisted = evaluations.filter(e => e.decision.toLowerCase() === "shortlist").length;
+    const shortlisted = evaluations.filter(e => (e.decision || '').toLowerCase() === "shortlist").length;
     document.getElementById("total-accepted").innerText = shortlisted;
 
     const pendingEl = document.getElementById("total-pending");
@@ -434,6 +443,21 @@ function renderCandidates() {
 function renderKanban(filter) {
     const board = document.getElementById("kanban-board");
     if (!board) return;
+
+    // Visible status bar — helps diagnose empty pipeline without DevTools
+    const statusEl = document.getElementById("pipeline-status-bar");
+    if (statusEl) {
+        if (applications.length > 0) {
+            statusEl.textContent = `${applications.length} application${applications.length !== 1 ? 's' : ''} loaded`;
+            statusEl.style.color = '#0F6E56';
+        } else if (candidates.length > 0) {
+            statusEl.textContent = `${candidates.length} candidates (fallback mode — applications API unavailable)`;
+            statusEl.style.color = '#854F0B';
+        } else {
+            statusEl.textContent = 'No data loaded — check browser console for errors';
+            statusEl.style.color = '#A32D2D';
+        }
+    }
 
     const cols = [
         { id: 'new',       label: 'New',        accent: '#378ADD', decisions: [null, 'pending', 'new'] },
@@ -1585,12 +1609,12 @@ function exportScreeningCard(id) {
                 <div class="section-title">⚙️ AUTO DECISION ENGINE</div>
                 <div class="decision-box">
                     <div class="label">SCREENING DECISION</div>
-                    <div class="value" style="color: ${ev.decision.toLowerCase() === 'reject' ? '#df2029' : '#10b981'}">${ev.decision.toUpperCase()}</div>
+                    <div class="value" style="color: ${(ev.decision || '').toLowerCase() === 'reject' ? '#df2029' : '#10b981'}">${(ev.decision || 'Pending').toUpperCase()}</div>
                 </div>
 
                 <div class="rejection-reason">🚩 ANALYSIS & REASONING</div>
                 <div class="reason-list">
-                    ${ev.reason.split('\n').map(r => `<p>🚩 ${r}</p>`).join('')}
+                    ${(ev.reason || '').split('\n').filter(Boolean).map(r => `<p>🚩 ${r}</p>`).join('') || '<p>No reason provided.</p>'}
                 </div>
 
                 <div class="section-title">📝 SCREENER NOTES & RECOMMENDATION</div>
@@ -1698,7 +1722,7 @@ async function saveManualEvaluation() {
         reason: document.getElementById("edit-reason").value,
         strengths: document.getElementById("edit-strengths").value,
         weaknesses: document.getElementById("edit-weaknesses").value,
-        suggested_interview_questions: evaluations.find(e => e.id === currentEvaluationId).suggested_interview_questions
+        suggested_interview_questions: (evaluations.find(e => e.id === currentEvaluationId) || {}).suggested_interview_questions ?? []
     };
 
     try {
