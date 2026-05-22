@@ -676,8 +676,8 @@
         <div class="modal-footer-bar">
             <button class="btn-secondary" style="width:auto;" onclick="closeModals()">Close</button>
             <div style="display:flex;gap:8px;">
-                <button class="btn-secondary" style="width:auto;" onclick="exportScreeningCard(currentCandidateId)">
-                    <i class='bx bx-printer'></i> Export
+                <button class="btn-secondary" style="width:auto;" onclick="exportScreeningCard(currentCandidateId)" title="Print or save as PDF">
+                    <i class='bx bxs-file-pdf'></i> Print / Save as PDF
                 </button>
                 <button class="btn-primary" id="edit-eval-btn" style="width:auto;" onclick="toggleEditEvaluation()">
                     <i class='bx bx-edit'></i> Edit Report
@@ -1089,6 +1089,6 @@ function confirmResetPassword(){
 </script>
 
 <!-- CACHE VERSION: bump ?v= number on every app.js change -->
-<script src="app.js?v=1.13"></script>
+<script src="app.js?v=1.14"></script>
 </body>
 </html>
