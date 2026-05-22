@@ -517,7 +517,10 @@ def list_admin_applications(
             "skills": candidate.skills if candidate else None,
             "experience_years": candidate.experience_years if candidate else None,
             "last_title": candidate.last_title if candidate else None,
-            "cv_available": bool(candidate and candidate.cv_text and candidate.cv_text.strip()),
+            "cv_available": bool(
+                (candidate and candidate.cv_text and candidate.cv_text.strip()) or
+                (app.cv_text and app.cv_text.strip())
+            ),
             "score": score,
             "decision": evaluation.decision if evaluation else None,
             "strengths": evaluation.strengths if evaluation else None,

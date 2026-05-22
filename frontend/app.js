@@ -680,7 +680,7 @@ function renderCandidateList(filter) {
                         <div style="display:flex;gap:5px;">
                             <button class="btn-action" style="font-size:10px;padding:4px 8px;" onclick="viewApplication(${app.application_id})">View Report</button>
                             ${app.candidate_type === 'registered' && app.candidate_id
-                                ? `<button class="btn-action" style="font-size:10px;padding:4px 8px;color:#1A6FC4;border-color:#1A6FC4;" onclick="viewCandidate(${app.candidate_id})">Profile</button>`
+                                ? `<button class="btn-action" style="font-size:10px;padding:4px 8px;color:#1A6FC4;border-color:#1A6FC4;" onclick="viewBasicProfile(${app.application_id})">Profile</button>`
                                 : ''}
                         </div>
                     </td>
@@ -911,6 +911,41 @@ function viewApplication(applicationId) {
     }
 
     document.getElementById("candidate-detail-modal").classList.add("active");
+}
+
+function viewBasicProfile(applicationId) {
+    const app = applications.find(a => a.application_id === applicationId);
+    if (!app) { showToast('Candidate data not found.', 'error'); return; }
+
+    const skillTags = parseListField(app.skills).map(s =>
+        `<span style="display:inline-block;background:#F0F2F8;color:#1B2A4A;font-size:11px;padding:3px 10px;border-radius:12px;margin:2px;">${escHtml(s)}</span>`
+    ).join('') || '<span style="color:#9CA3AF;font-size:12px;">No skills listed</span>';
+
+    const row = (label, val) =>
+        `<div style="display:flex;gap:12px;padding:8px 0;border-bottom:0.5px solid #F3F4F6;">
+            <div style="min-width:130px;font-size:11px;color:#9CA3AF;font-weight:500;">${label}</div>
+            <div style="font-size:12px;color:#1B2A4A;">${escHtml(String(val || '—'))}</div>
+         </div>`;
+
+    createAdminModal(
+        `${escHtml(app.name)} — Candidate Profile`,
+        `<div>
+            ${row('Email', app.email)}
+            ${row('Phone', app.phone)}
+            ${row('Current / Last Title', app.last_title)}
+            ${row('Experience', app.experience_years != null ? app.experience_years + ' years' : null)}
+            ${row('Job Applied', app.job_title)}
+            ${row('Company', app.company_name)}
+            <div style="padding:10px 0;">
+                <div style="font-size:11px;color:#9CA3AF;font-weight:500;margin-bottom:6px;">SKILLS</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;">${skillTags}</div>
+            </div>
+            <div style="margin-top:14px;padding:10px 14px;background:#FFF7E0;border-radius:8px;font-size:11px;color:#854F0B;">
+                Full ATS profile (experience timeline, education, languages) coming soon.
+            </div>
+        </div>`,
+        null
+    );
 }
 
 function viewCandidate(id) {
