@@ -158,7 +158,7 @@ class EvaluationCreate(EvaluationBase):
 
 class EvaluationResponse(EvaluationBase):
     id: int
-    candidate_id: int
+    candidate_id: Optional[int] = None
 
     class Config:
         from_attributes = True
