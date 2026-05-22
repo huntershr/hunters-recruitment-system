@@ -1554,18 +1554,18 @@ async function handleJobManualCreate(event) {
 }
 
 function exportScreeningCard(id) {
-    const candidate = candidates.find(c => c.id === id);
-    const ev = evaluations.find(e => e.candidate_id === id);
-    const job = jobs.find(j => j.id === candidate.job_applied);
+    // Phase 3: use applications[] (supports Type A + Type B)
+    const app = applications.find(a => a.application_id === currentApplicationId);
+    if (!app) { showToast('Application data not found.', 'error'); return; }
+    if (!app.evaluation_id) { showToast('No evaluation found for this application.', 'error'); return; }
 
-    if (!ev) {
-        showToast('No evaluation found for this candidate.', 'error');
-        return;
-    }
+    const ev = { decision: app.decision, reason: app.reason, score: app.score, strengths: app.strengths, weaknesses: app.weaknesses };
+    const candidate = { name: app.name, phone: app.phone, experience_years: app.experience_years };
+    const job = { job_title: app.job_title, weight_experience: '—', weight_skills: '—', weight_education: '—' };
 
-    const printPct = evalScorePercent(ev.score);
-    const printStrengths = parseListField(ev.strengths).map(s => `• ${s}`).join('<br>') || (ev.strengths || '—');
-    const printWeaknesses = parseListField(ev.weaknesses).map(s => `• ${s}`).join('<br>') || (ev.weaknesses || '—');
+    const printPct = evalScorePercent(app.score);
+    const printStrengths = parseListField(app.strengths).map(s => `• ${s}`).join('<br>') || (app.strengths || '—');
+    const printWeaknesses = parseListField(app.weaknesses).map(s => `• ${s}`).join('<br>') || (app.weaknesses || '—');
 
     const printWindow = window.open('', '_blank');
     const html = `

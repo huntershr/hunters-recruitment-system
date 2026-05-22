@@ -134,13 +134,27 @@ def re_evaluate_candidate(candidate_id: int, db: Session = Depends(get_db), curr
 @router.put("/update/{evaluation_id}", response_model=schemas.EvaluationResponse)
 def update_evaluation(evaluation_id: int, updated_eval: schemas.EvaluationBase, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """
-    Allows a recruiter to manually moderate/override an AI evaluation.
+    Allows a recruiter to manually override an AI evaluation.
+    Admin: unrestricted. Non-admin: scoped to jobs they own.
+    Supports both Type A (candidate_id set) and Type B (candidate_id NULL).
     """
-    db_eval = db.query(models.Evaluation).join(models.Candidate).filter(models.Evaluation.id == evaluation_id, models.Candidate.owner_id == current_user.id).first()
+    if current_user.is_admin:
+        db_eval = db.query(models.Evaluation).filter(models.Evaluation.id == evaluation_id).first()
+    else:
+        db_eval = (
+            db.query(models.Evaluation)
+            .join(models.Application, models.Evaluation.application_id == models.Application.id)
+            .join(models.Job, models.Application.job_id == models.Job.id)
+            .filter(
+                models.Evaluation.id == evaluation_id,
+                models.Job.owner_id == current_user.id,
+            )
+            .first()
+        )
+
     if not db_eval:
         raise HTTPException(status_code=404, detail="Evaluation not found or access denied")
-    
-    import json
+
     db_eval.score = updated_eval.score
     db_eval.decision = updated_eval.decision
     db_eval.reason = updated_eval.reason
@@ -148,12 +162,14 @@ def update_evaluation(evaluation_id: int, updated_eval: schemas.EvaluationBase, 
     db_eval.weaknesses = updated_eval.weaknesses
     if updated_eval.suggested_interview_questions:
         db_eval.suggested_interview_questions = json.dumps(updated_eval.suggested_interview_questions)
-        
+
     db.commit()
     db.refresh(db_eval)
-    
-    # Parse back for response
+
     e_dict = {col.name: getattr(db_eval, col.name) for col in db_eval.__table__.columns}
     if isinstance(e_dict.get("suggested_interview_questions"), str):
-        e_dict["suggested_interview_questions"] = json.loads(e_dict["suggested_interview_questions"])
+        try:
+            e_dict["suggested_interview_questions"] = json.loads(e_dict["suggested_interview_questions"])
+        except Exception:
+            e_dict["suggested_interview_questions"] = []
     return e_dict
