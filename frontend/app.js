@@ -142,46 +142,47 @@ async function authFetch(url, options = {}) {
 }
 
 async function fetchData() {
+    // Reset to safe defaults so stale data never persists across calls
+    jobs = [];
+    candidates = [];
+    evaluations = [];
+
+    // Three parallel calls — allSettled means one failure never aborts the others
+    const [jobsRes, candsRes, evalsRes] = await Promise.allSettled([
+        authFetch(`${API_URL}/jobs`),
+        authFetch(`${API_URL}/candidates`),
+        authFetch(`${API_URL}/results`)
+    ]);
+
+    try { jobs        = await jobsRes.value?.json()  ?? []; } catch (_) {}
+    try { candidates  = await candsRes.value?.json() ?? []; } catch (_) {}
+    try { evaluations = await evalsRes.value?.json() ?? []; } catch (_) {}
+
+    if (!Array.isArray(jobs))        jobs = [];
+    if (!Array.isArray(candidates))  candidates = [];
+    if (!Array.isArray(evaluations)) evaluations = [];
+
+    // Applications call — individually wrapped, failure leaves applications = []
+    console.log('[fetchData] Fetching /api/admin/applications…');
     try {
-        const [jobsRes, candsRes, evalsRes] = await Promise.all([
-            authFetch(`${API_URL}/jobs`),
-            authFetch(`${API_URL}/candidates`),
-            authFetch(`${API_URL}/results`)
-        ]);
-
-        jobs = await jobsRes.json();
-        candidates = await candsRes.json();
-        evaluations = await evalsRes.json();
-
-        if (!Array.isArray(jobs)) jobs = [];
-        if (!Array.isArray(candidates)) candidates = [];
-        if (!Array.isArray(evaluations)) evaluations = [];
-
-        // Phase 3: load flat application list for pipeline views
-        console.log('[fetchData] Fetching /api/admin/applications…');
-        try {
-            const appRes = await authFetch('/api/admin/applications');
-            console.log('[fetchData] /api/admin/applications status:', appRes.status);
-            if (appRes.ok) {
-                const appData = await appRes.json();
-                applications = Array.isArray(appData.applications) ? appData.applications : [];
-                console.log('[fetchData] applications loaded:', applications.length, 'items');
-            } else {
-                console.warn('[fetchData] /api/admin/applications returned non-OK status:', appRes.status);
-            }
-        } catch (e) {
-            console.error('[fetchData] /api/admin/applications fetch failed:', e);
+        const appRes = await authFetch('/api/admin/applications');
+        console.log('[fetchData] /api/admin/applications status:', appRes.status);
+        if (appRes.ok) {
+            const appData = await appRes.json();
+            applications = Array.isArray(appData.applications) ? appData.applications : [];
+            console.log('[fetchData] applications loaded:', applications.length, 'items');
+        } else {
+            console.warn('[fetchData] /api/admin/applications returned non-OK status:', appRes.status);
         }
-
-        // Run each render step independently so a crash in one does not block others
-        try { updateDashboard(); } catch (e) { console.error('[fetchData] updateDashboard crash:', e); }
-        try { renderJobs(); } catch (e) { console.error('[fetchData] renderJobs crash:', e); }
-        try { renderCandidates(); } catch (e) { console.error('[fetchData] renderCandidates crash:', e); }
-        try { buildCompanyFilter(); } catch (e) { /* non-critical */ }
-
-    } catch (err) {
-        console.error("Failed to fetch data", err);
+    } catch (e) {
+        console.error('[fetchData] /api/admin/applications fetch failed:', e);
     }
+
+    // Render always runs — empty arrays are valid, a crash above is not fatal
+    try { updateDashboard(); }    catch (e) { console.error('[fetchData] updateDashboard crash:', e); }
+    try { renderJobs(); }         catch (e) { console.error('[fetchData] renderJobs crash:', e); }
+    try { renderCandidates(); }   catch (e) { console.error('[fetchData] renderCandidates crash:', e); }
+    try { buildCompanyFilter(); } catch (_) {}
 }
 
 /** Stored score normalization: fractions (≤1), legacy 1–10 scale, or unified 0–100. */
@@ -436,15 +437,7 @@ let pipelineView = 'board';
 let pipelineFilter = '';
 
 function renderCandidates() {
-    renderKanban(pipelineFilter);
-    renderCandidateList(pipelineFilter);
-}
-
-function renderKanban(filter) {
-    const board = document.getElementById("kanban-board");
-    if (!board) return;
-
-    // Visible status bar — helps diagnose empty pipeline without DevTools
+    // Status bar updated here — guaranteed to run regardless of renderKanban outcome
     const statusEl = document.getElementById("pipeline-status-bar");
     if (statusEl) {
         if (applications.length > 0) {
@@ -458,6 +451,13 @@ function renderKanban(filter) {
             statusEl.style.color = '#A32D2D';
         }
     }
+    try { renderKanban(pipelineFilter); } catch (e) { console.error('[renderCandidates] renderKanban crash:', e); }
+    try { renderCandidateList(pipelineFilter); } catch (e) { console.error('[renderCandidates] renderCandidateList crash:', e); }
+}
+
+function renderKanban(filter) {
+    const board = document.getElementById("kanban-board");
+    if (!board) return;
 
     const cols = [
         { id: 'new',       label: 'New',        accent: '#378ADD', decisions: [null, 'pending', 'new'] },
