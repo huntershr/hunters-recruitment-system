@@ -826,7 +826,11 @@ function downloadAppCV(applicationId, safeName) {
     showToast('Generating PDF…', 'info');
     authFetch(`/api/admin/applications/${applicationId}/cv`)
         .then(res => {
-            if (!res.ok) return res.json().then(e => { throw new Error(e.detail || 'Not available'); });
+            if (!res.ok) return res.text().then(t => {
+                let msg = 'CV not available';
+                try { msg = JSON.parse(t).detail || msg; } catch (_) {}
+                throw new Error(msg);
+            });
             return res.blob();
         })
         .then(blob => {
