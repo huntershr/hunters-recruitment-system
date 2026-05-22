@@ -1288,29 +1288,49 @@ async function importFromSheets() {
     }
 }
 
-async function exportToCSV() {
-    const btn = document.querySelector('button[onclick="exportToCSV()"]');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Exporting...";
-    btn.disabled = true;
-    
-    try {
-        const response = await authFetch(`${API_URL}/candidates/export/csv`);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "candidate_evaluations.csv";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-    } catch (err) {
-        showToast('Export failed.', 'error');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
+function exportToCSV() {
+    if (applications.length === 0) { showToast('No applications to export.', 'info'); return; }
+
+    const lf = (pipelineFilter || '').toLowerCase();
+    const cf = (companyFilter || '').toLowerCase();
+    const rows = applications.filter(app => {
+        const matchSearch = !lf ||
+            (app.name || '').toLowerCase().includes(lf) ||
+            (app.email || '').toLowerCase().includes(lf) ||
+            (app.job_title || '').toLowerCase().includes(lf);
+        const matchCompany = !cf || (app.company_name || '').toLowerCase() === cf;
+        return matchSearch && matchCompany;
+    });
+
+    if (rows.length === 0) { showToast('No applications match the current filter.', 'info'); return; }
+
+    const esc = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const headers = ['Name', 'Email', 'Job Title', 'Company', 'Score', 'Decision', 'Stage', 'Type', 'Applied Date'];
+    const csvRows = [
+        headers.map(esc).join(','),
+        ...rows.map(app => [
+            app.name || '',
+            app.email || '',
+            app.job_title || '',
+            app.company_name || '',
+            evalScorePercent(app.score) ?? '',
+            app.decision || 'Pending',
+            _decisionToStage(app.decision),
+            app.candidate_type === 'registered' ? 'Registered' : 'External',
+            app.applied_at ? app.applied_at.split('T')[0] : ''
+        ].map(esc).join(','))
+    ];
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hunters-pipeline-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${rows.length} application${rows.length !== 1 ? 's' : ''} to CSV.`, 'success');
 }
 
 async function handleLogin(event) {
@@ -1709,7 +1729,10 @@ function toggleEditEvaluation() {
         editBtn.innerHTML = "<i class='bx bx-x'></i> Cancel";
         saveBtn.style.display = "block";
     } else {
-        location.reload(); // Simplest way to reset the UI state
+        // Cancel: restore view mode from cached data — no page reload needed
+        editBtn.innerHTML = "<i class='bx bx-edit'></i> Edit Report";
+        saveBtn.style.display = "none";
+        viewApplication(currentApplicationId);
     }
 }
 
@@ -1726,7 +1749,7 @@ async function saveManualEvaluation() {
     };
 
     try {
-        const response = await authFetch(`${API_URL}/evaluations/update/${currentEvaluationId}`, {
+        const response = await authFetch(`/update/${currentEvaluationId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
@@ -1734,7 +1757,8 @@ async function saveManualEvaluation() {
 
         if (response.ok) {
             showToast('Report updated successfully!', 'success');
-            location.reload();
+            closeModals();
+            fetchData();
         } else {
             showToast('Failed to update report.', 'error');
         }
