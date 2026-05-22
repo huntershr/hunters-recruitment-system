@@ -917,39 +917,140 @@ function viewApplication(applicationId) {
     document.getElementById("candidate-detail-modal").classList.add("active");
 }
 
-function viewBasicProfile(applicationId) {
+function viewBasicProfile(applicationId) { viewAtsProfile(applicationId); }
+
+function viewAtsProfile(applicationId) {
     const app = applications.find(a => a.application_id === applicationId);
-    if (!app) { showToast('Candidate data not found.', 'error'); return; }
+    if (!app) { showToast('Application data not found.', 'error'); return; }
 
-    const skillTags = parseListField(app.skills).map(s =>
-        `<span style="display:inline-block;background:#F0F2F8;color:#1B2A4A;font-size:11px;padding:3px 10px;border-radius:12px;margin:2px;">${escHtml(s)}</span>`
-    ).join('') || '<span style="color:#9CA3AF;font-size:12px;">No skills listed</span>';
+    // Type B (external applicant) — no candidate row, show basic modal
+    if (!app.candidate_id) {
+        const skillTags = parseListField(app.skills).map(s =>
+            `<span style="display:inline-block;background:#F0F2F8;color:#1B2A4A;font-size:11px;padding:3px 10px;border-radius:12px;margin:2px;">${escHtml(s)}</span>`
+        ).join('') || '<span style="color:#9CA3AF;font-size:12px;">No skills listed</span>';
+        const row = (label, val) =>
+            `<div style="display:flex;gap:12px;padding:8px 0;border-bottom:0.5px solid #F3F4F6;">
+                <div style="min-width:130px;font-size:11px;color:#9CA3AF;font-weight:500;">${label}</div>
+                <div style="font-size:12px;color:#1B2A4A;">${escHtml(String(val || '—'))}</div>
+             </div>`;
+        createAdminModal(
+            `${escHtml(app.name)} — External Applicant`,
+            `<div>
+                <div style="margin-bottom:12px;padding:8px 12px;background:#FFF7E0;border-radius:8px;font-size:11px;color:#854F0B;">External applicant — no registered candidate profile</div>
+                ${row('Email', app.email)}
+                ${row('Phone', app.phone)}
+                ${row('Job Applied', app.job_title)}
+                ${row('Company', app.company_name)}
+                ${row('Stage', app.stage)}
+                ${row('Experience', app.experience_years != null ? app.experience_years + ' years' : null)}
+                <div style="padding:10px 0;">
+                    <div style="font-size:11px;color:#9CA3AF;font-weight:500;margin-bottom:6px;">SKILLS</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;">${skillTags}</div>
+                </div>
+            </div>`,
+            null
+        );
+        return;
+    }
 
-    const row = (label, val) =>
-        `<div style="display:flex;gap:12px;padding:8px 0;border-bottom:0.5px solid #F3F4F6;">
-            <div style="min-width:130px;font-size:11px;color:#9CA3AF;font-weight:500;">${label}</div>
-            <div style="font-size:12px;color:#1B2A4A;">${escHtml(String(val || '—'))}</div>
-         </div>`;
+    // Type A (registered candidate) — fetch full profile
+    authFetch(`/api/admin/candidate/${app.candidate_id}/profile`)
+        .then(res => {
+            if (!res.ok) throw new Error('Failed to load profile');
+            return res.json();
+        })
+        .then(p => {
+            const pill = (txt, bg = '#F0F2F8', color = '#1B2A4A') =>
+                `<span style="display:inline-block;background:${bg};color:${color};font-size:11px;padding:3px 10px;border-radius:12px;margin:2px;">${escHtml(txt)}</span>`;
 
-    createAdminModal(
-        `${escHtml(app.name)} — Candidate Profile`,
-        `<div>
-            ${row('Email', app.email)}
-            ${row('Phone', app.phone)}
-            ${row('Current / Last Title', app.last_title)}
-            ${row('Experience', app.experience_years != null ? app.experience_years + ' years' : null)}
-            ${row('Job Applied', app.job_title)}
-            ${row('Company', app.company_name)}
-            <div style="padding:10px 0;">
-                <div style="font-size:11px;color:#9CA3AF;font-weight:500;margin-bottom:6px;">SKILLS</div>
-                <div style="display:flex;flex-wrap:wrap;gap:4px;">${skillTags}</div>
-            </div>
-            <div style="margin-top:14px;padding:10px 14px;background:#FFF7E0;border-radius:8px;font-size:11px;color:#854F0B;">
-                Full ATS profile (experience timeline, education, languages) coming soon.
-            </div>
-        </div>`,
-        null
-    );
+            const section = (title, content) =>
+                `<div style="margin-top:18px;">
+                    <div style="font-size:10px;font-weight:600;color:#9CA3AF;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:0.5px solid #F3F4F6;">${title}</div>
+                    ${content}
+                 </div>`;
+
+            const skillTags = parseListField(p.skills).map(s => pill(s)).join('')
+                || '<span style="color:#9CA3AF;font-size:12px;">No skills listed</span>';
+
+            const expHtml = (p.experiences || []).length
+                ? p.experiences.map(e => `
+                    <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:0.5px solid #F3F4F6;">
+                        <div style="font-size:12px;font-weight:500;color:#1B2A4A;">${escHtml(e.title || e.role || '')}</div>
+                        <div style="font-size:11px;color:#0F6E56;margin-top:1px;">
+                            ${escHtml(e.employer || e.company || '')}${e.start ? ' · ' + escHtml(e.start) + (e.end ? ' – ' + escHtml(e.end) : ' – Present') : ''}
+                        </div>
+                        ${e.description ? `<div style="font-size:11px;color:#6B7280;margin-top:4px;line-height:1.5;">${escHtml(e.description)}</div>` : ''}
+                    </div>`).join('')
+                : '<div style="color:#9CA3AF;font-size:12px;">No experience listed</div>';
+
+            const eduHtml = (p.education_history || []).length
+                ? p.education_history.map(e => `
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+                        <div>
+                            <span style="font-size:12px;font-weight:500;color:#1B2A4A;">${escHtml(e.degree || '')}</span>
+                            <span style="font-size:11px;color:#6B7280;"> — ${escHtml(e.institution || '')}</span>
+                        </div>
+                        ${e.year ? `<span style="font-size:11px;color:#9CA3AF;white-space:nowrap;margin-left:8px;">${escHtml(String(e.year))}</span>` : ''}
+                    </div>`).join('')
+                : (p.education
+                    ? `<div style="font-size:12px;color:#1B2A4A;">${escHtml(p.education)}</div>`
+                    : '<div style="color:#9CA3AF;font-size:12px;">No education listed</div>');
+
+            const langHtml = (p.languages || []).length
+                ? p.languages.map(l => typeof l === 'string'
+                    ? pill(l, '#F0F2F8', '#1B2A4A')
+                    : pill(`${l.language || ''}${l.proficiency ? ' · ' + l.proficiency : ''}`, '#F0F2F8', '#1B2A4A')
+                ).join('')
+                : '<span style="color:#9CA3AF;font-size:12px;">Not specified</span>';
+
+            const appsHtml = (p.applications || []).length
+                ? `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">
+                    <thead><tr style="background:#F9FAFB;">
+                        <th style="padding:6px 8px;text-align:left;color:#6B7280;font-weight:500;">Job</th>
+                        <th style="padding:6px 8px;text-align:left;color:#6B7280;font-weight:500;">Stage</th>
+                        <th style="padding:6px 8px;text-align:center;color:#6B7280;font-weight:500;">Score</th>
+                        <th style="padding:6px 8px;text-align:center;color:#6B7280;font-weight:500;">Decision</th>
+                    </tr></thead>
+                    <tbody>${p.applications.map(a => `
+                        <tr style="border-top:0.5px solid #F3F4F6;">
+                            <td style="padding:6px 8px;color:#1B2A4A;">${escHtml(a.job_title || '—')}</td>
+                            <td style="padding:6px 8px;color:#6B7280;">${escHtml(a.stage || '—')}</td>
+                            <td style="padding:6px 8px;text-align:center;color:#1B2A4A;">${a.score != null ? Math.round(a.score * 100) + '%' : '—'}</td>
+                            <td style="padding:6px 8px;text-align:center;">${escHtml(a.decision || '—')}</td>
+                        </tr>`).join('')}
+                    </tbody></table>`
+                : '<div style="color:#9CA3AF;font-size:12px;">No applications on record</div>';
+
+            const metaLine = [
+                p.location ? `📍 ${escHtml(p.location)}` : '',
+                p.email    ? `✉ ${escHtml(p.email)}`    : '',
+                p.phone    ? `📞 ${escHtml(p.phone)}`   : '',
+            ].filter(Boolean).join('  ·  ');
+
+            const bodyHTML = `<div>
+                <div style="display:flex;align-items:flex-start;gap:16px;padding-bottom:16px;border-bottom:0.5px solid #F3F4F6;">
+                    ${p.photo_url ? `<img src="${escHtml(p.photo_url)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:16px;font-weight:600;color:#1B2A4A;">${escHtml(p.name || '—')}</div>
+                        ${(p.last_title || p.last_employer) ? `<div style="font-size:12px;color:#0F6E56;margin-top:2px;">${escHtml([p.last_title, p.last_employer].filter(Boolean).join(' at '))}</div>` : ''}
+                        ${metaLine ? `<div style="font-size:11px;color:#6B7280;margin-top:4px;word-break:break-all;">${metaLine}</div>` : ''}
+                        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                            ${p.experience_years != null ? pill(p.experience_years + ' yrs exp') : ''}
+                            ${p.expected_salary ? pill('💰 ' + p.expected_salary, '#F0FFF4', '#0F6E56') : ''}
+                        </div>
+                    </div>
+                </div>
+                ${p.summary ? section('About', `<div style="font-size:12px;color:#374151;line-height:1.6;">${escHtml(p.summary)}</div>`) : ''}
+                ${section('Experience', expHtml)}
+                ${section('Education', eduHtml)}
+                ${section('Skills', `<div style="display:flex;flex-wrap:wrap;gap:4px;">${skillTags}</div>`)}
+                ${section('Languages', `<div style="display:flex;flex-wrap:wrap;gap:6px;">${langHtml}</div>`)}
+                ${section('Applications at Hunters', appsHtml)}
+            </div>`;
+
+            createAdminModal(`${escHtml(p.name)} — ATS Profile`, bodyHTML, null);
+        })
+        .catch(err => showToast(err.message || 'Failed to load candidate profile', 'error'));
 }
 
 function viewCandidate(id) {

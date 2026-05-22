@@ -535,6 +535,60 @@ def list_admin_applications(
     return {"total_count": total_count, "applications": result}
 
 
+@router.get("/candidate/{candidate_id}/profile")
+def get_candidate_ats_profile(
+    candidate_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Full ATS profile for a registered candidate, including JSONB fields and application history."""
+    if not current_user.is_admin and not current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    apps = (
+        db.query(models.Application)
+        .options(joinedload(models.Application.job), joinedload(models.Application.evaluation))
+        .filter(models.Application.candidate_id == candidate_id)
+        .order_by(models.Application.created_at.desc())
+        .all()
+    )
+    app_list = [
+        {
+            "application_id": app.id,
+            "job_title": app.job.job_title if app.job else None,
+            "stage": app.stage,
+            "decision": app.evaluation.decision if app.evaluation else None,
+            "score": app.evaluation.score if app.evaluation else None,
+            "applied_at": app.created_at.isoformat() if app.created_at else None,
+        }
+        for app in apps
+    ]
+
+    return {
+        "id": candidate.id,
+        "name": candidate.name,
+        "email": candidate.email,
+        "phone": candidate.phone,
+        "photo_url": candidate.photo_url,
+        "summary": candidate.summary,
+        "location": candidate.location,
+        "last_title": candidate.last_title,
+        "last_employer": candidate.last_employer,
+        "experience_years": candidate.experience_years,
+        "expected_salary": candidate.expected_salary,
+        "skills": candidate.skills,
+        "education": candidate.education,
+        "experiences": candidate.experiences or [],
+        "education_history": candidate.education_history or [],
+        "languages": candidate.languages or [],
+        "applications": app_list,
+    }
+
+
 @router.get("/applications/{application_id}/cv")
 def download_application_cv(
     application_id: int,
