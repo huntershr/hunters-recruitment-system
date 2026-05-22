@@ -483,7 +483,6 @@ def _build_cv_pdf(candidate) -> bytes:
     import textwrap
     from fpdf import FPDF
 
-    # Pre-wrap long lines (belt-and-suspenders guard for very long tokens)
     raw_text = candidate.cv_text or ""
     cv_text = "\n".join(
         textwrap.fill(line, width=80, break_long_words=True, break_on_hyphens=True)
@@ -491,96 +490,68 @@ def _build_cv_pdf(candidate) -> bytes:
         for line in raw_text.split("\n")
     )
 
-    L_MARGIN = 15   # mm — explicit margins eliminate cursor-drift bugs in multi_cell(0,...)
-    R_MARGIN = 15
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_margins(15, 15, 15)
+    pdf.set_auto_page_break(True, margin=15)
+    pdf.add_page()
+    effective_w = pdf.w - pdf.l_margin - pdf.r_margin  # 210 - 15 - 15 = 180 mm
 
-    def _render(cv):
-        pdf = FPDF(orientation="P", unit="mm", format="A4")
-        pdf.set_margins(left=L_MARGIN, top=10, right=R_MARGIN)
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
-        # Compute once after add_page so l_margin/r_margin are locked in
-        eff_w = pdf.w - pdf.l_margin - pdf.r_margin  # 210 - 15 - 15 = 180mm
+    pdf.set_fill_color(27, 42, 74)
+    pdf.rect(0, 0, 210, 10, "F")
+    pdf.ln(10)
 
-        pdf.set_fill_color(27, 42, 74)
-        pdf.rect(0, 0, 210, 10, "F")
-        pdf.ln(14)
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(27, 42, 74)
+    pdf.multi_cell(effective_w, 10, _safe(candidate.name or "Candidate"))
 
-        # Name — multi_cell wraps if the name is very long
-        pdf.set_font("Helvetica", "B", 18)
-        pdf.set_text_color(27, 42, 74)
-        pdf.multi_cell(eff_w, 10, _safe(candidate.name or "Candidate"))
+    pdf.set_draw_color(201, 168, 76)
+    pdf.set_line_width(0.8)
+    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+    pdf.ln(4)
 
-        pdf.set_draw_color(201, 168, 76)
-        pdf.set_line_width(0.8)
-        pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
-        pdf.ln(4)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(107, 114, 128)
+    meta_parts = []
+    if candidate.email:         meta_parts.append(candidate.email)
+    if candidate.phone:         meta_parts.append(candidate.phone)
+    if candidate.last_title:    meta_parts.append(candidate.last_title)
+    if candidate.last_employer: meta_parts.append(candidate.last_employer)
+    if candidate.experience_years is not None:
+        meta_parts.append(f"{candidate.experience_years} yrs exp")
+    if meta_parts:
+        pdf.multi_cell(effective_w, 5, _safe("   |   ".join(meta_parts)))
+    pdf.ln(3)
 
-        # Contact / meta row
-        pdf.set_font("Helvetica", "", 9)
-        pdf.set_text_color(107, 114, 128)
-        meta_parts = []
-        if candidate.email:         meta_parts.append(candidate.email)
-        if candidate.phone:         meta_parts.append(candidate.phone)
-        if candidate.last_title:    meta_parts.append(candidate.last_title)
-        if candidate.last_employer: meta_parts.append(candidate.last_employer)
-        if candidate.experience_years is not None:
-            meta_parts.append(f"{candidate.experience_years} yrs exp")
-        if meta_parts:
-            pdf.multi_cell(eff_w, 5, _safe("   |   ".join(meta_parts)))
-        pdf.ln(3)
+    pdf.set_draw_color(229, 231, 235)
+    pdf.set_line_width(0.3)
+    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+    pdf.ln(5)
 
-        pdf.set_draw_color(229, 231, 235)
-        pdf.set_line_width(0.3)
-        pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
-        pdf.ln(5)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(27, 42, 74)
+    for line in cv_text.split("\n"):
+        stripped = line.rstrip()
+        if not stripped:
+            pdf.ln(2)
+            continue
+        safe_line = _safe(stripped)
+        is_header = (stripped.isupper() and len(stripped) < 60) or stripped.endswith(":")
+        if is_header:
+            pdf.ln(2)
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.set_text_color(27, 42, 74)
+            pdf.multi_cell(effective_w, 5, safe_line)
+            pdf.set_font("Helvetica", "", 10)
+        else:
+            pdf.multi_cell(effective_w, 5, safe_line)
 
-        # CV body
-        pdf.set_font("Helvetica", "", 10)
-        pdf.set_text_color(27, 42, 74)
-        for line in cv.split("\n"):
-            stripped = line.rstrip()
-            if not stripped:
-                pdf.ln(2)
-                continue
-            safe_line = _safe(stripped)
-            is_header = (stripped.isupper() and len(stripped) < 60) or stripped.endswith(":")
-            if is_header:
-                pdf.ln(2)
-                pdf.set_font("Helvetica", "B", 10)
-                pdf.set_text_color(27, 42, 74)
-                pdf.multi_cell(eff_w, 5, safe_line)
-                pdf.set_font("Helvetica", "", 10)
-            else:
-                pdf.multi_cell(eff_w, 5, safe_line)
+    pdf.set_y(-12)
+    pdf.set_x(pdf.l_margin)
+    pdf.set_font("Helvetica", "I", 7)
+    pdf.set_text_color(156, 163, 175)
+    pdf.cell(effective_w, 5, "Generated by Hunters AI Recruitment System  |  hunters-egypt.com", align="C")
 
-        pdf.set_y(-12)
-        pdf.set_x(pdf.l_margin)
-        pdf.set_font("Helvetica", "I", 7)
-        pdf.set_text_color(156, 163, 175)
-        pdf.cell(eff_w, 5, "Generated by Hunters AI Recruitment System  |  hunters-egypt.com", align="C")
-
-        return bytes(pdf.output())
-
-    try:
-        return _render(cv_text)
-    except Exception:
-        # Fallback: minimal plain-text PDF — must not crash
-        pdf = FPDF(orientation="P", unit="mm", format="A4")
-        pdf.set_margins(left=20, top=20, right=20)
-        pdf.set_auto_page_break(auto=True, margin=20)
-        pdf.add_page()
-        eff_w = pdf.w - pdf.l_margin - pdf.r_margin  # 170mm
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.set_text_color(27, 42, 74)
-        pdf.multi_cell(eff_w, 8, _safe(candidate.name or "Candidate"))
-        pdf.ln(4)
-        pdf.set_font("Helvetica", "", 9)
-        pdf.set_text_color(40, 40, 40)
-        for line in cv_text.split("\n"):
-            safe = _safe(line.rstrip())
-            pdf.multi_cell(eff_w, 5, safe if safe else " ")
-        return bytes(pdf.output())
+    return bytes(pdf.output())
 
 @router.get("/{candidate_id}", response_model=schemas.CandidateResponse)
 def read_candidate(candidate_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
