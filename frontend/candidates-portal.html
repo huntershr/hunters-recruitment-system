@@ -556,6 +556,7 @@ function applyUserRole(user){
     showPortalSection('talent-pool');
     loadOccupationCards();
     loadTalentPool();
+    loadJobs(); /* populate allJobs so Invite to Apply dropdown works */
   } else {
     showPortalSection('all-jobs');
     loadJobs();
