@@ -660,7 +660,12 @@ def download_application_cv(
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="CV_{safe_name}.pdf"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="CV_{safe_name}.pdf"',
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
     )
 
 

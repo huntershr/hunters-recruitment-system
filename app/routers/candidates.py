@@ -511,7 +511,12 @@ def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), curr
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="CV_{safe_name}.pdf"'}
+        headers={
+            "Content-Disposition": f'attachment; filename="CV_{safe_name}.pdf"',
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
     )
 
 
@@ -577,6 +582,8 @@ def _build_cv_pdf(candidate) -> bytes:
     pdf.set_line_width(0.3)
     pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
     pdf.ln(5)
+
+    cv_text = cv_text.encode("latin-1", errors="replace").decode("latin-1")
 
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(27, 42, 74)
