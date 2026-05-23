@@ -518,6 +518,8 @@ def list_admin_applications(
             "experience_years": candidate.experience_years if candidate else None,
             "last_title": candidate.last_title if candidate else None,
             "cv_available": bool(
+                (candidate and candidate.cv_file_data) or
+                application.cv_file_data or
                 (candidate and candidate.cv_text and candidate.cv_text.strip()) or
                 (app.cv_text and app.cv_text.strip())
             ),
@@ -627,13 +629,29 @@ def download_application_cv(
 
     # Try to get cv_text and display name from candidate (Type A) first
     candidate = application.candidate
-    cv_text = (candidate.cv_text if candidate else None) or application.cv_text
     display_name = (
         (candidate.name if candidate else None)
         or application.applicant_name
         or "Applicant"
     )
+    safe_name = "".join(c for c in display_name if c.isalnum() or c in " _-").strip().replace(" ", "_")
 
+    from .candidates import _build_cv_pdf, _mime_to_ext, _NO_CACHE
+    from fastapi import Response as _Response
+
+    # Serve original uploaded file if available (BYTEA)
+    cv_file_data = (candidate.cv_file_data if candidate else None) or application.cv_file_data
+    cv_file_mime_str = (candidate.cv_file_mime if candidate else None) or application.cv_file_mime
+    if cv_file_data:
+        ext = _mime_to_ext(cv_file_mime_str or "application/pdf")
+        return _Response(
+            content=bytes(cv_file_data),
+            media_type=cv_file_mime_str or "application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}_CV{ext}"', **_NO_CACHE},
+        )
+
+    # Fall back to rebuilding PDF from cv_text
+    cv_text = (candidate.cv_text if candidate else None) or application.cv_text
     if not cv_text or not cv_text.strip():
         raise HTTPException(
             status_code=404,
@@ -641,8 +659,6 @@ def download_application_cv(
         )
 
     from types import SimpleNamespace
-    from .candidates import _build_cv_pdf
-
     cv_obj = SimpleNamespace(
         name=display_name,
         email=(candidate.email if candidate else None) or application.applicant_email or "",
@@ -656,16 +672,10 @@ def download_application_cv(
         pdf_bytes = _build_cv_pdf(cv_obj)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {exc}")
-    safe_name = "".join(c for c in display_name if c.isalnum() or c in " _-").strip().replace(" ", "_")
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="CV_{safe_name}.pdf"',
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0",
-        },
+        headers={"Content-Disposition": f'attachment; filename="CV_{safe_name}.pdf"', **_NO_CACHE},
     )
 
 

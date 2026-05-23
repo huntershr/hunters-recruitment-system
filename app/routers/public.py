@@ -136,6 +136,18 @@ async def public_apply(
     content = await file.read()
     cv_text = extract_text_from_file(file.filename, content)
 
+    # Resolve MIME type for original file storage
+    _fname = (file.filename or "").lower()
+    _ct = file.content_type or ""
+    if _ct and _ct not in ("application/octet-stream", "binary/octet-stream"):
+        cv_mime = _ct
+    elif _fname.endswith(".pdf"):
+        cv_mime = "application/pdf"
+    elif _fname.endswith(".docx"):
+        cv_mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        cv_mime = "application/octet-stream"
+
     # Duplicate check: one Type B Application per (email, job) pair
     existing_app = (
         db.query(models.Application)
@@ -164,6 +176,8 @@ async def public_apply(
         expected_salary=expected_salary,
         stage="New",
         cv_text=cv_text,
+        cv_file_data=content,
+        cv_file_mime=cv_mime,
     )
     db.add(application)
     db.commit()

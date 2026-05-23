@@ -352,6 +352,22 @@ def startup_populate_db():
             logging.info(f"Migration applications.cv_text skipped: {_e}")
             db.rollback()
 
+        # Phase 4 — BYTEA original file storage on candidates + applications
+        for _col_sql in [
+            "ALTER TABLE candidates   ADD COLUMN IF NOT EXISTS cv_file_data BYTEA",
+            "ALTER TABLE candidates   ADD COLUMN IF NOT EXISTS cv_file_mime TEXT",
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS cv_file_data BYTEA",
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS cv_file_mime TEXT",
+        ]:
+            try:
+                from sqlalchemy import text as _text
+                db.execute(_text(_col_sql))
+                db.commit()
+                logging.info(f"Migration Phase 4: {_col_sql}")
+            except Exception as _e:
+                logging.info(f"Migration Phase 4 skipped ({_col_sql}): {_e}")
+                db.rollback()
+
         try:
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin_password = os.getenv("ADMIN_PASSWORD", "admin123")

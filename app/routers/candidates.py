@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, File, UploadFile, Form, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -93,6 +93,17 @@ async def screen_cv(
     content = await file.read()
     filename = (file.filename or "").lower()
 
+    # Resolve MIME — browser content_type can be missing or generic
+    _ct = file.content_type or ""
+    if _ct and _ct not in ("application/octet-stream", "binary/octet-stream"):
+        cv_mime = _ct
+    elif filename.endswith(".pdf"):
+        cv_mime = "application/pdf"
+    elif filename.endswith(".docx"):
+        cv_mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        cv_mime = "application/octet-stream"
+
     if filename.endswith(".pdf"):
         cv_text = extract_text_from_pdf(content)
     elif filename.endswith(".docx"):
@@ -157,6 +168,8 @@ async def screen_cv(
         )
         if candidate:
             candidate.cv_text = cv_text
+            candidate.cv_file_data = content
+            candidate.cv_file_mime = cv_mime
             candidate.name = name
             candidate.phone = phone or candidate.phone
             candidate.job_applied = job_id
@@ -178,6 +191,8 @@ async def screen_cv(
                 education=str(info.get("education") or ""),
                 skills=str(info.get("skills") or ""),
                 cv_text=cv_text,
+                cv_file_data=content,
+                cv_file_mime=cv_mime,
                 last_title=str(info.get("last_title") or ""),
                 last_employer=str(info.get("last_employer") or ""),
                 owner_id=job.owner_id,
@@ -195,6 +210,8 @@ async def screen_cv(
         )
         if existing:
             existing.cv_text = cv_text
+            existing.cv_file_data = content
+            existing.cv_file_mime = cv_mime
             existing.name = name
             existing.phone = phone or existing.phone
             existing.experience_years = int(info.get("experience_years") or 0) or existing.experience_years
@@ -216,6 +233,8 @@ async def screen_cv(
                 education=str(info.get("education") or ""),
                 skills=str(info.get("skills") or ""),
                 cv_text=cv_text,
+                cv_file_data=content,
+                cv_file_mime=cv_mime,
                 last_title=str(info.get("last_title") or ""),
                 last_employer=str(info.get("last_employer") or ""),
                 owner_id=job.owner_id,
@@ -468,7 +487,7 @@ def get_talent_pool(
             "location": c.location,
             "skills": c.skills,
             "photo_url": c.photo_url,
-            "cv_available": bool(c.cv_text and c.cv_text.strip()),
+            "cv_available": bool(c.cv_file_data or (c.cv_text and c.cv_text.strip())),
         }
         for c in candidates
     ]
@@ -502,22 +521,45 @@ def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), curr
         if not allowed:
             raise HTTPException(status_code=403, detail="Access denied")
 
-    if not candidate.cv_text or not candidate.cv_text.strip():
-        raise HTTPException(status_code=404, detail="No CV text available for this candidate")
-
-    pdf_bytes = _build_cv_pdf(candidate)
     safe_name = "".join(c for c in (candidate.name or "Candidate") if c.isalnum() or c in " _-").strip().replace(" ", "_")
 
+    # Serve original file if stored
+    if candidate.cv_file_data:
+        mime = candidate.cv_file_mime or "application/pdf"
+        ext = _mime_to_ext(mime)
+        return Response(
+            content=bytes(candidate.cv_file_data),
+            media_type=mime,
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}_CV{ext}"', **_NO_CACHE},
+        )
+
+    # Fallback: regenerate PDF from stored cv_text (historical records)
+    if not candidate.cv_text or not candidate.cv_text.strip():
+        raise HTTPException(status_code=404, detail="No CV available for this candidate")
+
+    pdf_bytes = _build_cv_pdf(candidate)
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="CV_{safe_name}.pdf"',
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0",
-        },
+        headers={"Content-Disposition": f'attachment; filename="CV_{safe_name}.pdf"', **_NO_CACHE},
     )
+
+
+_MIME_TO_EXT = {
+    "application/pdf": ".pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/msword": ".doc",
+}
+
+_NO_CACHE = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
+def _mime_to_ext(mime: str) -> str:
+    return _MIME_TO_EXT.get(mime or "", ".pdf")
 
 
 def _safe(text: str) -> str:

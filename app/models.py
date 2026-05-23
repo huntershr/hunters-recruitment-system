@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, JSON, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, JSON, Boolean, DateTime, LargeBinary
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
@@ -89,6 +89,8 @@ class Candidate(Base):
     experiences = Column(JSON, nullable=True)       # [{title, company, from, to, desc}]
     education_history = Column(JSON, nullable=True) # [{degree, institution, year}]  (replaces legacy education VARCHAR in future)
     languages = Column(JSON, nullable=True)         # [{language, level}]
+    cv_file_data = Column(LargeBinary, nullable=True)  # original uploaded CV file bytes
+    cv_file_mime = Column(Text, nullable=True)          # MIME type of the original file
 
     owner = relationship("User", back_populates="candidates", foreign_keys=[owner_id])
     user = relationship("User", back_populates="candidate_profile", foreign_keys=[user_id])
@@ -108,6 +110,8 @@ class Application(Base):
     applicant_phone = Column(Text, nullable=True)
     cv_file_path = Column(Text, nullable=True)
     cv_text = Column(Text, nullable=True)
+    cv_file_data = Column(LargeBinary, nullable=True)  # original uploaded CV file bytes
+    cv_file_mime = Column(Text, nullable=True)          # MIME type of the original file
     expected_salary = Column(Text, nullable=True)
     stage = Column(Text, default='New')
     created_at = Column(DateTime, default=datetime.utcnow)
