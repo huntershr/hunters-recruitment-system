@@ -546,6 +546,15 @@ def _build_cv_pdf(candidate) -> bytes:
         for line in raw_text.split("\n")
     )
 
+    # ── cosmetic fixes (before latin-1 encoding) ──────────────────────────────
+    # 1. Bullet characters → dash  (•, private-use , filled-circle ●)
+    for bullet in ('•', '●', '', '‣', '⁃'):
+        cv_text = cv_text.replace(bullet, '-')
+
+    # 2. Extraction artifact: "Proble -\nsolving" or "Proble - solving" → "Problem-solving"
+    cv_text = re.sub(r'(\w+) -\s*\n(\w+)', r'\1\2\n', cv_text)
+    cv_text = re.sub(r'(\w+) - (\w)', r'\1-\2', cv_text)
+
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_margins(15, 15, 15)
     pdf.set_auto_page_break(True, margin=15)
