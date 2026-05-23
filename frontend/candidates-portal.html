@@ -847,6 +847,7 @@ function renderTalentPool(candidates){
     grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;"><div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">No registered candidates yet</div><div style="font-size:12px;color:#9CA3AF;">Candidates appear here after creating a portal account</div></div>';
     return;
   }
+  regCands.forEach(function(c){_storeTalentCand(c);});
   grid.innerHTML=regCands.map(function(c){
     var ev=c.evaluation||null;
     var rawScore=ev&&ev.score!=null?ev.score:null;
@@ -890,7 +891,28 @@ var _talentCandMap={};
 function _storeTalentCand(c){if(c&&c.id)_talentCandMap[c.id]=c;if(c&&c.real_candidate_id)_talentCandMap[c.real_candidate_id]=c;}
 
 function talentOpenProfile(candidateId){
-  if(!candidateId||candidateId<0){showToast('No profile available for this candidate','info');return;}
+  if(!candidateId){showToast('No profile available for this candidate','info');return;}
+  if(candidateId<0){
+    var c=_talentCandMap[candidateId];
+    if(!c){showToast('No profile data available','info');return;}
+    var ini=(c.name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+    var sks=(c.skills||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    var bhtml='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">'
+      +'<div style="width:48px;height:48px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;">'+esc(ini)+'</div>'
+      +'<div><div style="font-size:16px;font-weight:500;color:#1B2A4A;">'+esc(c.name||'')+'</div>'
+      +'<div style="font-size:12px;color:#9CA3AF;">'+esc(c.email||'')+'</div></div></div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">'
+        +(c.last_title?'<div style="font-size:11px;"><span style="color:#9CA3AF;">Title</span><br><span style="color:#1B2A4A;font-weight:500;">'+esc(c.last_title)+'</span></div>':'')
+        +(c.experience_years?'<div style="font-size:11px;"><span style="color:#9CA3AF;">Experience</span><br><span style="color:#1B2A4A;font-weight:500;">'+c.experience_years+' yrs</span></div>':'')
+        +(c.phone?'<div style="font-size:11px;"><span style="color:#9CA3AF;">Phone</span><br><span style="color:#1B2A4A;font-weight:500;">'+esc(c.phone)+'</span></div>':'')
+        +(c.last_employer?'<div style="font-size:11px;"><span style="color:#9CA3AF;">Last Employer</span><br><span style="color:#1B2A4A;font-weight:500;">'+esc(c.last_employer)+'</span></div>':'')
+      +'</div>'
+      +(sks.length?'<div><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Skills</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:4px;">'+sks.map(function(s){return'<span style="background:#F0F4F8;color:#1B2A4A;font-size:11px;padding:2px 8px;border-radius:10px;">'+esc(s)+'</span>';}).join('')+'</div></div>':'')
+      +'<div style="margin-top:14px;font-size:11px;color:#6B7280;background:#FFF9EC;padding:8px 12px;border-radius:8px;">Registered portal user — no CV screening yet</div>';
+    openPortalModal('Candidate Profile',bhtml);
+    return;
+  }
   fetch(API_BASE+'/api/admin/candidate/'+candidateId+'/profile',{headers:hdrs()})
     .then(function(r){if(!r.ok)throw new Error();return r.json();})
     .then(function(p){

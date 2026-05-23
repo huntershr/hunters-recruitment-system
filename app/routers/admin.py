@@ -367,7 +367,13 @@ def get_candidate_users(
 
     result = []
     for u in users:
+        # Prefer Candidate linked by user_id (portal profile); fall back to email match
         cand = (
+            db.query(models.Candidate)
+            .filter(models.Candidate.user_id == u.id)
+            .order_by(models.Candidate.id.desc())
+            .first()
+        ) or (
             db.query(models.Candidate)
             .filter(models.Candidate.email == u.email)
             .order_by(models.Candidate.id.desc())
