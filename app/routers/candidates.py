@@ -526,13 +526,13 @@ def _build_cv_pdf(candidate) -> bytes:
 
     import re
     raw_text = candidate.cv_text or ""
-    # Normalise whitespace: two-column PDF templates extract as space-padded lines
-    # (e.g. "Ahmed              Hamouda"). Collapse them so text flows single-column.
+    # Normalise all whitespace: two-column PDFs extract with \r, \xa0, unicode spaces,
+    # or runs of ASCII spaces as column separators. Collapse ALL to single-column flow.
+    raw_text = raw_text.replace('\r\n', '\n').replace('\r', '\n')
     cleaned_lines = []
     for ln in raw_text.split("\n"):
-        ln = ln.replace("\t", " ")       # tabs → space
-        ln = re.sub(r" {2,}", " ", ln)   # multiple spaces → one
-        cleaned_lines.append(ln.strip())
+        ln = re.sub(r'[^\S\n]+', ' ', ln).strip()  # collapse all non-newline whitespace
+        cleaned_lines.append(ln)
     raw_text = "\n".join(cleaned_lines)
 
     cv_text = "\n".join(
