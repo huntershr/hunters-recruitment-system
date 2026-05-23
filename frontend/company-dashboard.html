@@ -2184,7 +2184,12 @@
                     <div style="font-size:11px;color:#0F6E56;">${escHtml(e.employer || e.company || '')}${e.start ? ' · ' + escHtml(e.start) + (e.end ? ' – ' + escHtml(e.end) : ' – Present') : ''}</div>
                     ${e.description ? `<div style="font-size:11px;color:#6B7280;margin-top:4px;">${escHtml(e.description)}</div>` : ''}
                   </div>`).join('')
-                : '<div style="color:#9CA3AF;font-size:12px;">No experience listed</div>';
+                : p.last_title
+                    ? `<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:0.5px solid #F3F4F6;">
+                        <div style="font-size:12px;font-weight:500;color:#1B2A4A;">${escHtml(p.last_title)}</div>
+                        <div style="font-size:11px;color:#0F6E56;">${escHtml(p.last_employer || '')}${p.last_employer ? ' · ' : ''}Current position</div>
+                       </div>`
+                    : '<div style="color:#9CA3AF;font-size:12px;">No experience listed</div>';
             const eduHtml = (p.education_history || []).length
                 ? p.education_history.map(e => `<div style="margin-bottom:8px;"><span style="font-size:12px;font-weight:500;color:#1B2A4A;">${escHtml(e.degree || '')}</span><span style="font-size:11px;color:#6B7280;"> — ${escHtml(e.institution || '')}</span>${e.year ? ` <span style="font-size:11px;color:#9CA3AF;">(${escHtml(String(e.year))})</span>` : ''}</div>`).join('')
                 : (p.education ? `<div style="font-size:12px;">${escHtml(p.education)}</div>` : '<div style="color:#9CA3AF;font-size:12px;">No education listed</div>');

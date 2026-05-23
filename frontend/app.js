@@ -1057,7 +1057,12 @@ function viewAtsProfile(applicationId) {
                         </div>
                         ${e.description ? `<div style="font-size:11px;color:#6B7280;margin-top:4px;line-height:1.5;">${escHtml(e.description)}</div>` : ''}
                     </div>`).join('')
-                : '<div style="color:#9CA3AF;font-size:12px;">No experience listed</div>';
+                : p.last_title
+                    ? `<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:0.5px solid #F3F4F6;">
+                        <div style="font-size:12px;font-weight:500;color:#1B2A4A;">${escHtml(p.last_title)}</div>
+                        <div style="font-size:11px;color:#0F6E56;margin-top:1px;">${escHtml(p.last_employer || '')}${p.last_employer ? ' · ' : ''}Current position</div>
+                       </div>`
+                    : '<div style="color:#9CA3AF;font-size:12px;">No experience listed</div>';
 
             const eduHtml = (p.education_history || []).length
                 ? p.education_history.map(e => `
