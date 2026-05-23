@@ -2113,12 +2113,16 @@
         _talentSearchTimer = setTimeout(() => loadTalentPool(q), 300);
     }
 
+    let _talentPool = {};
+
     function renderTalentPool(pool) {
         const container = document.getElementById('talent-pool-container');
         if (!pool.length) {
             container.innerHTML = '<div style="padding:48px;text-align:center;color:#9CA3AF;font-size:13px;">No registered candidates found.</div>';
             return;
         }
+        _talentPool = {};
+        pool.forEach(c => { _talentPool[c.id] = c; });
         const skillPill = s => `<span style="display:inline-block;background:#F0F2F8;color:#1B2A4A;font-size:10px;padding:2px 8px;border-radius:10px;margin:1px;">${escHtml(s)}</span>`;
         let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
         html += `<thead><tr style="background:#F9FAFB;">
@@ -2148,7 +2152,7 @@
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
                         <button onclick="viewTalentProfile(${c.id})" style="font-size:11px;padding:5px 10px;background:#1B2A4A;color:#fff;border:none;border-radius:6px;cursor:pointer;">Profile</button>
                         ${c.cv_available ? `<button onclick="downloadTalentCV(${c.id},'${safeName}')" style="font-size:11px;padding:5px 10px;background:#0F6E56;color:#fff;border:none;border-radius:6px;cursor:pointer;">↓ CV</button>` : ''}
-                        <button onclick="inviteToApply(${c.id},${JSON.stringify(c.name || '')})" style="font-size:11px;padding:5px 10px;background:#C9A84C;color:#fff;border:none;border-radius:6px;cursor:pointer;">Invite</button>
+                        <button onclick="inviteToApply(${c.id})" style="font-size:11px;padding:5px 10px;background:#C9A84C;color:#fff;border:none;border-radius:6px;cursor:pointer;">Invite</button>
                         ${c.email ? `<a href="mailto:${escHtml(c.email)}" style="font-size:11px;padding:5px 10px;background:#F4F5FA;color:#1B2A4A;border-radius:6px;text-decoration:none;display:inline-block;">Email</a>` : ''}
                     </div>
                 </td>
@@ -2208,7 +2212,28 @@
                 ${sec('Languages', `<div style="display:flex;flex-wrap:wrap;gap:6px;">${langHtml}</div>`)}
             </div>`;
         } catch (e) {
-            document.getElementById('talent-modal-body').innerHTML = `<div style="padding:32px;text-align:center;color:#CC2B2B;">${escHtml(e.message)}</div>`;
+            // Fallback: show basic info from cached talent pool data
+            const c = _talentPool[candidateId] || {};
+            if (c.name) {
+                const pill = txt => `<span style="display:inline-block;background:#F0F2F8;color:#1B2A4A;font-size:11px;padding:3px 10px;border-radius:12px;margin:2px;">${escHtml(String(txt))}</span>`;
+                const skillTags = (c.skills || '').split(',').map(s => s.trim()).filter(Boolean).map(pill).join('') || '<span style="color:#9CA3AF;font-size:12px;">No skills listed</span>';
+                document.getElementById('talent-modal-title').textContent = `${escHtml(c.name)} — Candidate Profile`;
+                document.getElementById('talent-modal-body').innerHTML = `<div>
+                    <div style="display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:0.5px solid #F3F4F6;margin-bottom:14px;">
+                        <div style="width:48px;height:48px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;flex-shrink:0;">${escHtml(c.name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?')}</div>
+                        <div>
+                            <div style="font-size:16px;font-weight:600;color:#1B2A4A;">${escHtml(c.name)}</div>
+                            ${(c.last_title||c.last_employer) ? `<div style="font-size:12px;color:#0F6E56;">${escHtml([c.last_title,c.last_employer].filter(Boolean).join(' at '))}</div>` : ''}
+                            ${c.email ? `<div style="font-size:11px;color:#6B7280;">${escHtml(c.email)}${c.location ? ' · 📍 '+escHtml(c.location) : ''}</div>` : ''}
+                        </div>
+                        ${c.experience_years != null ? `<div style="margin-left:auto;text-align:right;"><div style="font-size:20px;font-weight:600;color:#1B2A4A;">${c.experience_years}</div><div style="font-size:10px;color:#9CA3AF;">yrs exp</div></div>` : ''}
+                    </div>
+                    <div style="margin-bottom:10px;"><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Skills</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${skillTags}</div></div>
+                    <div style="margin-top:14px;font-size:11px;color:#6B7280;background:#FFF9EC;padding:8px 12px;border-radius:8px;">Registered portal user — no full CV screening yet</div>
+                </div>`;
+            } else {
+                document.getElementById('talent-modal-body').innerHTML = `<div style="padding:32px;text-align:center;color:#CC2B2B;">${escHtml(e.message)}</div>`;
+            }
         }
     }
 
@@ -2234,34 +2259,46 @@
             .catch(err => alert(err.message || 'CV not available'));
     }
 
-    async function inviteToApply(candidateId, candidateName) {
+    async function inviteToApply(candidateId) {
+        const c = _talentPool[candidateId] || {};
+        const candidateName = c.name || 'Candidate';
+        const candidateEmail = c.email || '';
         const token = localStorage.getItem('token');
         try {
             const res = await fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } });
             const jobs = (await res.json()).filter(j => j.is_approved);
-            if (!jobs.length) { alert('No approved jobs to invite to.'); return; }
+            if (!jobs.length) { showToast('No approved jobs to invite to.', 'info'); return; }
             const options = jobs.map(j => `<option value="${j.id}">${escHtml(j.job_title)}</option>`).join('');
             document.getElementById('talent-modal-title').textContent = `Invite to Apply — ${candidateName}`;
             document.getElementById('talent-modal-body').innerHTML = `
                 <p style="font-size:13px;color:#374151;margin-bottom:16px;">Select a job to invite <strong>${escHtml(candidateName)}</strong> to apply for:</p>
-                <select id="invite-job-select" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;color:#1B2A4A;">${options}</select>
-                <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+                <select id="invite-job-select" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;color:#1B2A4A;margin-bottom:12px;">${options}</select>
+                <div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:600;color:#1B2A4A;margin-bottom:6px;">Personal Message <span style="font-weight:400;color:#9CA3AF;">(optional)</span></div>
+                <textarea id="invite-msg-pool" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;resize:vertical;min-height:70px;" placeholder="Add a personal note…"></textarea></div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
                     <button onclick="closeTalentModal()" style="background:#F4F5FA;color:#1B2A4A;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;">Cancel</button>
-                    <button onclick="confirmInvite(${candidateId},${JSON.stringify(candidateName)},document.getElementById('invite-job-select').value)"
-                        style="background:#C9A84C;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;">Send Invitation</button>
+                    <button onclick="confirmTalentInvite('${candidateId}','${escHtml(candidateEmail)}')"
+                        style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;">Send Invite →</button>
                 </div>`;
             document.getElementById('talent-profile-overlay').style.display = 'flex';
-        } catch(e) { alert('Failed to load jobs: ' + e.message); }
+        } catch(e) { showToast('Failed to load jobs: ' + e.message, 'error'); }
     }
 
-    function confirmInvite(candidateId, candidateName, jobId) {
-        if (!jobId) { alert('Please select a job.'); return; }
-        document.getElementById('talent-modal-body').innerHTML = `
-            <div style="text-align:center;padding:32px;">
-                <div style="font-size:36px;margin-bottom:12px;">✉️</div>
-                <div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:8px;">Invitation Noted</div>
-                <div style="font-size:12px;color:#6B7280;line-height:1.6;">Contact ${escHtml(candidateName)} directly via email or phone to invite them to apply.<br>In-platform email sending is coming in a future update.</div>
-            </div>`;
+    function confirmTalentInvite(candidateId, email) {
+        const sel = document.getElementById('invite-job-select');
+        const msg = (document.getElementById('invite-msg-pool') || {}).value || '';
+        if (!sel || !sel.value) { showToast('Please select a job', 'error'); return; }
+        const jobTitle = sel.options[sel.selectedIndex].text;
+        const jobId = sel.value;
+        const c = _talentPool[candidateId] || {};
+        const name = c.name || 'Candidate';
+        const toEmail = email || c.email || '';
+        if (!toEmail) { showToast('No email address for this candidate', 'info'); return; }
+        const portalUrl = window.location.origin + '/apply.html?job_id=' + jobId;
+        const body = 'Hi ' + name + ',\n\nWe\'d like to invite you to apply for ' + jobTitle + ' at Hunters HR.\n\nApply here: ' + portalUrl + (msg ? '\n\n' + msg : '') + '\n\nBest regards,\nHunters HR';
+        window.location.href = 'mailto:' + toEmail + '?subject=' + encodeURIComponent('Invitation to Apply — ' + jobTitle + ' at Hunters HR') + '&body=' + encodeURIComponent(body);
+        showToast('Email client opened for ' + toEmail, 'success');
+        closeTalentModal();
     }
 
     /* ──────────────────────────────
