@@ -442,6 +442,15 @@ function getJobShareUrl(jobId) {
     return window.location.origin + '/apply.html?job_id=' + jobId;
 }
 
+function getJobCaption(jobTitle, jobLocation, jobExp, jobId) {
+    const url = getJobShareUrl(jobId);
+    return '🚀 We\'re hiring!\n\nPosition: ' + jobTitle +
+        '\nLocation: ' + (jobLocation || 'Egypt') +
+        '\nExperience: ' + (jobExp || '0') + '+ years\n\n' +
+        'Apply now:\n' + url +
+        '\n\n#Hiring #Jobs #Careers #HuntersAI #HuntersHR';
+}
+
 function shareJob(platform, jobId) {
     const job = jobs.find(j => j.id === jobId) || {};
     const title = job.job_title || 'Job Opportunity';
@@ -449,7 +458,7 @@ function shareJob(platform, jobId) {
     const exp = job.min_experience || 0;
     const shareUrl = getJobShareUrl(jobId);
     const url = encodeURIComponent(shareUrl);
-    const text = encodeURIComponent('🚀 We\'re hiring!\n\nPosition: ' + title + '\nLocation: ' + loc + '\nExperience: ' + exp + '+ years\n\nApply now:\n' + shareUrl + '\n\n#Hiring #Jobs #Careers #HuntersAI #HuntersHR');
+    const text = encodeURIComponent(getJobCaption(title, loc, exp, jobId));
     const map = {
         linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + url,
         facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + url,

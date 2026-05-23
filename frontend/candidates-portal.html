@@ -874,7 +874,7 @@ function renderTalentPool(candidates){
       +(skillsList.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">'+skillsList.map(function(s){return'<span style="background:#F0F4F8;color:#1B2A4A;font-size:10px;padding:2px 8px;border-radius:10px;">'+esc(s)+'</span>';}).join('')+'</div>':'<div style="margin-bottom:10px;"></div>')
       +'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;">'
         +'<button onclick="talentOpenProfile('+candidateId+')" style="flex:1;min-width:80px;background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:6px 4px;font-size:10px;font-weight:500;cursor:pointer;">👤 Profile</button>'
-        +(hasCV?'<button onclick="portalDownloadCV('+cvId+',\''+safeName+'\')" style="flex:1;min-width:80px;background:#F0F4FF;color:#1B2A4A;border:0.5px solid #1B2A4A;border-radius:7px;padding:6px 4px;font-size:10px;font-weight:500;cursor:pointer;">↓ CV</button>':'')
+        +(hasCV?'<button onclick="talentDownloadCV('+candidateId+',\''+safeName+'\')" style="flex:1;min-width:80px;background:#F0F4FF;color:#1B2A4A;border:0.5px solid #1B2A4A;border-radius:7px;padding:6px 4px;font-size:10px;font-weight:500;cursor:pointer;">↓ CV</button>':'')
         +(ev&&ev.reason?'<button onclick="talentViewReport('+candidateId+')" style="flex:1;min-width:80px;background:#F0F4FF;color:#1B2A4A;border:0.5px solid #C9A84C;border-radius:7px;padding:6px 4px;font-size:10px;font-weight:500;cursor:pointer;">📊 Report</button>':'')
       +'</div>'
       +'<div style="display:flex;gap:5px;">'
@@ -935,6 +935,29 @@ function talentOpenProfile(candidateId){
       openPortalModal('Candidate Profile',html);
     })
     .catch(function(){showToast('Could not load profile','error');});
+}
+
+function talentDownloadCV(candidateId,safeName){
+  if(!candidateId||candidateId<0){showToast('No CV available','info');return;}
+  showToast('Downloading CV…','info');
+  fetch(API_BASE+'/api/admin/applications?candidate_id='+candidateId+'&limit=50',{headers:hdrs()})
+    .then(function(r){return r.ok?r.json():{applications:[]};})
+    .then(function(data){
+      var apps=data.applications||[];
+      var app=apps.find(function(a){return a.cv_available;})||apps[0];
+      if(!app){showToast('No CV found for this candidate','error');return;}
+      return fetch(API_BASE+'/api/admin/applications/'+app.application_id+'/cv',{headers:hdrs()})
+        .then(function(r){if(!r.ok)throw new Error();return r.blob();})
+        .then(function(blob){
+          var url=URL.createObjectURL(blob);
+          var a=document.createElement('a');
+          a.href=url;a.download=(safeName||candidateId)+'_CV.pdf';
+          document.body.appendChild(a);a.click();document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showToast('CV downloaded','success');
+        });
+    })
+    .catch(function(){showToast('CV not available','error');});
 }
 
 function talentViewReport(candidateId){

@@ -2447,22 +2447,33 @@
                 const pct = app.score != null ? Math.round(Math.min(100, app.score <= 1 ? app.score * 100 : app.score <= 10 ? app.score * 10 : app.score)) : null;
                 const dotColor = pct != null ? (pct >= 80 ? '#0F6E56' : pct >= 60 ? '#1A6FC4' : pct >= 40 ? '#854F0B' : '#A32D2D') : '#9CA3AF';
                 const initials = (app.name || '?').split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
-                const skills = (app.skills || '').split(',').map(s => s.trim()).filter(Boolean).slice(0,2);
+                const skills = (app.skills || '').split(',').map(s => s.trim()).filter(Boolean).slice(0,3).map(s => s.length > 30 ? s.slice(0,30) + '…' : s);
                 const isRej = (app.stage || '').toLowerCase() === 'rejected';
+                const isRegistered = !!app.candidate_id;
+                const typePill = isRegistered
+                    ? '<span style="background:#F3F4F6;color:#6B7280;font-size:9px;padding:1px 6px;border-radius:6px;font-weight:500;">Registered</span>'
+                    : '<span style="background:#FEF9EC;color:#854F0B;border:0.5px solid #F6D97A;font-size:9px;padding:1px 6px;border-radius:6px;font-weight:500;">External</span>';
+                const safeName = (app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_');
                 return `<div class="co-kanban-card" onclick="coViewApp(${app.application_id})">
-                    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">
+                    <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
                         <div style="width:26px;height:26px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;">${escHtml(initials)}</div>
                         <div style="min-width:0;flex:1;">
                             <div style="font-size:11px;font-weight:500;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(app.name)}</div>
-                            <div style="font-size:10px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(app.job_title||'')}</div>
+                            <div style="font-size:10px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(app.email||'')}</div>
                         </div>
                         ${pct != null ? `<span style="font-size:10px;font-weight:600;color:${dotColor};">${pct}%</span>` : ''}
                     </div>
-                    ${isRej ? '<span style="background:#FEE2E2;color:#CC2B2B;font-size:9px;padding:1px 5px;border-radius:6px;font-weight:600;">Rejected</span>' : ''}
-                    ${skills.length ? `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;">${skills.map(s=>`<span style="background:#F0F2F8;color:#1B2A4A;font-size:9px;padding:1px 6px;border-radius:8px;">${escHtml(s)}</span>`).join('')}</div>` : ''}
-                    <div style="display:flex;gap:4px;margin-top:6px;">
+                    <div style="font-size:10px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;">${escHtml(app.job_title||'')}</div>
+                    <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">
+                        ${typePill}
+                        ${isRej ? '<span style="background:#FEE2E2;color:#CC2B2B;font-size:9px;padding:1px 5px;border-radius:6px;font-weight:600;">Rejected</span>' : ''}
+                    </div>
+                    ${skills.length ? `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;">${skills.map(s=>`<span style="background:#F0F2F8;color:#1B2A4A;font-size:9px;padding:1px 6px;border-radius:8px;">${escHtml(s)}</span>`).join('')}</div>` : ''}
+                    <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">
+                        ${isRegistered ? `<button onclick="event.stopPropagation();coViewProfile(${app.candidate_id})" style="font-size:9px;padding:2px 6px;border:0.5px solid #1B2A4A;border-radius:5px;background:#1B2A4A;cursor:pointer;color:#fff;">Profile</button>` : '<button disabled title="External applicant" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:5px;background:#F9FAFB;cursor:not-allowed;color:#D1D5DB;">Profile</button>'}
                         ${app.evaluation_id ? `<button onclick="event.stopPropagation();coViewReport(${app.application_id})" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:5px;background:#fff;cursor:pointer;color:#1B2A4A;">Report</button>` : ''}
-                        ${app.cv_available ? `<button onclick="event.stopPropagation();coDownloadCV(${app.application_id},'${(app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_')}')" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:5px;background:#fff;cursor:pointer;color:#0F6E56;">CV</button>` : ''}
+                        ${app.cv_available ? `<button onclick="event.stopPropagation();coDownloadCV(${app.application_id},'${safeName}')" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:5px;background:#fff;cursor:pointer;color:#0F6E56;">CV</button>` : ''}
+                        ${app.email ? `<button onclick="event.stopPropagation();coInvite(${app.candidate_id||'null'},'${escHtml(app.name||'')}','${escHtml(app.email||'')}')" style="font-size:9px;padding:2px 6px;border:0.5px solid #9FE1CB;border-radius:5px;background:#E1F5EE;cursor:pointer;color:#0F6E56;">Invite</button>` : ''}
                     </div>
                 </div>`;
             }).join('');
@@ -3112,7 +3123,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=2.2"></script>
+<script src="hunters-jobs.js?v=2.3"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies
