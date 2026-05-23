@@ -11,7 +11,13 @@ def extract_text_from_pdf(file_content):
         reader = PdfReader(io.BytesIO(file_content))
         text = ""
         for page in reader.pages:
-            text += page.extract_text() + "\n"
+            try:
+                # layout mode preserves reading order in multi-column CVs
+                page_text = page.extract_text(extraction_mode="layout")
+            except TypeError:
+                page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
         return text.strip()
     except Exception as e:
         logger.error(f"Error extracting PDF: {e}")
@@ -20,10 +26,17 @@ def extract_text_from_pdf(file_content):
 def extract_text_from_docx(file_content):
     try:
         doc = docx.Document(io.BytesIO(file_content))
-        text = ""
+        parts = []
         for para in doc.paragraphs:
-            text += para.text + "\n"
-        return text.strip()
+            if para.text.strip():
+                parts.append(para.text)
+        # Also extract text from tables (two-column DOCX CVs use table layouts)
+        for table in doc.tables:
+            for row in table.rows:
+                row_parts = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                if row_parts:
+                    parts.append("  ".join(row_parts))
+        return "\n".join(parts).strip()
     except Exception as e:
         logger.error(f"Error extracting Word: {e}")
         return ""

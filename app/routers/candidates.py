@@ -588,20 +588,24 @@ def _build_cv_pdf(candidate) -> bytes:
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(27, 42, 74)
     for line in cv_text.split("\n"):
-        stripped = line.rstrip()
+        stripped = line.strip()  # strip() — remove BOTH leading and trailing whitespace
         if not stripped:
+            pdf.set_x(pdf.l_margin)
             pdf.ln(2)
             continue
         safe_line = _safe(stripped)
         is_header = (stripped.isupper() and len(stripped) < 60) or stripped.endswith(":")
+        pdf.set_x(pdf.l_margin)  # defensive cursor reset before every cell
         if is_header:
             pdf.ln(2)
             pdf.set_font("Helvetica", "B", 10)
             pdf.set_text_color(27, 42, 74)
-            pdf.multi_cell(effective_w, 5, safe_line)
+            pdf.set_x(pdf.l_margin)
+            pdf.multi_cell(effective_w, 5, safe_line, new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(27, 42, 74)
         else:
-            pdf.multi_cell(effective_w, 5, safe_line)
+            pdf.multi_cell(effective_w, 5, safe_line, new_x="LMARGIN", new_y="NEXT")
 
     pdf.set_y(-12)
     pdf.set_x(pdf.l_margin)
