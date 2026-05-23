@@ -387,7 +387,8 @@ function renderJobs() {
                             ${j.behavioral_skills ? `<div style="margin-bottom:5px;"><strong><i class='bx bx-smile'></i> Behavioral:</strong> ${j.behavioral_skills}</div>` : ''}
                         </div>
                         ${weightPills}
-                        <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+                        ${jobShareSectionHtml(j.id)}
+                        <div style="margin-top:12px;display:flex;justify-content:flex-end;">
                             <a href="/apply.html?job_id=${j.id}" target="_blank" class="btn-apply-link">Apply Now <i class='bx bx-right-arrow-alt'></i></a>
                         </div>
                     </div>`;
@@ -435,6 +436,49 @@ function copyPublicLink(id) {
     navigator.clipboard.writeText(link).then(() => {
         showToast('Public application link copied to clipboard!', 'success');
     });
+}
+
+function getJobShareUrl(jobId) {
+    return window.location.origin + '/apply.html?job_id=' + jobId;
+}
+
+function shareJob(platform, jobId) {
+    const job = jobs.find(j => j.id === jobId) || {};
+    const title = job.job_title || 'Job Opportunity';
+    const loc = job.job_location || 'Egypt';
+    const exp = job.min_experience || 0;
+    const shareUrl = getJobShareUrl(jobId);
+    const url = encodeURIComponent(shareUrl);
+    const text = encodeURIComponent('🚀 We\'re hiring!\n\nPosition: ' + title + '\nLocation: ' + loc + '\nExperience: ' + exp + '+ years\n\nApply now:\n' + shareUrl + '\n\n#Hiring #Jobs #Careers #HuntersAI #HuntersHR');
+    const map = {
+        linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + url,
+        facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + url,
+        whatsapp: 'https://wa.me/?text=' + text
+    };
+    if (map[platform]) window.open(map[platform], '_blank', 'noopener,noreferrer');
+}
+
+function copyJobLink(jobId, btnEl) {
+    navigator.clipboard.writeText(getJobShareUrl(jobId)).then(() => {
+        const orig = btnEl.innerHTML;
+        btnEl.innerHTML = '✓ Copied';
+        btnEl.style.background = '#C9A84C';
+        btnEl.style.color = '#0D1B3E';
+        setTimeout(() => { btnEl.innerHTML = orig; btnEl.style.cssText = ''; }, 2000);
+        showToast('Job link copied!');
+    });
+}
+
+function jobShareSectionHtml(jobId) {
+    return `<div class="job-share-section">
+        <span class="share-label">Share:</span>
+        <div class="share-buttons">
+            <button onclick="event.stopPropagation();shareJob('linkedin',${jobId})" class="share-btn share-linkedin">in</button>
+            <button onclick="event.stopPropagation();shareJob('facebook',${jobId})" class="share-btn share-facebook">f</button>
+            <button onclick="event.stopPropagation();shareJob('whatsapp',${jobId})" class="share-btn share-whatsapp">W</button>
+            <button onclick="event.stopPropagation();copyJobLink(${jobId},this)" class="share-btn share-copy">🔗 Copy</button>
+        </div>
+    </div>`;
 }
 
 let pipelineView = 'board';

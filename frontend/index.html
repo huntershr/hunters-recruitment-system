@@ -189,6 +189,15 @@
           .stats-grid{grid-template-columns:1fr 1fr!important;}
           .stat-value{font-size:20px;}
         }
+        .job-share-section{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;margin-top:12px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;}
+        .share-label{font-size:11px;color:#6B7280;font-weight:500;white-space:nowrap;}
+        .share-buttons{display:flex;gap:6px;flex-wrap:wrap;}
+        .share-btn{height:32px;padding:0 12px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all 0.2s ease;}
+        .share-btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(13,27,62,0.15);}
+        .share-linkedin,.share-facebook{background:#0D1B3E;color:#fff;}
+        .share-whatsapp{background:#25D366;color:#fff;}
+        .share-copy{background:#fff;color:#0D1B3E;border:1px solid #E5E7EB!important;}
+        @media(max-width:640px){.share-btn{height:36px;}}
     </style>
 </head>
 <body>
@@ -1089,6 +1098,6 @@ function confirmResetPassword(){
 </script>
 
 <!-- CACHE VERSION: bump ?v= number on every app.js change -->
-<script src="app.js?v=1.18"></script>
+<script src="app.js?v=1.19"></script>
 </body>
 </html>

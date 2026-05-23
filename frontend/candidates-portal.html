@@ -78,6 +78,15 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 .cv-drop{border:2px dashed #CBD5E1;border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;}
 .cv-drop:hover,.cv-drop.dragover{border-color:var(--navy);background:#F0F4FF;}
 @keyframes spin{to{transform:rotate(360deg);}}
+/* Job Share Section */
+.job-share-section{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;margin-bottom:4px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;}
+.share-label{font-size:11px;color:#6B7280;font-weight:500;white-space:nowrap;}
+.share-buttons{display:flex;gap:6px;flex-wrap:wrap;}
+.share-btn{height:30px;padding:0 10px;border-radius:8px;font-size:11px;font-weight:600;border:none;cursor:pointer;transition:all 0.2s ease;}
+.share-btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(13,27,62,0.15);}
+.share-linkedin,.share-facebook{background:#0D1B3E;color:#fff;}
+.share-whatsapp{background:#25D366;color:#fff;}
+.share-copy{background:#fff;color:#0D1B3E;border:1px solid #E5E7EB!important;}
 </style>
 </head>
 <body>
@@ -376,6 +385,37 @@ function showToast(msg,type){
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function ini(n){return String(n||'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase()||'?';}
+
+function portalGetShareUrl(jobId){return window.location.origin+'/apply.html?job_id='+jobId;}
+function portalShareJob(platform,jobId){
+  var j=(allJobs||[]).find(function(x){return x.id===jobId;})||{};
+  var title=j.job_title||'Job Opportunity';
+  var loc=j.job_location||'Egypt';
+  var exp=j.min_experience||0;
+  var shareUrl=portalGetShareUrl(jobId);
+  var url=encodeURIComponent(shareUrl);
+  var text=encodeURIComponent('🚀 We\'re hiring!\n\nPosition: '+title+'\nLocation: '+loc+'\nExperience: '+exp+'+ years\n\nApply now:\n'+shareUrl+'\n\n#Hiring #Jobs #Careers #HuntersAI #HuntersHR');
+  var map={linkedin:'https://www.linkedin.com/sharing/share-offsite/?url='+url,facebook:'https://www.facebook.com/sharer/sharer.php?u='+url,whatsapp:'https://wa.me/?text='+text};
+  if(map[platform])window.open(map[platform],'_blank','noopener,noreferrer');
+}
+function portalCopyJobLink(jobId,btn){
+  var url=portalGetShareUrl(jobId);
+  navigator.clipboard.writeText(url).then(function(){
+    var orig=btn.innerHTML;btn.innerHTML='✓ Copied';btn.style.background='#C9A84C';btn.style.color='#0D1B3E';
+    setTimeout(function(){btn.innerHTML=orig;btn.style.background='';btn.style.color='';},2000);
+    showToast('Job link copied!');
+  });
+}
+function portalJobShareHtml(jobId){
+  return '<div class="job-share-section" onclick="event.stopPropagation()">'
+    +'<span class="share-label">Share:</span>'
+    +'<div class="share-buttons">'
+      +'<button onclick="portalShareJob(\'linkedin\','+jobId+')" class="share-btn share-linkedin">in</button>'
+      +'<button onclick="portalShareJob(\'facebook\','+jobId+')" class="share-btn share-facebook">f</button>'
+      +'<button onclick="portalShareJob(\'whatsapp\','+jobId+')" class="share-btn share-whatsapp">W</button>'
+      +'<button onclick="portalCopyJobLink('+jobId+',this)" class="share-btn share-copy">🔗 Copy</button>'
+    +'</div></div>';
+}
 function fixScore(r){if(r===null||r===undefined)return null;var n=Number(r);if(isNaN(n))return null;if(n<=1)return Math.round(n*100);if(n<=10)return Math.round(n*10);return Math.round(Math.min(100,n));}
 function scoreStyle(pct){if(pct===null)return{bg:'#F5F6F8',tx:'#6B7280'};if(pct>=75)return{bg:'#E1F5EE',tx:'#0F6E56'};if(pct>=50)return{bg:'#FAEEDA',tx:'#854F0B'};return{bg:'#FCEBEB',tx:'#A32D2D'};}
 function getCandidateMessage(score){
@@ -800,41 +840,152 @@ function filterTalentPool(){
 function renderTalentPool(candidates){
   var grid=document.getElementById('grid-talent-pool');
   if(!grid)return;
-  if(!candidates.length){
-    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;"><div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">No candidates yet</div><div style="font-size:12px;color:#9CA3AF;">Candidates appear here when they apply to jobs</div></div>';
+  // Only show registered portal users (user_id IS NOT NULL)
+  var regCands=candidates.filter(function(c){return c.is_registered_user||c.user_id;});
+  if(!regCands.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;"><div style="font-size:14px;font-weight:500;color:#1B2A4A;margin-bottom:6px;">No registered candidates yet</div><div style="font-size:12px;color:#9CA3AF;">Candidates appear here after creating a portal account</div></div>';
     return;
   }
-  grid.innerHTML=candidates.map(function(c){
+  grid.innerHTML=regCands.map(function(c){
     var ev=c.evaluation||null;
     var rawScore=ev&&ev.score!=null?ev.score:null;
     var pct=rawScore!=null?(rawScore<=1?Math.round(rawScore*100):rawScore<=10?Math.round(rawScore*10):Math.round(rawScore)):null;
     var decision=ev?ev.decision:'';
-    var decColor=decision==='Shortlist'||decision==='Accept'?'#0F6E56':decision==='Reject'?'#A32D2D':'#B45309';
-    var decBg=decision==='Shortlist'||decision==='Accept'?'#E1F5EE':decision==='Reject'?'#FCEBEB':'#FAEEDA';
+    var dotColor=pct!=null?(pct>=80?'#0F6E56':pct>=60?'#1A6FC4':pct>=40?'#854F0B':'#A32D2D'):'#9CA3AF';
     var initials=(c.name||'C').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
-    var skillsList=(c.skills||'').split(',').slice(0,3).map(function(s){return s.trim();}).filter(Boolean);
-    /* cvId: real Candidate.id — synthetic users store it in real_candidate_id */
+    var skillsList=(c.skills||'').split(',').map(function(s){s=s.trim();return s.length>30?s.slice(0,30)+'…':s;}).filter(Boolean).slice(0,3);
     var cvId=c.id>0?c.id:(c.real_candidate_id||null);
     var hasCV=!!cvId&&!!(c.has_cv||(c.cv_text&&c.cv_text.length>10&&c.cv_text!=='has_cv'));
     var safeName=(c.name||'Candidate').replace(/[^a-zA-Z0-9_-]/g,'_');
-    var isReg=!!c.is_registered_user;
+    var candidateId=c.real_candidate_id||c.id;
+    var expLine=[c.experience_years!=null?c.experience_years+' yrs exp':null,c.last_title?c.last_title.slice(0,28):null].filter(Boolean).join(' · ');
     return '<div class="job-card" style="cursor:default;">'
-      +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">'
-        +'<div style="width:44px;height:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;">'+esc(initials)+'</div>'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+        +'<div style="width:40px;height:40px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0;">'+esc(initials)+'</div>'
         +'<div style="flex:1;min-width:0;">'
-          +'<div style="font-size:14px;font-weight:500;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(c.name||'Candidate')+'</div>'
-          +(c.email?'<div style="font-size:11px;color:#9CA3AF;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(c.email)+'</div>':'')
+          +'<div style="font-size:13px;font-weight:500;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(c.name||'Candidate')+'</div>'
+          +(c.email?'<div style="font-size:11px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(c.email)+'</div>':'')
         +'</div>'
-        +(pct!=null?'<div style="font-size:12px;font-weight:600;background:'+decBg+';color:'+decColor+';padding:3px 8px;border-radius:10px;">'+pct+'%</div>':isReg?'<span style="font-size:10px;color:#9CA3AF;background:#F3F4F6;padding:2px 7px;border-radius:8px;">Registered</span>':'')
+        +(pct!=null?'<div style="font-size:11px;font-weight:600;color:'+dotColor+';background:'+dotColor+'18;padding:2px 8px;border-radius:10px;">'+pct+'%</div>':'<span style="font-size:10px;color:#9CA3AF;background:#F3F4F6;padding:2px 7px;border-radius:8px;">Registered</span>')
       +'</div>'
-      +'<div style="font-size:12px;color:#6B7280;margin-bottom:8px;">⏱ '+(c.experience_years||0)+' yrs exp'+(c.last_title?' · '+esc(c.last_title.slice(0,30)):'')+'</div>'
+      +(expLine?'<div style="font-size:11px;color:#6B7280;margin-bottom:6px;">'+esc(expLine)+'</div>':'')
       +(skillsList.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">'+skillsList.map(function(s){return'<span style="background:#F0F4F8;color:#1B2A4A;font-size:10px;padding:2px 8px;border-radius:10px;">'+esc(s)+'</span>';}).join('')+'</div>':'<div style="margin-bottom:10px;"></div>')
-      +'<div style="display:flex;gap:6px;">'
-        +(hasCV?'<button onclick="portalDownloadCV('+cvId+',\''+safeName+'\')" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:7px 0;font-size:11px;font-weight:500;cursor:pointer;">↓ Download CV</button>':'<span style="flex:1;font-size:11px;color:#9CA3AF;display:flex;align-items:center;justify-content:center;">No CV uploaded</span>')
-        +(ev&&ev.reason?'<button onclick="portalViewReport('+JSON.stringify(c).replace(/'/g,"&#39;")+','+JSON.stringify(ev).replace(/'/g,"&#39;")+')" style="background:#F0F4FF;color:#1B2A4A;border:0.5px solid #C9A84C;border-radius:7px;padding:7px 10px;font-size:11px;font-weight:500;cursor:pointer;">View Report</button>':'')
+      +'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;">'
+        +'<button onclick="talentOpenProfile('+candidateId+')" style="flex:1;min-width:80px;background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:6px 4px;font-size:10px;font-weight:500;cursor:pointer;">👤 Profile</button>'
+        +(hasCV?'<button onclick="portalDownloadCV('+cvId+',\''+safeName+'\')" style="flex:1;min-width:80px;background:#F0F4FF;color:#1B2A4A;border:0.5px solid #1B2A4A;border-radius:7px;padding:6px 4px;font-size:10px;font-weight:500;cursor:pointer;">↓ CV</button>':'')
+        +(ev&&ev.reason?'<button onclick="talentViewReport('+candidateId+')" style="flex:1;min-width:80px;background:#F0F4FF;color:#1B2A4A;border:0.5px solid #C9A84C;border-radius:7px;padding:6px 4px;font-size:10px;font-weight:500;cursor:pointer;">📊 Report</button>':'')
+      +'</div>'
+      +'<div style="display:flex;gap:5px;">'
+        +(c.email?'<button onclick="talentInvite('+candidateId+',\''+esc(c.name||'')+'\',\''+esc(c.email||'')+'\')" style="flex:1;background:#E1F5EE;color:#0F6E56;border:0.5px solid #9FE1CB;border-radius:7px;padding:6px 4px;font-size:10px;font-weight:500;cursor:pointer;">✉ Invite</button>':'')
+        +(c.email?'<a href="mailto:'+esc(c.email)+'" style="flex:1;text-align:center;background:#F9FAFB;color:#6B7280;border:0.5px solid #E5E7EB;border-radius:7px;padding:6px 4px;font-size:10px;font-weight:500;cursor:pointer;text-decoration:none;">Send Email</a>':'')
       +'</div>'
     +'</div>';
   }).join('');
+}
+
+/* ─── Talent Pool action functions ─── */
+var _talentCandMap={};
+
+function _storeTalentCand(c){if(c&&c.id)_talentCandMap[c.id]=c;if(c&&c.real_candidate_id)_talentCandMap[c.real_candidate_id]=c;}
+
+function talentOpenProfile(candidateId){
+  if(!candidateId||candidateId<0){showToast('No profile available for this candidate','info');return;}
+  fetch(API_BASE+'/api/admin/candidate/'+candidateId+'/profile',{headers:hdrs()})
+    .then(function(r){if(!r.ok)throw new Error();return r.json();})
+    .then(function(p){
+      var html='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">'
+        +'<div style="width:48px;height:48px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;">'+esc((p.name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase())+'</div>'
+        +'<div><div style="font-size:16px;font-weight:500;color:#1B2A4A;">'+esc(p.name||'')+'</div>'
+        +'<div style="font-size:12px;color:#9CA3AF;">'+esc(p.email||'')+'</div></div></div>'
+        +(p.summary?'<div style="font-size:13px;color:#374151;line-height:1.6;margin-bottom:14px;">'+esc(p.summary)+'</div>':'')
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">'
+          +(p.last_title?'<div style="font-size:11px;"><span style="color:#9CA3AF;">Title</span><br><span style="color:#1B2A4A;font-weight:500;">'+esc(p.last_title)+'</span></div>':'')
+          +(p.experience_years!=null?'<div style="font-size:11px;"><span style="color:#9CA3AF;">Experience</span><br><span style="color:#1B2A4A;font-weight:500;">'+p.experience_years+' yrs</span></div>':'')
+          +(p.location?'<div style="font-size:11px;"><span style="color:#9CA3AF;">Location</span><br><span style="color:#1B2A4A;font-weight:500;">'+esc(p.location)+'</span></div>':'')
+        +'</div>'
+        +(p.skills?'<div style="margin-bottom:12px;"><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Skills</div><div style="display:flex;flex-wrap:wrap;gap:4px;">'+((p.skills||'').split(',').map(function(s){s=s.trim();return s?'<span style="background:#F0F4F8;color:#1B2A4A;font-size:11px;padding:2px 8px;border-radius:10px;">'+esc(s)+'</span>':'';})).join('')+'</div></div>':'')
+        +((p.experiences||[]).length?'<div style="margin-bottom:12px;"><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Experience</div>'
+          +p.experiences.map(function(e){return'<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:0.5px solid #F3F4F6;"><div style="font-size:12px;font-weight:500;color:#1B2A4A;">'+esc(e.title||e.role||'')+'</div>'
+            +'<div style="font-size:11px;color:#0F6E56;">'+esc(e.employer||e.company||'')+(e.start?' · '+esc(e.start)+(e.end?' – '+esc(e.end):' – Present'):'')+'</div></div>';}).join('')+'</div>':'')
+        +((p.applications||[]).length?'<div><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Applications</div>'
+          +p.applications.map(function(a){return'<div style="font-size:12px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid #F3F4F6;"><span>'+esc(a.job_title||'')+'</span><span style="color:#9CA3AF;">'+esc(a.stage||'')+'</span></div>';}).join('')+'</div>':'');
+      openPortalModal('Candidate Profile',html);
+    })
+    .catch(function(){showToast('Could not load profile','error');});
+}
+
+function talentViewReport(candidateId){
+  if(!candidateId||candidateId<0){showToast('No report available','info');return;}
+  fetch(API_BASE+'/api/admin/applications?candidate_id='+candidateId+'&limit=1',{headers:hdrs()})
+    .then(function(r){return r.ok?r.json():{applications:[]};})
+    .then(function(data){
+      var apps=(data.applications||[]);
+      var app=apps.find(function(a){return a.score!=null;})||apps[0];
+      if(!app){showToast('No evaluation found for this candidate','info');return;}
+      var pct=app.score!=null?Math.round(Math.min(100,app.score<=1?app.score*100:app.score<=10?app.score*10:app.score)):null;
+      var decColor=app.decision==='Accept'||app.decision==='Shortlist'?'#0F6E56':app.decision==='Reject'?'#A32D2D':'#854F0B';
+      var strList=(app.strengths||'').split(/[\n•]+/).map(function(s){return s.replace(/^[-•*]\s*/,'').trim();}).filter(Boolean);
+      var wkList=(app.weaknesses||'').split(/[\n•]+/).map(function(s){return s.replace(/^[-•*]\s*/,'').trim();}).filter(Boolean);
+      var html='<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">'
+        +'<div style="text-align:center;background:#F0F4FF;border-radius:12px;padding:12px 20px;">'
+          +'<div style="font-size:28px;font-weight:700;color:#1B2A4A;">'+(pct!=null?pct+'%':'N/A')+'</div>'
+          +'<div style="font-size:11px;color:#6B7280;">AI Score</div></div>'
+        +(app.decision?'<span style="display:inline-block;padding:6px 18px;border-radius:20px;background:'+decColor+'18;color:'+decColor+';font-size:13px;font-weight:600;">'+esc(app.decision)+'</span>':'')
+        +'</div>'
+        +(app.reason?'<div style="background:#F8F9FF;border-radius:10px;padding:14px;font-size:13px;color:#374151;line-height:1.7;margin-bottom:14px;">'+esc(app.reason)+'</div>':'')
+        +(strList.length?'<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:600;color:#0F6E56;text-transform:uppercase;margin-bottom:6px;">Strengths</div><ul style="margin:0;padding-left:16px;font-size:12px;color:#374151;line-height:1.9;">'+strList.map(function(s){return'<li>'+esc(s)+'</li>';}).join('')+'</ul></div>':'')
+        +(wkList.length?'<div><div style="font-size:11px;font-weight:600;color:#A32D2D;text-transform:uppercase;margin-bottom:6px;">Areas to Improve</div><ul style="margin:0;padding-left:16px;font-size:12px;color:#374151;line-height:1.9;">'+wkList.map(function(s){return'<li>'+esc(s)+'</li>';}).join('')+'</ul></div>':'');
+      openPortalModal('AI Evaluation Report',html);
+    })
+    .catch(function(){showToast('Could not load report','error');});
+}
+
+function talentInvite(candidateId,name,email){
+  var jobsHtml=allJobs.map(function(j){return'<option value="'+j.id+'" data-title="'+esc(j.job_title||'')+'" data-loc="'+esc(j.job_location||'')+'" data-id="'+j.id+'">'+esc(j.job_title)+(j.company_name?' – '+esc(j.company_name):'')+'</option>';}).join('');
+  var html='<div style="margin-bottom:14px;">'
+    +'<div style="font-size:12px;font-weight:600;color:#1B2A4A;margin-bottom:6px;">Select Job</div>'
+    +'<select id="invite-job-select" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;">'
+    +'<option value="">— Choose a job —</option>'+jobsHtml+'</select></div>'
+    +'<div style="margin-bottom:14px;">'
+    +'<div style="font-size:12px;font-weight:600;color:#1B2A4A;margin-bottom:6px;">Personal Message <span style="font-weight:400;color:#9CA3AF;">(optional)</span></div>'
+    +'<textarea id="invite-msg" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;resize:vertical;min-height:80px;" placeholder="Add a personal message…"></textarea></div>'
+    +'<button onclick="talentSendInvite(\''+esc(name)+'\',\''+esc(email)+'\')" style="width:100%;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;">Send Invite →</button>';
+  openPortalModal('Invite to Apply — '+esc(name),html);
+}
+
+function talentSendInvite(name,email){
+  var sel=document.getElementById('invite-job-select');
+  var msg=(document.getElementById('invite-msg').value||'').trim();
+  if(!sel||!sel.value){showToast('Please select a job first','error');return;}
+  var opt=sel.options[sel.selectedIndex];
+  var jobTitle=opt.text.split(' – ')[0];
+  var jobId=sel.value;
+  var portalUrl=window.location.origin+'/apply.html?job_id='+jobId;
+  var body='Hi '+name+',\n\nWe\'d like to invite you to apply for '+jobTitle+'.\n\nApply here: '+portalUrl+(msg?'\n\n'+msg:'')+'\n\nBest regards,\nHunters HR';
+  window.location.href='mailto:'+email+'?subject='+encodeURIComponent('Invitation to Apply — '+jobTitle+' at Hunters HR')+'&body='+encodeURIComponent(body);
+  showToast('Email client opened for '+email,'success');
+  closePortalModal();
+}
+
+function openPortalModal(title,body){
+  var existing=document.getElementById('talent-portal-modal');
+  if(existing)existing.remove();
+  var m=document.createElement('div');
+  m.id='talent-portal-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9500;display:flex;align-items:center;justify-content:center;padding:24px 16px;';
+  m.innerHTML='<div style="background:#fff;border-radius:20px;width:560px;max-width:calc(100vw - 32px);max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.25);">'
+    +'<div style="background:#1B2A4A;color:#fff;padding:16px 20px;border-radius:20px 20px 0 0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1;">'
+    +'<span style="font-weight:600;font-size:15px;">'+title+'</span>'
+    +'<button onclick="closePortalModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>'
+    +'</div>'
+    +'<div style="padding:20px;">'+body+'</div>'
+    +'</div>';
+  m.addEventListener('click',function(e){if(e.target===m)closePortalModal();});
+  document.body.appendChild(m);
+}
+
+function closePortalModal(){
+  var m=document.getElementById('talent-portal-modal');if(m)m.remove();
 }
 
 /* ─── Navigation ─── */
@@ -974,8 +1125,9 @@ function renderSection(sid){
         (emp?'<span>💼 '+esc(emp)+'</span>':'')+
         (j.min_experience!=null?'<span>⏱ '+j.min_experience+'+ yrs</span>':'')+
       '</div>' +
-      '<div style="font-size:12px;color:#0F6E56;font-weight:500;margin-bottom:12px;">💰 '+esc(sal)+'</div>' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:0.5px solid #F3F4F6;">' +
+      '<div style="font-size:12px;color:#0F6E56;font-weight:500;margin-bottom:10px;">💰 '+esc(sal)+'</div>' +
+      portalJobShareHtml(j.id) +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid #F3F4F6;margin-top:10px;">' +
         '<span style="font-size:11px;color:#9CA3AF;">'+esc(posted)+'</span>' +
         '<button onclick="event.stopPropagation();openJob('+j.id+')" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;">View &amp; Apply →</button>' +
       '</div>' +

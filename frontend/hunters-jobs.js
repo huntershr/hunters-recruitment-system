@@ -152,20 +152,53 @@ function huntersViewJob(jobId) {
 }
 
 async function huntersShareJob(jobId) {
-    const url = window.location.origin + '/job-view.html?job_id=' + jobId;
-    try {
-        await navigator.clipboard.writeText(url);
-    } catch (_) {
-        const ta = document.createElement('textarea');
-        ta.value = url;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-    }
+    const url = window.location.origin + '/apply.html?job_id=' + jobId;
+    try { await navigator.clipboard.writeText(url); }
+    catch (_) { const ta = document.createElement('textarea'); ta.value = url; ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
     if (typeof showToast === 'function') showToast('Job link copied!', 'success');
+}
+
+function huntersGetShareUrl(jobId) {
+    return window.location.origin + '/apply.html?job_id=' + jobId;
+}
+
+function huntersSocialShare(platform, jobId) {
+    const job = huntersAllJobs.find(j => j.id === jobId) || {};
+    const title = job.title || 'Job Opportunity';
+    const loc = job.location || 'Egypt';
+    const exp = job.experience_years != null ? job.experience_years : (job.min_experience || 0);
+    const shareUrl = huntersGetShareUrl(jobId);
+    const url = encodeURIComponent(shareUrl);
+    const text = encodeURIComponent('🚀 We\'re hiring!\n\nPosition: ' + title + '\nLocation: ' + loc + '\nExperience: ' + exp + '+ years\n\nApply now:\n' + shareUrl + '\n\n#Hiring #Jobs #Careers #HuntersAI #HuntersHR');
+    const map = {
+        linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + url,
+        facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + url,
+        whatsapp: 'https://wa.me/?text=' + text
+    };
+    if (map[platform]) window.open(map[platform], '_blank', 'noopener,noreferrer');
+}
+
+function huntersCopyJobLink(jobId, btnEl) {
+    const url = huntersGetShareUrl(jobId);
+    navigator.clipboard.writeText(url).then(() => {
+        const orig = btnEl.innerHTML;
+        btnEl.innerHTML = '✓ Copied';
+        btnEl.style.cssText = 'background:#C9A84C;color:#0D1B3E;';
+        setTimeout(() => { btnEl.innerHTML = orig; btnEl.style.cssText = ''; }, 2000);
+        if (typeof showToast === 'function') showToast('Job link copied!', 'success');
+    }).catch(() => huntersShareJob(jobId));
+}
+
+function huntersShareSectionHtml(jobId) {
+    return `<div class="job-share-section">
+        <span class="share-label">Share:</span>
+        <div class="share-buttons">
+            <button onclick="event.stopPropagation();huntersSocialShare('linkedin',${jobId})" class="share-btn share-linkedin">in</button>
+            <button onclick="event.stopPropagation();huntersSocialShare('facebook',${jobId})" class="share-btn share-facebook">f</button>
+            <button onclick="event.stopPropagation();huntersSocialShare('whatsapp',${jobId})" class="share-btn share-whatsapp">W</button>
+            <button onclick="event.stopPropagation();huntersCopyJobLink(${jobId},this)" class="share-btn share-copy">🔗 Copy</button>
+        </div>
+    </div>`;
 }
 
 function huntersInitJobs(isAdmin) {
@@ -321,7 +354,8 @@ function huntersJobCardInner(job, opts) {
             <svg width="12" height="12" fill="none" stroke="#C9A84C" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
             <span>${apps} application${apps === 1 ? '' : 's'}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:0.5px solid #F3F4F6;">
+        ${huntersShareSectionHtml(job.id)}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:0.5px solid #F3F4F6;">
             <span style="font-size:11px;color:#9CA3AF;">${huntersRelativePosted(job.created_at)}</span>
             ${footerExtra}
         </div>`;
