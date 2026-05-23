@@ -519,7 +519,7 @@ def list_admin_applications(
             "last_title": candidate.last_title if candidate else None,
             "cv_available": bool(
                 (candidate and candidate.cv_file_data) or
-                application.cv_file_data or
+                app.cv_file_data or
                 (candidate and candidate.cv_text and candidate.cv_text.strip()) or
                 (app.cv_text and app.cv_text.strip())
             ),
