@@ -204,12 +204,16 @@ function scoreBadgeHtml(score) {
 
 function stagePillHtml(decision) {
     if (!decision || decision.toLowerCase() === 'pending') {
-        return '<span class="stage-pill stage-new">New</span>';
+        return '<span class="stage-pill stage-new">Applied</span>';
     }
     const d = decision.toLowerCase();
-    if (d === 'shortlist') return '<span class="stage-pill stage-interview">Shortlisted</span>';
-    if (d === 'maybe')     return '<span class="stage-pill stage-screening">Screening</span>';
-    if (d === 'reject')    return '<span class="stage-pill stage-rejected">Rejected</span>';
+    if (d === 'new' || d === 'applied') return '<span class="stage-pill stage-new">Applied</span>';
+    if (d === 'shortlist' || d === 'shortlisted') return '<span class="stage-pill stage-interview">Shortlisted</span>';
+    if (d === 'maybe' || d === 'screening') return '<span class="stage-pill stage-screening">Screening</span>';
+    if (d === 'interview') return '<span class="stage-pill stage-interview">Interview</span>';
+    if (d === 'offer' || d === 'offered') return '<span class="stage-pill stage-screening">Offered</span>';
+    if (d === 'hired')  return '<span class="stage-pill stage-interview">Hired</span>';
+    if (d === 'reject' || d === 'rejected') return '<span class="stage-pill stage-rejected">Rejected</span>';
     return `<span class="stage-pill stage-new">${decision}</span>`;
 }
 
@@ -460,11 +464,12 @@ function renderKanban(filter) {
     if (!board) return;
 
     const cols = [
-        { id: 'new',       label: 'New',        accent: '#378ADD', decisions: [null, 'pending', 'new'] },
-        { id: 'screening', label: 'Screening',  accent: '#EF9F27', decisions: ['maybe', 'screening'] },
-        { id: 'interview', label: 'Interview',  accent: '#1D9E75', decisions: ['shortlist', 'interview'] },
-        { id: 'offer',     label: 'Offer',      accent: '#C9A84C', decisions: ['offer'] },
-        { id: 'rejected',  label: 'Rejected',   accent: '#CC2B2B', decisions: ['reject', 'rejected'] },
+        { id: 'applied',     label: 'Applied',     accent: '#378ADD', stages: ['applied', 'new', '', null] },
+        { id: 'screening',   label: 'Screening',   accent: '#EF9F27', stages: ['screening'] },
+        { id: 'shortlisted', label: 'Shortlisted', accent: '#6366F1', stages: ['shortlisted'] },
+        { id: 'interview',   label: 'Interview',   accent: '#1D9E75', stages: ['interview', 'rejected'] },
+        { id: 'offered',     label: 'Offered',     accent: '#C9A84C', stages: ['offer', 'offered'] },
+        { id: 'hired',       label: 'Hired',       accent: '#0F6E56', stages: ['hired'] },
     ];
 
     const lf = (filter || '').toLowerCase();
@@ -477,8 +482,8 @@ function renderKanban(filter) {
         let colItems;
         if (useApps) {
             colItems = applications.filter(app => {
-                const dec = (app.decision || '').toLowerCase() || null;
-                const inCol = col.decisions.includes(dec);
+                const stg = (app.stage || 'applied').toLowerCase();
+                const inCol = col.stages.includes(stg);
                 if (!inCol) return false;
                 if (lf) {
                     return (app.name || '').toLowerCase().includes(lf) ||
@@ -493,8 +498,8 @@ function renderKanban(filter) {
         } else {
             colItems = candidates.filter(c => {
                 const ev = evaluations.find(e => e.candidate_id === c.id);
-                const dec = ev ? (ev.decision || '').toLowerCase() : null;
-                return col.decisions.includes(dec);
+                const stg = ev ? (ev.decision || '').toLowerCase() : null;
+                return col.stages.includes(stg);
             });
         }
 
@@ -508,9 +513,14 @@ function renderKanban(filter) {
                     scoreText = `${pct}%`;
                 }
                 const initials = (app.name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-                const skillTags = parseListField(app.skills).slice(0, 3).map(s =>
-                    `<span style="background:#F0F2F8;color:#1B2A4A;font-size:9px;padding:1px 6px;border-radius:8px;">${escHtml(s)}</span>`
-                ).join('');
+                const skillTags = (app.skills || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 3).map(s => {
+                    const label = s.length > 30 ? s.slice(0, 30) + '…' : s;
+                    return `<span style="background:#F0F2F8;color:#1B2A4A;font-size:9px;padding:1px 6px;border-radius:8px;">${escHtml(label)}</span>`;
+                }).join('');
+                const isRejected = (app.stage || '').toLowerCase() === 'rejected';
+                const rejectedBadge = isRejected
+                    ? `<span style="background:#FEE2E2;color:#CC2B2B;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:600;">Rejected</span>`
+                    : '';
                 const typeBadge = app.candidate_type === 'registered'
                     ? `<span style="background:#F0F2F8;color:#6B7280;font-size:9px;padding:1px 6px;border-radius:8px;">Registered</span>`
                     : `<span style="background:#FFF7E0;color:#9B6F00;font-size:9px;padding:1px 6px;border-radius:8px;">External</span>`;
@@ -527,7 +537,7 @@ function renderKanban(filter) {
                         </div>
                         <div class="kanban-card-role" style="font-size:10px;margin-bottom:4px;">${escHtml(app.job_title || '—')} · ${escHtml(app.company_name || '')}</div>
                         ${expLine ? `<div style="font-size:10px;color:#9CA3AF;margin-bottom:4px;">${escHtml(expLine)}</div>` : ''}
-                        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">${typeBadge}${skillTags}</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">${rejectedBadge}${typeBadge}${skillTags}</div>
                         <div class="kanban-card-score" style="justify-content:space-between;">
                             <span style="display:flex;align-items:center;gap:4px;">
                                 <span class="score-dot" style="background:${dotColor};"></span>
@@ -583,17 +593,30 @@ function renderKanban(filter) {
 }
 
 function _decisionToStage(decision) {
-    if (!decision || decision.toLowerCase() === 'pending') return 'New';
+    if (!decision || decision.toLowerCase() === 'pending') return 'Applied';
     const d = decision.toLowerCase();
-    if (d === 'maybe')     return 'Screening';
-    if (d === 'shortlist') return 'Interview';
-    if (d === 'offer')     return 'Offer';
-    if (d === 'reject')    return 'Rejected';
+    if (d === 'new')        return 'Applied';
+    if (d === 'applied')    return 'Applied';
+    if (d === 'maybe')      return 'Screening';
+    if (d === 'screening')  return 'Screening';
+    if (d === 'shortlist' || d === 'shortlisted') return 'Shortlisted';
+    if (d === 'interview')  return 'Interview';
+    if (d === 'offer' || d === 'offered') return 'Offered';
+    if (d === 'hired')      return 'Hired';
+    if (d === 'reject' || d === 'rejected') return 'Rejected';
     return decision;
 }
 
 function _stageColor(stage) {
-    const map = { New: '#378ADD', Screening: '#EF9F27', Interview: '#1D9E75', Offer: '#C9A84C', Rejected: '#CC2B2B' };
+    const map = {
+        Applied: '#378ADD', New: '#378ADD',
+        Screening: '#EF9F27',
+        Shortlisted: '#6366F1',
+        Interview: '#1D9E75',
+        Offered: '#C9A84C', Offer: '#C9A84C',
+        Hired: '#0F6E56',
+        Rejected: '#CC2B2B',
+    };
     return map[stage] || '#9CA3AF';
 }
 

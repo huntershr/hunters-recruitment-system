@@ -174,7 +174,7 @@ async def public_apply(
         applicant_email=email,
         applicant_phone=phone,
         expected_salary=expected_salary,
-        stage="New",
+        stage="Applied",
         cv_text=cv_text,
         cv_file_data=content,
         cv_file_mime=cv_mime,

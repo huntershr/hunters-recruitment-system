@@ -265,7 +265,7 @@ async def screen_cv(
     application = models.Application(
         job_id=job_id,
         candidate_id=candidate.id,
-        stage="New",
+        stage="Applied",
     )
     db.add(application)
     db.commit()

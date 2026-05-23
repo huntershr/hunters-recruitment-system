@@ -529,7 +529,7 @@ def list_admin_applications(
             "weaknesses": evaluation.weaknesses if evaluation else None,
             "suggested_interview_questions": iq,
             "reason": evaluation.reason if evaluation else None,
-            "stage": app.stage or "New",
+            "stage": app.stage or "Applied",
             "applied_at": app.created_at.isoformat() if app.created_at else None,
             "evaluation_id": evaluation.id if evaluation else None,
         })
