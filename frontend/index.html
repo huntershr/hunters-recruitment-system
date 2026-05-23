@@ -300,14 +300,14 @@
                 </svg>
                 Candidates
             </li>
-            <li class="admin-only-nav" data-view="companies-view" onclick="loadAdminCompanies()" style="display:none;">
+            <li class="admin-only-nav super-admin-only" data-view="companies-view" onclick="loadAdminCompanies()" style="display:none;">
                 <svg viewBox="0 0 16 16" fill="none" width="14" height="14" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.5;flex-shrink:0;">
                     <rect x="2" y="6" width="12" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/>
                     <path d="M5 6V4a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                 </svg>
                 Companies
             </li>
-            <li class="admin-only-nav" data-view="subscribers-view" onclick="loadAdminUsers()" style="display:none;">
+            <li class="admin-only-nav super-admin-only" data-view="subscribers-view" onclick="loadAdminUsers()" style="display:none;">
                 <svg viewBox="0 0 16 16" fill="none" width="14" height="14" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.5;flex-shrink:0;">
                     <circle cx="6" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/>
                     <path d="M1 14c0-2.76 2.24-5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -315,7 +315,7 @@
                 </svg>
                 Users
             </li>
-            <li class="admin-only-nav" data-view="analytics-view" onclick="loadAdminAnalytics()" style="display:none;">
+            <li class="admin-only-nav super-admin-only" data-view="analytics-view" onclick="loadAdminAnalytics()" style="display:none;">
                 <svg viewBox="0 0 16 16" fill="none" width="14" height="14" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.5;flex-shrink:0;">
                     <rect x="1" y="1" width="4" height="14" rx="1" stroke="currentColor" stroke-width="1.5"/>
                     <rect x="6" y="5" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/>
@@ -335,7 +335,7 @@
         </ul>
 
         <div class="nav-right">
-            <button onclick="openCandidateUsersModal()" class="nav-approvals-link" style="background:none;cursor:pointer;" title="Candidate Accounts">
+            <button onclick="openCandidateUsersModal()" class="nav-approvals-link super-admin-only" style="background:none;cursor:pointer;display:none;" title="Candidate Accounts">
                 <svg viewBox="0 0 16 16" fill="none" width="13" height="13" style="width:13px;height:13px;stroke:currentColor;fill:none;flex-shrink:0;">
                     <path d="M10 13v-1a3 3 0 00-3-3H4a3 3 0 00-3 3v1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
                     <circle cx="5.5" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.4"/>
@@ -1089,6 +1089,6 @@ function confirmResetPassword(){
 </script>
 
 <!-- CACHE VERSION: bump ?v= number on every app.js change -->
-<script src="app.js?v=1.15"></script>
+<script src="app.js?v=1.16"></script>
 </body>
 </html>

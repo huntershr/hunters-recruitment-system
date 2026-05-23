@@ -1803,7 +1803,6 @@ async function fetchUserInfo() {
         if (user.is_admin) {
             // Show admin-only UI elements
             document.querySelectorAll('.admin-only-col').forEach(el => el.style.display = '');
-            document.querySelectorAll('.admin-only-nav').forEach(el => el.style.display = '');
             document.querySelectorAll('.admin-only-stat').forEach(el => el.style.display = '');
             document.querySelectorAll('.non-admin-stat').forEach(el => el.style.display = 'none');
             const cf = document.getElementById('company-filter-wrap');
@@ -1812,6 +1811,12 @@ async function fetchUserInfo() {
             if (qa) qa.style.display = 'flex';
             const grid = document.getElementById('stats-grid');
             if (grid) grid.style.gridTemplateColumns = 'repeat(6,1fr)';
+            // admin-only-nav items that are NOT super-admin-only
+            document.querySelectorAll('.admin-only-nav:not(.super-admin-only)').forEach(el => el.style.display = '');
+            if (!user.company_id) {
+                // SuperAdmin — show all super-admin-only elements too
+                document.querySelectorAll('.super-admin-only').forEach(el => el.style.display = '');
+            }
             loadAdminStats();
         }
     } catch (err) {
