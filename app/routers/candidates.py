@@ -524,7 +524,17 @@ def _build_cv_pdf(candidate) -> bytes:
     import textwrap
     from fpdf import FPDF
 
+    import re
     raw_text = candidate.cv_text or ""
+    # Normalise whitespace: two-column PDF templates extract as space-padded lines
+    # (e.g. "Ahmed              Hamouda"). Collapse them so text flows single-column.
+    cleaned_lines = []
+    for ln in raw_text.split("\n"):
+        ln = ln.replace("\t", " ")       # tabs → space
+        ln = re.sub(r" {2,}", " ", ln)   # multiple spaces → one
+        cleaned_lines.append(ln.strip())
+    raw_text = "\n".join(cleaned_lines)
+
     cv_text = "\n".join(
         textwrap.fill(line, width=80, break_long_words=True, break_on_hyphens=True)
         if len(line) > 80 else line
