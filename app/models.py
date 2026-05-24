@@ -114,6 +114,7 @@ class Application(Base):
     cv_file_mime = Column(Text, nullable=True)          # MIME type of the original file
     expected_salary = Column(Text, nullable=True)
     stage = Column(Text, default='New')
+    stage_updated_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     job = relationship("Job", back_populates="applications")

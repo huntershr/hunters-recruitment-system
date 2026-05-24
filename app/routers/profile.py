@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import ast
 
 from .. import models, schemas, database
@@ -261,3 +261,87 @@ def get_application_summary(
         "stage": application.stage or "Applied",
         "submitted_at": application.created_at.isoformat() if application.created_at else None,
     }
+
+
+# ── GET /api/candidate/applications ───────────────────────────────────────────
+
+_STAGE_LABELS = {
+    "applied":     ("Under Review",      "#1B2A4A", "#EFF2F8"),
+    "new":         ("Under Review",      "#1B2A4A", "#EFF2F8"),
+    "screening":   ("Being Screened",    "#854F0B", "#FAEEDA"),
+    "shortlisted": ("Shortlisted ✓",     "#0F6E56", "#E1F5EE"),
+    "interview":   ("Interview Stage",   "#185FA5", "#E6F1FB"),
+    "offered":     ("Offer Extended 🎉", "#0F6E56", "#E1F5EE"),
+    "hired":       ("Hired ✓",           "#0F6E56", "#E1F5EE"),
+    "rejected":    ("Not Selected",      "#A32D2D", "#FCEBEB"),
+}
+
+
+def _stage_label(stage: str):
+    key = (stage or "applied").lower()
+    return _STAGE_LABELS.get(key, ("Under Review", "#1B2A4A", "#EFF2F8"))
+
+
+@router.get("/api/candidate/applications")
+def get_candidate_applications(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """All pipeline applications for the logged-in candidate, with live stage labels."""
+    candidate = (
+        db.query(models.Candidate)
+        .filter(models.Candidate.user_id == current_user.id)
+        .first()
+    )
+    if not candidate:
+        return []
+
+    apps = (
+        db.query(models.Application)
+        .options(
+            joinedload(models.Application.job),
+            joinedload(models.Application.evaluation),
+        )
+        .filter(models.Application.candidate_id == candidate.id)
+        .order_by(models.Application.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for app in apps:
+        job = app.job
+        job_title = job.job_title if job else "Unknown Position"
+        job_id = app.job_id
+
+        # Company name via job owner
+        company_name = "Hunters HR Solutions"
+        if job and job.owner_id:
+            owner = db.query(models.User).filter(models.User.id == job.owner_id).first()
+            if owner and owner.company_id:
+                company = db.query(models.Company).filter(models.Company.id == owner.company_id).first()
+                if company:
+                    company_name = company.company_name
+
+        stage_raw = app.stage or "Applied"
+        label, color, bg = _stage_label(stage_raw)
+
+        ev = app.evaluation
+        score = None
+        if ev and ev.score is not None:
+            s = float(ev.score)
+            score = round(s * 100 if s <= 1 else s * 10 if s <= 10 else min(100, s))
+
+        result.append({
+            "application_id": app.id,
+            "job_id": job_id,
+            "job_title": job_title,
+            "company_name": company_name,
+            "stage": stage_raw,
+            "stage_label": label,
+            "stage_color": color,
+            "stage_bg": bg,
+            "score": score,
+            "applied_at": app.created_at.isoformat() if app.created_at else None,
+        })
+
+    return result

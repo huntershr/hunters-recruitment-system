@@ -352,6 +352,18 @@ def startup_populate_db():
             logging.info(f"Migration applications.cv_text skipped: {_e}")
             db.rollback()
 
+        # Phase 8 — stage audit column
+        try:
+            from sqlalchemy import text as _text
+            db.execute(_text(
+                "ALTER TABLE applications ADD COLUMN IF NOT EXISTS stage_updated_at TIMESTAMP"
+            ))
+            db.commit()
+            logging.info("Migration Phase 8: applications.stage_updated_at ensured")
+        except Exception as _e:
+            logging.info(f"Migration Phase 8 stage_updated_at skipped: {_e}")
+            db.rollback()
+
         # Phase 4 — BYTEA original file storage on candidates + applications
         for _col_sql in [
             "ALTER TABLE candidates   ADD COLUMN IF NOT EXISTS cv_file_data BYTEA",

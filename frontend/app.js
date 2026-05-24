@@ -492,6 +492,7 @@ function jobShareSectionHtml(jobId) {
 
 let pipelineView = 'board';
 let pipelineFilter = '';
+let showRejectedApps = false;
 
 function renderCandidates() {
     // Status bar updated here — guaranteed to run regardless of renderKanban outcome
@@ -516,13 +517,26 @@ function renderKanban(filter) {
     const board = document.getElementById("kanban-board");
     if (!board) return;
 
+    // Inject Show/Hide Rejected toggle above the board (once)
+    if (!document.getElementById('kanban-rejected-toggle')) {
+        const tb = document.createElement('div');
+        tb.id = 'kanban-rejected-toggle';
+        tb.style.cssText = 'display:flex;justify-content:flex-end;padding:0 0 8px;';
+        board.parentNode.insertBefore(tb, board);
+    }
+    const toggleBtn = document.getElementById('kanban-rejected-toggle');
+    if (toggleBtn) {
+        toggleBtn.innerHTML = `<button onclick="toggleRejectedApps()" style="font-size:11px;padding:4px 10px;border:0.5px solid #E5E7EB;border-radius:6px;background:${showRejectedApps ? '#FEE2E2' : '#F3F4F6'};color:${showRejectedApps ? '#CC2B2B' : '#6B7280'};cursor:pointer;">${showRejectedApps ? '✕ Hide Rejected' : '👁 Show Rejected'}</button>`;
+    }
+
     const cols = [
         { id: 'applied',     label: 'Applied',     accent: '#378ADD', stages: ['applied', 'new', '', null] },
         { id: 'screening',   label: 'Screening',   accent: '#EF9F27', stages: ['screening'] },
         { id: 'shortlisted', label: 'Shortlisted', accent: '#6366F1', stages: ['shortlisted'] },
-        { id: 'interview',   label: 'Interview',   accent: '#1D9E75', stages: ['interview', 'rejected'] },
+        { id: 'interview',   label: 'Interview',   accent: '#1D9E75', stages: ['interview'] },
         { id: 'offered',     label: 'Offered',     accent: '#C9A84C', stages: ['offer', 'offered'] },
         { id: 'hired',       label: 'Hired',       accent: '#0F6E56', stages: ['hired'] },
+        ...(showRejectedApps ? [{ id: 'rejected', label: 'Rejected', accent: '#CC2B2B', stages: ['rejected'] }] : []),
     ];
 
     const lf = (filter || '').toLowerCase();
@@ -579,6 +593,10 @@ function renderKanban(filter) {
                     : `<span style="background:#FFF7E0;color:#9B6F00;font-size:9px;padding:1px 6px;border-radius:8px;">External</span>`;
                 const expLine = [app.last_title, app.experience_years != null ? app.experience_years + ' yrs' : null]
                     .filter(Boolean).join(' · ');
+                const curStage = (app.stage || 'applied').toLowerCase();
+                const stageOpts = ['applied','screening','shortlisted','interview','offered','hired','rejected']
+                    .filter(s => s !== curStage && !(curStage === 'new' && s === 'applied'))
+                    .map(s => `<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
                 return `
                     <div class="kanban-card" onclick="viewApplication(${app.application_id})" style="cursor:pointer;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
@@ -604,6 +622,12 @@ function renderKanban(filter) {
                                     ? `<button onclick="event.stopPropagation();downloadAppCV(${app.application_id},'${escHtml(app.name).replace(/[^a-zA-Z0-9_-]/g,'_')}')" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;color:#0F6E56;">CV</button>`
                                     : ''}
                             </div>
+                        </div>
+                        <div style="margin-top:5px;" onclick="event.stopPropagation()">
+                            <select onchange="changeAppStage(${app.application_id},this.value,this)" style="width:100%;font-size:9px;padding:2px 4px;border:0.5px solid #E5E7EB;border-radius:5px;color:#6B7280;background:#F9FAFB;cursor:pointer;">
+                                <option value="" disabled selected>Move to stage…</option>
+                                ${stageOpts}
+                            </select>
                         </div>
                     </div>
                 `;
@@ -855,6 +879,137 @@ function filterPipelineCompany(val) {
     companyFilter = val;
     renderKanban(pipelineFilter);
     renderCandidateList(pipelineFilter);
+}
+
+function toggleRejectedApps() {
+    showRejectedApps = !showRejectedApps;
+    renderKanban(pipelineFilter);
+}
+
+const _CONFIRM_STAGES = new Set(['interview', 'offered', 'hired']);
+
+function changeAppStage(appId, newStage, selectEl) {
+    if (!newStage) return;
+    if (selectEl) selectEl.value = '';
+    const app = applications.find(a => a.application_id === appId);
+    const candName = app ? (app.name || 'Candidate') : 'Candidate';
+    if (_CONFIRM_STAGES.has(newStage)) {
+        _showStageConfirm(appId, newStage, candName, app);
+    } else {
+        _doStageChange(appId, newStage);
+    }
+}
+
+function _stageNotifPreviews(stage, app) {
+    const cand = app ? (app.name || 'Candidate') : 'Candidate';
+    const co = app ? (app.company_name || 'Company') : 'Company';
+    switch (stage) {
+        case 'interview':
+            return [cand + ' — interview invitation', 'Hunters HR (hr@hunters-egypt.com) — interview alert'];
+        case 'offered':
+            return [cand + ' — offer notification'];
+        case 'hired':
+            return [co + ' admin — placement confirmed', 'Hunters HR (hr@hunters-egypt.com) — placement record'];
+        default:
+            return [];
+    }
+}
+
+function _showStageConfirm(appId, newStage, candName, app) {
+    const label = newStage.charAt(0).toUpperCase() + newStage.slice(1);
+    const previews = _stageNotifPreviews(newStage, app);
+    const previewHtml = previews.map(p => `<li style="font-size:12px;color:#374151;padding:3px 0;">📧 ${escHtml(p)}</li>`).join('');
+    const m = document.createElement('div');
+    m.id = 'stage-confirm-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+    m.innerHTML = `<div style="background:#fff;border-radius:16px;width:420px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.2);overflow:hidden;">
+        <div style="background:#1B2A4A;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#fff;font-weight:600;font-size:14px;">Move to ${label}?</span>
+            <button onclick="document.getElementById('stage-confirm-modal').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:15px;">×</button>
+        </div>
+        <div style="padding:20px;">
+            <p style="font-size:13px;color:#374151;margin:0 0 12px;">Move <strong>${escHtml(candName)}</strong> to <strong>${label}</strong> stage?</p>
+            ${previews.length ? `<p style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 6px;">Notifications will be sent to:</p><ul style="margin:0 0 4px;padding-left:0;list-style:none;">${previewHtml}</ul>` : ''}
+            <div style="display:flex;gap:10px;margin-top:18px;">
+                <button onclick="document.getElementById('stage-confirm-modal').remove()" style="flex:1;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Cancel</button>
+                <button onclick="document.getElementById('stage-confirm-modal').remove();_doStageChange(${appId},'${newStage}')" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;">Confirm &amp; Notify</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.appendChild(m);
+}
+
+async function _doStageChange(appId, newStage) {
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`/api/admin/applications/${appId}/stage`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ stage: newStage }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.detail || 'Stage update failed', 'error');
+            return;
+        }
+        const data = await res.json();
+        const idx = applications.findIndex(a => a.application_id === appId);
+        if (idx >= 0) applications[idx].stage = data.stage;
+        renderCandidates();
+        showToast('Moved to ' + data.stage, 'success');
+        if (data.notifications && data.notifications.length > 0) {
+            _showStageNotifModal(data.notifications);
+        }
+    } catch (e) {
+        showToast('Stage update failed', 'error');
+    }
+}
+
+function _showStageNotifModal(notifications) {
+    if (notifications.length === 1) {
+        const n = notifications[0];
+        window.open('mailto:' + encodeURIComponent(n.to) + '?subject=' + encodeURIComponent(n.subject) + '&body=' + encodeURIComponent(n.body));
+        showToast('Email client opened', 'info');
+        return;
+    }
+    const rows = notifications.map((n, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid #F3F4F6;">
+            <div style="min-width:0;flex:1;margin-right:8px;">
+                <div style="font-size:12px;font-weight:500;color:#1B2A4A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.subject)}</div>
+                <div style="font-size:11px;color:#6B7280;">To: ${escHtml(n.to)}</div>
+            </div>
+            <button onclick="_openMailto(${i})" style="flex-shrink:0;font-size:11px;padding:4px 10px;border:0.5px solid #1B2A4A;border-radius:6px;background:#fff;color:#1B2A4A;cursor:pointer;">Open</button>
+        </div>`).join('');
+    const m = document.createElement('div');
+    m.id = 'stage-notif-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+    m.innerHTML = `<div style="background:#fff;border-radius:16px;width:460px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.2);overflow:hidden;">
+        <div style="background:#1B2A4A;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#fff;font-weight:600;">Send Notifications (${notifications.length})</span>
+            <button onclick="document.getElementById('stage-notif-modal').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:15px;">×</button>
+        </div>
+        <div style="padding:20px;">${rows}
+            <div style="display:flex;gap:10px;margin-top:16px;">
+                <button onclick="document.getElementById('stage-notif-modal').remove()" style="flex:1;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Close</button>
+                <button onclick="_openAllMailtos(0)" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;">Send All</button>
+            </div>
+        </div>
+    </div>`;
+    window._stageNotifs = notifications;
+    document.body.appendChild(m);
+}
+
+function _openMailto(idx) {
+    const n = (window._stageNotifs || [])[idx];
+    if (!n) return;
+    window.open('mailto:' + encodeURIComponent(n.to) + '?subject=' + encodeURIComponent(n.subject) + '&body=' + encodeURIComponent(n.body));
+}
+
+function _openAllMailtos(idx) {
+    const notifs = window._stageNotifs || [];
+    if (idx >= notifs.length) { showToast('All notifications sent', 'success'); const m = document.getElementById('stage-notif-modal'); if (m) m.remove(); return; }
+    _openMailto(idx);
+    setTimeout(() => _openAllMailtos(idx + 1), 600);
 }
 
 async function adminReEvaluate(candidateId, btn) {

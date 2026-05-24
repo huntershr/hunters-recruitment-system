@@ -1330,41 +1330,57 @@ async function submitApply(){
 function closeOverlay(){document.getElementById('job-overlay').classList.remove('active');_applyFile=null;currentJob=null;}
 
 /* ─── My Applications ─── */
-function renderMyApps(){
-  var apps=JSON.parse(localStorage.getItem('hunters_portal_apps')||'[]');
+async function renderMyApps(){
   var el=document.getElementById('apps-content');
-  if(!apps.length){
-    el.innerHTML='<div style="text-align:center;padding:64px 24px;">'+
-      '<svg width="48" height="48" fill="none" stroke="#D1D5DB" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto 16px;display:block;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'+
-      '<div style="font-size:15px;font-weight:500;color:#1B2A4A;margin-bottom:8px;">No applications yet</div>'+
-      '<div style="font-size:13px;color:#9CA3AF;margin-bottom:20px;">Browse jobs and screen your CV to see results here</div>'+
-      '<button onclick="showPortalSection(\'all-jobs\')" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;">Browse Jobs</button>'+
-    '</div>';return;
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading…</div>';
+  try {
+    var res=await fetch(API_BASE+'/api/candidate/applications',{headers:hdrs()});
+    if(!res.ok)throw new Error('fetch failed');
+    var apps=await res.json();
+    if(!Array.isArray(apps)||!apps.length){
+      el.innerHTML='<div style="text-align:center;padding:64px 24px;">'+
+        '<svg width="48" height="48" fill="none" stroke="#D1D5DB" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto 16px;display:block;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'+
+        '<div style="font-size:15px;font-weight:500;color:#1B2A4A;margin-bottom:8px;">No applications yet</div>'+
+        '<div style="font-size:13px;color:#9CA3AF;margin-bottom:20px;">Browse jobs and screen your CV to see results here</div>'+
+        '<button onclick="showPortalSection(\'all-jobs\')" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;">Browse Jobs</button>'+
+      '</div>';return;
+    }
+    el.innerHTML='<div style="background:#fff;border-radius:16px;border:0.5px solid rgba(0,0,0,0.06);box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;">' +
+      '<div style="padding:16px 20px;border-bottom:1px solid #E5E7EB;">' +
+        '<div style="font-size:15px;font-weight:500;color:#1B2A4A;">My Applications</div>' +
+        '<div style="font-size:12px;color:#9CA3AF;margin-top:2px;">'+apps.length+' application(s)</div>' +
+      '</div>' +
+      '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:480px;">' +
+        '<thead style="background:#1B2A4A;color:#fff;"><tr>' +
+          '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Job Title</th>' +
+          '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Company</th>' +
+          '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Applied</th>' +
+          '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Status</th>' +
+        '</tr></thead><tbody>' +
+      apps.map(function(a){
+        return '<tr style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background=\'#F8F9FF\'" onmouseout="this.style.background=\'transparent\'">' +
+          '<td style="padding:12px 16px;font-size:13px;font-weight:500;color:#1B2A4A;">'+esc(a.job_title||'—')+'</td>' +
+          '<td style="padding:12px 16px;font-size:12px;color:#6B7280;">'+esc(a.company_name||'—')+'</td>' +
+          '<td style="padding:12px 16px;font-size:12px;color:#6B7280;">'+(a.applied_at?new Date(a.applied_at).toLocaleDateString():'—')+'</td>' +
+          '<td style="padding:12px 16px;"><span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;background:'+(a.stage_bg||'#EFF2F8')+';color:'+(a.stage_color||'#1B2A4A')+';">'+esc(a.stage_label||a.stage||'Under Review')+'</span></td>' +
+        '</tr>';
+      }).join('')+
+      '</tbody></table></div></div>';
+  } catch(e) {
+    // Fallback to localStorage if API fails (e.g., not yet logged in)
+    var cached=JSON.parse(localStorage.getItem('hunters_portal_apps')||'[]');
+    if(!cached.length){
+      el.innerHTML='<div style="text-align:center;padding:48px 24px;color:#9CA3AF;font-size:13px;">No applications found.</div>';return;
+    }
+    el.innerHTML='<div style="background:#fff;border-radius:16px;border:0.5px solid rgba(0,0,0,0.06);box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;">' +
+      '<div style="padding:16px 20px;border-bottom:1px solid #E5E7EB;"><div style="font-size:15px;font-weight:500;color:#1B2A4A;">My Applications</div></div>' +
+      '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:480px;">' +
+        '<thead style="background:#1B2A4A;color:#fff;"><tr><th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Job Title</th><th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Company</th><th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Applied</th><th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">AI Result</th></tr></thead><tbody>' +
+      cached.map(function(a){var m=getCandidateMessage(a.score);return '<tr style="border-bottom:0.5px solid #F3F4F6;"><td style="padding:12px 16px;font-size:13px;font-weight:500;color:#1B2A4A;">'+esc(a.job_title||'—')+'</td><td style="padding:12px 16px;font-size:12px;color:#6B7280;">'+esc(a.company_name||'—')+'</td><td style="padding:12px 16px;font-size:12px;color:#6B7280;">'+(a.applied_date?new Date(a.applied_date).toLocaleDateString():'—')+'</td><td style="padding:12px 16px;">'+(a.score!=null?'<span style="display:inline-flex;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;background:'+m.bg+';color:'+m.color+';">'+m.emoji+' '+esc(m.status)+'</span>':'<span style="font-size:12px;color:#9CA3AF;">Pending</span>')+'</td></tr>';}).join('')+
+      '</tbody></table></div></div>';
   }
-  el.innerHTML='<div style="background:#fff;border-radius:16px;border:0.5px solid rgba(0,0,0,0.06);box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;">' +
-    '<div style="padding:16px 20px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;">' +
-      '<div><div style="font-size:15px;font-weight:500;color:#1B2A4A;">My Applications</div><div style="font-size:12px;color:#9CA3AF;margin-top:2px;">'+apps.length+' application(s)</div></div>' +
-      '<button onclick="clearApps()" style="font-size:12px;color:#A32D2D;background:none;border:none;cursor:pointer;">Clear All</button>' +
-    '</div>' +
-    '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:480px;">' +
-      '<thead style="background:#1B2A4A;color:#fff;"><tr>' +
-        '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Job Title</th>' +
-        '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Company</th>' +
-        '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Applied</th>' +
-        '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Application Status</th>' +
-      '</tr></thead><tbody>' +
-    apps.map(function(a){
-      var m=getCandidateMessage(a.score);
-      return '<tr style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background=\'#F8F9FF\'" onmouseout="this.style.background=\'transparent\'">' +
-        '<td style="padding:12px 16px;font-size:13px;font-weight:500;color:#1B2A4A;">'+esc(a.job_title||'—')+'</td>' +
-        '<td style="padding:12px 16px;font-size:12px;color:#6B7280;">'+esc(a.company_name||'—')+'</td>' +
-        '<td style="padding:12px 16px;font-size:12px;color:#6B7280;">'+(a.applied_date?new Date(a.applied_date).toLocaleDateString():'—')+'</td>' +
-        '<td style="padding:12px 16px;">'+(a.score!==null&&a.score!==undefined?'<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;background:'+m.bg+';color:'+m.color+';">'+m.emoji+' '+esc(m.status)+'</span>':'<span style="font-size:12px;color:#9CA3AF;">Pending</span>')+'</td>' +
-      '</tr>';
-    }).join('')+
-    '</tbody></table></div></div>';
 }
-function clearApps(){if(confirm('Clear all application history?')){localStorage.removeItem('hunters_portal_apps');renderMyApps();}}
 
 /* ─── Profile localStorage → backend migration (runs once per user per browser) ─── */
 async function migrateLocalStorageProfile(){

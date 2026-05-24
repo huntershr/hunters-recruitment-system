@@ -2516,6 +2516,7 @@
     /* ── Company Pipeline Kanban ── */
     let coCompanyView = 'board';
     let coAppsData = [];
+    let coShowRejected = false;
 
     function setCompanyView(v) {
         coCompanyView = v;
@@ -2541,13 +2542,25 @@
     function renderCompanyKanban() {
         const board = document.getElementById('co-kanban-board');
         if (!board) return;
+
+        // Inject Show/Hide Rejected toggle above the board (once)
+        if (!document.getElementById('co-kanban-rej-toggle')) {
+            const tb = document.createElement('div');
+            tb.id = 'co-kanban-rej-toggle';
+            tb.style.cssText = 'display:flex;justify-content:flex-end;padding:0 0 8px;';
+            board.parentNode.insertBefore(tb, board);
+        }
+        const rtBtn = document.getElementById('co-kanban-rej-toggle');
+        if (rtBtn) rtBtn.innerHTML = `<button onclick="coToggleRejected()" style="font-size:11px;padding:4px 10px;border:0.5px solid #E5E7EB;border-radius:6px;background:${coShowRejected ? '#FEE2E2' : '#F3F4F6'};color:${coShowRejected ? '#CC2B2B' : '#6B7280'};cursor:pointer;">${coShowRejected ? '✕ Hide Rejected' : '👁 Show Rejected'}</button>`;
+
         const cols = [
             { id: 'applied',     label: 'Applied',     accent: '#378ADD', stages: ['applied','new','',null] },
             { id: 'screening',   label: 'Screening',   accent: '#EF9F27', stages: ['screening'] },
             { id: 'shortlisted', label: 'Shortlisted', accent: '#6366F1', stages: ['shortlisted'] },
-            { id: 'interview',   label: 'Interview',   accent: '#1D9E75', stages: ['interview','rejected'] },
+            { id: 'interview',   label: 'Interview',   accent: '#1D9E75', stages: ['interview'] },
             { id: 'offered',     label: 'Offered',     accent: '#C9A84C', stages: ['offer','offered'] },
             { id: 'hired',       label: 'Hired',       accent: '#0F6E56', stages: ['hired'] },
+            ...(coShowRejected ? [{ id: 'rejected', label: 'Rejected', accent: '#CC2B2B', stages: ['rejected'] }] : []),
         ];
         board.innerHTML = cols.map(col => {
             const items = coAppsData.filter(app => {
@@ -2586,6 +2599,12 @@
                         ${app.cv_available ? `<button onclick="event.stopPropagation();coDownloadCV(${app.application_id},'${safeName}')" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:5px;background:#fff;cursor:pointer;color:#0F6E56;">CV</button>` : ''}
                         ${app.email ? `<button onclick="event.stopPropagation();coInvite(${app.candidate_id||'null'},'${escHtml(app.name||'')}','${escHtml(app.email||'')}')" style="font-size:9px;padding:2px 6px;border:0.5px solid #9FE1CB;border-radius:5px;background:#E1F5EE;cursor:pointer;color:#0F6E56;">Invite</button>` : ''}
                     </div>
+                    <div style="margin-top:5px;" onclick="event.stopPropagation()">
+                        <select onchange="coChangeStage(${app.application_id},this.value,this)" style="width:100%;font-size:9px;padding:2px 4px;border:0.5px solid #E5E7EB;border-radius:5px;color:#6B7280;background:#F9FAFB;cursor:pointer;">
+                            <option value="" disabled selected>Move to stage…</option>
+                            ${['applied','screening','shortlisted','interview','offered','hired','rejected'].filter(s=>s!==(app.stage||'applied').toLowerCase()&&!(((app.stage||'applied').toLowerCase()==='new')&&s==='applied')).map(s=>`<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+                        </select>
+                    </div>
                 </div>`;
             }).join('');
             return `<div class="co-kanban-col" style="border-top:3px solid ${col.accent};">
@@ -2604,6 +2623,125 @@
         const app = coAppsData.find(a => a.application_id === appId);
         if (!app) return;
         if (app.candidate_id) { coViewProfile(app.candidate_id); } else { coViewReport(appId); }
+    }
+
+    function coToggleRejected() {
+        coShowRejected = !coShowRejected;
+        renderCompanyKanban();
+    }
+
+    const _CO_CONFIRM_STAGES = new Set(['interview', 'offered', 'hired']);
+
+    function coChangeStage(appId, newStage, selectEl) {
+        if (!newStage) return;
+        if (selectEl) selectEl.value = '';
+        const app = coAppsData.find(a => a.application_id === appId);
+        if (_CO_CONFIRM_STAGES.has(newStage)) {
+            _coShowStageConfirm(appId, newStage, app);
+        } else {
+            _coDoStageChange(appId, newStage);
+        }
+    }
+
+    function _coStageNotifPreviews(stage, app) {
+        const cand = app ? (app.name || 'Candidate') : 'Candidate';
+        const co = app ? (app.company_name || 'Company') : 'Company';
+        switch (stage) {
+            case 'interview': return [cand + ' — interview invitation', 'Hunters HR (hr@hunters-egypt.com) — interview alert'];
+            case 'offered':   return [cand + ' — offer notification'];
+            case 'hired':     return [co + ' admin — placement confirmed', 'Hunters HR (hr@hunters-egypt.com) — placement record'];
+            default: return [];
+        }
+    }
+
+    function _coShowStageConfirm(appId, newStage, app) {
+        const label = newStage.charAt(0).toUpperCase() + newStage.slice(1);
+        const candName = app ? (app.name || 'Candidate') : 'Candidate';
+        const previews = _coStageNotifPreviews(newStage, app);
+        const previewHtml = previews.map(p => `<li style="font-size:12px;color:#374151;padding:3px 0;">📧 ${escHtml(p)}</li>`).join('');
+        const m = document.createElement('div');
+        m.id = 'co-stage-confirm-modal';
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+        m.innerHTML = `<div style="background:#fff;border-radius:16px;width:420px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.2);overflow:hidden;">
+            <div style="background:#1B2A4A;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#fff;font-weight:600;font-size:14px;">Move to ${label}?</span>
+                <button onclick="document.getElementById('co-stage-confirm-modal').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:15px;">×</button>
+            </div>
+            <div style="padding:20px;">
+                <p style="font-size:13px;color:#374151;margin:0 0 12px;">Move <strong>${escHtml(candName)}</strong> to <strong>${label}</strong> stage?</p>
+                ${previews.length ? `<p style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 6px;">Notifications will be sent to:</p><ul style="margin:0 0 4px;padding-left:0;list-style:none;">${previewHtml}</ul>` : ''}
+                <div style="display:flex;gap:10px;margin-top:18px;">
+                    <button onclick="document.getElementById('co-stage-confirm-modal').remove()" style="flex:1;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Cancel</button>
+                    <button onclick="document.getElementById('co-stage-confirm-modal').remove();_coDoStageChange(${appId},'${newStage}')" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;">Confirm &amp; Notify</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.appendChild(m);
+    }
+
+    async function _coDoStageChange(appId, newStage) {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_URL}/api/admin/applications/${appId}/stage`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ stage: newStage }),
+            });
+            if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(err.detail || 'Stage update failed', 'error'); return; }
+            const data = await res.json();
+            const idx = coAppsData.findIndex(a => a.application_id === appId);
+            if (idx >= 0) coAppsData[idx].stage = data.stage;
+            renderCompanyKanban();
+            showToast('Moved to ' + data.stage, 'success');
+            if (data.notifications && data.notifications.length > 0) _coShowNotifModal(data.notifications);
+        } catch (e) { showToast('Stage update failed', 'error'); }
+    }
+
+    function _coShowNotifModal(notifications) {
+        if (notifications.length === 1) {
+            const n = notifications[0];
+            window.open('mailto:' + encodeURIComponent(n.to) + '?subject=' + encodeURIComponent(n.subject) + '&body=' + encodeURIComponent(n.body));
+            showToast('Email client opened', 'info');
+            return;
+        }
+        const rows = notifications.map((n, i) => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid #F3F4F6;">
+                <div style="min-width:0;flex:1;margin-right:8px;">
+                    <div style="font-size:12px;font-weight:500;color:#1B2A4A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.subject)}</div>
+                    <div style="font-size:11px;color:#6B7280;">To: ${escHtml(n.to)}</div>
+                </div>
+                <button onclick="_coOpenMailto(${i})" style="flex-shrink:0;font-size:11px;padding:4px 10px;border:0.5px solid #1B2A4A;border-radius:6px;background:#fff;color:#1B2A4A;cursor:pointer;">Open</button>
+            </div>`).join('');
+        const m = document.createElement('div');
+        m.id = 'co-notif-modal';
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+        m.innerHTML = `<div style="background:#fff;border-radius:16px;width:460px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.2);overflow:hidden;">
+            <div style="background:#1B2A4A;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#fff;font-weight:600;">Send Notifications (${notifications.length})</span>
+                <button onclick="document.getElementById('co-notif-modal').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:15px;">×</button>
+            </div>
+            <div style="padding:20px;">${rows}
+                <div style="display:flex;gap:10px;margin-top:16px;">
+                    <button onclick="document.getElementById('co-notif-modal').remove()" style="flex:1;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Close</button>
+                    <button onclick="_coOpenAllMailtos(0)" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;">Send All</button>
+                </div>
+            </div>
+        </div>`;
+        window._coNotifs = notifications;
+        document.body.appendChild(m);
+    }
+
+    function _coOpenMailto(idx) {
+        const n = (window._coNotifs || [])[idx];
+        if (!n) return;
+        window.open('mailto:' + encodeURIComponent(n.to) + '?subject=' + encodeURIComponent(n.subject) + '&body=' + encodeURIComponent(n.body));
+    }
+
+    function _coOpenAllMailtos(idx) {
+        const notifs = window._coNotifs || [];
+        if (idx >= notifs.length) { showToast('All notifications sent', 'success'); const m = document.getElementById('co-notif-modal'); if (m) m.remove(); return; }
+        _coOpenMailto(idx);
+        setTimeout(() => _coOpenAllMailtos(idx + 1), 600);
     }
 
     function coViewReport(appId) {

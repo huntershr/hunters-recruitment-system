@@ -3,11 +3,142 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import Any, Dict
+from datetime import datetime
+from pydantic import BaseModel
 import io
 import json
 
 from .. import models, database
 from ..routers.auth import get_current_user
+
+SUPERADMIN_EMAIL = "hr@hunters-egypt.com"
+VALID_STAGES = {"applied", "screening", "shortlisted", "interview", "offered", "hired", "rejected"}
+
+
+class StageUpdateRequest(BaseModel):
+    stage: str
+
+
+def _build_stage_notifications(application, stage: str, db: Session) -> list:
+    """Build notification payloads for a stage transition. Returns empty list for stages with no notifications."""
+    job = application.job
+    job_title = job.job_title if job else "Unknown Position"
+
+    # Resolve company name and job owner email
+    company_name = "Hunters HR Solutions"
+    job_owner_email = None
+    if job and job.owner_id:
+        owner = db.query(models.User).filter(models.User.id == job.owner_id).first()
+        if owner:
+            job_owner_email = owner.email
+            if owner.company_id:
+                company = db.query(models.Company).filter(models.Company.id == owner.company_id).first()
+                if company:
+                    company_name = company.company_name
+
+    # Resolve candidate contact info
+    cand = application.candidate
+    cand_name  = (cand.name  if cand else application.applicant_name)  or "Candidate"
+    cand_email = (cand.email if cand else application.applicant_email) or ""
+    cand_phone = (cand.phone if cand else application.applicant_phone) or ""
+
+    # Resolve score
+    ev = application.evaluation
+    score_str = f"{_norm_score(ev.score)}%" if ev and ev.score is not None else "N/A"
+
+    today = datetime.utcnow().strftime("%d %B %Y")
+    notifs = []
+
+    if stage == "screening":
+        if job_owner_email:
+            notifs.append({
+                "to": job_owner_email,
+                "subject": f"New Candidate in Screening — {job_title}",
+                "body": (
+                    f"Hi,\n\nA candidate has been moved to Screening for {job_title}.\n\n"
+                    f"Candidate: {cand_name}\nEmail: {cand_email}\nPhone: {cand_phone}\n"
+                    f"AI Score: {score_str}\n\nView their profile in your Hunters HR dashboard.\n\nHunters HR"
+                ),
+                "type": "company",
+            })
+
+    elif stage == "shortlisted":
+        if cand_email:
+            notifs.append({
+                "to": cand_email,
+                "subject": f"Your Application Update — {job_title} at {company_name}",
+                "body": (
+                    f"Dear {cand_name},\n\nWe're pleased to inform you that your application for "
+                    f"{job_title} at {company_name} has been shortlisted.\n\n"
+                    f"Our team will be in touch with next steps.\n\n"
+                    f"Best regards,\nHunters HR\n{SUPERADMIN_EMAIL}"
+                ),
+                "type": "candidate",
+            })
+
+    elif stage == "interview":
+        if cand_email:
+            notifs.append({
+                "to": cand_email,
+                "subject": f"Interview Invitation — {job_title} at {company_name}",
+                "body": (
+                    f"Dear {cand_name},\n\nCongratulations! You have been selected for an interview "
+                    f"for {job_title} at {company_name}.\n\n"
+                    f"Our team will contact you shortly to schedule the interview.\n\n"
+                    f"Best regards,\nHunters HR\n{SUPERADMIN_EMAIL}"
+                ),
+                "type": "candidate",
+            })
+        notifs.append({
+            "to": SUPERADMIN_EMAIL,
+            "subject": f"Interview Stage — {cand_name} for {job_title}",
+            "body": (
+                f"Candidate {cand_name} ({cand_email}, {cand_phone}) has been moved to Interview stage "
+                f"for {job_title} at {company_name}.\n\nAI Score: {score_str}\n\n"
+                f"Action needed: Schedule interview via Phase 9."
+            ),
+            "type": "superadmin",
+        })
+
+    elif stage == "offered":
+        if cand_email:
+            notifs.append({
+                "to": cand_email,
+                "subject": f"Offer Extended — {job_title} at {company_name}",
+                "body": (
+                    f"Dear {cand_name},\n\nWe are delighted to inform you that {company_name} would like "
+                    f"to extend an offer for the position of {job_title}.\n\n"
+                    f"Hunters HR will be in touch with the details shortly.\n\n"
+                    f"Best regards,\nHunters HR"
+                ),
+                "type": "candidate",
+            })
+
+    elif stage == "hired":
+        if job_owner_email:
+            notifs.append({
+                "to": job_owner_email,
+                "subject": f"Candidate Hired — {cand_name} for {job_title}",
+                "body": (
+                    f"Congratulations! {cand_name} has been successfully hired for {job_title}.\n\n"
+                    f"Hunters HR has closed this application.\n\n"
+                    f"Thank you for using Hunters HR Solutions."
+                ),
+                "type": "company",
+            })
+        notifs.append({
+            "to": SUPERADMIN_EMAIL,
+            "subject": f"Placement Confirmed — {cand_name} at {company_name}",
+            "body": (
+                f"{cand_name} has been hired for {job_title} at {company_name}.\n\n"
+                f"Date: {today}\nAI Score: {score_str}\n\n"
+                f"This placement has been recorded in analytics."
+            ),
+            "type": "superadmin",
+        })
+
+    # applied / rejected → no automatic notifications
+    return notifs
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -594,6 +725,61 @@ def get_candidate_ats_profile(
         "education_history": candidate.education_history or [],
         "languages": candidate.languages or [],
         "applications": app_list,
+    }
+
+
+@router.patch("/applications/{application_id}/stage")
+def update_application_stage(
+    application_id: int,
+    payload: StageUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Move an application to a new pipeline stage and return notification payloads."""
+    if not current_user.is_admin and not current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    stage_lower = payload.stage.lower().strip()
+    if stage_lower not in VALID_STAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid stage. Must be one of: {', '.join(sorted(VALID_STAGES))}",
+        )
+
+    application = (
+        db.query(models.Application)
+        .options(
+            joinedload(models.Application.job),
+            joinedload(models.Application.candidate),
+            joinedload(models.Application.evaluation),
+        )
+        .filter(models.Application.id == application_id)
+        .first()
+    )
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    # Company admin: scoped to their company's jobs only
+    if not current_user.is_admin:
+        job = application.job
+        if not job or not job.owner_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        owner = db.query(models.User).filter(models.User.id == job.owner_id).first()
+        if not owner or owner.company_id != current_user.company_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    application.stage = stage_lower.capitalize()
+    if hasattr(models.Application, "stage_updated_at"):
+        application.stage_updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(application)
+
+    notifications = _build_stage_notifications(application, stage_lower, db)
+
+    return {
+        "application_id": application.id,
+        "stage": application.stage,
+        "notifications": notifications,
     }
 
 
