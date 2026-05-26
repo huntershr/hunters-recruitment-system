@@ -490,9 +490,26 @@ function jobShareSectionHtml(jobId) {
     </div>`;
 }
 
-let pipelineView = 'board';
+let pipelineView = 'tabs';
 let pipelineFilter = '';
-let showRejectedApps = false;
+let activeStageTab = 'applied';
+
+const _STAGE_TABS = [
+    { id: 'applied',     label: 'Applied',     accent: '#378ADD', stages: ['applied','new','',null] },
+    { id: 'screening',   label: 'Screening',   accent: '#EF9F27', stages: ['screening'] },
+    { id: 'shortlisted', label: 'Shortlisted', accent: '#6366F1', stages: ['shortlisted'] },
+    { id: 'interview',   label: 'Interview',   accent: '#1D9E75', stages: ['interview'] },
+    { id: 'offered',     label: 'Offered',     accent: '#C9A84C', stages: ['offer','offered'] },
+    { id: 'hired',       label: 'Hired',       accent: '#0F6E56', stages: ['hired'] },
+    { id: 'rejected',    label: 'Rejected',    accent: '#CC2B2B', stages: ['rejected'] },
+];
+const _STAGE_BADGE_MAP = {
+    applied:['#1B2A4A','#EFF2F8'], new:['#1B2A4A','#EFF2F8'],
+    screening:['#854F0B','#FAEEDA'], shortlisted:['#0F6E56','#E1F5EE'],
+    interview:['#185FA5','#E6F1FB'], offer:['#0F6E56','#E1F5EE'],
+    offered:['#0F6E56','#E1F5EE'], hired:['#0F6E56','#E1F5EE'],
+    rejected:['#A32D2D','#FCEBEB'],
+};
 
 function renderCandidates() {
     // Status bar updated here — guaranteed to run regardless of renderKanban outcome
@@ -509,164 +526,105 @@ function renderCandidates() {
             statusEl.style.color = '#A32D2D';
         }
     }
-    try { renderKanban(pipelineFilter); } catch (e) { console.error('[renderCandidates] renderKanban crash:', e); }
+    try { renderStageTabs(pipelineFilter); } catch (e) { console.error('[renderCandidates] renderStageTabs crash:', e); }
     try { renderCandidateList(pipelineFilter); } catch (e) { console.error('[renderCandidates] renderCandidateList crash:', e); }
 }
 
-function renderKanban(filter) {
-    const board = document.getElementById("kanban-board");
-    if (!board) return;
-
-    // Inject Show/Hide Rejected toggle above the board (once)
-    if (!document.getElementById('kanban-rejected-toggle')) {
-        const tb = document.createElement('div');
-        tb.id = 'kanban-rejected-toggle';
-        tb.style.cssText = 'display:flex;justify-content:flex-end;padding:0 0 8px;';
-        board.parentNode.insertBefore(tb, board);
-    }
-    const toggleBtn = document.getElementById('kanban-rejected-toggle');
-    if (toggleBtn) {
-        toggleBtn.innerHTML = `<button onclick="toggleRejectedApps()" style="font-size:11px;padding:4px 10px;border:0.5px solid #E5E7EB;border-radius:6px;background:${showRejectedApps ? '#FEE2E2' : '#F3F4F6'};color:${showRejectedApps ? '#CC2B2B' : '#6B7280'};cursor:pointer;">${showRejectedApps ? '✕ Hide Rejected' : '👁 Show Rejected'}</button>`;
-    }
-
-    const cols = [
-        { id: 'applied',     label: 'Applied',     accent: '#378ADD', stages: ['applied', 'new', '', null] },
-        { id: 'screening',   label: 'Screening',   accent: '#EF9F27', stages: ['screening'] },
-        { id: 'shortlisted', label: 'Shortlisted', accent: '#6366F1', stages: ['shortlisted'] },
-        { id: 'interview',   label: 'Interview',   accent: '#1D9E75', stages: ['interview'] },
-        { id: 'offered',     label: 'Offered',     accent: '#C9A84C', stages: ['offer', 'offered'] },
-        { id: 'hired',       label: 'Hired',       accent: '#0F6E56', stages: ['hired'] },
-        ...(showRejectedApps ? [{ id: 'rejected', label: 'Rejected', accent: '#CC2B2B', stages: ['rejected'] }] : []),
-    ];
+function renderStageTabs(filter) {
+    if (pipelineView !== 'tabs') return;
+    const tabsBar = document.getElementById('stage-tabs-bar');
+    const cardsList = document.getElementById('stage-candidates-list');
+    if (!tabsBar || !cardsList) return;
 
     const lf = (filter || '').toLowerCase();
     const cf = (companyFilter || '').toLowerCase();
-
-    // Use applications array if populated, fall back to old candidates+evaluations join
     const useApps = applications.length > 0;
 
-    board.innerHTML = cols.map(col => {
-        let colItems;
-        if (useApps) {
-            colItems = applications.filter(app => {
-                const stg = (app.stage || 'applied').toLowerCase();
-                const inCol = col.stages.includes(stg);
-                if (!inCol) return false;
-                if (lf) {
-                    return (app.name || '').toLowerCase().includes(lf) ||
-                           (app.email || '').toLowerCase().includes(lf) ||
-                           (app.job_title || '').toLowerCase().includes(lf);
-                }
-                if (cf) {
-                    return (app.company_name || '').toLowerCase() === cf;
-                }
-                return true;
-            });
-        } else {
-            colItems = candidates.filter(c => {
-                const ev = evaluations.find(e => e.candidate_id === c.id);
-                const stg = ev ? (ev.decision || '').toLowerCase() : null;
-                return col.stages.includes(stg);
-            });
-        }
+    const counts = {};
+    _STAGE_TABS.forEach(tab => {
+        counts[tab.id] = useApps ? applications.filter(app => {
+            const stg = (app.stage || 'applied').toLowerCase();
+            return tab.stages.includes(stg);
+        }).length : 0;
+    });
 
-        const cards = colItems.map(item => {
-            if (useApps) {
-                const app = item;
-                const pct = evalScorePercent(app.score);
-                let dotColor = '#9CA3AF', scoreText = 'Pending';
-                if (pct !== null) {
-                    dotColor = pct >= 80 ? '#0F6E56' : pct >= 60 ? '#1A6FC4' : pct >= 40 ? '#854F0B' : '#A32D2D';
-                    scoreText = `${pct}%`;
-                }
-                const initials = (app.name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-                const skillTags = (app.skills || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 3).map(s => {
-                    const label = s.length > 30 ? s.slice(0, 30) + '…' : s;
-                    return `<span style="background:#F0F2F8;color:#1B2A4A;font-size:9px;padding:1px 6px;border-radius:8px;">${escHtml(label)}</span>`;
-                }).join('');
-                const isRejected = (app.stage || '').toLowerCase() === 'rejected';
-                const rejectedBadge = isRejected
-                    ? `<span style="background:#FEE2E2;color:#CC2B2B;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:600;">Rejected</span>`
-                    : '';
-                const typeBadge = app.candidate_type === 'registered'
-                    ? `<span style="background:#F0F2F8;color:#6B7280;font-size:9px;padding:1px 6px;border-radius:8px;">Registered</span>`
-                    : `<span style="background:#FFF7E0;color:#9B6F00;font-size:9px;padding:1px 6px;border-radius:8px;">External</span>`;
-                const expLine = [app.last_title, app.experience_years != null ? app.experience_years + ' yrs' : null]
-                    .filter(Boolean).join(' · ');
-                const curStage = (app.stage || 'applied').toLowerCase();
-                const stageOpts = ['applied','screening','shortlisted','interview','offered','hired','rejected']
-                    .filter(s => s !== curStage && !(curStage === 'new' && s === 'applied'))
-                    .map(s => `<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
-                return `
-                    <div class="kanban-card" onclick="viewApplication(${app.application_id})" style="cursor:pointer;">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                            <div style="width:30px;height:30px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${escHtml(initials)}</div>
-                            <div style="min-width:0;">
-                                <div class="kanban-card-name" style="font-size:12px;">${escHtml(app.name)}</div>
-                                <div style="font-size:10px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(app.email || '')}</div>
-                            </div>
-                        </div>
-                        <div class="kanban-card-role" style="font-size:10px;margin-bottom:4px;">${escHtml(app.job_title || '—')} · ${escHtml(app.company_name || '')}</div>
-                        ${expLine ? `<div style="font-size:10px;color:#9CA3AF;margin-bottom:4px;">${escHtml(expLine)}</div>` : ''}
-                        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">${rejectedBadge}${typeBadge}${skillTags}</div>
-                        <div class="kanban-card-score" style="justify-content:space-between;">
-                            <span style="display:flex;align-items:center;gap:4px;">
-                                <span class="score-dot" style="background:${dotColor};"></span>
-                                <span style="color:${dotColor};font-size:11px;font-weight:600;">${scoreText}</span>
-                            </span>
-                            <div style="display:flex;gap:4px;">
-                                ${app.evaluation_id
-                                    ? `<button onclick="event.stopPropagation();viewApplication(${app.application_id})" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;color:#1B2A4A;">Report</button>`
-                                    : ''}
-                                ${app.cv_available
-                                    ? `<button onclick="event.stopPropagation();downloadAppCV(${app.application_id},'${escHtml(app.name).replace(/[^a-zA-Z0-9_-]/g,'_')}')" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;color:#0F6E56;">CV</button>`
-                                    : ''}
-                            </div>
-                        </div>
-                        <div style="margin-top:5px;" onclick="event.stopPropagation()">
-                            <select onchange="changeAppStage(${app.application_id},this.value,this)" style="width:100%;font-size:9px;padding:2px 4px;border:0.5px solid #E5E7EB;border-radius:5px;color:#6B7280;background:#F9FAFB;cursor:pointer;">
-                                <option value="" disabled selected>Move to stage…</option>
-                                ${stageOpts}
-                            </select>
-                        </div>
-                    </div>
-                `;
-            } else {
-                const c = item;
-                const ev = evaluations.find(e => e.candidate_id === c.id);
-                const job = jobs.find(j => j.id === c.job_applied);
-                const pct = evalScorePercent(ev ? ev.score : null);
-                let dotColor = '#9CA3AF', scoreText = 'Pending';
-                if (pct !== null) {
-                    dotColor = pct >= 75 ? '#0F6E56' : pct >= 50 ? '#854F0B' : '#A32D2D';
-                    scoreText = `${pct}%`;
-                }
-                return `
-                    <div class="kanban-card" onclick="viewCandidate(${c.id})">
-                        <div class="kanban-card-name">${escHtml(c.name)}</div>
-                        <div class="kanban-card-role">${job ? escHtml(job.job_title) : '—'}</div>
-                        <div class="kanban-card-score">
-                            <span class="score-dot" style="background:${dotColor};"></span>
-                            <span style="color:${dotColor};">${scoreText}</span>
-                        </div>
-                    </div>
-                `;
-            }
-        }).join('');
+    tabsBar.innerHTML = _STAGE_TABS.map(tab => {
+        const isActive = tab.id === activeStageTab;
+        return `<button onclick="switchStageTab('${tab.id}')" style="flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:8px;font-size:12px;font-weight:${isActive?'600':'500'};cursor:pointer;background:${isActive?'#0D1B3E':'transparent'};color:${isActive?'#fff':'#6B7280'};border-bottom:${isActive?'2px solid #C9A84C':'2px solid transparent'};min-height:44px;white-space:nowrap;">${escHtml(tab.label)}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:${isActive?'rgba(201,168,76,0.25)':'#F3F4F6'};color:${isActive?'#C9A84C':'#6B7280'};font-size:10px;font-weight:600;">${counts[tab.id]}</span></button>`;
+    }).join('');
 
-        return `
-            <div class="kanban-col" style="border-top:3px solid ${col.accent};">
-                <div class="kanban-col-header">
-                    <span class="kanban-col-title">${col.label}</span>
-                    <span class="kanban-col-count">${colItems.length}</span>
+    const activeTabDef = _STAGE_TABS.find(t => t.id === activeStageTab) || _STAGE_TABS[0];
+    let tabApps = [];
+    if (useApps) {
+        tabApps = applications.filter(app => {
+            const stg = (app.stage || 'applied').toLowerCase();
+            if (!activeTabDef.stages.includes(stg)) return false;
+            if (lf) return (app.name||'').toLowerCase().includes(lf)||(app.email||'').toLowerCase().includes(lf)||(app.job_title||'').toLowerCase().includes(lf);
+            if (cf) return (app.company_name||'').toLowerCase()===cf;
+            return true;
+        });
+    }
+
+    if (tabApps.length === 0) {
+        cardsList.innerHTML = `<div style="text-align:center;padding:60px 20px;background:#fff;border-radius:12px;border:1px solid #E5E7EB;"><div style="font-size:14px;font-weight:500;color:#6B7280;margin-bottom:8px;">No candidates in ${escHtml(activeTabDef.label)} yet</div><div style="font-size:12px;color:#9CA3AF;">Candidates will appear here when moved to this stage</div></div>`;
+        return;
+    }
+    cardsList.innerHTML = '<div style="display:flex;flex-direction:column;gap:12px;">' + tabApps.map(_renderStageCard).join('') + '</div>';
+}
+
+function _renderStageCard(app) {
+    const pct = evalScorePercent(app.score);
+    const scoreColor = pct===null?'#9CA3AF':pct>=80?'#0F6E56':pct>=60?'#185FA5':'#854F0B';
+    const scoreBg   = pct===null?'#F3F4F6':pct>=80?'#E1F5EE':pct>=60?'#E6F1FB':'#FAEEDA';
+    const scoreText = pct===null?'Pending':pct+'%';
+    const initials  = (app.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const isReg = app.candidate_type==='registered';
+    const typePill = isReg
+        ? `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#F3F4F6;color:#6B7280;">Registered</span>`
+        : `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#FEF9EC;color:#854F0B;border:0.5px solid #F6D97A;">External</span>`;
+    const stg = (app.stage||'applied').toLowerCase();
+    const [stgColor,stgBg] = _STAGE_BADGE_MAP[stg]||['#6B7280','#F3F4F6'];
+    const stgLabel = stg.charAt(0).toUpperCase()+stg.slice(1);
+    const expLine = [app.last_title, app.experience_years!=null?app.experience_years+' yrs':null].filter(Boolean).join(' · ');
+    const safeName = (app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_');
+    const stageOpts = ['applied','screening','shortlisted','interview','offered','hired','rejected']
+        .filter(s=>s!==stg&&!(stg==='new'&&s==='applied'))
+        .map(s=>`<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
+    return `<div id="stage-card-${app.application_id}" style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:44px;height:44px;min-width:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${escHtml(initials)}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                    <div style="font-size:15px;font-weight:600;color:#1B2A4A;cursor:pointer;" onclick="viewApplication(${app.application_id})">${escHtml(app.name)}</div>
+                    <span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:${scoreBg};color:${scoreColor};flex-shrink:0;">${scoreText}</span>
                 </div>
-                <div class="kanban-col-body">
-                    ${colItems.length === 0 ? '<div style="text-align:center;color:#D1D5DB;font-size:11px;padding:20px 0;">No applications</div>' : cards}
-                    <button class="kanban-add-card" onclick="openCandidateModal()">+ Add candidate</button>
+                <div style="font-size:13px;color:#6B7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(app.job_title||'—')}${app.company_name?' · '+escHtml(app.company_name):''}</div>
+                ${expLine?`<div style="font-size:12px;color:#9CA3AF;margin-top:2px;">${escHtml(expLine)}</div>`:''}
+                <div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                    ${typePill}
+                    <span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:${stgBg};color:${stgColor};">${stgLabel}</span>
                 </div>
             </div>
-        `;
-    }).join('');
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                ${app.evaluation_id?`<button onclick="viewApplication(${app.application_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#1B2A4A;cursor:pointer;min-height:44px;">Report</button>`:''}
+                ${app.cv_available?`<button onclick="downloadAppCV(${app.application_id},'${safeName}')" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">CV</button>`:''}
+                ${isReg&&app.candidate_id?`<button onclick="viewAtsProfile(${app.application_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#185FA5;cursor:pointer;min-height:44px;">Profile</button>`:''}
+            </div>
+            <div onclick="event.stopPropagation()" style="min-width:160px;">
+                <select onchange="changeAppStage(${app.application_id},this.value,this)" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:11px;color:#6B7280;background:#F9FAFB;cursor:pointer;min-height:44px;">
+                    <option value="" disabled selected>Move to stage…</option>
+                    ${stageOpts}
+                </select>
+            </div>
+        </div>
+    </div>`;
+}
+
+function switchStageTab(tabId) {
+    activeStageTab = tabId;
+    renderStageTabs(pipelineFilter);
 }
 
 function _decisionToStage(decision) {
@@ -850,40 +808,32 @@ function renderCandidateList(filter) {
 
 function setPipelineView(view) {
     pipelineView = view;
-    const boardView = document.getElementById("kanban-board-view");
-    const listView = document.getElementById("candidates-list-view");
-    const boardToggle = document.getElementById("board-toggle");
-    const listToggle = document.getElementById("list-toggle");
-    if (!boardView || !listView) return;
-
-    if (view === 'board') {
-        boardView.style.display = '';
-        listView.style.display = 'none';
-        boardToggle.classList.add('active');
-        listToggle.classList.remove('active');
-    } else {
-        boardView.style.display = 'none';
+    const tabsView = document.getElementById('stage-tabs-view');
+    const listView = document.getElementById('candidates-list-view');
+    const listToggle = document.getElementById('list-toggle');
+    if (!tabsView || !listView) return;
+    if (view === 'list') {
+        tabsView.style.display = 'none';
         listView.style.display = '';
-        listToggle.classList.add('active');
-        boardToggle.classList.remove('active');
+        if (listToggle) listToggle.classList.add('active');
+    } else {
+        tabsView.style.display = '';
+        listView.style.display = 'none';
+        if (listToggle) listToggle.classList.remove('active');
+        renderStageTabs(pipelineFilter);
     }
 }
 
 function filterPipeline(value) {
     pipelineFilter = value;
-    renderKanban(value);
+    renderStageTabs(value);
     renderCandidateList(value);
 }
 
 function filterPipelineCompany(val) {
     companyFilter = val;
-    renderKanban(pipelineFilter);
+    renderStageTabs(pipelineFilter);
     renderCandidateList(pipelineFilter);
-}
-
-function toggleRejectedApps() {
-    showRejectedApps = !showRejectedApps;
-    renderKanban(pipelineFilter);
 }
 
 const _CONFIRM_STAGES = new Set(['interview', 'offered', 'hired']);
@@ -940,6 +890,17 @@ function _showStageConfirm(appId, newStage, candName, app) {
 }
 
 async function _doStageChange(appId, newStage) {
+    // Animate card out of current tab
+    const card = document.getElementById('stage-card-' + appId);
+    if (card) {
+        const h = card.offsetHeight;
+        card.style.transition = 'opacity 0.28s, max-height 0.28s ease, margin 0.28s, padding 0.28s';
+        card.style.overflow = 'hidden';
+        card.style.maxHeight = h + 'px';
+        card.style.opacity = '0';
+        setTimeout(() => { card.style.maxHeight = '0'; card.style.marginBottom = '0'; card.style.paddingTop = '0'; card.style.paddingBottom = '0'; }, 30);
+    }
+
     const token = localStorage.getItem('token');
     try {
         const res = await fetch(`/api/admin/applications/${appId}/stage`, {
@@ -954,11 +915,14 @@ async function _doStageChange(appId, newStage) {
         }
         const data = await res.json();
         const idx = applications.findIndex(a => a.application_id === appId);
+        const candName = idx >= 0 ? (applications[idx].name || 'Candidate') : 'Candidate';
         if (idx >= 0) applications[idx].stage = data.stage;
-        renderCandidates();
-        showToast('Moved to ' + data.stage, 'success');
+        setTimeout(() => {
+            renderCandidates();
+            showToast(candName + ' moved to ' + data.stage, 'success');
+        }, 300);
         if (data.notifications && data.notifications.length > 0) {
-            _showStageNotifModal(data.notifications);
+            setTimeout(() => _showStageNotifModal(data.notifications), 400);
         }
     } catch (e) {
         showToast('Stage update failed', 'error');

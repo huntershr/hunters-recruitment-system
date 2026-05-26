@@ -549,6 +549,7 @@
         .share-whatsapp{background:#25D366;color:#fff;}
         .share-copy{background:#fff;color:#0D1B3E;border:1px solid #E5E7EB!important;}
         /* Company Kanban */
+        #co-stage-tabs-bar::-webkit-scrollbar{display:none;}
         .co-kanban{display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;align-items:flex-start;}
         .co-kanban-col{flex-shrink:0;width:220px;border-radius:12px;border-top:3px solid #ccc;background:#F9FAFB;border:1px solid #E5E7EB;}
         .co-kanban-col-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #E5E7EB;}
@@ -837,10 +838,10 @@
                     </select>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="display:flex;gap:0;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
-                        <button id="co-board-btn" onclick="setCompanyView('board')" style="padding:9px 14px;font-size:12px;font-weight:500;border:none;cursor:pointer;background:#1B2A4A;color:#fff;">Board</button>
-                        <button id="co-list-btn" onclick="setCompanyView('list')" style="padding:9px 14px;font-size:12px;font-weight:500;border:none;cursor:pointer;background:#fff;color:#1B2A4A;">List</button>
-                    </div>
+                    <button id="co-list-btn" onclick="setCompanyView('list')" style="padding:9px 14px;font-size:12px;font-weight:500;border:1px solid #E5E7EB;border-radius:8px;cursor:pointer;background:#fff;color:#1B2A4A;display:flex;align-items:center;gap:6px;">
+                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="14" y2="4" stroke-linecap="round"/><line x1="2" y1="8" x2="14" y2="8" stroke-linecap="round"/><line x1="2" y1="12" x2="14" y2="12" stroke-linecap="round"/></svg>
+                        Table View
+                    </button>
                     <button onclick="document.getElementById('bulk-trigger-input').click()" style="background:#F4F5FA; color:#1B2A4A; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         Bulk Upload
@@ -874,8 +875,9 @@
                 </div>
             </div>
 
-            <div id="co-kanban-wrapper" style="padding:16px;overflow-x:auto;display:none;">
-                <div id="co-kanban-board" class="co-kanban"></div>
+            <div id="co-stage-tabs-view" style="padding:16px;">
+                <div id="co-stage-tabs-bar" style="display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:4px;margin-bottom:16px;gap:2px;"></div>
+                <div id="co-stage-candidates-list"></div>
             </div>
             <div id="co-list-wrapper" style="overflow-x:auto;">
                 <div id="candidates-list-container"></div>
@@ -1587,6 +1589,7 @@
         });
 
         renderCandidatesTable(filtered);
+        if (coCompanyView === 'tabs') renderCoStageTabs();
     }
 
     function scorePill(score) {
@@ -2513,19 +2516,40 @@
         printWindow.document.close();
     }
 
-    /* ── Company Pipeline Kanban ── */
-    let coCompanyView = 'board';
+    /* ── Company Pipeline Stage Tabs ── */
+    let coCompanyView = 'tabs';
     let coAppsData = [];
-    let coShowRejected = false;
+    let coActiveStageTab = 'applied';
+
+    const _CO_STAGE_TABS = [
+        { id: 'applied',     label: 'Applied',     stages: ['applied','new','',null] },
+        { id: 'screening',   label: 'Screening',   stages: ['screening'] },
+        { id: 'shortlisted', label: 'Shortlisted', stages: ['shortlisted'] },
+        { id: 'interview',   label: 'Interview',   stages: ['interview'] },
+        { id: 'offered',     label: 'Offered',     stages: ['offer','offered'] },
+        { id: 'hired',       label: 'Hired',       stages: ['hired'] },
+        { id: 'rejected',    label: 'Rejected',    stages: ['rejected'] },
+    ];
+    const _CO_STAGE_BADGE = {
+        applied:['#1B2A4A','#EFF2F8'], new:['#1B2A4A','#EFF2F8'],
+        screening:['#854F0B','#FAEEDA'], shortlisted:['#0F6E56','#E1F5EE'],
+        interview:['#185FA5','#E6F1FB'], offer:['#0F6E56','#E1F5EE'],
+        offered:['#0F6E56','#E1F5EE'], hired:['#0F6E56','#E1F5EE'],
+        rejected:['#A32D2D','#FCEBEB'],
+    };
 
     function setCompanyView(v) {
         coCompanyView = v;
-        document.getElementById('co-board-btn').style.background = v === 'board' ? '#1B2A4A' : '#fff';
-        document.getElementById('co-board-btn').style.color = v === 'board' ? '#fff' : '#1B2A4A';
-        document.getElementById('co-list-btn').style.background = v === 'list' ? '#1B2A4A' : '#fff';
-        document.getElementById('co-list-btn').style.color = v === 'list' ? '#fff' : '#1B2A4A';
-        document.getElementById('co-kanban-wrapper').style.display = v === 'board' ? 'block' : 'none';
-        document.getElementById('co-list-wrapper').style.display = v === 'list' ? 'block' : 'none';
+        const tabsView = document.getElementById('co-stage-tabs-view');
+        const listView = document.getElementById('co-list-wrapper');
+        const listBtn  = document.getElementById('co-list-btn');
+        if (tabsView) tabsView.style.display = v === 'list' ? 'none' : 'block';
+        if (listView) listView.style.display  = v === 'list' ? 'block' : 'none';
+        if (listBtn) {
+            listBtn.style.background = v === 'list' ? '#1B2A4A' : '#fff';
+            listBtn.style.color      = v === 'list' ? '#fff'    : '#1B2A4A';
+        }
+        if (v === 'tabs') renderCoStageTabs();
     }
 
     async function loadCompanyApplications() {
@@ -2535,99 +2559,102 @@
             if (!res.ok) return;
             const data = await res.json();
             coAppsData = Array.isArray(data.applications) ? data.applications : [];
-            renderCompanyKanban();
+            renderCoStageTabs();
         } catch (e) { console.warn('loadCompanyApplications:', e); }
     }
 
-    function renderCompanyKanban() {
-        const board = document.getElementById('co-kanban-board');
-        if (!board) return;
+    function renderCoStageTabs() {
+        if (coCompanyView !== 'tabs') return;
+        const tabsBar   = document.getElementById('co-stage-tabs-bar');
+        const cardsList = document.getElementById('co-stage-candidates-list');
+        if (!tabsBar || !cardsList) return;
 
-        // Inject Show/Hide Rejected toggle above the board (once)
-        if (!document.getElementById('co-kanban-rej-toggle')) {
-            const tb = document.createElement('div');
-            tb.id = 'co-kanban-rej-toggle';
-            tb.style.cssText = 'display:flex;justify-content:flex-end;padding:0 0 8px;';
-            board.parentNode.insertBefore(tb, board);
-        }
-        const rtBtn = document.getElementById('co-kanban-rej-toggle');
-        if (rtBtn) rtBtn.innerHTML = `<button onclick="coToggleRejected()" style="font-size:11px;padding:4px 10px;border:0.5px solid #E5E7EB;border-radius:6px;background:${coShowRejected ? '#FEE2E2' : '#F3F4F6'};color:${coShowRejected ? '#CC2B2B' : '#6B7280'};cursor:pointer;">${coShowRejected ? '✕ Hide Rejected' : '👁 Show Rejected'}</button>`;
+        const lf = (document.getElementById('cand-search') ? document.getElementById('cand-search').value : '').toLowerCase();
 
-        const cols = [
-            { id: 'applied',     label: 'Applied',     accent: '#378ADD', stages: ['applied','new','',null] },
-            { id: 'screening',   label: 'Screening',   accent: '#EF9F27', stages: ['screening'] },
-            { id: 'shortlisted', label: 'Shortlisted', accent: '#6366F1', stages: ['shortlisted'] },
-            { id: 'interview',   label: 'Interview',   accent: '#1D9E75', stages: ['interview'] },
-            { id: 'offered',     label: 'Offered',     accent: '#C9A84C', stages: ['offer','offered'] },
-            { id: 'hired',       label: 'Hired',       accent: '#0F6E56', stages: ['hired'] },
-            ...(coShowRejected ? [{ id: 'rejected', label: 'Rejected', accent: '#CC2B2B', stages: ['rejected'] }] : []),
-        ];
-        board.innerHTML = cols.map(col => {
-            const items = coAppsData.filter(app => {
-                const stg = (app.stage || 'applied').toLowerCase();
-                return col.stages.includes(stg);
-            });
-            const cards = items.map(app => {
-                const pct = app.score != null ? Math.round(Math.min(100, app.score <= 1 ? app.score * 100 : app.score <= 10 ? app.score * 10 : app.score)) : null;
-                const dotColor = pct != null ? (pct >= 80 ? '#0F6E56' : pct >= 60 ? '#1A6FC4' : pct >= 40 ? '#854F0B' : '#A32D2D') : '#9CA3AF';
-                const initials = (app.name || '?').split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
-                const skills = (app.skills || '').split(',').map(s => s.trim()).filter(Boolean).slice(0,3).map(s => s.length > 30 ? s.slice(0,30) + '…' : s);
-                const isRej = (app.stage || '').toLowerCase() === 'rejected';
-                const isRegistered = !!app.candidate_id;
-                const typePill = isRegistered
-                    ? '<span style="background:#F3F4F6;color:#6B7280;font-size:9px;padding:1px 6px;border-radius:6px;font-weight:500;">Registered</span>'
-                    : '<span style="background:#FEF9EC;color:#854F0B;border:0.5px solid #F6D97A;font-size:9px;padding:1px 6px;border-radius:6px;font-weight:500;">External</span>';
-                const safeName = (app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_');
-                return `<div class="co-kanban-card" onclick="coViewApp(${app.application_id})">
-                    <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
-                        <div style="width:26px;height:26px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;">${escHtml(initials)}</div>
-                        <div style="min-width:0;flex:1;">
-                            <div style="font-size:11px;font-weight:500;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(app.name)}</div>
-                            <div style="font-size:10px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(app.email||'')}</div>
-                        </div>
-                        ${pct != null ? `<span style="font-size:10px;font-weight:600;color:${dotColor};">${pct}%</span>` : ''}
-                    </div>
-                    <div style="font-size:10px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;">${escHtml(app.job_title||'')}</div>
-                    <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">
-                        ${typePill}
-                        ${isRej ? '<span style="background:#FEE2E2;color:#CC2B2B;font-size:9px;padding:1px 5px;border-radius:6px;font-weight:600;">Rejected</span>' : ''}
-                    </div>
-                    ${skills.length ? `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;">${skills.map(s=>`<span style="background:#F0F2F8;color:#1B2A4A;font-size:9px;padding:1px 6px;border-radius:8px;">${escHtml(s)}</span>`).join('')}</div>` : ''}
-                    <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">
-                        ${isRegistered ? `<button onclick="event.stopPropagation();coViewProfile(${app.candidate_id})" style="font-size:9px;padding:2px 6px;border:0.5px solid #1B2A4A;border-radius:5px;background:#1B2A4A;cursor:pointer;color:#fff;">Profile</button>` : '<button disabled title="External applicant" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:5px;background:#F9FAFB;cursor:not-allowed;color:#D1D5DB;">Profile</button>'}
-                        ${app.evaluation_id ? `<button onclick="event.stopPropagation();coViewReport(${app.application_id})" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:5px;background:#fff;cursor:pointer;color:#1B2A4A;">Report</button>` : ''}
-                        ${app.cv_available ? `<button onclick="event.stopPropagation();coDownloadCV(${app.application_id},'${safeName}')" style="font-size:9px;padding:2px 6px;border:0.5px solid #E5E7EB;border-radius:5px;background:#fff;cursor:pointer;color:#0F6E56;">CV</button>` : ''}
-                        ${app.email ? `<button onclick="event.stopPropagation();coInvite(${app.candidate_id||'null'},'${escHtml(app.name||'')}','${escHtml(app.email||'')}')" style="font-size:9px;padding:2px 6px;border:0.5px solid #9FE1CB;border-radius:5px;background:#E1F5EE;cursor:pointer;color:#0F6E56;">Invite</button>` : ''}
-                    </div>
-                    <div style="margin-top:5px;" onclick="event.stopPropagation()">
-                        <select onchange="coChangeStage(${app.application_id},this.value,this)" style="width:100%;font-size:9px;padding:2px 4px;border:0.5px solid #E5E7EB;border-radius:5px;color:#6B7280;background:#F9FAFB;cursor:pointer;">
-                            <option value="" disabled selected>Move to stage…</option>
-                            ${['applied','screening','shortlisted','interview','offered','hired','rejected'].filter(s=>s!==(app.stage||'applied').toLowerCase()&&!(((app.stage||'applied').toLowerCase()==='new')&&s==='applied')).map(s=>`<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
-                        </select>
-                    </div>
-                </div>`;
-            }).join('');
-            return `<div class="co-kanban-col" style="border-top:3px solid ${col.accent};">
-                <div class="co-kanban-col-header">
-                    <span class="co-kanban-col-title">${col.label}</span>
-                    <span class="co-kanban-col-count">${items.length}</span>
-                </div>
-                <div class="co-kanban-col-body">
-                    ${items.length === 0 ? '<div style="text-align:center;color:#D1D5DB;font-size:11px;padding:16px 0;">No applications</div>' : cards}
-                </div>
-            </div>`;
+        const counts = {};
+        _CO_STAGE_TABS.forEach(tab => {
+            counts[tab.id] = coAppsData.filter(app => tab.stages.includes((app.stage||'applied').toLowerCase())).length;
+        });
+
+        tabsBar.innerHTML = _CO_STAGE_TABS.map(tab => {
+            const isActive = tab.id === coActiveStageTab;
+            return `<button onclick="switchCoStageTab('${tab.id}')" style="flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:8px;font-size:12px;font-weight:${isActive?'600':'500'};cursor:pointer;background:${isActive?'#0D1B3E':'transparent'};color:${isActive?'#fff':'#6B7280'};border-bottom:${isActive?'2px solid #C9A84C':'2px solid transparent'};min-height:44px;white-space:nowrap;">${escHtml(tab.label)}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:${isActive?'rgba(201,168,76,0.25)':'#F3F4F6'};color:${isActive?'#C9A84C':'#6B7280'};font-size:10px;font-weight:600;">${counts[tab.id]}</span></button>`;
         }).join('');
+
+        const activeTabDef = _CO_STAGE_TABS.find(t => t.id === coActiveStageTab) || _CO_STAGE_TABS[0];
+        const tabApps = coAppsData.filter(app => {
+            const stg = (app.stage||'applied').toLowerCase();
+            if (!activeTabDef.stages.includes(stg)) return false;
+            if (lf) return (app.name||'').toLowerCase().includes(lf)||(app.email||'').toLowerCase().includes(lf)||(app.job_title||'').toLowerCase().includes(lf);
+            return true;
+        });
+
+        if (tabApps.length === 0) {
+            cardsList.innerHTML = `<div style="text-align:center;padding:60px 20px;background:#fff;border-radius:12px;border:1px solid #E5E7EB;"><div style="font-size:14px;font-weight:500;color:#6B7280;margin-bottom:8px;">No candidates in ${escHtml(activeTabDef.label)} yet</div><div style="font-size:12px;color:#9CA3AF;">Candidates will appear here when moved to this stage</div></div>`;
+            return;
+        }
+        cardsList.innerHTML = '<div style="display:flex;flex-direction:column;gap:12px;">' + tabApps.map(_renderCoStageCard).join('') + '</div>';
+    }
+
+    function _renderCoStageCard(app) {
+        const pct = app.score!=null ? Math.round(Math.min(100, app.score<=1?app.score*100:app.score<=10?app.score*10:app.score)) : null;
+        const scoreColor = pct===null?'#9CA3AF':pct>=80?'#0F6E56':pct>=60?'#185FA5':'#854F0B';
+        const scoreBg    = pct===null?'#F3F4F6':pct>=80?'#E1F5EE':pct>=60?'#E6F1FB':'#FAEEDA';
+        const scoreText  = pct===null?'Pending':pct+'%';
+        const initials   = (app.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+        const isReg      = !!app.candidate_id;
+        const typePill   = isReg
+            ? `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#F3F4F6;color:#6B7280;">Registered</span>`
+            : `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#FEF9EC;color:#854F0B;border:0.5px solid #F6D97A;">External</span>`;
+        const stg        = (app.stage||'applied').toLowerCase();
+        const [stgColor,stgBg] = _CO_STAGE_BADGE[stg]||['#6B7280','#F3F4F6'];
+        const stgLabel   = stg.charAt(0).toUpperCase()+stg.slice(1);
+        const safeName   = (app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_');
+        const stageOpts  = ['applied','screening','shortlisted','interview','offered','hired','rejected']
+            .filter(s=>s!==stg&&!(stg==='new'&&s==='applied'))
+            .map(s=>`<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
+        return `<div id="co-stage-card-${app.application_id}" style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="width:44px;height:44px;min-width:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${escHtml(initials)}</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                        <div style="font-size:15px;font-weight:600;color:#1B2A4A;cursor:pointer;" onclick="coViewReport(${app.application_id})">${escHtml(app.name)}</div>
+                        <span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:${scoreBg};color:${scoreColor};flex-shrink:0;">${scoreText}</span>
+                    </div>
+                    <div style="font-size:13px;color:#6B7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(app.job_title||'—')}</div>
+                    ${app.last_title?`<div style="font-size:12px;color:#9CA3AF;margin-top:2px;">${escHtml(app.last_title)}</div>`:''}
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                        ${typePill}
+                        <span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:${stgBg};color:${stgColor};">${stgLabel}</span>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    ${app.evaluation_id?`<button onclick="coViewReport(${app.application_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#1B2A4A;cursor:pointer;min-height:44px;">Report</button>`:''}
+                    ${app.cv_available?`<button onclick="coDownloadCV(${app.application_id},'${safeName}')" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">CV</button>`:''}
+                    ${isReg&&app.candidate_id?`<button onclick="coViewProfile(${app.candidate_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#185FA5;cursor:pointer;min-height:44px;">Profile</button>`:''}
+                    ${app.email?`<button onclick="coInvite(${app.candidate_id||'null'},'${escHtml(app.name||'')}','${escHtml(app.email||'')}')" style="padding:7px 12px;border:1px solid #9FE1CB;border-radius:8px;background:#E1F5EE;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">Invite</button>`:''}
+                </div>
+                <div onclick="event.stopPropagation()" style="min-width:160px;">
+                    <select onchange="coChangeStage(${app.application_id},this.value,this)" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:11px;color:#6B7280;background:#F9FAFB;cursor:pointer;min-height:44px;">
+                        <option value="" disabled selected>Move to stage…</option>
+                        ${stageOpts}
+                    </select>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function switchCoStageTab(tabId) {
+        coActiveStageTab = tabId;
+        renderCoStageTabs();
     }
 
     function coViewApp(appId) {
         const app = coAppsData.find(a => a.application_id === appId);
         if (!app) return;
         if (app.candidate_id) { coViewProfile(app.candidate_id); } else { coViewReport(appId); }
-    }
-
-    function coToggleRejected() {
-        coShowRejected = !coShowRejected;
-        renderCompanyKanban();
     }
 
     const _CO_CONFIRM_STAGES = new Set(['interview', 'offered', 'hired']);
@@ -2680,6 +2707,15 @@
     }
 
     async function _coDoStageChange(appId, newStage) {
+        const card = document.getElementById('co-stage-card-' + appId);
+        if (card) {
+            const h = card.offsetHeight;
+            card.style.transition = 'opacity 0.28s, max-height 0.28s ease, margin 0.28s, padding 0.28s';
+            card.style.overflow = 'hidden';
+            card.style.maxHeight = h + 'px';
+            card.style.opacity = '0';
+            setTimeout(() => { card.style.maxHeight='0'; card.style.marginBottom='0'; card.style.paddingTop='0'; card.style.paddingBottom='0'; }, 30);
+        }
         const token = localStorage.getItem('token');
         try {
             const res = await fetch(`${API_URL}/api/admin/applications/${appId}/stage`, {
@@ -2690,10 +2726,13 @@
             if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(err.detail || 'Stage update failed', 'error'); return; }
             const data = await res.json();
             const idx = coAppsData.findIndex(a => a.application_id === appId);
+            const candName = idx >= 0 ? (coAppsData[idx].name || 'Candidate') : 'Candidate';
             if (idx >= 0) coAppsData[idx].stage = data.stage;
-            renderCompanyKanban();
-            showToast('Moved to ' + data.stage, 'success');
-            if (data.notifications && data.notifications.length > 0) _coShowNotifModal(data.notifications);
+            setTimeout(() => {
+                renderCoStageTabs();
+                showToast(candName + ' moved to ' + data.stage, 'success');
+            }, 300);
+            if (data.notifications && data.notifications.length > 0) setTimeout(() => _coShowNotifModal(data.notifications), 400);
         } catch (e) { showToast('Stage update failed', 'error'); }
     }
 
@@ -2847,7 +2886,7 @@
     initializeDashboard();
     initWeightSliders();
     // Start candidates in Board view
-    setTimeout(function() { if (typeof setCompanyView === 'function') setCompanyView('board'); }, 0);
+    setTimeout(function() { if (typeof setCompanyView === 'function') setCompanyView('tabs'); }, 0);
 
     /* ── Ask AI (company dashboard) ── */
     function gotoJobStepAI() {
