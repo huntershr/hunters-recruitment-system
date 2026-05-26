@@ -1901,7 +1901,13 @@ function exportScreeningCard(id) {
 
     const ev = { decision: app.decision, reason: app.reason, score: app.score, strengths: app.strengths, weaknesses: app.weaknesses };
     const candidate = { name: app.name, phone: app.phone, experience_years: app.experience_years };
-    const job = { job_title: app.job_title, weight_experience: '—', weight_skills: '—', weight_education: '—' };
+    const job = {
+        job_title: app.job_title,
+        weight_experience: app.weight_experience != null ? app.weight_experience + '%' : '—',
+        weight_skills:     app.weight_skills     != null ? app.weight_skills     + '%' : '—',
+        weight_education:  app.weight_education  != null ? app.weight_education  + '%' : '—',
+        weight_behavioral: app.weight_behavioral != null ? app.weight_behavioral + '%' : '—',
+    };
 
     const printPct = evalScorePercent(app.score);
     const printStrengths = parseListField(app.strengths).map(s => `• ${s}`).join('<br>') || (app.strengths || '—');

@@ -2498,9 +2498,9 @@
             '<div class="grid"><div class="label">Years of Experience</div><div>' + (app.experience_years != null ? app.experience_years : '—') + '</div></div>' +
             '<div class="section-title">⚖️ COMPETENCY SCORING</div>' +
             '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Metric</div><div class="label">Notes / Details</div><div class="label">Score</div></div>' +
-            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Experience Weight: —</div><div>Verified against JD requirements</div><div>-</div></div>' +
-            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Skills Weight: —</div><div>AI analysis of core technologies</div><div>-</div></div>' +
-            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Education Weight: —</div><div>Academic background alignment</div><div>-</div></div>' +
+            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Experience Weight: ' + (app.weight_experience != null ? app.weight_experience + '%' : '—') + '</div><div>Verified against JD requirements</div><div>-</div></div>' +
+            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Skills Weight: ' + (app.weight_skills != null ? app.weight_skills + '%' : '—') + '</div><div>AI analysis of core technologies</div><div>-</div></div>' +
+            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Education Weight: ' + (app.weight_education != null ? app.weight_education + '%' : '—') + '</div><div>Academic background alignment</div><div>-</div></div>' +
             '<div class="score-summary">🔢 SCORE SUMMARY</div>' +
             '<div class="grid"><div class="label">Weighted AI Score</div><div style="font-size:24px;font-weight:500;color:#1B2A4A;">' + (printPct != null ? printPct + '%' : '—') + '</div></div>' +
             '<div class="section-title">⚙️ AUTO DECISION ENGINE</div>' +

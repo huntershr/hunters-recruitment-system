@@ -669,6 +669,10 @@ def list_admin_applications(
             "stage": app.stage or "Applied",
             "applied_at": app.created_at.isoformat() if app.created_at else None,
             "evaluation_id": evaluation.id if evaluation else None,
+            "weight_experience": round((job.weight_experience or 0) * 100) if job else None,
+            "weight_skills":     round((job.weight_skills or 0) * 100)     if job else None,
+            "weight_education":  round((job.weight_education or 0) * 100)  if job else None,
+            "weight_behavioral": round((job.weight_behavioral or 0) * 100) if job else None,
         })
 
     return {"total_count": total_count, "applications": result}
