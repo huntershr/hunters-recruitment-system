@@ -46,11 +46,16 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
                 return "\n".join(f"- {i}" for i in val)
             return str(val)
 
+        _bd = result.get("score_breakdown") or {}
         db_eval = models.Evaluation(
             application_id=application.id,
             candidate_id=None,
             job_id=job.id,
             score=result.get("score", 0.0),
+            score_experience=_bd.get("experience"),
+            score_skills=_bd.get("skills"),
+            score_education=_bd.get("education"),
+            score_behavioral=_bd.get("behavioral"),
             decision=result.get("decision", "Reject"),
             reason=result.get("reason", "Failed to evaluate"),
             strengths=_list_to_str(result.get("strengths", "")),

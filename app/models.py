@@ -130,6 +130,10 @@ class Evaluation(Base):
     job_id = Column(Integer, ForeignKey("jobs.id"))
     application_id = Column(Integer, ForeignKey("applications.id"), nullable=True)
     score = Column(Float)
+    score_experience = Column(Float, nullable=True)
+    score_skills = Column(Float, nullable=True)
+    score_education = Column(Float, nullable=True)
+    score_behavioral = Column(Float, nullable=True)
     decision = Column(String) # Accept / Maybe / Reject
     reason = Column(Text)
     strengths = Column(Text, nullable=True) # Bonus feature

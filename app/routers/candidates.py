@@ -59,17 +59,22 @@ def run_evaluation_task(candidate_id: int, db: Session):
             return str(val)
 
         import json
+        _bd = eval_result.get("score_breakdown") or {}
         db_eval = models.Evaluation(
             candidate_id=candidate.id,
             job_id=job.id,
             score=eval_result.get("score", 0.0),
+            score_experience=_bd.get("experience"),
+            score_skills=_bd.get("skills"),
+            score_education=_bd.get("education"),
+            score_behavioral=_bd.get("behavioral"),
             decision=eval_result.get("decision", "Reject"),
             reason=eval_result.get("reason", "Failed to evaluate"),
             strengths=list_to_str(eval_result.get("strengths", "")),
             weaknesses=list_to_str(eval_result.get("weaknesses", "")),
             suggested_interview_questions=json.dumps(eval_result.get("suggested_interview_questions", []))
         )
-        
+
         db.add(db_eval)
         db.commit()
         logger.info(f"Finished evaluation for candidate {candidate_id}")
@@ -278,11 +283,16 @@ async def screen_cv(
     # Phase 2: always create a new Evaluation linked to the new Application.
     # Dual-write: candidate_id also set so existing admin UI reads (via
     # candidate_id) keep working during the transition to Phase 3-4.
+    _bd3 = result.get("score_breakdown") or {}
     db_eval = models.Evaluation(
         application_id=application.id,
         candidate_id=candidate.id,
         job_id=job.id,
         score=result.get("score", 0.0),
+        score_experience=_bd3.get("experience"),
+        score_skills=_bd3.get("skills"),
+        score_education=_bd3.get("education"),
+        score_behavioral=_bd3.get("behavioral"),
         decision=result.get("decision", "Reject"),
         reason=result.get("reason", ""),
         strengths=str(result.get("strengths", "") or ""),

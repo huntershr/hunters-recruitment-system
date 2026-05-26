@@ -1957,16 +1957,16 @@ function exportScreeningCard(id) {
 
                 <div class="section-title">⚖️ COMPETENCY SCORING</div>
                 <div class="grid" style="grid-template-columns: 1fr 1fr 100px;">
-                    <div class="label">Metric</div><div class="label">Notes / Details</div><div class="label">Score</div>
+                    <div class="label">Metric</div><div class="label">Notes / Details</div><div class="label">AI Score</div>
                 </div>
                 <div class="grid" style="grid-template-columns: 1fr 1fr 100px;">
-                    <div class="label">Experience Weight: ${job.weight_experience}</div><div>Verified against JD requirements</div><div>-</div>
+                    <div class="label">Experience Weight: ${job.weight_experience}</div><div>Verified against JD requirements</div><div>${app.score_experience != null ? app.score_experience + '%' : '-'}</div>
                 </div>
                 <div class="grid" style="grid-template-columns: 1fr 1fr 100px;">
-                    <div class="label">Skills Weight: ${job.weight_skills}</div><div>AI analysis of core technologies</div><div>-</div>
+                    <div class="label">Skills Weight: ${job.weight_skills}</div><div>AI analysis of core technologies</div><div>${app.score_skills != null ? app.score_skills + '%' : '-'}</div>
                 </div>
                 <div class="grid" style="grid-template-columns: 1fr 1fr 100px;">
-                    <div class="label">Education Weight: ${job.weight_education}</div><div>Academic background alignment</div><div>-</div>
+                    <div class="label">Education Weight: ${job.weight_education}</div><div>Academic background alignment</div><div>${app.score_education != null ? app.score_education + '%' : '-'}</div>
                 </div>
 
                 <div class="score-summary">🔢 SCORE SUMMARY</div>

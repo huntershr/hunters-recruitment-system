@@ -62,10 +62,15 @@ def trigger_evaluation_manually(candidate_id: int, db: Session = Depends(get_db)
         return str(val)
 
     import json
+    _bd = eval_result.get("score_breakdown") or {}
     db_eval = models.Evaluation(
         candidate_id=candidate.id,
         job_id=job.id,
         score=eval_result.get("score", 0.0),
+        score_experience=_bd.get("experience"),
+        score_skills=_bd.get("skills"),
+        score_education=_bd.get("education"),
+        score_behavioral=_bd.get("behavioral"),
         decision=eval_result.get("decision", "Reject"),
         reason=eval_result.get("reason", "Failed to evaluate"),
         strengths=list_to_str(eval_result.get("strengths", "")),
@@ -75,7 +80,7 @@ def trigger_evaluation_manually(candidate_id: int, db: Session = Depends(get_db)
     db.add(db_eval)
     db.commit()
     db.refresh(db_eval)
-    
+
     # Parse back for the response model
     db_eval_dict = {col.name: getattr(db_eval, col.name) for col in db_eval.__table__.columns}
     db_eval_dict["suggested_interview_questions"] = json.loads(db_eval_dict["suggested_interview_questions"])
@@ -110,10 +115,15 @@ def re_evaluate_candidate(candidate_id: int, db: Session = Depends(get_db), curr
             return "\n".join([f"- {i}" for i in val])
         return str(val)
 
+    _bd2 = eval_result.get("score_breakdown") or {}
     db_eval = models.Evaluation(
         candidate_id=candidate.id,
         job_id=job.id,
         score=eval_result.get("score", 0.0),
+        score_experience=_bd2.get("experience"),
+        score_skills=_bd2.get("skills"),
+        score_education=_bd2.get("education"),
+        score_behavioral=_bd2.get("behavioral"),
         decision=eval_result.get("decision", "Reject"),
         reason=eval_result.get("reason", "Failed to evaluate"),
         strengths=list_to_str(eval_result.get("strengths", "")),

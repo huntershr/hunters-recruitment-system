@@ -364,6 +364,22 @@ def startup_populate_db():
             logging.info(f"Migration Phase 8 stage_updated_at skipped: {_e}")
             db.rollback()
 
+        # Phase 9 — per-dimension AI score breakdown on evaluations
+        for _col_sql in [
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS score_experience FLOAT DEFAULT NULL",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS score_skills     FLOAT DEFAULT NULL",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS score_education  FLOAT DEFAULT NULL",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS score_behavioral FLOAT DEFAULT NULL",
+        ]:
+            try:
+                from sqlalchemy import text as _text
+                db.execute(_text(_col_sql))
+                db.commit()
+                logging.info(f"Migration Phase 9: {_col_sql}")
+            except Exception as _e:
+                logging.info(f"Migration Phase 9 skipped ({_col_sql}): {_e}")
+                db.rollback()
+
         # Phase 4 — BYTEA original file storage on candidates + applications
         for _col_sql in [
             "ALTER TABLE candidates   ADD COLUMN IF NOT EXISTS cv_file_data BYTEA",

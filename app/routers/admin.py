@@ -673,6 +673,10 @@ def list_admin_applications(
             "weight_skills":     round((job.weight_skills or 0) * 100)     if job else None,
             "weight_education":  round((job.weight_education or 0) * 100)  if job else None,
             "weight_behavioral": round((job.weight_behavioral or 0) * 100) if job else None,
+            "score_experience": round(evaluation.score_experience) if evaluation and evaluation.score_experience is not None else None,
+            "score_skills":     round(evaluation.score_skills)     if evaluation and evaluation.score_skills     is not None else None,
+            "score_education":  round(evaluation.score_education)  if evaluation and evaluation.score_education  is not None else None,
+            "score_behavioral": round(evaluation.score_behavioral) if evaluation and evaluation.score_behavioral is not None else None,
         })
 
     return {"total_count": total_count, "applications": result}
