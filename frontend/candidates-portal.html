@@ -1371,7 +1371,7 @@ async function renderMyApps(){
         var ivRes=await fetch(API_BASE+'/api/candidate/interview',{headers:hdrs()});
         if(ivRes.ok){
           var ivData=await ivRes.json();
-          var iv=ivData && ivData.interview ? ivData.interview : null;
+          var iv=ivData && ivData.id ? ivData : null;
           if(iv){
             var dt=new Date(iv.interview_date+'T00:00:00');
             var dateLabel=dt.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
