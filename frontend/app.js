@@ -2879,10 +2879,10 @@ function renderAdminAnalytics(d) {
         <div style="font-size:15px;font-weight:500;color:#1B2A4A;margin-bottom:16px;">Analytics Overview</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
             ${overviewCards.map(c=>`
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px;">
-                <div style="font-size:30px;font-weight:500;color:#1B2A4A;">${c.val}</div>
-                <div style="font-size:11px;color:#888;margin-top:3px;">${c.label}</div>
-                ${c.sub?`<div style="font-size:10px;color:#C9A84C;margin-top:2px;">${c.sub}</div>`:''}
+            <div style="background:#fff;border:1px solid #E5E7EB;border-left:3px solid #C9A84C;border-radius:10px;padding:18px 20px;">
+                <div style="font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">${c.label}</div>
+                <div style="font-size:32px;font-weight:600;color:#1B2A4A;line-height:1;">${c.val}</div>
+                ${c.sub?`<div style="font-size:12px;color:#9CA3AF;margin-top:4px;">${c.sub}</div>`:''}
             </div>`).join('')}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">

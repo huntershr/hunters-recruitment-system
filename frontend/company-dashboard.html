@@ -188,26 +188,25 @@
         .stat-card {
             background: #fff;
             border-radius: var(--card-radius);
-            padding: 22px 20px;
-            box-shadow: var(--card-shadow);
-            display: flex; flex-direction: column; gap: 6px;
-        }
-
-        .stat-card-icon {
-            width: 40px; height: 40px;
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            margin-bottom: 6px;
-        }
-
-        .stat-card-value {
-            font-size: 28px; font-weight: 500;
-            color: var(--navy); line-height: 1;
+            padding: 20px 24px;
+            border: 1px solid #E5E7EB;
+            border-left: 3px solid #C9A84C;
+            display: flex; flex-direction: column; gap: 4px;
         }
 
         .stat-card-label {
-            font-size: 11px; font-weight: 500;
-            color: #AAB0C0; text-transform: uppercase; letter-spacing: 0.6px;
+            font-size: 11px; font-weight: 600;
+            color: #6B7280; text-transform: uppercase; letter-spacing: 0.08em;
+            margin-bottom: 4px;
+        }
+
+        .stat-card-value {
+            font-size: 32px; font-weight: 600;
+            color: var(--navy); line-height: 1;
+        }
+
+        .stat-card-sub {
+            font-size: 12px; color: #9CA3AF; margin-top: 2px;
         }
 
         /* ── Generic card ── */
@@ -668,40 +667,39 @@
 
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-card-icon" style="background:#FBF7E8;">
-                    <svg width="20" height="20" fill="none" stroke="#C9A84C" stroke-width="2" viewBox="0 0 24 24">
-                        <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
-                    </svg>
-                </div>
+                <div class="stat-card-label">Active Jobs</div>
                 <div class="stat-card-value" id="stat-jobs">0</div>
-                <div class="stat-card-label">Total Jobs</div>
+                <div class="stat-card-sub" id="stat-jobs-sub"></div>
             </div>
             <div class="stat-card">
-                <div class="stat-card-icon" style="background:#E1F5EE;">
-                    <svg width="20" height="20" fill="none" stroke="#0F6E56" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-                    </svg>
-                </div>
-                <div class="stat-card-value" id="stat-approved">0</div>
-                <div class="stat-card-label">Approved</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon" style="background:#FFF7E0;">
-                    <svg width="20" height="20" fill="none" stroke="#9B6F00" stroke-width="2" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                </div>
-                <div class="stat-card-value" id="stat-pending">0</div>
-                <div class="stat-card-label">Pending</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon" style="background:#E6F1FB;">
-                    <svg width="20" height="20" fill="none" stroke="#185FA5" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-                    </svg>
-                </div>
-                <div class="stat-card-value" id="stat-applications">0</div>
                 <div class="stat-card-label">Applications</div>
+                <div class="stat-card-value" id="stat-applications">0</div>
+                <div class="stat-card-sub" id="stat-applications-sub"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-label">Shortlisted</div>
+                <div class="stat-card-value" id="stat-approved">0</div>
+                <div class="stat-card-sub" id="stat-approved-sub"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-label">Interviews</div>
+                <div class="stat-card-value" id="stat-pending">0</div>
+                <div class="stat-card-sub" id="stat-pending-sub"></div>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+            <div class="card" style="margin-bottom:0;">
+                <div class="card-title">Pipeline Overview</div>
+                <div id="ov-pipeline-body" style="padding-top:4px;">
+                    <div style="font-size:12px;color:#9CA3AF;">Loading...</div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+                <div class="card-title">Recent Activity</div>
+                <div id="ov-activity-body" style="padding-top:4px;">
+                    <div style="font-size:12px;color:#9CA3AF;">Loading...</div>
+                </div>
             </div>
         </div>
 
@@ -1045,24 +1043,24 @@
         <!-- Analytics Tab -->
         <div id="profile-tab-Analytics" class="profile-tab-content" style="display:none;">
             <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:24px;">
-                <div style="background:#FFFFFF; border-radius:12px; padding:20px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-                    <div style="font-size:11px; color:#C9A84C; font-weight:500; text-transform:uppercase;">Total Jobs</div>
-                    <div id="stat-profile-jobs" style="font-size:32px; font-weight:500; color:#1B2A4A; margin-top:4px;">0</div>
+                <div style="background:#FFFFFF; border-radius:12px; padding:20px 24px; border:1px solid #E5E7EB; border-left:3px solid #C9A84C;">
+                    <div style="font-size:11px; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px;">Total Jobs</div>
+                    <div id="stat-profile-jobs" style="font-size:32px; font-weight:600; color:#1B2A4A; line-height:1;">0</div>
                 </div>
-                <div style="background:#FFFFFF; border-radius:12px; padding:20px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-                    <div style="font-size:11px; color:#C9A84C; font-weight:500; text-transform:uppercase;">Total Applications</div>
-                    <div id="stat-profile-apps" style="font-size:32px; font-weight:500; color:#1B2A4A; margin-top:4px;">0</div>
+                <div style="background:#FFFFFF; border-radius:12px; padding:20px 24px; border:1px solid #E5E7EB; border-left:3px solid #C9A84C;">
+                    <div style="font-size:11px; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px;">Applications</div>
+                    <div id="stat-profile-apps" style="font-size:32px; font-weight:600; color:#1B2A4A; line-height:1;">0</div>
                 </div>
-                <div style="background:#FFFFFF; border-radius:12px; padding:20px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-                    <div style="font-size:11px; color:#C9A84C; font-weight:500; text-transform:uppercase;">Avg AI Score</div>
-                    <div id="stat-profile-avgscore" style="font-size:32px; font-weight:500; color:#1B2A4A; margin-top:4px;">—</div>
+                <div style="background:#FFFFFF; border-radius:12px; padding:20px 24px; border:1px solid #E5E7EB; border-left:3px solid #C9A84C;">
+                    <div style="font-size:11px; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px;">Avg AI Score</div>
+                    <div id="stat-profile-avgscore" style="font-size:32px; font-weight:600; color:#1B2A4A; line-height:1;">—</div>
                 </div>
-                <div style="background:#FFFFFF; border-radius:12px; padding:20px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-                    <div style="font-size:11px; color:#C9A84C; font-weight:500; text-transform:uppercase;">Shortlisted</div>
-                    <div id="stat-profile-shortlisted" style="font-size:32px; font-weight:500; color:#1B2A4A; margin-top:4px;">0</div>
+                <div style="background:#FFFFFF; border-radius:12px; padding:20px 24px; border:1px solid #E5E7EB; border-left:3px solid #C9A84C;">
+                    <div style="font-size:11px; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px;">Shortlisted</div>
+                    <div id="stat-profile-shortlisted" style="font-size:32px; font-weight:600; color:#1B2A4A; line-height:1;">0</div>
                 </div>
             </div>
-            <div style="background:#FFFFFF; border-radius:16px; border:0.5px solid rgba(0,0,0,0.06); box-shadow:0 2px 12px rgba(0,0,0,0.06); padding:24px; min-height:220px;">
+            <div style="background:#FFFFFF; border-radius:16px; border:1px solid #E5E7EB; padding:24px; min-height:220px;">
                 <div id="profile-analytics-chart-wrap"></div>
             </div>
         </div>
@@ -1397,12 +1395,8 @@
             });
             const jobs = await jobsResponse.json();
 
-            const stats = {
-                total: jobs.length,
-                approved: jobs.filter(j => j.is_approved).length,
-                pending: jobs.filter(j => !j.is_approved).length,
-                applications: 0
-            };
+            const activeJobs = jobs.filter(j => j.is_approved).length;
+            let totalApps = 0;
 
             allCandidatesData = [];
             for (const job of jobs) {
@@ -1413,19 +1407,91 @@
                     const cands = await candResp.json();
                     cands.forEach(c => { c.job_title = job.job_title; c.job_id = job.id; });
                     allCandidatesData = allCandidatesData.concat(cands);
-                    stats.applications += cands.length;
+                    totalApps += cands.length;
                 }
             }
 
-            document.getElementById('stat-jobs').textContent = stats.total;
-            document.getElementById('stat-approved').textContent = stats.approved;
-            document.getElementById('stat-pending').textContent = stats.pending;
-            document.getElementById('stat-applications').textContent = stats.applications;
+            const shortlisted = allCandidatesData.filter(c => (c.status || '').toLowerCase() === 'shortlisted').length;
+            const interviews = allCandidatesData.filter(c => (c.status || '').toLowerCase() === 'interview').length;
 
+            document.getElementById('stat-jobs').textContent = activeJobs;
+            document.getElementById('stat-jobs-sub').textContent = jobs.length + ' total jobs';
+            document.getElementById('stat-applications').textContent = totalApps;
+            document.getElementById('stat-applications-sub').textContent = 'across all jobs';
+            document.getElementById('stat-approved').textContent = shortlisted;
+            const shPct = totalApps ? Math.round((shortlisted / totalApps) * 100) : 0;
+            document.getElementById('stat-approved-sub').textContent = shPct + '% of applicants';
+            document.getElementById('stat-pending').textContent = interviews;
+            document.getElementById('stat-pending-sub').textContent = 'scheduled';
+
+            renderOverviewPipeline(allCandidatesData);
+            renderOverviewActivity(allCandidatesData);
             displayRecentJobs(jobs.slice(0, 5));
         } catch (error) {
             console.error('Overview error:', error);
         }
+    }
+
+    function renderOverviewPipeline(candidates) {
+        const wrap = document.getElementById('ov-pipeline-body');
+        if (!wrap) return;
+        const stages = [
+            ['Applied', '#1B2A4A'],
+            ['Screening', '#2D4A7A'],
+            ['Shortlisted', '#C9A84C'],
+            ['Interview', '#9B6F00'],
+            ['Offered', '#0F6E56'],
+            ['Hired', '#0A4A39'],
+            ['Rejected', '#A32D2D'],
+        ];
+        const counts = {};
+        candidates.forEach(c => {
+            const s = (c.status || 'Applied');
+            counts[s] = (counts[s] || 0) + 1;
+        });
+        const maxVal = Math.max(...stages.map(([s]) => counts[s] || 0), 1);
+        if (!candidates.length) {
+            wrap.innerHTML = '<div style="font-size:12px;color:#9CA3AF;padding:8px 0;">No candidates yet.</div>';
+            return;
+        }
+        wrap.innerHTML = stages.map(([label, color]) => {
+            const val = counts[label] || 0;
+            const pct = Math.round((val / maxVal) * 100);
+            return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
+                <div style="width:82px;font-size:12px;color:#6B7280;white-space:nowrap;">${label}</div>
+                <div style="flex:1;background:#F3F4F6;border-radius:4px;height:8px;">
+                    <div style="width:${pct}%;background:${color};border-radius:4px;height:8px;min-width:${val>0?'4px':'0'};transition:width 0.4s;"></div>
+                </div>
+                <div style="width:24px;text-align:right;font-size:12px;font-weight:600;color:#1B2A4A;">${val}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderOverviewActivity(candidates) {
+        const wrap = document.getElementById('ov-activity-body');
+        if (!wrap) return;
+        if (!candidates.length) {
+            wrap.innerHTML = '<div style="font-size:12px;color:#9CA3AF;padding:8px 0;">No activity yet.</div>';
+            return;
+        }
+        const stageColor = {
+            'Shortlisted':'#0F6E56', 'Interview':'#185FA5', 'Hired':'#0A4A39',
+            'Rejected':'#A32D2D', 'Offered':'#854F0B',
+        };
+        const recent = candidates.slice(-5).reverse();
+        wrap.innerHTML = recent.map(c => {
+            const name = escHtml((c.name || c.full_name || c.applicant_name || c.email || 'Applicant').slice(0, 22));
+            const job = escHtml((c.job_title || '').slice(0, 20));
+            const status = c.status || 'Applied';
+            const color = stageColor[status] || '#6B7280';
+            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F3F4F6;">
+                <div>
+                    <div style="font-size:13px;font-weight:500;color:#1B2A4A;">${name}</div>
+                    <div style="font-size:11px;color:#9CA3AF;margin-top:1px;">${job}</div>
+                </div>
+                <span style="font-size:11px;font-weight:500;color:${color};background:${color}18;border-radius:20px;padding:2px 10px;white-space:nowrap;">${escHtml(status)}</span>
+            </div>`;
+        }).join('');
     }
 
     function displayRecentJobs(jobs) {
@@ -3855,7 +3921,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=2.3"></script>
+<script src="hunters-jobs.js?v=2.4"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies

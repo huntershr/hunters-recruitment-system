@@ -877,19 +877,27 @@ function renderHuntersProfileCandidates() {
 
 function renderHuntersAnalytics() {
     const jobsCount = huntersAllJobs.length;
-    let appsCount = 0;
-    let shortlisted = 0;
-    let scoreSum = 0;
-    let scoreN = 0;
+    let appsCount = 0, shortlisted = 0, hired = 0, rejected = 0;
+    let scoreSum = 0, scoreN = 0;
+    const stageCounts = {Applied:0, Screening:0, Shortlisted:0, Interview:0, Offered:0, Hired:0, Rejected:0};
+    const scoreBuckets = {low:0, mid:0, good:0, high:0};
 
     huntersAllJobs.forEach((j) => {
         if (j.candidates) {
             appsCount += j.candidates.length;
             j.candidates.forEach((c) => {
-                if (c.status === 'Shortlisted') shortlisted++;
+                const st = c.status || 'Applied';
+                if (stageCounts.hasOwnProperty(st)) stageCounts[st]++;
+                if (st === 'Shortlisted') shortlisted++;
+                if (st === 'Hired') hired++;
+                if (st === 'Rejected') rejected++;
                 if (c.ai_score != null && !Number.isNaN(Number(c.ai_score))) {
-                    scoreSum += Number(c.ai_score);
-                    scoreN++;
+                    const s = Number(c.ai_score);
+                    scoreSum += s; scoreN++;
+                    if (s <= 25) scoreBuckets.low++;
+                    else if (s <= 50) scoreBuckets.mid++;
+                    else if (s <= 75) scoreBuckets.good++;
+                    else scoreBuckets.high++;
                 }
             });
         }
@@ -901,37 +909,77 @@ function renderHuntersAnalytics() {
     const sApps = document.getElementById('stat-profile-apps');
     const sAvg = document.getElementById('stat-profile-avgscore');
     const sShort = document.getElementById('stat-profile-shortlisted');
-    if (sJobs) sJobs.innerText = jobsCount;
-    if (sApps) sApps.innerText = appsCount;
-    if (sAvg) sAvg.innerText = scoreN ? avgScore + '%' : '—';
-    if (sShort) sShort.innerText = shortlisted;
+    if (sJobs) sJobs.textContent = jobsCount;
+    if (sApps) sApps.textContent = appsCount;
+    if (sAvg) sAvg.textContent = scoreN ? avgScore + '%' : '—';
+    if (sShort) sShort.textContent = shortlisted;
 
     const wrap = document.getElementById('profile-analytics-chart-wrap');
     if (!wrap) return;
 
-    const maxC = Math.max(
-        1,
-        ...huntersAllJobs.map((j) => (j.candidates ? j.candidates.length : 0))
-    );
-    const bars = huntersAllJobs
-        .map((j) => {
-            const n = j.candidates ? j.candidates.length : 0;
-            const h = Math.round((n / maxC) * 100);
-            const t = huntersEsc((j.title || j.job_title || 'Job').slice(0, 18));
-            return `<div style="flex:1;min-width:48px;max-width:120px;display:flex;flex-direction:column;align-items:center;gap:8px;">
-                <div style="width:100%;height:120px;background:#F0F2F8;border-radius:8px;position:relative;display:flex;align-items:flex-end;overflow:hidden;padding:0 6px 0;">
-                    <div style="width:100%;height:${h}%;background:linear-gradient(180deg,#C9A84C 0%,#1B2A4A 100%);border-radius:6px 6px 0 0;transition:height 0.3s ease;"></div>
-                </div>
-                <span style="font-size:10px;color:#6B7280;text-align:center;line-height:1.2;font-weight:500;">${t}</span>
-                <span style="font-size:11px;color:#1B2A4A;font-weight:500;">${n}</span>
-            </div>`;
-        })
-        .join('');
+    function cssBar(label, val, max, color) {
+        const pct = max ? Math.round((val / max) * 100) : 0;
+        return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
+            <div style="width:100px;font-size:12px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label}</div>
+            <div style="flex:1;background:#F3F4F6;border-radius:4px;height:9px;">
+                <div style="width:${pct}%;background:${color};border-radius:4px;height:9px;min-width:${val>0?'3px':'0'};transition:width 0.5s;"></div>
+            </div>
+            <div style="width:28px;text-align:right;font-size:12px;font-weight:600;color:#1B2A4A;">${val}</div>
+        </div>`;
+    }
+
+    function panel(title, content) {
+        return `<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:20px 24px;">
+            <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #F3F4F6;">${title}</div>
+            ${content}
+        </div>`;
+    }
+
+    // Pipeline Funnel
+    const funnelStages = [
+        ['Applied', stageCounts.Applied, '#1B2A4A'],
+        ['Screening', stageCounts.Screening, '#2D4A7A'],
+        ['Shortlisted', stageCounts.Shortlisted, '#C9A84C'],
+        ['Interview', stageCounts.Interview, '#185FA5'],
+        ['Offered', stageCounts.Offered, '#0F6E56'],
+        ['Hired', stageCounts.Hired, '#0A4A39'],
+    ];
+    const maxFunnel = Math.max(...funnelStages.map((s) => s[1]), 1);
+    const funnelHtml = funnelStages.map(([label, val, color]) => cssBar(label, val, maxFunnel, color)).join('');
+
+    // Applications by Job (top 8)
+    const maxApps = Math.max(...huntersAllJobs.map((j) => (j.candidates ? j.candidates.length : 0)), 1);
+    const jobBarsHtml = huntersAllJobs.slice(0, 8).map((j) => {
+        const n = j.candidates ? j.candidates.length : 0;
+        return cssBar(huntersEsc((j.title || j.job_title || 'Job').slice(0, 22)), n, maxApps, '#1B2A4A');
+    }).join('') || '<div style="font-size:12px;color:#9CA3AF;">No jobs yet.</div>';
+
+    // Score Distribution
+    const maxScore = Math.max(scoreBuckets.low, scoreBuckets.mid, scoreBuckets.good, scoreBuckets.high, 1);
+    const scoreHtml = [
+        ['0 – 25', scoreBuckets.low, '#A32D2D'],
+        ['26 – 50', scoreBuckets.mid, '#C9A84C'],
+        ['51 – 75', scoreBuckets.good, '#185FA5'],
+        ['76 – 100', scoreBuckets.high, '#0F6E56'],
+    ].map(([label, val, color]) => cssBar(label, val, maxScore, color)).join('')
+      || '<div style="font-size:12px;color:#9CA3AF;">No scored candidates yet.</div>';
+
+    // Shortlisted vs Rejected
+    const maxSR = Math.max(shortlisted, hired, rejected, 1);
+    const srHtml = [
+        ['Shortlisted', shortlisted, '#C9A84C'],
+        ['Hired', hired, '#0F6E56'],
+        ['Rejected', rejected, '#A32D2D'],
+    ].map(([label, val, color]) => cssBar(label, val, maxSR, color)).join('');
 
     wrap.innerHTML = `
-        <div style="font-size:13px;font-weight:500;color:#1B2A4A;margin-bottom:12px;">Applications per job</div>
-        <div style="display:flex;gap:12px;align-items:flex-end;overflow-x:auto;padding-bottom:8px;scroll-behavior:smooth;">
-            ${bars || '<p style="font-size:12px;color:#9CA3AF;">No application data yet.</p>'}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            ${panel('Pipeline Funnel', appsCount ? funnelHtml : '<div style="font-size:12px;color:#9CA3AF;">No candidates yet.</div>')}
+            ${panel('Applications by Job', jobBarsHtml)}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+            ${panel('AI Score Distribution', scoreN ? scoreHtml : '<div style="font-size:12px;color:#9CA3AF;">No scored candidates yet.</div>')}
+            ${panel('Shortlisted vs Rejected', appsCount ? srHtml : '<div style="font-size:12px;color:#9CA3AF;">No candidates yet.</div>')}
         </div>`;
 }
 
