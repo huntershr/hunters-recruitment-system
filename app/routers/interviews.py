@@ -199,6 +199,19 @@ def _build_payload(iv, db: Session, mode: str = "schedule") -> dict:
         if scheduler else "System"
     )
 
+    # Dynamic signature based on who scheduled
+    if scheduler and scheduler.is_admin:
+        signature = "Hunters HR Team\nhr@hunters-egypt.com"
+    elif scheduler and scheduler.company_id:
+        sched_company = db.query(models.Company).filter(
+            models.Company.id == scheduler.company_id
+        ).first()
+        co_email = (sched_company.company_email if sched_company else None) or scheduler.email
+        co_name  = sched_company.company_name if sched_company else "Company"
+        signature = f"{co_name} — via Hunters HR\n{co_email}"
+    else:
+        signature = "Hunters HR Team\nhr@hunters-egypt.com"
+
     if mode == "cancel":
         cand_subj = f"Interview Cancelled — {job_title} at {company_name}"
         cand_body = (
@@ -208,7 +221,7 @@ def _build_payload(iv, db: Session, mode: str = "schedule") -> dict:
             f"We apologise for any inconvenience this may have caused. "
             f"We will be in touch to reschedule at a suitable time.\n\n"
             f"If you have any questions, please contact us at hr@hunters-egypt.com\n\n"
-            f"Best regards,\nHunters HR Team\nhr@hunters-egypt.com | 01111176767"
+            f"Best regards,\n{signature}"
         )
         adm_subj = f"Interview Cancelled — {cand_name} for {job_title}"
         adm_body = (
@@ -252,8 +265,7 @@ def _build_payload(iv, db: Session, mode: str = "schedule") -> dict:
         "If you need to reschedule, contact us at hr@hunters-egypt.com",
         "",
         "Best regards,",
-        "Hunters HR Team",
-        "hr@hunters-egypt.com | 01111176767",
+        signature,
     ]
     cand_body = "\n".join(body_lines)
 

@@ -2635,6 +2635,7 @@
                     ${app.cv_available?`<button onclick="coDownloadCV(${app.application_id},'${safeName}')" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">CV</button>`:''}
                     ${isReg&&app.candidate_id?`<button onclick="coViewProfile(${app.candidate_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#185FA5;cursor:pointer;min-height:44px;">Profile</button>`:''}
                     ${app.email?`<button onclick="coInvite(${app.candidate_id||'null'},'${escHtml(app.name||'')}','${escHtml(app.email||'')}')" style="padding:7px 12px;border:1px solid #9FE1CB;border-radius:8px;background:#E1F5EE;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">Invite</button>`:''}
+                    ${stg==='interview'?`<button onclick="openScheduleInterviewModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}',null)" style="padding:7px 12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">📅 Schedule</button>`:''}
                 </div>
                 <div onclick="event.stopPropagation()" style="min-width:160px;">
                     <select onchange="coChangeStage(${app.application_id},this.value,this)" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:11px;color:#6B7280;background:#F9FAFB;cursor:pointer;min-height:44px;">
@@ -2718,9 +2719,339 @@
                 renderCoStageTabs();
                 showToast(candName + ' moved to ' + data.stage, 'success');
             }, 300);
+            if (newStage.toLowerCase() === 'interview') {
+                setTimeout(() => openScheduleInterviewModal(appId, candName, null), 500);
+            }
         } catch (e) { showToast('Stage update failed', 'error'); }
     }
 
+    // ── Phase 9: Interview Scheduling (Company Admin) ──────────────────────
+
+    function downloadIcs(base64Content, filename) {
+        const decoded = atob(base64Content);
+        const blob = new Blob([decoded], { type: 'text/calendar' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function _buildInterviewWhatsApp(iv, candName, jobTitle, company, phone) {
+        const dt = new Date(iv.interview_date + 'T00:00:00');
+        const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        let text =
+            'Dear ' + candName + ',\n\n' +
+            "We'd like to invite you for an interview:\n\n" +
+            '*Position:* ' + jobTitle + (company ? ' at ' + company : '') + '\n' +
+            '*Date:* ' + dateStr + '\n' +
+            '*Time:* ' + (iv.interview_time || '') + '\n' +
+            '*Duration:* ' + (iv.duration_minutes || 60) + ' minutes\n' +
+            '*Location:* ' + (iv.location_value || 'TBD') + '\n';
+        if (iv.interviewer_names) text += '*Interviewer(s):* ' + iv.interviewer_names + '\n';
+        if (iv.notes_for_candidate) text += '\n' + iv.notes_for_candidate + '\n';
+        text += '\nPlease confirm your attendance.\n\nHunters HR Team\n01111176767';
+        const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+        const intlPhone = cleanPhone.startsWith('0') ? '2' + cleanPhone : cleanPhone;
+        return (intlPhone ? 'https://wa.me/' + intlPhone : 'https://wa.me/') + '?text=' + encodeURIComponent(text);
+    }
+
+    function openScheduleInterviewModal(appId, candName, existingIv) {
+        const app = coAppsData.find(a => a.application_id === appId) || {};
+        const today = new Date().toISOString().split('T')[0];
+        const jobLine = escHtml((app.job_title || '—') + (app.company_name ? ' at ' + app.company_name : ''));
+        const isEdit = !!existingIv;
+        const ivId = isEdit ? existingIv.id : null;
+        const prefill = isEdit ? existingIv : {};
+        const locType = prefill.location_type || 'physical';
+        const locPlaceholder = locType === 'online' ? 'Paste meeting link (Zoom/Meet/Teams)' : 'Enter address or room';
+
+        document.getElementById('schedule-interview-modal')?.remove();
+
+        const durationOpts = ['30','45','60','90','120'].map(v =>
+            '<option value="' + v + '"' + ((prefill.duration_minutes || 60) == v ? ' selected' : '') + '>' + v + ' minutes</option>'
+        ).join('');
+
+        const modal = document.createElement('div');
+        modal.id = 'schedule-interview-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10002;display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto;';
+        modal.innerHTML =
+            '<div style="background:#fff;border-radius:20px;width:600px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.25);overflow:hidden;margin:auto;">' +
+            '<div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">' +
+                '<div><div style="color:#fff;font-size:16px;font-weight:600;">' + (isEdit ? 'Edit Interview' : 'Schedule Interview') + ' — ' + escHtml(candName) + '</div>' +
+                '<div style="color:#C9A84C;font-size:12px;margin-top:2px;">' + jobLine + '</div></div>' +
+                '<button onclick="document.getElementById(\'schedule-interview-modal\').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">\xd7</button>' +
+            '</div>' +
+            '<div style="padding:24px;max-height:calc(100vh - 180px);overflow-y:auto;">' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">' +
+                    '<div><label style="display:block;font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Date *</label>' +
+                    '<input id="iv-date" type="date" min="' + today + '" value="' + (prefill.interview_date || '') + '" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>' +
+                    '<div><label style="display:block;font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Time *</label>' +
+                    '<input id="iv-time" type="time" value="' + (prefill.interview_time || '') + '" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>' +
+                    '<div><label style="display:block;font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Duration</label>' +
+                    '<select id="iv-duration" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;background:#fff;box-sizing:border-box;">' + durationOpts + '</select></div>' +
+                '</div>' +
+                '<div style="margin-bottom:16px;">' +
+                    '<label style="display:block;font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Location Type *</label>' +
+                    '<div style="display:flex;gap:16px;margin-bottom:10px;">' +
+                        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#374151;"><input type="radio" name="iv-loc-type" value="physical"' + (locType === 'physical' ? ' checked' : '') + ' onchange="_ivLocTypeChange(this.value)" style="accent-color:#1B2A4A;"> Physical location</label>' +
+                        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#374151;"><input type="radio" name="iv-loc-type" value="online"' + (locType === 'online' ? ' checked' : '') + ' onchange="_ivLocTypeChange(this.value)" style="accent-color:#1B2A4A;"> Online meeting</label>' +
+                    '</div>' +
+                    '<input id="iv-location-value" type="text" value="' + escHtml(prefill.location_value || '') + '" placeholder="' + locPlaceholder + '" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;box-sizing:border-box;">' +
+                '</div>' +
+                '<div style="margin-bottom:16px;">' +
+                    '<label style="display:block;font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Interviewer(s)</label>' +
+                    '<input id="iv-interviewers" type="text" value="' + escHtml(prefill.interviewer_names || '') + '" placeholder="e.g. Ahmed Hassan, Sara Mohamed" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;box-sizing:border-box;">' +
+                    '<div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Separate multiple names with commas</div>' +
+                '</div>' +
+                '<div style="margin-bottom:16px;">' +
+                    '<label style="display:block;font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Notes for Candidate</label>' +
+                    '<textarea id="iv-notes-cand" rows="3" placeholder="Any instructions for the candidate (what to bring, dress code, etc.)" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;">' + escHtml(prefill.notes_for_candidate || '') + '</textarea>' +
+                    '<div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Candidate will see this in their portal</div>' +
+                '</div>' +
+                '<div>' +
+                    '<button type="button" onclick="_ivToggleInternal()" style="font-size:12px;color:#6B7280;background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px;">' +
+                    '<span id="iv-internal-arrow">' + (prefill.internal_notes ? '▼' : '▶') + '</span> Internal notes (admin only)</button>' +
+                    '<div id="iv-internal-section" style="display:' + (prefill.internal_notes ? 'block' : 'none') + ';margin-top:8px;">' +
+                    '<textarea id="iv-notes-internal" rows="2" placeholder="Notes for the Hunters team only" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;">' + escHtml(prefill.internal_notes || '') + '</textarea>' +
+                    '<div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Not visible to the candidate</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="padding:16px 24px;border-top:1px solid #F3F4F6;display:flex;gap:10px;justify-content:flex-end;">' +
+                '<button onclick="document.getElementById(\'schedule-interview-modal\').remove()" style="padding:10px 20px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Cancel</button>' +
+                '<button id="iv-submit-btn" onclick="' + (isEdit ? '_updateInterview(' + ivId + ',' + appId + ')' : '_submitScheduleInterview(' + appId + ')') + '" style="padding:10px 24px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;">' + (isEdit ? 'Save Changes ▶' : 'Schedule &amp; Notify ▶') + '</button>' +
+            '</div>' +
+            '</div>';
+        document.body.appendChild(modal);
+    }
+
+    function _ivLocTypeChange(type) {
+        const input = document.getElementById('iv-location-value');
+        if (input) input.placeholder = type === 'online' ? 'Paste meeting link (Zoom/Meet/Teams)' : 'Enter address or room';
+    }
+
+    function _ivToggleInternal() {
+        const sec = document.getElementById('iv-internal-section');
+        const arrow = document.getElementById('iv-internal-arrow');
+        if (!sec || !arrow) return;
+        const open = sec.style.display === 'none';
+        sec.style.display = open ? 'block' : 'none';
+        arrow.textContent = open ? '▼' : '▶';
+    }
+
+    function _ivCollectForm(appId) {
+        const dateEl = document.getElementById('iv-date');
+        const timeEl = document.getElementById('iv-time');
+        const locEl  = document.getElementById('iv-location-value');
+        [dateEl, timeEl, locEl].forEach(el => { if (el) el.style.borderColor = '#E5E7EB'; });
+
+        const ivDate   = dateEl?.value;
+        const ivTime   = timeEl?.value;
+        const locType  = document.querySelector('input[name="iv-loc-type"]:checked')?.value || 'physical';
+        const locVal   = (locEl?.value || '').trim();
+        const duration = parseInt(document.getElementById('iv-duration')?.value || '60');
+        const interviewers = (document.getElementById('iv-interviewers')?.value || '').trim();
+        const notesCand    = (document.getElementById('iv-notes-cand')?.value || '').trim();
+        const notesInt     = (document.getElementById('iv-notes-internal')?.value || '').trim();
+        const today = new Date().toISOString().split('T')[0];
+
+        function _ivErr(el, msg) {
+            if (el) { el.style.borderColor = '#DC2626'; el.focus(); }
+            showToast(msg, 'error');
+        }
+        if (!ivDate) { _ivErr(dateEl, 'Please select an interview date'); return null; }
+        if (ivDate < today) { _ivErr(dateEl, 'Interview date must be today or future'); return null; }
+        if (!ivTime) { _ivErr(timeEl, 'Please select an interview time'); return null; }
+        if (!locVal) { _ivErr(locEl, 'Please enter a location or meeting link'); return null; }
+        return {
+            application_id: appId,
+            interview_date: ivDate,
+            interview_time: ivTime,
+            duration_minutes: duration,
+            location_type: locType,
+            location_value: locVal,
+            interviewer_names: interviewers || null,
+            notes_for_candidate: notesCand || null,
+            internal_notes: notesInt || null,
+        };
+    }
+
+    async function _submitScheduleInterview(appId) {
+        const payload = _ivCollectForm(appId);
+        if (!payload) return;
+        const btn = document.getElementById('iv-submit-btn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Scheduling…'; }
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(API_URL + '/api/admin/interviews', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                showToast(err.detail || 'Scheduling failed', 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = 'Schedule &amp; Notify ▶'; }
+                return;
+            }
+            const data = await res.json();
+            const idx = coAppsData.findIndex(a => a.application_id === appId);
+            if (idx >= 0) coAppsData[idx].stage = 'Interview';
+            document.getElementById('schedule-interview-modal')?.remove();
+            renderCoStageTabs();
+            showToast('Interview scheduled', 'success');
+            setTimeout(() => _showInterviewDispatchModal(data, 'schedule'), 300);
+        } catch(e) {
+            showToast('Scheduling failed', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Schedule &amp; Notify ▶'; }
+        }
+    }
+
+    async function _updateInterview(interviewId, appId) {
+        const payload = _ivCollectForm(appId);
+        if (!payload) return;
+        delete payload.application_id;
+        const btn = document.getElementById('iv-submit-btn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Saving…'; }
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(API_URL + '/api/admin/interviews/' + interviewId, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                showToast(err.detail || 'Update failed', 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = 'Save Changes ▶'; }
+                return;
+            }
+            const data = await res.json();
+            document.getElementById('schedule-interview-modal')?.remove();
+            showToast('Interview updated', 'success');
+            setTimeout(() => _showInterviewDispatchModal(data, 'reschedule'), 300);
+        } catch(e) {
+            showToast('Update failed', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Save Changes ▶'; }
+        }
+    }
+
+    function _showInterviewDispatchModal(data, mode) {
+        const iv     = data.interview || {};
+        const notifs = data.notifications || [];
+        const ics    = data.ics_files    || [];
+        const app    = coAppsData.find(a => a.application_id === iv.application_id) || {};
+        const candName = app.name || 'Candidate';
+        const jobTitle = app.job_title || '';
+        const company  = app.company_name || '';
+        const phone    = app.phone || '';
+
+        const emailRows = notifs.map((n, i) =>
+            '<div style="border:1px solid #E5E7EB;border-radius:10px;margin-bottom:10px;overflow:hidden;">' +
+            '<button onclick="_ivToggleEmailPrev(' + i + ')" style="width:100%;padding:10px 14px;background:#F8F9FF;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">' +
+            '<div><div style="font-size:12px;font-weight:600;color:#1B2A4A;text-align:left;">' + escHtml(n.subject) + '</div>' +
+            '<div style="font-size:11px;color:#6B7280;text-align:left;">To: ' + escHtml(n.to) + '</div></div>' +
+            '<span id="iv-earr-' + i + '" style="font-size:12px;color:#6B7280;flex-shrink:0;">▶</span></button>' +
+            '<div id="iv-eprev-' + i + '" style="display:none;padding:12px 14px;font-size:12px;color:#374151;line-height:1.6;white-space:pre-wrap;border-top:1px solid #E5E7EB;max-height:160px;overflow-y:auto;">' + escHtml(n.body) + '</div>' +
+            '</div>'
+        ).join('');
+
+        const icsBtns = ics.map(f =>
+            '<button onclick="downloadIcs(\'' + f.content + '\',\'' + escHtml(f.filename) + '\')" style="flex:1;padding:10px 6px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">↓ ' + (f.for === 'candidate' ? 'Candidate' : 'Admin') + ' Calendar (.ics)</button>'
+        ).join('');
+
+        const waUrl    = _buildInterviewWhatsApp(iv, candName, jobTitle, company, phone);
+        const waActive = !!phone;
+        const waOnClick = waActive ? 'window.open(\'' + waUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\',\'_blank\')' : "showToast('No phone number on file','info')";
+        const waBtnStyle = 'flex:1;padding:10px 6px;border:none;border-radius:8px;font-size:12px;font-weight:600;min-height:44px;' + (waActive ? 'background:#25D366;color:#fff;cursor:pointer;' : 'background:#D1D5DB;color:#6B7280;cursor:not-allowed;');
+        const waBtn = '<button onclick="' + waOnClick + '" title="' + (waActive ? '' : 'No phone number on file') + '" style="' + waBtnStyle + '">💬 WhatsApp</button>';
+
+        const modeLabel = mode === 'reschedule' ? 'Interview Rescheduled ↻' : mode === 'cancel' ? 'Interview Cancelled' : 'Interview Scheduled 🎯';
+
+        document.getElementById('interview-dispatch-modal')?.remove();
+        const m = document.createElement('div');
+        m.id = 'interview-dispatch-modal';
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10003;display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto;';
+        m.innerHTML =
+            '<div style="background:#fff;border-radius:20px;width:540px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.25);overflow:hidden;margin:auto;">' +
+            '<div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">' +
+                '<span style="color:#fff;font-size:15px;font-weight:600;">' + modeLabel + '</span>' +
+                '<button onclick="document.getElementById(\'interview-dispatch-modal\').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;">\xd7</button>' +
+            '</div>' +
+            '<div style="padding:20px;">' +
+                (emailRows ? '<div style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Email Previews</div>' + emailRows : '') +
+                (icsBtns ? '<div style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin:16px 0 10px;">Calendar Invites</div><div style="display:flex;gap:8px;margin-bottom:14px;">' + icsBtns + '</div>' : '') +
+                '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
+                    '<button onclick="_ivSendAllEmails(0)" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;">📧 Send Emails</button>' +
+                    waBtn +
+                '</div>' +
+                '<button onclick="document.getElementById(\'interview-dispatch-modal\').remove()" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Done</button>' +
+            '</div></div>';
+        window._ivDispatchNotifs = notifs;
+        document.body.appendChild(m);
+    }
+
+    function _ivToggleEmailPrev(i) {
+        const prev  = document.getElementById('iv-eprev-' + i);
+        const arrow = document.getElementById('iv-earr-' + i);
+        if (!prev || !arrow) return;
+        const open = prev.style.display === 'none';
+        prev.style.display = open ? 'block' : 'none';
+        arrow.textContent  = open ? '▼' : '▶';
+    }
+
+    function _ivSendAllEmails(idx) {
+        const notifs = window._ivDispatchNotifs || [];
+        if (idx >= notifs.length) { showToast('Emails opened', 'success'); return; }
+        const n = notifs[idx];
+        window.open('mailto:' + encodeURIComponent(n.to) + '?subject=' + encodeURIComponent(n.subject) + '&body=' + encodeURIComponent(n.body));
+        setTimeout(() => _ivSendAllEmails(idx + 1), 600);
+    }
+
+    function cancelInterviewConfirm(interviewId, candName) {
+        document.getElementById('cancel-iv-confirm')?.remove();
+        const m = document.createElement('div');
+        m.id = 'cancel-iv-confirm';
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10010;display:flex;align-items:center;justify-content:center;padding:24px;';
+        m.innerHTML = '<div style="background:#fff;border-radius:16px;width:380px;max-width:calc(100vw - 48px);padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.2);">' +
+            '<div style="font-size:15px;font-weight:600;color:#1B2A4A;margin-bottom:8px;">Cancel Interview?</div>' +
+            '<div style="font-size:13px;color:#6B7280;margin-bottom:20px;">This will cancel the scheduled interview for <strong>' + escHtml(candName) + '</strong> and send a cancellation notification.</div>' +
+            '<div style="display:flex;gap:10px;">' +
+                '<button onclick="document.getElementById(\'cancel-iv-confirm\').remove()" style="flex:1;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Keep</button>' +
+                '<button onclick="document.getElementById(\'cancel-iv-confirm\').remove();_cancelInterviewById(' + interviewId + ')" style="flex:1;padding:10px;border:none;border-radius:8px;background:#DC2626;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Cancel Interview</button>' +
+            '</div></div>';
+        document.body.appendChild(m);
+    }
+
+    async function _cancelInterviewById(interviewId) {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(API_URL + '/api/admin/interviews/' + interviewId, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token },
+            });
+            if (!res.ok) { showToast('Cancellation failed', 'error'); return; }
+            const data = await res.json();
+            showToast('Interview cancelled', 'success');
+            _showInterviewDispatchModal(data, 'cancel');
+        } catch(e) { showToast('Cancellation failed', 'error'); }
+    }
+
+    async function _openEditInterview(interviewId, appId) {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(API_URL + '/api/admin/interviews/' + appId, { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) { showToast('Interview not found', 'error'); return; }
+            const iv = await res.json();
+            if (!iv) { showToast('Interview not found', 'error'); return; }
+            iv.id = interviewId;
+            const app = coAppsData.find(a => a.application_id === appId);
+            const candName = app ? (app.name || 'Candidate') : 'Candidate';
+            openScheduleInterviewModal(appId, candName, iv);
+        } catch(e) { showToast('Failed to load interview', 'error'); }
+    }
+
+    // ── End Phase 9 ───────────────────────────────────────────────────────
 
     function coViewReport(appId) {
         const app = coAppsData.find(a => a.application_id === appId);
