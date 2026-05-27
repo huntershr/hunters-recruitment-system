@@ -674,6 +674,51 @@ def get_candidate_users(
     return result
 
 
+# ── Talent Pool (Type A candidates — accessible to all admin roles) ──────────
+
+@router.get("/talent-pool")
+def get_talent_pool(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    All registered (Type A) candidates — user_id IS NOT NULL.
+    Accessible to both SuperAdmin and Company Admin.
+    No company scoping: the talent pool is intentionally shared.
+    """
+    if not current_user.is_admin and not current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    candidates = (
+        db.query(models.Candidate)
+        .filter(models.Candidate.user_id.isnot(None))
+        .order_by(models.Candidate.id.desc())
+        .all()
+    )
+
+    result = []
+    for cand in candidates:
+        user = (
+            db.query(models.User).filter(models.User.id == cand.user_id).first()
+            if cand.user_id else None
+        )
+        result.append({
+            "user_id": cand.user_id,
+            "candidate_id": cand.id,
+            "name": cand.name or (user.full_name if user else "") or "",
+            "email": cand.email or (user.email if user else "") or "",
+            "phone": cand.phone or "",
+            "last_title": cand.last_title or "",
+            "last_employer": cand.last_employer or "",
+            "years_exp": cand.experience_years,
+            "skills": cand.skills or "",
+            "photo_url": cand.photo_url or "",
+            "summary": cand.summary or "",
+            "location": cand.location or "",
+        })
+    return result
+
+
 # ── Applications (Phase 3 — unified view: Type A + Type B) ───────────────────
 
 @router.get("/applications")

@@ -3208,26 +3208,26 @@ function _ivFilterTable() {
 
 function exportInterviewsExcel() {
     if (!_ivTableData.length) { showToast('No interviews to export.', 'info'); return; }
-    const rows = _ivTableData;
     const headers = ['Candidate Name','Email','Phone','Job Title','Company','Interview Date','Interview Time','Duration (min)','Location Type','Location','Interviewer(s)','Status','Scheduled By','Notes'];
-    const csvRows = [headers.join(',')];
-    rows.forEach(iv => {
-        const cells = [
-            iv.candidate_name||'', iv.candidate_email||'', iv.candidate_phone||'',
-            iv.job_title||'', iv.company_name||'', iv.interview_date||'', iv.interview_time||'',
-            iv.duration_minutes||60, iv.location_type||'', iv.location_value||'',
-            iv.interviewer_names||'', iv.status||'', iv.scheduled_by_name||'', iv.notes_for_candidate||''
-        ].map(v => '"' + String(v).replace(/"/g, '""') + '"');
-        csvRows.push(cells.join(','));
-    });
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const dataRows = _ivTableData.map(iv => [
+        iv.candidate_name||'', iv.candidate_email||'', iv.candidate_phone||'',
+        iv.job_title||'', iv.company_name||'', iv.interview_date||'', iv.interview_time||'',
+        iv.duration_minutes||60, iv.location_type||'', iv.location_value||'',
+        iv.interviewer_names||'', iv.status||'', iv.scheduled_by_name||'', iv.notes_for_candidate||''
+    ]);
     const today = new Date().toISOString().slice(0, 10);
-    a.href = url; a.download = 'interviews-' + today + '.csv';
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (typeof XLSX !== 'undefined') {
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Interviews');
+        XLSX.writeFile(wb, 'interviews-' + today + '.xlsx');
+    } else {
+        const csvRows = [headers, ...dataRows].map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'interviews-' + today + '.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
     showToast('Exported successfully.', 'success');
 }
 

@@ -2132,10 +2132,14 @@
         container.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>';
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/api/admin/candidate-users`, {
+            const res = await fetch(`${API_URL}/api/admin/talent-pool`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res.ok) throw new Error('Failed to load talent pool');
+            if (!res.ok) {
+                let detail = '';
+                try { detail = (await res.json()).detail || ''; } catch(_) {}
+                throw new Error(`Failed to load talent pool (HTTP ${res.status}${detail ? ': ' + detail : ''})`);
+            }
             _talentPoolData = await res.json();
             _talentPool = {};
             _talentPoolData.forEach(c => {
@@ -2419,26 +2423,26 @@
 
     function coExportInterviewsExcel() {
         if (!_coInterviewsData.length) { showToast('No interviews to export.', 'info'); return; }
-        const rows = _coInterviewsData;
         const headers = ['Candidate Name','Email','Phone','Job Title','Interview Date','Interview Time','Duration (min)','Location Type','Location','Interviewer(s)','Status','Notes'];
-        const csvRows = [headers.join(',')];
-        rows.forEach(iv => {
-            const cells = [
-                iv.candidate_name||'', iv.candidate_email||'', iv.candidate_phone||'',
-                iv.job_title||'', iv.interview_date||'', iv.interview_time||'',
-                iv.duration_minutes||60, iv.location_type||'', iv.location_value||'',
-                iv.interviewer_names||'', iv.status||'', iv.notes_for_candidate||''
-            ].map(v => '"' + String(v).replace(/"/g, '""') + '"');
-            csvRows.push(cells.join(','));
-        });
-        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const dataRows = _coInterviewsData.map(iv => [
+            iv.candidate_name||'', iv.candidate_email||'', iv.candidate_phone||'',
+            iv.job_title||'', iv.interview_date||'', iv.interview_time||'',
+            iv.duration_minutes||60, iv.location_type||'', iv.location_value||'',
+            iv.interviewer_names||'', iv.status||'', iv.notes_for_candidate||''
+        ]);
         const today = new Date().toISOString().slice(0, 10);
-        a.href = url; a.download = `interviews-${today}.csv`;
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        if (typeof XLSX !== 'undefined') {
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Interviews');
+            XLSX.writeFile(wb, `interviews-${today}.xlsx`);
+        } else {
+            const csvRows = [headers, ...dataRows].map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
+            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `interviews-${today}.csv`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
         showToast('Exported successfully.', 'success');
     }
 
@@ -4034,5 +4038,6 @@ async function runBulkScreening() {
         <div id="ai-report-body" style="padding:24px;"></div>
     </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </body>
 </html>
