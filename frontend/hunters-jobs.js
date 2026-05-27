@@ -804,9 +804,17 @@ function switchProfileTab(tabName) {
     if (tabName === 'Jobs') {
         renderHuntersJobs();
     } else if (tabName === 'Analytics') {
-        renderHuntersAnalytics();
+        if (typeof loadCompanyApplications === 'function' && typeof coAppsData !== 'undefined' && !coAppsData.length) {
+            loadCompanyApplications().then(() => renderHuntersAnalytics());
+        } else {
+            renderHuntersAnalytics();
+        }
     } else if (tabName === 'Candidates') {
-        renderHuntersProfileCandidates();
+        if (typeof loadCompanyApplications === 'function' && typeof coAppsData !== 'undefined' && !coAppsData.length) {
+            loadCompanyApplications().then(() => renderHuntersProfileCandidates());
+        } else {
+            renderHuntersProfileCandidates();
+        }
     }
 }
 
@@ -814,19 +822,58 @@ function renderHuntersProfileCandidates() {
     const container = document.getElementById('profile-candidates-container');
     if (!container) return;
 
-    let allCands = [];
-    huntersAllJobs.forEach(j => {
-        if (j.candidates && Array.isArray(j.candidates)) {
-            j.candidates.forEach(c => {
-                allCands.push({
-                    ...c,
-                    job_title: j.title
+    const _stageMap = {
+        'applied':['#1B2A4A','#EFF2F8','Applied'],
+        'new':['#1B2A4A','#EFF2F8','Applied'],
+        'screening':['#854F0B','#FAEEDA','Screening'],
+        'shortlisted':['#0F6E56','#E1F5EE','Shortlisted'],
+        'interview':['#185FA5','#E6F1FB','Interview'],
+        'offered':['#0F6E56','#FBF7E8','Offered'],
+        'offer':['#0F6E56','#FBF7E8','Offered'],
+        'hired':['#0A4A39','#E1F5EE','Hired'],
+        'rejected':['#A32D2D','#FCEBEB','Rejected'],
+    };
+
+    function stageBadge(stageRaw) {
+        const key = (stageRaw || 'applied').toLowerCase();
+        const [color, bg, label] = _stageMap[key] || ['#6B7280','#F3F4F6', key.charAt(0).toUpperCase() + key.slice(1)];
+        return `<span style="background:${bg};color:${color};padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;">${label}</span>`;
+    }
+
+    function scoreCell(rawScore) {
+        if (rawScore == null) return '-';
+        const n = Number(rawScore);
+        if (isNaN(n)) return '-';
+        const s = n <= 1 ? Math.round(n * 100) : n <= 10 ? Math.round(n * 10) : Math.round(n);
+        const col = s >= 75 ? '#0F6E56' : s >= 50 ? '#854F0B' : '#A32D2D';
+        return `<span style="color:${col};font-weight:500;">${s}%</span>`;
+    }
+
+    // Prefer coAppsData (has correct stage from applications table)
+    const apps = typeof coAppsData !== 'undefined' ? coAppsData : [];
+    let rows;
+    if (apps.length > 0) {
+        rows = apps.map(a => ({
+            name: a.name || 'Unknown',
+            job_title: a.job_title || '—',
+            stageRaw: a.stage || 'applied',
+            score: a.score,
+        }));
+    } else {
+        rows = [];
+        huntersAllJobs.forEach(j => {
+            (j.candidates || []).forEach(c => {
+                rows.push({
+                    name: c.full_name || c.name || 'Unknown',
+                    job_title: j.title || j.job_title || '—',
+                    stageRaw: c.stage || c.status || 'applied',
+                    score: c.ai_score ?? c.score,
                 });
             });
-        }
-    });
+        });
+    }
 
-    if (allCands.length === 0) {
+    if (!rows.length) {
         container.innerHTML = `
             <div style="text-align:center; padding:40px;">
                 <svg width="40" height="40" fill="none" stroke="#D1D5DB" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
@@ -842,31 +889,20 @@ function renderHuntersProfileCandidates() {
                 <tr style="border-bottom:1px solid #E5E7EB;">
                     <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Name</th>
                     <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Job Applied</th>
-                    <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Status</th>
+                    <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Stage</th>
                     <th style="padding:12px 14px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase;">Score</th>
                 </tr>
             </thead>
             <tbody>
     `;
 
-    allCands.forEach(c => {
-        let statusBadge = `<span style="background:#FFF7E0; color:#9B6F00; padding:4px 8px; border-radius:6px; font-size:11px;">Pending</span>`;
-        if (c.status === 'Shortlisted') statusBadge = `<span style="background:#E1F5EE; color:#0F6E56; padding:4px 8px; border-radius:6px; font-size:11px;">Shortlisted</span>`;
-        else if (c.status === 'Rejected') statusBadge = `<span style="background:#FCEBEB; color:#A32D2D; padding:4px 8px; border-radius:6px; font-size:11px;">Rejected</span>`;
-        
-        let scoreHTML = '-';
-        if (c.ai_score != null) {
-            if (c.ai_score >= 75) scoreHTML = `<span style="color:#0F6E56; font-weight:500;">${c.ai_score}%</span>`;
-            else if (c.ai_score >= 50) scoreHTML = `<span style="color:#854F0B; font-weight:500;">${c.ai_score}%</span>`;
-            else scoreHTML = `<span style="color:#A32D2D; font-weight:500;">${c.ai_score}%</span>`;
-        }
-
+    rows.forEach(r => {
         html += `
             <tr style="border-bottom:1px solid #F3F4F6;">
-                <td style="padding:12px 14px; font-size:13px; font-weight:500; color:#1B2A4A;">${c.full_name || c.name || 'Unknown'}</td>
-                <td style="padding:12px 14px; font-size:12px; color:#4B5563;">${c.job_title}</td>
-                <td style="padding:12px 14px;">${statusBadge}</td>
-                <td style="padding:12px 14px; font-size:13px;">${scoreHTML}</td>
+                <td style="padding:12px 14px; font-size:13px; font-weight:500; color:#1B2A4A;">${huntersEsc(r.name)}</td>
+                <td style="padding:12px 14px; font-size:12px; color:#4B5563;">${huntersEsc(r.job_title)}</td>
+                <td style="padding:12px 14px;">${stageBadge(r.stageRaw)}</td>
+                <td style="padding:12px 14px; font-size:13px;">${scoreCell(r.score)}</td>
             </tr>
         `;
     });
@@ -882,26 +918,55 @@ function renderHuntersAnalytics() {
     const stageCounts = {Applied:0, Screening:0, Shortlisted:0, Interview:0, Offered:0, Hired:0, Rejected:0};
     const scoreBuckets = {low:0, mid:0, good:0, high:0};
 
-    huntersAllJobs.forEach((j) => {
-        if (j.candidates) {
-            appsCount += j.candidates.length;
-            j.candidates.forEach((c) => {
-                const st = c.status || 'Applied';
-                if (stageCounts.hasOwnProperty(st)) stageCounts[st]++;
-                if (st === 'Shortlisted') shortlisted++;
-                if (st === 'Hired') hired++;
-                if (st === 'Rejected') rejected++;
-                if (c.ai_score != null && !Number.isNaN(Number(c.ai_score))) {
-                    const s = Number(c.ai_score);
-                    scoreSum += s; scoreN++;
-                    if (s <= 25) scoreBuckets.low++;
-                    else if (s <= 50) scoreBuckets.mid++;
-                    else if (s <= 75) scoreBuckets.good++;
-                    else scoreBuckets.high++;
-                }
-            });
-        }
-    });
+    function _stgLabel(raw) {
+        const s = (raw || 'applied').toLowerCase();
+        if (s === 'screening') return 'Screening';
+        if (s === 'shortlisted') return 'Shortlisted';
+        if (s === 'interview') return 'Interview';
+        if (s === 'offer' || s === 'offered') return 'Offered';
+        if (s === 'hired') return 'Hired';
+        if (s === 'rejected') return 'Rejected';
+        return 'Applied';
+    }
+
+    function _addScore(raw) {
+        if (raw == null || isNaN(Number(raw))) return;
+        const n = Number(raw);
+        const s = n <= 1 ? Math.round(n * 100) : n <= 10 ? Math.round(n * 10) : Math.round(n);
+        scoreSum += s; scoreN++;
+        if (s <= 25) scoreBuckets.low++;
+        else if (s <= 50) scoreBuckets.mid++;
+        else if (s <= 75) scoreBuckets.good++;
+        else scoreBuckets.high++;
+    }
+
+    // Prefer coAppsData (has accurate stage from applications table)
+    const apps = typeof coAppsData !== 'undefined' && coAppsData.length ? coAppsData : null;
+    if (apps) {
+        appsCount = apps.length;
+        apps.forEach((a) => {
+            const lbl = _stgLabel(a.stage);
+            if (stageCounts.hasOwnProperty(lbl)) stageCounts[lbl]++;
+            if (lbl === 'Shortlisted') shortlisted++;
+            if (lbl === 'Hired') hired++;
+            if (lbl === 'Rejected') rejected++;
+            _addScore(a.score);
+        });
+    } else {
+        huntersAllJobs.forEach((j) => {
+            if (j.candidates) {
+                appsCount += j.candidates.length;
+                j.candidates.forEach((c) => {
+                    const lbl = _stgLabel(c.stage || c.status);
+                    if (stageCounts.hasOwnProperty(lbl)) stageCounts[lbl]++;
+                    if (lbl === 'Shortlisted') shortlisted++;
+                    if (lbl === 'Hired') hired++;
+                    if (lbl === 'Rejected') rejected++;
+                    _addScore(c.ai_score ?? c.score);
+                });
+            }
+        });
+    }
 
     const avgScore = scoreN ? Math.round(scoreSum / scoreN) : 0;
 
@@ -948,11 +1013,15 @@ function renderHuntersAnalytics() {
     const funnelHtml = funnelStages.map(([label, val, color]) => cssBar(label, val, maxFunnel, color)).join('');
 
     // Applications by Job (top 8)
-    const maxApps = Math.max(...huntersAllJobs.map((j) => (j.candidates ? j.candidates.length : 0)), 1);
-    const jobBarsHtml = huntersAllJobs.slice(0, 8).map((j) => {
-        const n = j.candidates ? j.candidates.length : 0;
-        return cssBar(huntersEsc((j.title || j.job_title || 'Job').slice(0, 22)), n, maxApps, '#1B2A4A');
-    }).join('') || '<div style="font-size:12px;color:#9CA3AF;">No jobs yet.</div>';
+    const jobBarData = huntersAllJobs.slice(0, 8).map((j) => {
+        const n = apps
+            ? apps.filter((a) => String(a.job_id) === String(j.id)).length
+            : (j.candidates ? j.candidates.length : 0);
+        return { title: huntersEsc((j.title || j.job_title || 'Job').slice(0, 22)), n };
+    });
+    const maxApps = Math.max(...jobBarData.map((d) => d.n), 1);
+    const jobBarsHtml = jobBarData.map((d) => cssBar(d.title, d.n, maxApps, '#1B2A4A')).join('')
+        || '<div style="font-size:12px;color:#9CA3AF;">No jobs yet.</div>';
 
     // Score Distribution
     const maxScore = Math.max(scoreBuckets.low, scoreBuckets.mid, scoreBuckets.good, scoreBuckets.high, 1);

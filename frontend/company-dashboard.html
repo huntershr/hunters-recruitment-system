@@ -1680,6 +1680,7 @@
     function filterCandidates() {
         const search = document.getElementById('cand-search').value.toLowerCase();
         const jobId  = document.getElementById('cand-job-filter').value;
+        const stageF = ((document.getElementById('cand-stage-filter') || {}).value || '').toLowerCase();
         const sort   = document.getElementById('cand-sort').value;
 
         let filtered = allCandidatesData.filter(c => {
@@ -1688,7 +1689,9 @@
                 displayName.toLowerCase().includes(search) ||
                 (c.email || '').toLowerCase().includes(search);
             const matchJob = !jobId || String(c.job_id) === jobId;
-            return matchSearch && matchJob;
+            const candStage = (c.stage || c.status || '').toLowerCase();
+            const matchStage = !stageF || candStage === stageF;
+            return matchSearch && matchJob && matchStage;
         });
 
         filtered.sort((a, b) => {
@@ -1775,18 +1778,14 @@
                 </button>`;
             }
 
-            const stage = cand.stage || cand.status || 'Applied';
-            let stageColor = '#6B7280'; let stageBg = '#F3F4F6';
-            if(stage==='Shortlisted') { stageColor='#0F6E56'; stageBg='#E1F5EE'; }
-            else if(stage==='Review') { stageColor='#854F0B'; stageBg='#FAEEDA'; }
-            else if(stage==='Rejected') { stageColor='#A32D2D'; stageBg='#FCEBEB'; }
+            const stage = (cand.stage || cand.status || 'Applied');
+            const stageLC = stage.toLowerCase();
+            const _sm = {'applied':['#1B2A4A','#EFF2F8'],'screening':['#854F0B','#FAEEDA'],'shortlisted':['#0F6E56','#E1F5EE'],'interview':['#185FA5','#E6F1FB'],'offered':['#0F6E56','#FBF7E8'],'offer':['#0F6E56','#FBF7E8'],'hired':['#0A4A39','#E1F5EE'],'rejected':['#A32D2D','#FCEBEB']};
+            const [stageColor, stageBg] = _sm[stageLC] || ['#6B7280','#F3F4F6'];
 
             let stageBadge = `<div style="position:relative; display:inline-block;">
                 <select onchange="updateCandidateStage(${cand.id}, this.value)" style="appearance:none; -webkit-appearance:none; background:${stageBg}; color:${stageColor}; border:1px solid ${stageColor}40; border-radius:12px; padding:4px 20px 4px 10px; font-size:11px; font-weight:500; cursor:pointer; outline:none;">
-                    <option value="Applied" ${stage==='Applied'?'selected':''}>Applied</option>
-                    <option value="Review" ${stage==='Review'?'selected':''}>Review</option>
-                    <option value="Shortlisted" ${stage==='Shortlisted'?'selected':''}>Shortlisted</option>
-                    <option value="Rejected" ${stage==='Rejected'?'selected':''}>Rejected</option>
+                    ${['Applied','Screening','Shortlisted','Interview','Offered','Hired','Rejected'].map(s=>`<option value="${s}"${stageLC===s.toLowerCase()?' selected':''}>${s}</option>`).join('')}
                 </select>
                 <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); pointer-events:none; color:${stageColor};"><polyline points="6 9 12 15 18 9"/></svg>
             </div>`;
@@ -3921,7 +3920,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=2.4"></script>
+<script src="hunters-jobs.js?v=2.5"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies
