@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from .database import engine, Base, SessionLocal
-from .routers import jobs, candidates, evaluations, sheets, auth, public, companies, admin, profile
+from .routers import jobs, candidates, evaluations, sheets, auth, public, companies, admin, profile, interviews
 from .routers.auth import get_current_user
 from . import models, auth_utils
 from .services.ai_evaluator import generate_job_details
@@ -364,6 +364,33 @@ def startup_populate_db():
             logging.info(f"Migration Phase 8 stage_updated_at skipped: {_e}")
             db.rollback()
 
+        # Phase 9 — interviews table
+        try:
+            from sqlalchemy import text as _text
+            db.execute(_text("""
+                CREATE TABLE IF NOT EXISTS interviews (
+                    id SERIAL PRIMARY KEY,
+                    application_id INTEGER REFERENCES applications(id) NOT NULL,
+                    scheduled_by INTEGER REFERENCES users(id) NOT NULL,
+                    interview_date DATE NOT NULL,
+                    interview_time TIME NOT NULL,
+                    duration_minutes INTEGER DEFAULT 60,
+                    location_type TEXT NOT NULL,
+                    location_value TEXT,
+                    interviewer_names TEXT,
+                    notes_for_candidate TEXT,
+                    internal_notes TEXT,
+                    status TEXT DEFAULT 'scheduled',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            db.commit()
+            logging.info("Migration Phase 9: interviews table ensured")
+        except Exception as _e:
+            logging.info(f"Migration Phase 9 interviews table skipped: {_e}")
+            db.rollback()
+
         # Phase 9 — per-dimension AI score breakdown on evaluations
         for _col_sql in [
             "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS score_experience FLOAT DEFAULT NULL",
@@ -451,6 +478,8 @@ app.include_router(jobs.router)
 app.include_router(candidates.router)
 app.include_router(evaluations.router)
 app.include_router(sheets.router)
+app.include_router(interviews.admin_router)
+app.include_router(interviews.candidate_router)
 
 class GenerateJobRequest(BaseModel):
     job_title: str

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, JSON, Boolean, DateTime, LargeBinary
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, JSON, Boolean, DateTime, LargeBinary, Date, Time
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
@@ -120,6 +120,7 @@ class Application(Base):
     job = relationship("Job", back_populates="applications")
     candidate = relationship("Candidate", back_populates="applications")
     evaluation = relationship("Evaluation", back_populates="application", uselist=False)
+    interview = relationship("Interview", back_populates="application", uselist=False)
 
 
 class Evaluation(Base):
@@ -142,3 +143,25 @@ class Evaluation(Base):
 
     candidate = relationship("Candidate", back_populates="evaluations")
     application = relationship("Application", back_populates="evaluation")
+
+
+class Interview(Base):
+    __tablename__ = "interviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(Integer, ForeignKey("applications.id"), nullable=False)
+    scheduled_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    interview_date = Column(Date, nullable=False)
+    interview_time = Column(Time, nullable=False)
+    duration_minutes = Column(Integer, default=60)
+    location_type = Column(Text, nullable=False)
+    location_value = Column(Text, nullable=True)
+    interviewer_names = Column(Text, nullable=True)
+    notes_for_candidate = Column(Text, nullable=True)
+    internal_notes = Column(Text, nullable=True)
+    status = Column(Text, default='scheduled')
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    application = relationship("Application", back_populates="interview")
+    scheduler = relationship("User", foreign_keys=[scheduled_by])
