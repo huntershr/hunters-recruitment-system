@@ -2314,7 +2314,7 @@ function _renderCoWorkspace(co, activeTab) {
     const [pc, pb] = planColors[(co.plan||'free').toLowerCase()] || planColors.free;
     const planLabel = (co.plan||'free').charAt(0).toUpperCase() + (co.plan||'free').slice(1);
 
-    const tabs = ['overview', 'jobs', 'profile'];
+    const tabs = ['overview', 'jobs', 'candidates', 'profile'];
     const tabBtn = t => {
         const label = t.charAt(0).toUpperCase() + t.slice(1);
         const active = t === activeTab;
@@ -2322,14 +2322,16 @@ function _renderCoWorkspace(co, activeTab) {
     };
 
     let bodyHtml = '';
+    const _wsStageNames = {new:'Applied',applied:'Applied',screening:'Screening',shortlisted:'Shortlisted',interview:'Interview',offer:'Offered',offered:'Offered',hired:'Hired',rejected:'Rejected'};
     if (activeTab === 'overview') {
         const pipeline = co.pipeline || {};
-        const pipelineRows = Object.entries(pipeline).map(([s, n]) =>
-            `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid #F3F4F6;">
-                <span style="font-size:12px;color:#374151;">${escHtml(s)}</span>
+        const pipelineRows = Object.entries(pipeline).map(([s, n]) => {
+            const label = _wsStageNames[(s||'').toLowerCase()] || (s.charAt(0).toUpperCase()+s.slice(1));
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid #F3F4F6;">
+                <span style="font-size:12px;color:#374151;">${escHtml(label)}</span>
                 <span style="font-size:13px;font-weight:600;color:#1B2A4A;">${n}</span>
-            </div>`
-        ).join('') || '<div style="color:#9CA3AF;font-size:12px;padding:8px 0;">No applications yet</div>';
+            </div>`;
+        }).join('') || '<div style="color:#9CA3AF;font-size:12px;padding:8px 0;">No applications yet</div>';
 
         const recentJobs = (co.recent_jobs || []).map(j =>
             `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid #F3F4F6;">
@@ -2371,6 +2373,9 @@ function _renderCoWorkspace(co, activeTab) {
                 <span style="padding:3px 10px;border-radius:10px;font-size:11px;background:${j.is_approved?'#E1F5EE':'#FAEEDA'};color:${j.is_approved?'#0F6E56':'#854F0B'};">${j.is_approved?'Live':'Pending'}</span>
               </div>`).join('') + '</div>'
             : '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">No jobs for this company.</div>';
+
+    } else if (activeTab === 'candidates') {
+        bodyHtml = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading candidates…</div>';
 
     } else if (activeTab === 'profile') {
         const planExpVal = co.plan_expires_at ? co.plan_expires_at.slice(0,10) : '';
@@ -2426,6 +2431,7 @@ function _coWsTab(tab) {
     const co = window._coWorkspaceCo;
     if (!co) return;
     _renderCoWorkspace(co, tab);
+    if (tab === 'candidates') _loadCoWsCandidates(co);
 }
 
 async function _savePlanChanges(companyId) {
@@ -2448,6 +2454,69 @@ async function _savePlanChanges(companyId) {
             window._coWorkspaceCo.plan_expires_at = data.plan_expires_at;
         }
     } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+}
+
+function _coWsCandidatesTab(stage) {
+    window._coWsCandidatesStage = stage;
+    _renderCoWsCandidates(window._coWsCandidates || [], stage);
+}
+
+function _renderCoWsCandidates(apps, activeStage) {
+    const body = document.getElementById('co-ws-body');
+    if (!body) return;
+    window._coWsCandidatesStage = activeStage;
+
+    const counts = {};
+    _STAGE_TABS.forEach(t => {
+        counts[t.id] = apps.filter(a => t.stages.includes((a.stage||'applied').toLowerCase())).length;
+    });
+
+    const stagePills = _STAGE_TABS.map(t => {
+        const active = t.id === activeStage;
+        const cnt = counts[t.id] || 0;
+        return `<button onclick="_coWsCandidatesTab('${t.id}')" style="padding:7px 14px;border:none;border-radius:20px;font-size:12px;font-weight:${active?'600':'400'};cursor:pointer;background:${active?t.accent:'#F3F4F6'};color:${active?'#fff':'#6B7280'};transition:all 0.15s;">${t.label} <span style="background:rgba(0,0,0,0.15);padding:1px 6px;border-radius:10px;font-size:11px;">${cnt}</span></button>`;
+    }).join('');
+
+    const activeTabDef = _STAGE_TABS.find(t => t.id === activeStage) || _STAGE_TABS[0];
+    const filtered = apps.filter(a => activeTabDef.stages.includes((a.stage||'applied').toLowerCase()));
+
+    const cards = filtered.length
+        ? filtered.map(a => {
+            const sl = (a.stage||'applied').toLowerCase();
+            const [sc, sb] = _STAGE_BADGE_MAP[sl] || ['#1B2A4A','#EFF2F8'];
+            const displayStage = {new:'Applied',applied:'Applied',screening:'Screening',shortlisted:'Shortlisted',interview:'Interview',offer:'Offered',offered:'Offered',hired:'Hired',rejected:'Rejected'}[sl] || a.stage;
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:0.5px solid #F3F4F6;">
+                <div>
+                    <div style="font-size:13px;font-weight:500;color:#1B2A4A;">${escHtml(a.name||'Candidate')}</div>
+                    <div style="font-size:11px;color:#9CA3AF;">${escHtml(a.email||'')}${a.job_title?' · '+escHtml(a.job_title):''}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    ${a.score!=null?`<span style="font-size:12px;font-weight:600;color:#1B2A4A;">${a.score}%</span>`:''}
+                    <span style="padding:3px 10px;border-radius:10px;font-size:11px;background:${sb};color:${sc};">${escHtml(displayStage)}</span>
+                </div>
+            </div>`;
+        }).join('')
+        : '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">No candidates in this stage.</div>';
+
+    body.innerHTML = `
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">${stagePills}</div>
+        <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden;max-height:520px;overflow-y:auto;">${cards}</div>
+        <div style="margin-top:10px;font-size:11px;color:#9CA3AF;">${apps.length} total application${apps.length!==1?'s':''} · ${filtered.length} in this stage</div>`;
+}
+
+async function _loadCoWsCandidates(co) {
+    const body = document.getElementById('co-ws-body');
+    try {
+        const res = await fetch('/api/admin/applications?company_id=' + co.id + '&limit=500', {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        window._coWsCandidates = Array.isArray(data.applications) ? data.applications : [];
+        _renderCoWsCandidates(window._coWsCandidates, 'applied');
+    } catch(e) {
+        if (body) body.innerHTML = '<div style="padding:24px;color:#DC2626;font-size:13px;">Failed to load candidates: ' + escHtml(e.message) + '</div>';
+    }
 }
 
 async function editCompanyAdmin(companyId) {

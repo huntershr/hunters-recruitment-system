@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel
 import io
@@ -725,12 +725,13 @@ def get_talent_pool(
 def list_admin_applications(
     skip: int = 0,
     limit: int = 500,
+    company_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     """
     Unified application list for admin UI.
-    SuperAdmin: all applications.
+    SuperAdmin: all applications, or scoped to ?company_id=X for workspace view.
     CompanyAdmin: applications for jobs owned by users in their company.
     Returns both Type A (candidate_id set) and Type B (applicant_* fields).
     """
@@ -739,7 +740,20 @@ def list_admin_applications(
 
     # Build a job_id filter subquery for company scoping
     if current_user.is_admin:
-        job_id_filter = None
+        if company_id is not None:
+            co_user_ids = (
+                db.query(models.User.id)
+                .filter(models.User.company_id == company_id)
+                .subquery()
+            )
+            co_job_ids = (
+                db.query(models.Job.id)
+                .filter(models.Job.owner_id.in_(co_user_ids))
+                .subquery()
+            )
+            job_id_filter = models.Application.job_id.in_(co_job_ids)
+        else:
+            job_id_filter = None
     else:
         co_user_ids = (
             db.query(models.User.id)

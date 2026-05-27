@@ -821,17 +821,20 @@
             <div style="padding:16px 20px; border-bottom:1px solid #E5E7EB; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                     <input type="text" id="cand-search" placeholder="Search by name or email..." oninput="filterCandidates()" style="padding:10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; min-width:240px; outline:none; color:#1B2A4A;">
-                    <select id="cand-job-filter" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background-color:#fff; cursor:pointer;">
+                    <select id="cand-job-filter" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background:#FFFFFF; cursor:pointer; appearance:none; -webkit-appearance:none;">
                         <option value="">All Jobs</option>
                     </select>
-                    <select id="cand-stage-filter" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background-color:#fff; cursor:pointer;">
+                    <select id="cand-stage-filter" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background:#FFFFFF; cursor:pointer; appearance:none; -webkit-appearance:none;">
                         <option value="">All Stages</option>
-                        <option value="Applied">Applied</option>
-                        <option value="Review">Review</option>
-                        <option value="Shortlisted">Shortlisted</option>
-                        <option value="Rejected">Rejected</option>
+                        <option value="applied">Applied</option>
+                        <option value="screening">Screening</option>
+                        <option value="shortlisted">Shortlisted</option>
+                        <option value="interview">Interview</option>
+                        <option value="offered">Offered</option>
+                        <option value="hired">Hired</option>
+                        <option value="rejected">Rejected</option>
                     </select>
-                    <select id="cand-sort" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background-color:#fff; cursor:pointer;">
+                    <select id="cand-sort" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background:#FFFFFF; cursor:pointer; appearance:none; -webkit-appearance:none;">
                         <option value="score-desc">Score: High → Low</option>
                         <option value="score-asc">Score: Low → High</option>
                         <option value="name-asc">Name: A → Z</option>
@@ -860,12 +863,15 @@
                 <div style="display:flex; gap:12px; align-items:center;">
                     <div style="display:flex; align-items:center; gap:6px;">
                         <span style="font-size:12px; color:#6B7280;">Move to Stage:</span>
-                        <select id="bulk-stage-select" onchange="bulkUpdateStage(this.value)" style="padding:6px 10px; border:1px solid #E5E7EB; border-radius:6px; font-size:12px; outline:none;">
+                        <select id="bulk-stage-select" onchange="bulkUpdateStage(this.value)" style="padding:6px 10px; border:1px solid #E5E7EB; border-radius:6px; font-size:12px; outline:none; appearance:none; -webkit-appearance:none; background:#fff;">
                             <option value="">Select...</option>
-                            <option value="Applied">Applied</option>
-                            <option value="Review">Review</option>
-                            <option value="Shortlisted">Shortlisted</option>
-                            <option value="Rejected">Rejected</option>
+                            <option value="applied">Applied</option>
+                            <option value="screening">Screening</option>
+                            <option value="shortlisted">Shortlisted</option>
+                            <option value="interview">Interview</option>
+                            <option value="offered">Offered</option>
+                            <option value="hired">Hired</option>
+                            <option value="rejected">Rejected</option>
                         </select>
                     </div>
                     <span style="color:#D1D5DB;">|</span>
