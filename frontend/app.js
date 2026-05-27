@@ -2866,13 +2866,24 @@ function renderAdminAnalytics(d) {
 // PHASE 9 — INTERVIEW SCHEDULING
 // ═══════════════════════════════════════════════════════════════
 
-function downloadIcs(base64Content, filename) {
-    const decoded = atob(base64Content);
-    const blob = new Blob([decoded], { type: 'text/calendar' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
+function downloadIcs(content, filename) {
+    let text;
+    try {
+        text = atob(content);
+    } catch (e) {
+        text = content;
+    }
+    const blob = new Blob([text], { type: 'text/calendar' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename || 'interview.ics'; a.click();
     URL.revokeObjectURL(url);
+}
+
+function _downloadIvIcs(ivId) {
+    const iv = (_ivTableData || []).find(i => i.id === ivId);
+    if (!iv || !iv.ics_file) { showToast('No .ics file available for this interview.', 'info'); return; }
+    downloadIcs(iv.ics_file.content, iv.ics_file.filename);
 }
 
 function _buildInterviewWhatsApp(iv, candName, jobTitle, company, phone) {
@@ -3277,7 +3288,7 @@ function renderInterviewsTable(rows) {
                 '<td style="padding:11px 14px;"><div style="display:flex;gap:5px;flex-wrap:wrap;">' +
                 (iv.status !== 'cancelled' ? '<button onclick="_openEditInterview(' + iv.id + ',' + iv.application_id + ')" style="font-size:11px;padding:5px 9px;background:#1B2A4A;color:#fff;border:none;border-radius:6px;cursor:pointer;">Edit</button>' : '') +
                 (iv.status !== 'cancelled' ? '<button onclick="cancelInterviewConfirm(' + iv.id + ')" style="font-size:11px;padding:5px 9px;background:#CC2B2B;color:#fff;border:none;border-radius:6px;cursor:pointer;">Cancel</button>' : '') +
-                '<button onclick="downloadIcs(' + iv.application_id + ')" style="font-size:11px;padding:5px 9px;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:6px;cursor:pointer;">↓ .ics</button>' +
+                '<button onclick="_downloadIvIcs(' + iv.id + ')" style="font-size:11px;padding:5px 9px;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:6px;cursor:pointer;">↓ .ics</button>' +
                 '</div></td></tr>';
         });
         tableHtml += '</tbody></table></div>';

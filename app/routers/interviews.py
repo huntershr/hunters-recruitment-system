@@ -460,6 +460,16 @@ def list_all_interviews(
         d["job_title"]         = job_title
         d["company_name"]      = company_name
         d["scheduled_by_name"] = (scheduler.full_name or scheduler.email) if scheduler else ""
+        try:
+            ics_str   = _generate_ics(iv, cand_name, job_title, company_name, for_candidate=True)
+            safe_name = (cand_name or "candidate").replace(" ", "-").lower()
+            date_tag  = str(iv.interview_date).replace("-", "")
+            d["ics_file"] = {
+                "filename": f"interview-{safe_name}-{date_tag}.ics",
+                "content":  base64.b64encode(ics_str.encode()).decode(),
+            }
+        except Exception:
+            d["ics_file"] = None
         result.append(d)
 
     return {"interviews": result}
