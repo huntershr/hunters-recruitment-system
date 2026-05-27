@@ -2234,7 +2234,7 @@ function renderAdminCompaniesTable(companies) {
             </div>
             <div style="font-size:11px;color:#9CA3AF;">Last activity: ${escHtml(lastAct)}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                <button onclick="enterCompanyWorkspace(${c.id})" style="flex:1;padding:8px 6px;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;min-width:90px;">Enter Company</button>
+                ${currentUser && currentUser.is_admin ? `<button onclick="enterCompanyWorkspace(${c.id})" style="flex:1;padding:8px 6px;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;min-width:90px;">Enter Company</button>` : ''}
                 <button onclick="editCompanyAdmin('${c.id}')" style="padding:8px 10px;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:8px;font-size:12px;cursor:pointer;">Edit</button>
                 <button onclick="toggleCompanyStatus('${c.id}','${c.status}')" style="padding:8px 10px;background:${c.status==='approved'?'#FAEEDA':'#E1F5EE'};color:${c.status==='approved'?'#854F0B':'#0F6E56'};border:none;border-radius:8px;font-size:12px;cursor:pointer;">${c.status==='approved'?'Suspend':'Approve'}</button>
                 <button onclick="deleteCompanyAdmin('${c.id}','${escHtml(c.name)}')" style="padding:8px 10px;background:#FCEBEB;color:#A32D2D;border:none;border-radius:8px;font-size:12px;cursor:pointer;">Delete</button>
@@ -3208,26 +3208,26 @@ function _ivFilterTable() {
 
 function exportInterviewsExcel() {
     if (!_ivTableData.length) { showToast('No interviews to export.', 'info'); return; }
-    const headers = ['Candidate Name','Email','Phone','Job Title','Company','Interview Date','Interview Time','Duration (min)','Location Type','Location','Interviewer(s)','Status','Scheduled By','Notes'];
-    const dataRows = _ivTableData.map(iv => [
-        iv.candidate_name||'', iv.candidate_email||'', iv.candidate_phone||'',
-        iv.job_title||'', iv.company_name||'', iv.interview_date||'', iv.interview_time||'',
-        iv.duration_minutes||60, iv.location_type||'', iv.location_value||'',
-        iv.interviewer_names||'', iv.status||'', iv.scheduled_by_name||'', iv.notes_for_candidate||''
-    ]);
-    const today = new Date().toISOString().slice(0, 10);
-    if (typeof XLSX !== 'undefined') {
-        const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Interviews');
-        XLSX.writeFile(wb, 'interviews-' + today + '.xlsx');
-    } else {
-        const csvRows = [headers, ...dataRows].map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
-        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = 'interviews-' + today + '.csv';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-    }
+    const exportData = _ivTableData.map(iv => ({
+        'Candidate Name':  iv.candidate_name  || '',
+        'Email':           iv.candidate_email || '',
+        'Phone':           iv.candidate_phone || '',
+        'Job Title':       iv.job_title       || '',
+        'Company':         iv.company_name    || '',
+        'Interview Date':  iv.interview_date  || '',
+        'Interview Time':  iv.interview_time  || '',
+        'Duration (min)':  iv.duration_minutes || 60,
+        'Location Type':   iv.location_type   || '',
+        'Location':        iv.location_value  || '',
+        'Interviewer(s)':  iv.interviewer_names     || '',
+        'Status':          iv.status                || '',
+        'Scheduled By':    iv.scheduled_by_name     || '',
+        'Notes':           iv.notes_for_candidate   || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Interviews');
+    XLSX.writeFile(wb, 'interviews-' + new Date().toISOString().split('T')[0] + '.xlsx');
     showToast('Exported successfully.', 'success');
 }
 
@@ -3287,7 +3287,7 @@ function renderInterviewsTable(rows) {
         '<div style="background:#FFFFFF;border-radius:16px;border-left:4px solid #C9A84C;padding:22px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
             '<div><h1 style="margin:0 0 4px 0;font-size:22px;font-weight:500;color:#1B2A4A;">Interviews</h1>' +
             '<p style="margin:0;font-size:13px;color:#9CA3AF;">All scheduled and past interviews across all companies</p></div>' +
-            '<button onclick="exportInterviewsExcel()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">↓ Export CSV</button>' +
+            '<button onclick="exportInterviewsExcel()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">↓ Export Excel</button>' +
         '</div>' +
         '<div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:16px;padding:14px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
             '<input type="text" id="iv-table-search" placeholder="Search by candidate, job, or company…" oninput="_ivFilterTable()" style="flex:1;padding:9px 14px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;min-width:200px;outline:none;color:#1B2A4A;">' +

@@ -2423,26 +2423,24 @@
 
     function coExportInterviewsExcel() {
         if (!_coInterviewsData.length) { showToast('No interviews to export.', 'info'); return; }
-        const headers = ['Candidate Name','Email','Phone','Job Title','Interview Date','Interview Time','Duration (min)','Location Type','Location','Interviewer(s)','Status','Notes'];
-        const dataRows = _coInterviewsData.map(iv => [
-            iv.candidate_name||'', iv.candidate_email||'', iv.candidate_phone||'',
-            iv.job_title||'', iv.interview_date||'', iv.interview_time||'',
-            iv.duration_minutes||60, iv.location_type||'', iv.location_value||'',
-            iv.interviewer_names||'', iv.status||'', iv.notes_for_candidate||''
-        ]);
-        const today = new Date().toISOString().slice(0, 10);
-        if (typeof XLSX !== 'undefined') {
-            const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Interviews');
-            XLSX.writeFile(wb, `interviews-${today}.xlsx`);
-        } else {
-            const csvRows = [headers, ...dataRows].map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
-            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = `interviews-${today}.csv`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-        }
+        const exportData = _coInterviewsData.map(iv => ({
+            'Candidate Name':   iv.candidate_name    || '',
+            'Email':            iv.candidate_email   || '',
+            'Phone':            iv.candidate_phone   || '',
+            'Job Title':        iv.job_title         || '',
+            'Interview Date':   iv.interview_date    || '',
+            'Interview Time':   iv.interview_time    || '',
+            'Duration (min)':   iv.duration_minutes  || 60,
+            'Location Type':    iv.location_type     || '',
+            'Location':         iv.location_value    || '',
+            'Interviewer(s)':   iv.interviewer_names || '',
+            'Status':           iv.status            || '',
+            'Notes':            iv.notes_for_candidate || '',
+        }));
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Interviews');
+        XLSX.writeFile(wb, 'interviews-' + new Date().toISOString().split('T')[0] + '.xlsx');
         showToast('Exported successfully.', 'success');
     }
 
