@@ -190,14 +190,20 @@
           .stat-value{font-size:20px;}
         }
         #stage-tabs-bar::-webkit-scrollbar{display:none;}
-        .job-share-section{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;margin-top:12px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;}
-        .share-label{font-size:11px;color:#6B7280;font-weight:500;white-space:nowrap;}
+        .job-share-section{background:transparent;border:none;padding:8px 0 4px 0;margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+        .share-label{font-size:11px;color:#9CA3AF;font-weight:400;margin-right:2px;}
         .share-buttons{display:flex;gap:6px;flex-wrap:wrap;}
-        .share-btn{height:32px;padding:0 12px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all 0.2s ease;}
-        .share-btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(13,27,62,0.15);}
-        .share-linkedin,.share-facebook{background:#0D1B3E;color:#fff;}
-        .share-whatsapp{background:#25D366;color:#fff;}
-        .share-copy{background:#fff;color:#0D1B3E;border:1px solid #E5E7EB!important;}
+        .share-btn{height:30px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;transition:all 0.15s ease;background:transparent;display:flex;align-items:center;gap:4px;}
+        .share-btn:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,0.10);}
+        .share-linkedin{border:1px solid #0A66C2;color:#0A66C2;}
+        .share-linkedin:hover{background:#0A66C208;}
+        .share-facebook{border:1px solid #1877F2;color:#1877F2;}
+        .share-facebook:hover{background:#1877F208;}
+        .share-whatsapp{border:1px solid #25D366;color:#25D366;}
+        .share-whatsapp:hover{background:#25D36608;}
+        .share-copy{border:1px solid #1B2A4A;color:#1B2A4A;}
+        .share-copy:hover{background:#1B2A4A08;}
+        .share-copy.copied{border-color:#C9A84C;color:#C9A84C;background:#C9A84C10;}
         @media(max-width:640px){.share-btn{height:36px;}}
     </style>
 </head>
@@ -1105,6 +1111,6 @@ function confirmResetPassword(){
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- CACHE VERSION: bump ?v= number on every app.js change -->
-<script src="app.js?v=1.32"></script>
+<script src="app.js?v=1.33"></script>
 </body>
 </html>

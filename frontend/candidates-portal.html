@@ -80,14 +80,20 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 .cv-drop:hover,.cv-drop.dragover{border-color:var(--navy);background:#F0F4FF;}
 @keyframes spin{to{transform:rotate(360deg);}}
 /* Job Share Section */
-.job-share-section{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;margin-bottom:4px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;}
-.share-label{font-size:11px;color:#6B7280;font-weight:500;white-space:nowrap;}
+.job-share-section{background:transparent;border:none;padding:8px 0 4px 0;margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.share-label{font-size:11px;color:#9CA3AF;font-weight:400;margin-right:2px;}
 .share-buttons{display:flex;gap:6px;flex-wrap:wrap;}
-.share-btn{height:30px;padding:0 10px;border-radius:8px;font-size:11px;font-weight:600;border:none;cursor:pointer;transition:all 0.2s ease;}
-.share-btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(13,27,62,0.15);}
-.share-linkedin,.share-facebook{background:#0D1B3E;color:#fff;}
-.share-whatsapp{background:#25D366;color:#fff;}
-.share-copy{background:#fff;color:#0D1B3E;border:1px solid #E5E7EB!important;}
+.share-btn{height:30px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;transition:all 0.15s ease;background:transparent;display:flex;align-items:center;gap:4px;}
+.share-btn:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,0.10);}
+.share-linkedin{border:1px solid #0A66C2;color:#0A66C2;}
+.share-linkedin:hover{background:#0A66C208;}
+.share-facebook{border:1px solid #1877F2;color:#1877F2;}
+.share-facebook:hover{background:#1877F208;}
+.share-whatsapp{border:1px solid #25D366;color:#25D366;}
+.share-whatsapp:hover{background:#25D36608;}
+.share-copy{border:1px solid #1B2A4A;color:#1B2A4A;}
+.share-copy:hover{background:#1B2A4A08;}
+.share-copy.copied{border-color:#C9A84C;color:#C9A84C;background:#C9A84C10;}
 </style>
 </head>
 <body>
@@ -402,8 +408,8 @@ function portalShareJob(platform,jobId){
 function portalCopyJobLink(jobId,btn){
   var url=portalGetShareUrl(jobId);
   navigator.clipboard.writeText(url).then(function(){
-    var orig=btn.innerHTML;btn.innerHTML='✓ Copied';btn.style.background='#C9A84C';btn.style.color='#0D1B3E';
-    setTimeout(function(){btn.innerHTML=orig;btn.style.background='';btn.style.color='';},2000);
+    var orig=btn.innerHTML;btn.innerHTML='✓ Copied';btn.classList.add('copied');
+    setTimeout(function(){btn.innerHTML=orig;btn.classList.remove('copied');},2000);
     showToast('Job link copied!');
   });
 }
@@ -411,10 +417,10 @@ function portalJobShareHtml(jobId){
   return '<div class="job-share-section" onclick="event.stopPropagation()">'
     +'<span class="share-label">Share:</span>'
     +'<div class="share-buttons">'
-      +'<button onclick="portalShareJob(\'linkedin\','+jobId+')" class="share-btn share-linkedin">in</button>'
-      +'<button onclick="portalShareJob(\'facebook\','+jobId+')" class="share-btn share-facebook">f</button>'
-      +'<button onclick="portalShareJob(\'whatsapp\','+jobId+')" class="share-btn share-whatsapp">W</button>'
-      +'<button onclick="portalCopyJobLink('+jobId+',this)" class="share-btn share-copy">🔗 Copy</button>'
+      +'<button onclick="portalShareJob(\'linkedin\','+jobId+')" class="share-btn share-linkedin">LinkedIn</button>'
+      +'<button onclick="portalShareJob(\'facebook\','+jobId+')" class="share-btn share-facebook">Facebook</button>'
+      +'<button onclick="portalShareJob(\'whatsapp\','+jobId+')" class="share-btn share-whatsapp">WhatsApp</button>'
+      +'<button onclick="portalCopyJobLink('+jobId+',this)" class="share-btn share-copy">Copy Link</button>'
     +'</div></div>';
 }
 function fixScore(r){if(r===null||r===undefined)return null;var n=Number(r);if(isNaN(n))return null;if(n<=1)return Math.round(n*100);if(n<=10)return Math.round(n*10);return Math.round(Math.min(100,n));}

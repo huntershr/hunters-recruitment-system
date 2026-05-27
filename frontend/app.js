@@ -471,9 +471,8 @@ function copyJobLink(jobId, btnEl) {
     navigator.clipboard.writeText(getJobShareUrl(jobId)).then(() => {
         const orig = btnEl.innerHTML;
         btnEl.innerHTML = '✓ Copied';
-        btnEl.style.background = '#C9A84C';
-        btnEl.style.color = '#0D1B3E';
-        setTimeout(() => { btnEl.innerHTML = orig; btnEl.style.cssText = ''; }, 2000);
+        btnEl.classList.add('copied');
+        setTimeout(() => { btnEl.innerHTML = orig; btnEl.classList.remove('copied'); }, 2000);
         showToast('Job link copied!');
     });
 }
@@ -482,10 +481,10 @@ function jobShareSectionHtml(jobId) {
     return `<div class="job-share-section">
         <span class="share-label">Share:</span>
         <div class="share-buttons">
-            <button onclick="event.stopPropagation();shareJob('linkedin',${jobId})" class="share-btn share-linkedin">in</button>
-            <button onclick="event.stopPropagation();shareJob('facebook',${jobId})" class="share-btn share-facebook">f</button>
-            <button onclick="event.stopPropagation();shareJob('whatsapp',${jobId})" class="share-btn share-whatsapp">W</button>
-            <button onclick="event.stopPropagation();copyJobLink(${jobId},this)" class="share-btn share-copy">🔗 Copy</button>
+            <button onclick="event.stopPropagation();shareJob('linkedin',${jobId})" class="share-btn share-linkedin">LinkedIn</button>
+            <button onclick="event.stopPropagation();shareJob('facebook',${jobId})" class="share-btn share-facebook">Facebook</button>
+            <button onclick="event.stopPropagation();shareJob('whatsapp',${jobId})" class="share-btn share-whatsapp">WhatsApp</button>
+            <button onclick="event.stopPropagation();copyJobLink(${jobId},this)" class="share-btn share-copy">Copy Link</button>
         </div>
     </div>`;
 }
@@ -3178,14 +3177,15 @@ function _showInterviewDispatchModal(data, mode) {
     ).join('');
 
     const icsBtns = ics.map(f =>
-        '<button onclick="downloadIcs(\'' + f.content + '\',\'' + escHtml(f.filename) + '\')" style="flex:1;padding:10px 6px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">↓ ' + (f.for === 'candidate' ? 'Candidate' : 'Admin') + ' Calendar (.ics)</button>'
+        '<button onclick="downloadIcs(\'' + f.content + '\',\'' + escHtml(f.filename) + '\')" onmouseover="this.style.background=\'#1B2A4A\';this.style.color=\'#FAFAF8\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#1B2A4A\'" style="flex:1;padding:10px 16px;border:1px solid #1B2A4A;border-radius:8px;background:transparent;color:#1B2A4A;font-size:13px;font-weight:500;cursor:pointer;min-height:44px;transition:all 0.15s;">↓ ' + (f.for === 'candidate' ? 'Candidate' : 'Admin') + ' Calendar (.ics)</button>'
     ).join('');
 
     const waUrl    = _buildInterviewWhatsApp(iv, candName, jobTitle, company, phone);
     const waActive = !!phone;
     const waOnClick = waActive ? 'window.open(\'' + waUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\',\'_blank\')' : "showToast('No phone number on file','info')";
-    const waBtnStyle = 'flex:1;padding:10px 6px;border:none;border-radius:8px;font-size:12px;font-weight:600;min-height:44px;' + (waActive ? 'background:#25D366;color:#fff;cursor:pointer;' : 'background:#D1D5DB;color:#6B7280;cursor:not-allowed;');
-    const waBtn = '<button onclick="' + waOnClick + '" title="' + (waActive ? '' : 'No phone number on file') + '" style="' + waBtnStyle + '">💬 WhatsApp</button>';
+    const waBtnStyle = 'flex:1;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;min-height:44px;transition:all 0.15s;' + (waActive ? 'border:1px solid #25D366;background:transparent;color:#25D366;cursor:pointer;' : 'border:1px solid #D1D5DB;background:transparent;color:#9CA3AF;cursor:not-allowed;');
+    const waHoverAttr = waActive ? ' onmouseover="this.style.background=\'#25D366\';this.style.color=\'#fff\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#25D366\'"' : '';
+    const waBtn = '<button onclick="' + waOnClick + '" title="' + (waActive ? '' : 'No phone number on file') + '"' + waHoverAttr + ' style="' + waBtnStyle + '">💬 WhatsApp</button>';
 
     const modeLabel = mode === 'reschedule' ? 'Interview Rescheduled ↻' : mode === 'cancel' ? 'Interview Cancelled' : 'Interview Scheduled 🎯';
 
@@ -3203,10 +3203,10 @@ function _showInterviewDispatchModal(data, mode) {
             (emailRows ? '<div style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Email Previews</div>' + emailRows : '') +
             (icsBtns ? '<div style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin:16px 0 10px;">Calendar Invites</div><div style="display:flex;gap:8px;margin-bottom:8px;">' + icsBtns + '</div><div style="font-size:11px;color:#6B7280;text-align:center;margin-bottom:14px;">Download the .ics file, then open it to add the interview to Google Calendar, Outlook, or Apple Calendar automatically.</div>' : '') +
             '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
-                '<button onclick="_ivSendAllEmails(0)" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;">📧 Send Emails</button>' +
+                '<button onclick="_ivSendAllEmails(0)" style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:#1B2A4A;color:#FAFAF8;font-size:13px;font-weight:500;cursor:pointer;min-height:44px;">📧 Send Emails</button>' +
                 waBtn +
             '</div>' +
-            '<button onclick="document.getElementById(\'interview-dispatch-modal\').remove()" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Done</button>' +
+            '<button onclick="document.getElementById(\'interview-dispatch-modal\').remove()" style="width:100%;padding:8px 16px;border:1px solid #E5E7EB;border-radius:8px;background:transparent;color:#6B7280;font-size:13px;cursor:pointer;">Done</button>' +
         '</div></div>';
     window._ivDispatchNotifs = notifs;
     document.body.appendChild(m);

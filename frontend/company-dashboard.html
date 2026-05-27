@@ -540,14 +540,20 @@
             }
         }
         /* Job Share Section */
-        .job-share-section{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;margin-top:12px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;}
-        .share-label{font-size:11px;color:#6B7280;font-weight:500;white-space:nowrap;}
+        .job-share-section{background:transparent;border:none;padding:8px 0 4px 0;margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+        .share-label{font-size:11px;color:#9CA3AF;font-weight:400;margin-right:2px;}
         .share-buttons{display:flex;gap:6px;flex-wrap:wrap;}
-        .share-btn{height:32px;padding:0 12px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all 0.2s ease;}
-        .share-btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(13,27,62,0.15);}
-        .share-linkedin,.share-facebook{background:#0D1B3E;color:#fff;}
-        .share-whatsapp{background:#25D366;color:#fff;}
-        .share-copy{background:#fff;color:#0D1B3E;border:1px solid #E5E7EB!important;}
+        .share-btn{height:30px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;transition:all 0.15s ease;background:transparent;display:flex;align-items:center;gap:4px;}
+        .share-btn:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,0.10);}
+        .share-linkedin{border:1px solid #0A66C2;color:#0A66C2;}
+        .share-linkedin:hover{background:#0A66C208;}
+        .share-facebook{border:1px solid #1877F2;color:#1877F2;}
+        .share-facebook:hover{background:#1877F208;}
+        .share-whatsapp{border:1px solid #25D366;color:#25D366;}
+        .share-whatsapp:hover{background:#25D36608;}
+        .share-copy{border:1px solid #1B2A4A;color:#1B2A4A;}
+        .share-copy:hover{background:#1B2A4A08;}
+        .share-copy.copied{border-color:#C9A84C;color:#C9A84C;background:#C9A84C10;}
         /* Company Kanban */
         #co-stage-tabs-bar::-webkit-scrollbar{display:none;}
         .co-kanban{display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;align-items:flex-start;}
@@ -3115,14 +3121,15 @@
         ).join('');
 
         const icsBtns = ics.map(f =>
-            '<button onclick="downloadIcs(\'' + f.content + '\',\'' + escHtml(f.filename) + '\')" style="flex:1;padding:10px 6px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">↓ ' + (f.for === 'candidate' ? 'Candidate' : 'Admin') + ' Calendar (.ics)</button>'
+            '<button onclick="downloadIcs(\'' + f.content + '\',\'' + escHtml(f.filename) + '\')" onmouseover="this.style.background=\'#1B2A4A\';this.style.color=\'#FAFAF8\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#1B2A4A\'" style="flex:1;padding:10px 16px;border:1px solid #1B2A4A;border-radius:8px;background:transparent;color:#1B2A4A;font-size:13px;font-weight:500;cursor:pointer;min-height:44px;transition:all 0.15s;">↓ ' + (f.for === 'candidate' ? 'Candidate' : 'Admin') + ' Calendar (.ics)</button>'
         ).join('');
 
         const waUrl    = _buildInterviewWhatsApp(iv, candName, jobTitle, company, phone);
         const waActive = !!phone;
         const waOnClick = waActive ? 'window.open(\'' + waUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\',\'_blank\')' : "showToast('No phone number on file','info')";
-        const waBtnStyle = 'flex:1;padding:10px 6px;border:none;border-radius:8px;font-size:12px;font-weight:600;min-height:44px;' + (waActive ? 'background:#25D366;color:#fff;cursor:pointer;' : 'background:#D1D5DB;color:#6B7280;cursor:not-allowed;');
-        const waBtn = '<button onclick="' + waOnClick + '" title="' + (waActive ? '' : 'No phone number on file') + '" style="' + waBtnStyle + '">💬 WhatsApp</button>';
+        const waBtnStyle = 'flex:1;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;min-height:44px;transition:all 0.15s;' + (waActive ? 'border:1px solid #25D366;background:transparent;color:#25D366;cursor:pointer;' : 'border:1px solid #D1D5DB;background:transparent;color:#9CA3AF;cursor:not-allowed;');
+        const waHoverAttr = waActive ? ' onmouseover="this.style.background=\'#25D366\';this.style.color=\'#fff\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#25D366\'"' : '';
+        const waBtn = '<button onclick="' + waOnClick + '" title="' + (waActive ? '' : 'No phone number on file') + '"' + waHoverAttr + ' style="' + waBtnStyle + '">💬 WhatsApp</button>';
 
         const modeLabel = mode === 'reschedule' ? 'Interview Rescheduled ↻' : mode === 'cancel' ? 'Interview Cancelled' : 'Interview Scheduled 🎯';
 
@@ -3140,10 +3147,10 @@
                 (emailRows ? '<div style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Email Previews</div>' + emailRows : '') +
                 (icsBtns ? '<div style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin:16px 0 10px;">Calendar Invites</div><div style="display:flex;gap:8px;margin-bottom:8px;">' + icsBtns + '</div><div style="font-size:11px;color:#6B7280;text-align:center;margin-bottom:14px;">Download the .ics file, then open it to add the interview to Google Calendar, Outlook, or Apple Calendar automatically.</div>' : '') +
                 '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
-                    '<button onclick="_ivSendAllEmails(0)" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;">📧 Send Emails</button>' +
+                    '<button onclick="_ivSendAllEmails(0)" style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:#1B2A4A;color:#FAFAF8;font-size:13px;font-weight:500;cursor:pointer;min-height:44px;">📧 Send Emails</button>' +
                     waBtn +
                 '</div>' +
-                '<button onclick="document.getElementById(\'interview-dispatch-modal\').remove()" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Done</button>' +
+                '<button onclick="document.getElementById(\'interview-dispatch-modal\').remove()" style="width:100%;padding:8px 16px;border:1px solid #E5E7EB;border-radius:8px;background:transparent;color:#6B7280;font-size:13px;cursor:pointer;">Done</button>' +
             '</div></div>';
         window._ivDispatchNotifs = notifs;
         document.body.appendChild(m);
