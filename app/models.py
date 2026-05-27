@@ -14,7 +14,10 @@ class Company(Base):
     is_approved = Column(Boolean, default=False)
     approval_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+    plan = Column(String, default='free', nullable=True)
+    plan_expires_at = Column(DateTime, nullable=True)
+    billing_status = Column(String, default='active', nullable=True)
+
     users = relationship("User", back_populates="company")
 
 class User(Base):

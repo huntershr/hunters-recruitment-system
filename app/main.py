@@ -407,6 +407,21 @@ def startup_populate_db():
                 logging.info(f"Migration Phase 9 skipped ({_col_sql}): {_e}")
                 db.rollback()
 
+        # Plan management — companies billing columns
+        for _col_sql in [
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free'",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMP",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_status TEXT DEFAULT 'active'",
+        ]:
+            try:
+                from sqlalchemy import text as _text
+                db.execute(_text(_col_sql))
+                db.commit()
+                logging.info(f"Migration: {_col_sql}")
+            except Exception as _e:
+                logging.info(f"Migration skipped ({_col_sql}): {_e}")
+                db.rollback()
+
         # Phase 4 — BYTEA original file storage on candidates + applications
         for _col_sql in [
             "ALTER TABLE candidates   ADD COLUMN IF NOT EXISTS cv_file_data BYTEA",

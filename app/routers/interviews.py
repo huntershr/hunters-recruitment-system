@@ -405,6 +405,66 @@ def list_interviews(
     return {"interviews": result}
 
 
+@admin_router.get("/interviews/all")
+def list_all_interviews(
+    company_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """All interviews (including past/cancelled). SuperAdmin: all or filter by ?company_id=X. CompanyAdmin: scoped."""
+    if not current_user.is_admin and not current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not current_user.is_admin:
+        # Force scope to own company
+        scope_company_id = current_user.company_id
+    else:
+        scope_company_id = company_id  # None means all
+
+    if scope_company_id is not None:
+        co_user_ids = (
+            db.query(models.User.id)
+            .filter(models.User.company_id == scope_company_id)
+            .subquery()
+        )
+        co_job_ids = (
+            db.query(models.Job.id)
+            .filter(models.Job.owner_id.in_(co_user_ids))
+            .subquery()
+        )
+        co_app_ids = (
+            db.query(models.Application.id)
+            .filter(models.Application.job_id.in_(co_job_ids))
+            .subquery()
+        )
+        q = db.query(models.Interview).filter(models.Interview.application_id.in_(co_app_ids))
+    else:
+        q = db.query(models.Interview)
+
+    rows = q.order_by(
+        models.Interview.interview_date.desc(),
+        models.Interview.interview_time.desc(),
+    ).all()
+
+    result = []
+    for iv in rows:
+        app = _load_app(iv.application_id, db)
+        if not app:
+            continue
+        cand_name, cand_email, cand_phone, job_title, company_name = _people(app, db)
+        scheduler = db.query(models.User).filter(models.User.id == iv.scheduled_by).first()
+        d = _interview_to_dict(iv)
+        d["candidate_name"]    = cand_name
+        d["candidate_email"]   = cand_email
+        d["candidate_phone"]   = cand_phone
+        d["job_title"]         = job_title
+        d["company_name"]      = company_name
+        d["scheduled_by_name"] = (scheduler.full_name or scheduler.email) if scheduler else ""
+        result.append(d)
+
+    return {"interviews": result}
+
+
 @admin_router.get("/interviews/{application_id}")
 def get_interview(
     application_id: int,

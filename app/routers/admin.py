@@ -19,6 +19,12 @@ class StageUpdateRequest(BaseModel):
     stage: str
 
 
+class PlanUpdateRequest(BaseModel):
+    plan: str
+    plan_expires_at: str = None   # ISO date string or null
+    billing_status: str = "active"
+
+
 def _build_stage_notifications(application, stage: str, db: Session) -> list:
     """Build notification payloads for a stage transition. Returns empty list for stages with no notifications."""
     job = application.job
@@ -216,6 +222,23 @@ def get_all_companies_full(
             db.query(models.Candidate).filter(models.Candidate.owner_id.in_(user_ids)).count()
             if user_ids else 0
         )
+        # Applications count via job_ids
+        job_ids = [
+            j.id for j in db.query(models.Job).filter(models.Job.owner_id.in_(user_ids)).all()
+        ] if user_ids else []
+        applications_count = (
+            db.query(models.Application).filter(models.Application.job_id.in_(job_ids)).count()
+            if job_ids else 0
+        )
+        # Last activity: most recent application created_at
+        last_app = (
+            db.query(models.Application.created_at)
+            .filter(models.Application.job_id.in_(job_ids))
+            .order_by(models.Application.created_at.desc())
+            .first()
+            if job_ids else None
+        )
+        last_activity = last_app[0].isoformat() if last_app and last_app[0] else None
         result.append({
             "id": c.id,
             "name": c.company_name or "",
@@ -234,6 +257,11 @@ def get_all_companies_full(
             "admin_is_active": user.is_active if user else False,
             "job_count": job_count,
             "candidate_count": candidate_count,
+            "applications_count": applications_count,
+            "last_activity_at": last_activity,
+            "plan": getattr(c, "plan", None) or "free",
+            "plan_expires_at": c.plan_expires_at.isoformat() if getattr(c, "plan_expires_at", None) else None,
+            "billing_status": getattr(c, "billing_status", None) or "active",
         })
     return result
 
@@ -319,6 +347,109 @@ def admin_delete_company(
     )
     db.commit()
     return {"message": "Company deleted"}
+
+
+@router.get("/companies/{company_id}/overview")
+def get_company_overview(
+    company_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Full company stats for SuperAdmin 'Enter Company' workspace."""
+    _admin(current_user)
+    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    users = db.query(models.User).filter(models.User.company_id == company_id).all()
+    admin_user = next((u for u in users if u.is_admin), users[0] if users else None)
+    user_ids = [u.id for u in users]
+
+    jobs = db.query(models.Job).filter(models.Job.owner_id.in_(user_ids)).all() if user_ids else []
+    job_ids = [j.id for j in jobs]
+
+    apps = (
+        db.query(models.Application).filter(models.Application.job_id.in_(job_ids)).all()
+        if job_ids else []
+    )
+    app_ids = [a.id for a in apps]
+
+    interviews_count = (
+        db.query(models.Interview).filter(models.Interview.application_id.in_(app_ids)).count()
+        if app_ids else 0
+    )
+    candidates_count = db.query(models.Candidate).filter(
+        models.Candidate.owner_id.in_(user_ids)
+    ).count() if user_ids else 0
+
+    stage_counts: Dict[str, int] = {}
+    for a in apps:
+        s = (a.stage or "New").capitalize()
+        stage_counts[s] = stage_counts.get(s, 0) + 1
+
+    return {
+        "id": company.id,
+        "name": company.company_name or "",
+        "email": company.company_email or "",
+        "website": company.company_website or "",
+        "registration_number": company.registration_number or "",
+        "status": _status(company),
+        "is_approved": company.is_approved,
+        "created_at": company.created_at.isoformat() if company.created_at else "",
+        "plan": getattr(company, "plan", None) or "free",
+        "plan_expires_at": company.plan_expires_at.isoformat() if getattr(company, "plan_expires_at", None) else None,
+        "billing_status": getattr(company, "billing_status", None) or "active",
+        "admin_email": admin_user.email if admin_user else "",
+        "admin_name": admin_user.full_name if admin_user else "",
+        "admin_is_active": admin_user.is_active if admin_user else False,
+        "job_count": len(jobs),
+        "approved_job_count": sum(1 for j in jobs if j.is_approved),
+        "candidate_count": candidates_count,
+        "applications_count": len(apps),
+        "interviews_count": interviews_count,
+        "pipeline": stage_counts,
+        "recent_jobs": [
+            {
+                "id": j.id,
+                "job_title": j.job_title,
+                "is_approved": j.is_approved,
+                "created_at": j.created_at.isoformat() if j.created_at else "",
+            }
+            for j in sorted(jobs, key=lambda x: x.created_at or datetime(2000, 1, 1), reverse=True)[:5]
+        ],
+    }
+
+
+@router.patch("/companies/{company_id}/plan")
+def update_company_plan(
+    company_id: int,
+    payload: PlanUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """SuperAdmin-only: update a company's plan and billing status."""
+    _admin(current_user)
+    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    company.plan = payload.plan
+    company.billing_status = payload.billing_status
+    if payload.plan_expires_at:
+        try:
+            company.plan_expires_at = datetime.fromisoformat(payload.plan_expires_at)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid plan_expires_at format")
+    else:
+        company.plan_expires_at = None
+
+    db.commit()
+    return {
+        "message": "Plan updated",
+        "plan": company.plan,
+        "billing_status": company.billing_status,
+        "plan_expires_at": company.plan_expires_at.isoformat() if company.plan_expires_at else None,
+    }
 
 
 # ── Candidates ────────────────────────────────────────────────────────────────

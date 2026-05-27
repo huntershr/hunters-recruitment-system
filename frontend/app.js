@@ -2196,87 +2196,258 @@ async function loadAdminCompanies() {
 function renderAdminCompaniesTable(companies) {
     const view = document.getElementById('companies-view');
     if (!view) return;
-    view.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-            <div style="font-size:15px;font-weight:500;color:#1B2A4A;">Companies (${companies.length})</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <input id="company-search" placeholder="Search…" oninput="filterAdminCompanies(this.value)"
-                    style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;width:190px;">
-                <select id="company-status-filter" onchange="filterAdminCompaniesByStatus(this.value)"
-                    style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;background:#fff;color:#1B2A4A;">
-                    <option value="">All Status</option>
-                    <option value="approved">Approved</option>
-                    <option value="pending">Pending</option>
-                </select>
-                <button onclick="exportAdminData('companies')"
-                    style="background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:7px 14px;font-size:12px;color:#6B7280;cursor:pointer;">⬇ Export</button>
+    window._adminCompanies = companies;
+
+    const planBadge = plan => {
+        const map = {
+            free:         ['#9CA3AF','#F3F4F6'],
+            growth:       ['#185FA5','#E6F1FB'],
+            professional: ['#0F6E56','#E1F5EE'],
+            enterprise:   ['#C9A84C','#FBF7E8'],
+        };
+        const [c, bg] = map[(plan||'free').toLowerCase()] || map.free;
+        const label = (plan||'free').charAt(0).toUpperCase() + (plan||'free').slice(1);
+        return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:${bg};color:${c};font-size:10px;font-weight:600;">${escHtml(label)}</span>`;
+    };
+    const statusBadge = s => s === 'approved'
+        ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#E1F5EE;color:#0F6E56;font-size:10px;font-weight:500;">Approved</span>'
+        : '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#FAEEDA;color:#854F0B;font-size:10px;font-weight:500;">Pending</span>';
+
+    const cards = companies.map(c => {
+        const initials = (c.name||'?').split(' ').slice(0,2).map(w => w[0]||'').join('').toUpperCase() || '??';
+        const lastAct = c.last_activity_at ? new Date(c.last_activity_at).toLocaleDateString('en-GB') : '—';
+        return `<div class="co-admin-card" data-id="${c.id}" data-status="${c.status||''}" data-search="${escHtml((c.name+' '+c.email+' '+(c.admin_name||'')).toLowerCase())}"
+            style="background:#fff;border-radius:14px;border:1px solid #E5E7EB;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:14px;transition:box-shadow 0.15s;"
+            onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.04)'">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="width:48px;height:48px;border-radius:12px;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;">${escHtml(initials)}</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:600;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(c.name||'—')}</div>
+                    <div style="font-size:11px;color:#9CA3AF;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(c.admin_email||c.email||'')}</div>
+                    <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">${statusBadge(c.status)} ${planBadge(c.plan)}</div>
+                </div>
             </div>
-        </div>
-        <div style="background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,0.06);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:1000px;">
-                    <thead>
-                        <tr style="background:#1B2A4A;">
-                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Company</th>
-                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Email</th>
-                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Admin User</th>
-                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Status</th>
-                            <th style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:500;">Jobs</th>
-                            <th style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:500;">Candidates</th>
-                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Registered</th>
-                            <th style="padding:10px 14px;text-align:left;color:#fff;font-size:11px;font-weight:500;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="admin-companies-tbody">
-                        ${companies.map((c,i) => `
-                        <tr style="background:${i%2===0?'#fff':'#fafbfc'};border-bottom:0.5px solid #F3F4F6;"
-                            data-id="${c.id}" data-status="${c.status}"
-                            data-search="${(c.name+c.email+(c.admin_name||'')).toLowerCase()}">
-                            <td style="padding:10px 14px;">
-                                <div style="display:flex;align-items:center;gap:8px;">
-                                    <div style="width:30px;height:30px;border-radius:8px;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;flex-shrink:0;">${(c.name||'?').slice(0,2).toUpperCase()}</div>
-                                    <div>
-                                        <div style="font-weight:500;color:#1B2A4A;">${c.name||'—'}</div>
-                                        <div style="font-size:10px;color:#9CA3AF;">${c.website||''}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td style="padding:10px 14px;color:#6B7280;">${c.email||'—'}</td>
-                            <td style="padding:10px 14px;">
-                                <div style="color:#1B2A4A;">${c.admin_name||'—'}</div>
-                                <div style="font-size:10px;color:#9CA3AF;">${c.admin_email||''}</div>
-                            </td>
-                            <td style="padding:10px 14px;">
-                                <span style="background:${c.status==='approved'?'#E1F5EE':'#FAEEDA'};color:${c.status==='approved'?'#0F6E56':'#854F0B'};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">${c.status||'—'}</span>
-                            </td>
-                            <td style="padding:10px 14px;text-align:center;color:#1B2A4A;font-weight:500;">${c.job_count||0}</td>
-                            <td style="padding:10px 14px;text-align:center;color:#1B2A4A;font-weight:500;">${c.candidate_count||0}</td>
-                            <td style="padding:10px 14px;color:#9CA3AF;font-size:11px;">${c.created_at?new Date(c.created_at).toLocaleDateString('en-GB'):'—'}</td>
-                            <td style="padding:10px 14px;">
-                                <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                                    <button onclick="editCompanyAdmin('${c.id}')" style="background:#1B2A4A;color:#fff;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Edit</button>
-                                    <button onclick="viewCompanyAdmin('${c.id}')" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">View</button>
-                                    <button onclick="toggleCompanyStatus('${c.id}','${c.status}')" style="background:${c.status==='approved'?'#FAEEDA':'#E1F5EE'};color:${c.status==='approved'?'#854F0B':'#0F6E56'};border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">${c.status==='approved'?'Suspend':'Approve'}</button>
-                                    <button onclick="deleteCompanyAdmin('${c.id}','${c.name}')" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Delete</button>
-                                </div>
-                            </td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:#F9FAFB;border-radius:10px;padding:10px;">
+                <div style="text-align:center;"><div style="font-size:18px;font-weight:700;color:#1B2A4A;">${c.job_count||0}</div><div style="font-size:10px;color:#9CA3AF;">Jobs</div></div>
+                <div style="text-align:center;border-left:1px solid #E5E7EB;border-right:1px solid #E5E7EB;"><div style="font-size:18px;font-weight:700;color:#1B2A4A;">${c.candidate_count||0}</div><div style="font-size:10px;color:#9CA3AF;">Candidates</div></div>
+                <div style="text-align:center;"><div style="font-size:18px;font-weight:700;color:#1B2A4A;">${c.applications_count||0}</div><div style="font-size:10px;color:#9CA3AF;">Applications</div></div>
+            </div>
+            <div style="font-size:11px;color:#9CA3AF;">Last activity: ${escHtml(lastAct)}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button onclick="enterCompanyWorkspace(${c.id})" style="flex:1;padding:8px 6px;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;min-width:90px;">Enter Company</button>
+                <button onclick="editCompanyAdmin('${c.id}')" style="padding:8px 10px;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:8px;font-size:12px;cursor:pointer;">Edit</button>
+                <button onclick="toggleCompanyStatus('${c.id}','${c.status}')" style="padding:8px 10px;background:${c.status==='approved'?'#FAEEDA':'#E1F5EE'};color:${c.status==='approved'?'#854F0B':'#0F6E56'};border:none;border-radius:8px;font-size:12px;cursor:pointer;">${c.status==='approved'?'Suspend':'Approve'}</button>
+                <button onclick="deleteCompanyAdmin('${c.id}','${escHtml(c.name)}')" style="padding:8px 10px;background:#FCEBEB;color:#A32D2D;border:none;border-radius:8px;font-size:12px;cursor:pointer;">Delete</button>
             </div>
         </div>`;
+    }).join('');
+
+    view.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">' +
+            '<div style="font-size:15px;font-weight:500;color:#1B2A4A;">Companies (' + companies.length + ')</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                '<input id="company-search" placeholder="Search…" oninput="filterAdminCompanies()" ' +
+                    'style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;width:180px;">' +
+                '<select id="company-status-filter" onchange="filterAdminCompanies()" ' +
+                    'style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;background:#fff;color:#1B2A4A;">' +
+                    '<option value="">All Status</option>' +
+                    '<option value="approved">Approved</option>' +
+                    '<option value="pending">Pending</option>' +
+                '</select>' +
+                '<select id="company-plan-filter" onchange="filterAdminCompanies()" ' +
+                    'style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;background:#fff;color:#1B2A4A;">' +
+                    '<option value="">All Plans</option>' +
+                    '<option value="free">Free</option>' +
+                    '<option value="growth">Growth</option>' +
+                    '<option value="professional">Professional</option>' +
+                    '<option value="enterprise">Enterprise</option>' +
+                '</select>' +
+            '</div>' +
+        '</div>' +
+        '<div id="admin-companies-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">' + cards + '</div>';
 }
 
-function filterAdminCompanies(q) {
-    document.querySelectorAll('#admin-companies-tbody tr').forEach(row => {
-        row.style.display = !q || (row.dataset.search||'').includes(q.toLowerCase()) ? '' : 'none';
+function filterAdminCompanies() {
+    const q = ((document.getElementById('company-search') || {}).value || '').toLowerCase();
+    const st = (document.getElementById('company-status-filter') || {}).value || '';
+    const pl = (document.getElementById('company-plan-filter') || {}).value || '';
+    document.querySelectorAll('.co-admin-card').forEach(card => {
+        const matchQ = !q || (card.dataset.search||'').includes(q);
+        const matchS = !st || card.dataset.status === st;
+        const c = (window._adminCompanies||[]).find(x => String(x.id) === card.dataset.id);
+        const matchP = !pl || (c && (c.plan||'free').toLowerCase() === pl);
+        card.style.display = matchQ && matchS && matchP ? '' : 'none';
     });
 }
 
-function filterAdminCompaniesByStatus(status) {
-    document.querySelectorAll('#admin-companies-tbody tr').forEach(row => {
-        row.style.display = !status || row.dataset.status === status ? '' : 'none';
-    });
+function filterAdminCompaniesByStatus(status) { filterAdminCompanies(); }
+
+// ── Enter Company Workspace ────────────────────────────────────────
+async function enterCompanyWorkspace(companyId) {
+    const view = document.getElementById('companies-view');
+    if (!view) return;
+    view.innerHTML = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading company…</div>';
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/admin/companies/' + companyId + '/overview', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Company not found');
+        const co = await res.json();
+        _renderCoWorkspace(co, 'overview');
+    } catch(e) {
+        view.innerHTML = '<div style="padding:32px;color:#DC2626;text-align:center;">' + escHtml(e.message) + '</div>';
+    }
+}
+
+function _renderCoWorkspace(co, activeTab) {
+    const view = document.getElementById('companies-view');
+    if (!view) return;
+    window._coWorkspaceCo = co;
+
+    const planColors = {
+        free:         ['#9CA3AF','#F3F4F6'],
+        growth:       ['#185FA5','#E6F1FB'],
+        professional: ['#0F6E56','#E1F5EE'],
+        enterprise:   ['#C9A84C','#FBF7E8'],
+    };
+    const [pc, pb] = planColors[(co.plan||'free').toLowerCase()] || planColors.free;
+    const planLabel = (co.plan||'free').charAt(0).toUpperCase() + (co.plan||'free').slice(1);
+
+    const tabs = ['overview', 'jobs', 'profile'];
+    const tabBtn = t => {
+        const label = t.charAt(0).toUpperCase() + t.slice(1);
+        const active = t === activeTab;
+        return `<button onclick="_coWsTab('${t}')" style="padding:10px 20px;border:none;background:none;font-size:13px;cursor:pointer;color:${active?'#1B2A4A':'#9CA3AF'};font-weight:${active?'600':'400'};border-bottom:2px solid ${active?'#C9A84C':'transparent'};transition:all 0.15s;">${escHtml(label)}</button>`;
+    };
+
+    let bodyHtml = '';
+    if (activeTab === 'overview') {
+        const pipeline = co.pipeline || {};
+        const pipelineRows = Object.entries(pipeline).map(([s, n]) =>
+            `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid #F3F4F6;">
+                <span style="font-size:12px;color:#374151;">${escHtml(s)}</span>
+                <span style="font-size:13px;font-weight:600;color:#1B2A4A;">${n}</span>
+            </div>`
+        ).join('') || '<div style="color:#9CA3AF;font-size:12px;padding:8px 0;">No applications yet</div>';
+
+        const recentJobs = (co.recent_jobs || []).map(j =>
+            `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid #F3F4F6;">
+                <span style="font-size:12px;color:#374151;">${escHtml(j.job_title||'')}</span>
+                <span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;background:${j.is_approved?'#E1F5EE':'#FAEEDA'};color:${j.is_approved?'#0F6E56':'#854F0B'};">${j.is_approved?'Live':'Pending'}</span>
+            </div>`
+        ).join('') || '<div style="color:#9CA3AF;font-size:12px;padding:8px 0;">No jobs yet</div>';
+
+        bodyHtml = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;margin-bottom:20px;">
+                ${[
+                    ['Jobs', co.job_count||0, '#C9A84C'],
+                    ['Live Jobs', co.approved_job_count||0, '#0F6E56'],
+                    ['Candidates', co.candidate_count||0, '#185FA5'],
+                    ['Applications', co.applications_count||0, '#1B2A4A'],
+                    ['Interviews', co.interviews_count||0, '#854F0B'],
+                ].map(([l,v,c]) => `<div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:16px;text-align:center;">
+                    <div style="font-size:26px;font-weight:700;color:${c};">${v}</div>
+                    <div style="font-size:11px;color:#9CA3AF;margin-top:2px;">${l}</div>
+                </div>`).join('')}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:16px;">
+                    <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Pipeline</div>
+                    ${pipelineRows}
+                </div>
+                <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:16px;">
+                    <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Recent Jobs</div>
+                    ${recentJobs}
+                </div>
+            </div>`;
+
+    } else if (activeTab === 'jobs') {
+        const jobs = co.recent_jobs || [];
+        bodyHtml = jobs.length
+            ? '<div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden;">' +
+              jobs.map(j => `<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:0.5px solid #F3F4F6;">
+                <div><div style="font-size:13px;font-weight:500;color:#1B2A4A;">${escHtml(j.job_title||'')}</div><div style="font-size:11px;color:#9CA3AF;">${j.created_at?new Date(j.created_at).toLocaleDateString('en-GB'):''}</div></div>
+                <span style="padding:3px 10px;border-radius:10px;font-size:11px;background:${j.is_approved?'#E1F5EE':'#FAEEDA'};color:${j.is_approved?'#0F6E56':'#854F0B'};">${j.is_approved?'Live':'Pending'}</span>
+              </div>`).join('') + '</div>'
+            : '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">No jobs for this company.</div>';
+
+    } else if (activeTab === 'profile') {
+        const planExpVal = co.plan_expires_at ? co.plan_expires_at.slice(0,10) : '';
+        bodyHtml = `
+            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:20px;margin-bottom:16px;">
+                <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px;">Company Info</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;">
+                    ${[['Name', co.name],['Email',co.email],['Website',co.website||'—'],['Reg. No.',co.registration_number||'—'],['Admin',co.admin_name||'—'],['Admin Email',co.admin_email||'—'],['Status',co.status],['Registered',co.created_at?new Date(co.created_at).toLocaleDateString('en-GB'):'—']].map(([l,v])=>`<div><div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">${l}</div><div style="color:#1B2A4A;">${escHtml(String(v||'—'))}</div></div>`).join('')}
+                </div>
+            </div>
+            <div style="background:#fff;border-radius:12px;border:1px solid #C9A84C;padding:20px;">
+                <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px;">Plan Management</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                    <div>
+                        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:5px;">Plan</label>
+                        <select id="ws-plan" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;">
+                            ${['free','growth','professional','enterprise'].map(p => `<option value="${p}" ${(co.plan||'free').toLowerCase()===p?'selected':''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:5px;">Billing Status</label>
+                        <select id="ws-billing" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;">
+                            ${['active','paused','cancelled'].map(s => `<option value="${s}" ${(co.billing_status||'active')===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:5px;">Plan Expires (leave blank = no expiry)</label>
+                        <input type="date" id="ws-expires" value="${escHtml(planExpVal)}" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+                    </div>
+                </div>
+                <button onclick="_savePlanChanges(${co.id})" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;">Save Plan Changes</button>
+            </div>`;
+    }
+
+    view.innerHTML =
+        '<div style="background:linear-gradient(135deg,#C9A84C 0%,#B8932A 100%);border-radius:12px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">' +
+            '<div style="display:flex;align-items:center;gap:12px;">' +
+                '<div style="width:42px;height:42px;border-radius:10px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;">' +
+                    escHtml((co.name||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()) +
+                '</div>' +
+                '<div>' +
+                    '<div style="color:#fff;font-size:15px;font-weight:700;">Viewing as: ' + escHtml(co.name||'Company') + '</div>' +
+                    '<span style="display:inline-block;padding:2px 8px;border-radius:8px;background:rgba(255,255,255,0.25);color:#fff;font-size:11px;">' + escHtml(planLabel) + ' plan</span>' +
+                '</div>' +
+            '</div>' +
+            '<button onclick="loadAdminCompanies()" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:500;">← Back to Companies</button>' +
+        '</div>' +
+        '<div style="display:flex;border-bottom:1px solid #E5E7EB;margin-bottom:20px;">' + tabs.map(tabBtn).join('') + '</div>' +
+        '<div id="co-ws-body">' + bodyHtml + '</div>';
+}
+
+function _coWsTab(tab) {
+    const co = window._coWorkspaceCo;
+    if (!co) return;
+    _renderCoWorkspace(co, tab);
+}
+
+async function _savePlanChanges(companyId) {
+    const plan = (document.getElementById('ws-plan') || {}).value || 'free';
+    const billing = (document.getElementById('ws-billing') || {}).value || 'active';
+    const expires = (document.getElementById('ws-expires') || {}).value || null;
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/admin/companies/' + companyId + '/plan', {
+            method: 'PATCH',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan, billing_status: billing, plan_expires_at: expires || null })
+        });
+        if (!res.ok) throw new Error('Failed to save');
+        const data = await res.json();
+        showToast('Plan updated to ' + data.plan, 'success');
+        if (window._coWorkspaceCo) {
+            window._coWorkspaceCo.plan = data.plan;
+            window._coWorkspaceCo.billing_status = data.billing_status;
+            window._coWorkspaceCo.plan_expires_at = data.plan_expires_at;
+        }
+    } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
 }
 
 async function editCompanyAdmin(companyId) {
@@ -2898,7 +3069,7 @@ async function _updateInterview(interviewId, appId) {
         const data = await res.json();
         document.getElementById('schedule-interview-modal')?.remove();
         showToast('Interview updated', 'success');
-        setTimeout(() => { _showInterviewDispatchModal(data, 'reschedule'); if (typeof loadInterviewsOverview === 'function') loadInterviewsOverview(); }, 300);
+        setTimeout(() => { _showInterviewDispatchModal(data, 'reschedule'); if (typeof loadInterviewsTable === 'function') loadInterviewsTable(); }, 300);
     } catch(e) {
         showToast('Update failed', 'error');
         if (btn) { btn.disabled = false; btn.innerHTML = 'Save Changes ▶'; }
@@ -3003,82 +3174,132 @@ async function _cancelInterviewById(interviewId) {
         if (!res.ok) { showToast('Cancellation failed', 'error'); return; }
         const data = await res.json();
         showToast('Interview cancelled', 'success');
-        if (typeof loadInterviewsOverview === 'function') loadInterviewsOverview();
+        if (typeof loadInterviewsTable === 'function') loadInterviewsTable();
         _showInterviewDispatchModal(data, 'cancel');
     } catch(e) { showToast('Cancellation failed', 'error'); }
 }
 
-async function loadInterviewsOverview() {
+let _ivTableData = [];
+
+async function loadInterviewsOverview() { return loadInterviewsTable(); }
+
+async function loadInterviewsTable() {
     const view = document.getElementById('interviews-view');
     if (!view) return;
     view.innerHTML = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading interviews…</div>';
     const token = localStorage.getItem('token');
     try {
-        const res = await fetch('/api/admin/interviews', { headers: { 'Authorization': 'Bearer ' + token }, cache: 'no-store' });
+        const res = await fetch('/api/admin/interviews/all', { headers: { 'Authorization': 'Bearer ' + token }, cache: 'no-store' });
         if (!res.ok) { view.innerHTML = '<div style="padding:40px;color:#DC2626;text-align:center;">Failed to load interviews</div>'; return; }
         const data = await res.json();
-        _renderInterviewsOverview(data.interviews || []);
+        _ivTableData = data.interviews || [];
+        renderInterviewsTable(_ivTableData);
     } catch(e) { view.innerHTML = '<div style="padding:40px;color:#DC2626;text-align:center;">Error loading interviews</div>'; }
 }
 
-function _renderInterviewsOverview(rows) {
+function _ivFilterTable() {
+    const q = ((document.getElementById('iv-table-search') || {}).value || '').toLowerCase().trim();
+    const st = ((document.getElementById('iv-table-status') || {}).value || '').toLowerCase();
+    let rows = _ivTableData;
+    if (q) rows = rows.filter(iv => (iv.candidate_name + ' ' + iv.job_title + ' ' + (iv.company_name||'')).toLowerCase().includes(q));
+    if (st) rows = rows.filter(iv => (iv.status||'').toLowerCase() === st);
+    renderInterviewsTable(rows);
+}
+
+function exportInterviewsExcel() {
+    if (!_ivTableData.length) { showToast('No interviews to export.', 'info'); return; }
+    const rows = _ivTableData;
+    const headers = ['Candidate Name','Email','Phone','Job Title','Company','Interview Date','Interview Time','Duration (min)','Location Type','Location','Interviewer(s)','Status','Scheduled By','Notes'];
+    const csvRows = [headers.join(',')];
+    rows.forEach(iv => {
+        const cells = [
+            iv.candidate_name||'', iv.candidate_email||'', iv.candidate_phone||'',
+            iv.job_title||'', iv.company_name||'', iv.interview_date||'', iv.interview_time||'',
+            iv.duration_minutes||60, iv.location_type||'', iv.location_value||'',
+            iv.interviewer_names||'', iv.status||'', iv.scheduled_by_name||'', iv.notes_for_candidate||''
+        ].map(v => '"' + String(v).replace(/"/g, '""') + '"');
+        csvRows.push(cells.join(','));
+    });
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0, 10);
+    a.href = url; a.download = 'interviews-' + today + '.csv';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Exported successfully.', 'success');
+}
+
+function renderInterviewsTable(rows) {
     const view = document.getElementById('interviews-view');
     if (!view) return;
-    if (!rows.length) {
-        view.innerHTML = '<div style="text-align:center;padding:80px 20px;"><div style="font-size:48px;margin-bottom:16px;">📅</div><div style="font-size:15px;font-weight:500;color:#1B2A4A;margin-bottom:8px;">No interviews scheduled</div><div style="font-size:13px;color:#9CA3AF;">Scheduled interviews will appear here</div></div>';
-        return;
-    }
-    const today = new Date().toISOString().split('T')[0];
-    const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
-    const weekEndStr = weekEnd.toISOString().split('T')[0];
-    const groups = { today: [], week: [], future: [] };
-    rows.forEach(iv => {
-        if (iv.interview_date === today) groups.today.push(iv);
-        else if (iv.interview_date > today && iv.interview_date <= weekEndStr) groups.week.push(iv);
-        else groups.future.push(iv);
-    });
 
-    function renderRow(iv) {
-        const dt = new Date(iv.interview_date + 'T00:00:00');
-        const dateLabel = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-        const locIcon = iv.location_type === 'online' ? '🔗' : '📍';
-        const initials = (iv.candidate_name || '?').split(' ').slice(0,2).map(w => w[0] || '').join('').toUpperCase();
-        const safeCandName = (iv.candidate_name || 'Candidate').replace(/'/g, "\\'");
-        return '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;display:flex;align-items:flex-start;gap:14px;">' +
-            '<div style="width:40px;height:40px;min-width:40px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">' + escHtml(initials) + '</div>' +
-            '<div style="flex:1;min-width:0;">' +
-                '<div style="font-size:14px;font-weight:600;color:#1B2A4A;">' + escHtml(iv.candidate_name || '—') + '</div>' +
-                '<div style="font-size:12px;color:#6B7280;margin-top:2px;">' + escHtml(iv.job_title || '—') + (iv.company_name ? ' · ' + escHtml(iv.company_name) : '') + '</div>' +
-                '<div style="font-size:12px;color:#374151;margin-top:6px;">' +
-                    '🕐 ' + dateLabel + ' · ' + (iv.interview_time || '') + ' · ' + (iv.duration_minutes || 60) + ' min' +
-                    (iv.location_value ? ' · ' + locIcon + ' ' + escHtml(iv.location_value) : '') +
-                '</div>' +
-                (iv.interviewer_names ? '<div style="font-size:11px;color:#9CA3AF;margin-top:3px;">👤 ' + escHtml(iv.interviewer_names) + '</div>' : '') +
-            '</div>' +
-            '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">' +
-                '<button onclick="_openEditInterview(' + iv.id + ',' + iv.application_id + ')" style="padding:6px 12px;border:1px solid #1B2A4A;border-radius:6px;background:#fff;color:#1B2A4A;font-size:11px;font-weight:500;cursor:pointer;">✏️ Edit</button>' +
-                '<button onclick="cancelInterviewConfirm(' + iv.id + ',\'' + safeCandName + '\')" style="padding:6px 12px;border:none;border-radius:6px;background:none;color:#DC2626;font-size:11px;font-weight:500;cursor:pointer;">✕ Cancel</button>' +
-            '</div>' +
-            '</div>';
+    const statusBadge = s => {
+        const map = { scheduled: ['#185FA5','#E6F1FB'], cancelled: ['#A32D2D','#FCEBEB'], completed: ['#0F6E56','#E1F5EE'] };
+        const [c, bg] = map[(s||'').toLowerCase()] || ['#6B7280','#F3F4F6'];
+        return '<span style="display:inline-block;padding:2px 9px;border-radius:10px;background:' + bg + ';color:' + c + ';font-size:11px;font-weight:500;">' + escHtml((s||'').charAt(0).toUpperCase()+(s||'').slice(1)) + '</span>';
+    };
+
+    const emptyBody = !rows.length
+        ? '<div style="padding:60px;text-align:center;color:#9CA3AF;font-size:13px;">No interviews found.</div>'
+        : '';
+
+    let tableHtml = '';
+    if (rows.length) {
+        tableHtml = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+            '<thead><tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;">' +
+            '<th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Candidate</th>' +
+            '<th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Job Title</th>' +
+            '<th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Company</th>' +
+            '<th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Date</th>' +
+            '<th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Time</th>' +
+            '<th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Location</th>' +
+            '<th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Interviewer(s)</th>' +
+            '<th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Status</th>' +
+            '<th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Actions</th>' +
+            '</tr></thead><tbody>';
+        rows.forEach(iv => {
+            const locLabel = iv.location_type === 'online'
+                ? '<a href="' + escHtml(iv.location_value||'#') + '" target="_blank" style="color:#185FA5;font-size:12px;">🔗 Online</a>'
+                : '<span style="font-size:12px;">' + escHtml(iv.location_value || 'TBD') + '</span>';
+            tableHtml +=
+                '<tr style="border-top:0.5px solid #F3F4F6;" onmouseover="this.style.background=\'#FAFBFF\'" onmouseout="this.style.background=\'\'">' +
+                '<td style="padding:11px 14px;"><div style="font-weight:500;color:#1B2A4A;">' + escHtml(iv.candidate_name||'') + '</div>' +
+                '<div style="font-size:11px;color:#9CA3AF;">' + escHtml(iv.candidate_email||'') + '</div></td>' +
+                '<td style="padding:11px 14px;color:#374151;font-size:12px;">' + escHtml(iv.job_title||'') + '</td>' +
+                '<td style="padding:11px 14px;color:#374151;font-size:12px;">' + escHtml(iv.company_name||'') + '</td>' +
+                '<td style="padding:11px 14px;color:#374151;font-size:12px;white-space:nowrap;">' + escHtml(iv.interview_date||'') + '</td>' +
+                '<td style="padding:11px 14px;color:#374151;font-size:12px;white-space:nowrap;">' + escHtml(iv.interview_time||'') + '</td>' +
+                '<td style="padding:11px 14px;">' + locLabel + '</td>' +
+                '<td style="padding:11px 14px;color:#374151;font-size:12px;">' + escHtml(iv.interviewer_names||'TBD') + '</td>' +
+                '<td style="padding:11px 14px;">' + statusBadge(iv.status) + '</td>' +
+                '<td style="padding:11px 14px;"><div style="display:flex;gap:5px;flex-wrap:wrap;">' +
+                (iv.status !== 'cancelled' ? '<button onclick="_openEditInterview(' + iv.id + ',' + iv.application_id + ')" style="font-size:11px;padding:5px 9px;background:#1B2A4A;color:#fff;border:none;border-radius:6px;cursor:pointer;">Edit</button>' : '') +
+                (iv.status !== 'cancelled' ? '<button onclick="cancelInterviewConfirm(' + iv.id + ')" style="font-size:11px;padding:5px 9px;background:#CC2B2B;color:#fff;border:none;border-radius:6px;cursor:pointer;">Cancel</button>' : '') +
+                '<button onclick="downloadIcs(' + iv.application_id + ')" style="font-size:11px;padding:5px 9px;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:6px;cursor:pointer;">↓ .ics</button>' +
+                '</div></td></tr>';
+        });
+        tableHtml += '</tbody></table></div>';
     }
 
-    function renderGroup(label, items, highlight) {
-        if (!items.length) return '';
-        const hdr = highlight
-            ? 'background:#FFF7E0;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;color:#854F0B;border-left:3px solid #C9A84C;margin-bottom:12px;'
-            : 'font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #F3F4F6;';
-        return '<div style="margin-bottom:24px;"><div style="' + hdr + '">' + label + ' (' + items.length + ')</div>' +
-            '<div style="display:flex;flex-direction:column;gap:10px;">' + items.map(renderRow).join('') + '</div></div>';
-    }
-
-    view.innerHTML = '<div>' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
-            '<h2 style="margin:0;font-size:20px;font-weight:600;color:#1B2A4A;">📅 Interviews Overview</h2>' +
-            '<button onclick="loadInterviewsOverview()" style="padding:7px 14px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:12px;color:#1B2A4A;cursor:pointer;">↺ Refresh</button>' +
+    view.innerHTML =
+        '<div style="background:#FFFFFF;border-radius:16px;border-left:4px solid #C9A84C;padding:22px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+            '<div><h1 style="margin:0 0 4px 0;font-size:22px;font-weight:500;color:#1B2A4A;">Interviews</h1>' +
+            '<p style="margin:0;font-size:13px;color:#9CA3AF;">All scheduled and past interviews across all companies</p></div>' +
+            '<button onclick="exportInterviewsExcel()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">↓ Export CSV</button>' +
         '</div>' +
-        renderGroup('Today', groups.today, true) +
-        renderGroup('This Week', groups.week, false) +
-        renderGroup('Upcoming', groups.future, false) +
+        '<div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:16px;padding:14px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+            '<input type="text" id="iv-table-search" placeholder="Search by candidate, job, or company…" oninput="_ivFilterTable()" style="flex:1;padding:9px 14px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;min-width:200px;outline:none;color:#1B2A4A;">' +
+            '<select id="iv-table-status" onchange="_ivFilterTable()" style="padding:9px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;cursor:pointer;">' +
+                '<option value="">All statuses</option>' +
+                '<option value="scheduled">Scheduled</option>' +
+                '<option value="cancelled">Cancelled</option>' +
+            '</select>' +
+            '<button onclick="loadInterviewsTable()" style="padding:9px 14px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:12px;color:#1B2A4A;cursor:pointer;">↺ Refresh</button>' +
+        '</div>' +
+        '<div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;min-height:100px;">' +
+            (emptyBody || tableHtml) +
         '</div>';
 }
 

@@ -627,12 +627,12 @@
             </svg>
             Profile
         </button>
-        <a href="candidates-portal.html" class="nav-item" style="text-decoration:none;color:inherit;">
+        <button class="nav-item" data-page="interviews-co" onclick="navigateTo('interviews-co')">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
-            Candidates Portal
-        </a>
+            Interviews
+        </button>
     </nav>
 
     <button class="sidebar-logout" onclick="handleLogout()">
@@ -898,15 +898,24 @@
                 </h1>
                 <p style="margin:0;font-size:13px;color:#9CA3AF;">Browse registered candidates who have created profiles on the platform</p>
             </div>
+            <div id="talent-pool-count" style="font-size:13px;color:#9CA3AF;"></div>
         </div>
-        <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;">
-            <div style="padding:16px 20px;border-bottom:1px solid #E5E7EB;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                <input type="text" id="talent-search" placeholder="Search by name, title, skills, or location…" oninput="filterTalentPool()"
-                    style="flex:1;padding:10px 14px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;min-width:240px;outline:none;color:#1B2A4A;">
+        <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:8px;">
+            <div style="padding:16px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="talent-search" placeholder="Name, job title, employer, or skills…" oninput="filterTalentPool()"
+                    style="flex:1;padding:10px 14px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;min-width:200px;outline:none;color:#1B2A4A;">
+                <select id="talent-exp-filter" onchange="filterTalentPool()"
+                    style="padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;cursor:pointer;">
+                    <option value="">Any experience</option>
+                    <option value="0-2">0–2 years</option>
+                    <option value="3-5">3–5 years</option>
+                    <option value="6-10">6–10 years</option>
+                    <option value="10-99">10+ years</option>
+                </select>
                 <button onclick="filterTalentPool()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;">Search</button>
             </div>
-            <div id="talent-pool-container" style="overflow-x:auto;min-height:80px;"></div>
         </div>
+        <div id="talent-pool-container" style="min-height:120px;"></div>
     </div>
 
     <!-- Talent Pool Profile Modal -->
@@ -921,6 +930,28 @@
                 <button onclick="closeTalentModal()" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:500;cursor:pointer;">Close</button>
             </div>
         </div>
+    </div>
+
+    <!-- ── Interviews (Company Admin) ── -->
+    <div id="interviews-co" class="content-area">
+        <div style="background:#FFFFFF;border-radius:16px;border-left:4px solid #C9A84C;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <div>
+                <h1 style="margin:0 0 4px 0;font-size:22px;font-weight:500;color:#1B2A4A;">Interviews</h1>
+                <p style="margin:0;font-size:13px;color:#9CA3AF;">All scheduled and past interviews for your candidates</p>
+            </div>
+            <button onclick="coExportInterviewsExcel()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">↓ Export Excel</button>
+        </div>
+        <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:16px;padding:14px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <input type="text" id="co-iv-search" placeholder="Search by candidate or job title…" oninput="coFilterInterviews()"
+                style="flex:1;padding:9px 14px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;min-width:200px;outline:none;color:#1B2A4A;">
+            <select id="co-iv-status-filter" onchange="coFilterInterviews()"
+                style="padding:9px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;cursor:pointer;">
+                <option value="">All statuses</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+        </div>
+        <div id="co-interviews-table-container" style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;min-height:120px;"></div>
     </div>
 
     <!-- ── Profile ── -->
@@ -1329,10 +1360,11 @@
         const navItem = document.querySelector(`[data-page="${page}"]`);
         if (navItem) navItem.classList.add('active');
 
-        if (page === 'jobs')         loadJobsList();
-        if (page === 'candidates')   { loadCandidatesList(); loadCompanyApplications(); }
-        if (page === 'talent-pool')  loadTalentPool();
-        if (page === 'profile')      loadProfileData();
+        if (page === 'jobs')          loadJobsList();
+        if (page === 'candidates')    { loadCandidatesList(); loadCompanyApplications(); }
+        if (page === 'talent-pool')   loadTalentPool();
+        if (page === 'profile')       loadProfileData();
+        if (page === 'interviews-co') loadCoInterviews();
         if (page === 'public-profile') {
             window.__huntersCurrentCompany = currentCompany;
             if (typeof renderHuntersPublicProfile === 'function') {
@@ -2091,20 +2123,26 @@
     /* ──────────────────────────────
        Talent Pool
     ────────────────────────────── */
+    let _talentPoolData = [];
+    let _talentPool = {};
     let _talentSearchTimer = null;
 
-    async function loadTalentPool(search) {
-        const q = search ? `?search=${encodeURIComponent(search)}&limit=200` : '?limit=200';
+    async function loadTalentPool() {
         const container = document.getElementById('talent-pool-container');
-        container.innerHTML = '<div style="padding:32px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>';
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>';
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/candidates/talent-pool${q}`, {
+            const res = await fetch(`${API_URL}/api/admin/candidate-users`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error('Failed to load talent pool');
-            const pool = await res.json();
-            renderTalentPool(pool);
+            _talentPoolData = await res.json();
+            _talentPool = {};
+            _talentPoolData.forEach(c => {
+                const key = c.candidate_id || c.user_id;
+                _talentPool[key] = c;
+            });
+            filterTalentPool();
         } catch (e) {
             container.innerHTML = `<div style="padding:32px;text-align:center;color:#CC2B2B;font-size:13px;">${escHtml(e.message)}</div>`;
         }
@@ -2112,57 +2150,64 @@
 
     function filterTalentPool() {
         clearTimeout(_talentSearchTimer);
-        const q = (document.getElementById('talent-search') || {}).value || '';
-        _talentSearchTimer = setTimeout(() => loadTalentPool(q), 300);
+        _talentSearchTimer = setTimeout(() => {
+            const q = ((document.getElementById('talent-search') || {}).value || '').toLowerCase().trim();
+            const expVal = (document.getElementById('talent-exp-filter') || {}).value || '';
+            let pool = _talentPoolData;
+            if (q) {
+                pool = pool.filter(c => {
+                    const text = [c.name, c.last_title, c.last_employer, c.skills].join(' ').toLowerCase();
+                    return text.includes(q);
+                });
+            }
+            if (expVal) {
+                const parts = expVal.split('-').map(Number);
+                const minE = parts[0], maxE = parts[1];
+                pool = pool.filter(c => {
+                    const y = c.years_exp != null ? c.years_exp : (c.experience_years != null ? c.experience_years : 0);
+                    return y >= minE && y <= maxE;
+                });
+            }
+            renderTalentPool(pool);
+        }, 200);
     }
-
-    let _talentPool = {};
 
     function renderTalentPool(pool) {
         const container = document.getElementById('talent-pool-container');
+        const countEl = document.getElementById('talent-pool-count');
+        if (countEl) countEl.textContent = pool.length ? `${pool.length} candidate${pool.length !== 1 ? 's' : ''}` : '';
+
         if (!pool.length) {
-            container.innerHTML = '<div style="padding:48px;text-align:center;color:#9CA3AF;font-size:13px;">No registered candidates found.</div>';
+            container.innerHTML = '<div style="padding:60px;text-align:center;color:#9CA3AF;font-size:13px;">No candidates found matching your search.</div>';
             return;
         }
-        _talentPool = {};
-        pool.forEach(c => { _talentPool[c.id] = c; });
-        const skillPill = s => `<span style="display:inline-block;background:#F0F2F8;color:#1B2A4A;font-size:10px;padding:2px 8px;border-radius:10px;margin:1px;">${escHtml(s)}</span>`;
-        let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
-        html += `<thead><tr style="background:#F9FAFB;">
-            <th style="padding:10px 16px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;">Candidate</th>
-            <th style="padding:10px 16px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;">Role / Company</th>
-            <th style="padding:10px 16px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;">Skills</th>
-            <th style="padding:10px 8px;text-align:center;color:#6B7280;font-size:11px;font-weight:500;">Exp</th>
-            <th style="padding:10px 16px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;">Actions</th>
-        </tr></thead><tbody>`;
-        pool.forEach(c => {
-            const skills = (c.skills || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 3);
-            const safeName = (c.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
-            html += `<tr style="border-top:0.5px solid #F3F4F6;" onmouseover="this.style.background='#FAFBFF'" onmouseout="this.style.background=''">
-                <td style="padding:12px 16px;">
-                    <div style="font-weight:500;color:#1B2A4A;">${escHtml(c.name || '')}</div>
-                    ${c.location ? `<div style="font-size:11px;color:#9CA3AF;margin-top:2px;">📍 ${escHtml(c.location)}</div>` : ''}
-                </td>
-                <td style="padding:12px 16px;">
-                    <div style="color:#1B2A4A;font-size:12px;">${escHtml(c.last_title || '—')}</div>
-                    ${c.last_employer ? `<div style="font-size:11px;color:#6B7280;">${escHtml(c.last_employer)}</div>` : ''}
-                </td>
-                <td style="padding:12px 16px;max-width:200px;">
-                    <div style="display:flex;flex-wrap:wrap;gap:2px;">${skills.map(skillPill).join('') || '<span style="color:#9CA3AF;font-size:11px;">—</span>'}</div>
-                </td>
-                <td style="padding:12px 8px;text-align:center;color:#6B7280;font-size:12px;">${c.experience_years != null ? c.experience_years + ' yr' : '—'}</td>
-                <td style="padding:12px 16px;">
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                        <button onclick="viewTalentProfile(${c.id})" style="font-size:11px;padding:5px 10px;background:#1B2A4A;color:#fff;border:none;border-radius:6px;cursor:pointer;">Profile</button>
-                        ${c.cv_available ? `<button onclick="downloadTalentCV(${c.id},'${safeName}')" style="font-size:11px;padding:5px 10px;background:#0F6E56;color:#fff;border:none;border-radius:6px;cursor:pointer;">↓ CV</button>` : ''}
-                        <button onclick="inviteToApply(${c.id})" style="font-size:11px;padding:5px 10px;background:#C9A84C;color:#fff;border:none;border-radius:6px;cursor:pointer;">Invite</button>
-                        ${c.email ? `<a href="mailto:${escHtml(c.email)}" style="font-size:11px;padding:5px 10px;background:#F4F5FA;color:#1B2A4A;border-radius:6px;text-decoration:none;display:inline-block;">Email</a>` : ''}
+
+        const skillPill = s => `<span style="display:inline-block;background:#F0F2F8;color:#1B2A4A;font-size:10px;padding:2px 8px;border-radius:10px;margin:2px;">${escHtml(s)}</span>`;
+
+        const cards = pool.map(c => {
+            const candidateId = c.candidate_id || c.user_id;
+            const initials = (c.name || '?').split(' ').slice(0, 2).map(w => (w[0] || '')).join('').toUpperCase() || '?';
+            const skills = (c.skills || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 4);
+            const yrs = c.years_exp != null ? c.years_exp : (c.experience_years != null ? c.experience_years : null);
+            const roleInfo = [c.last_title, c.last_employer].filter(Boolean).join(' at ');
+            return `<div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:10px;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.04)'">
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                    <div style="width:46px;height:46px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;">${escHtml(initials)}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:14px;font-weight:600;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(c.name || '—')}</div>
+                        ${roleInfo ? `<div style="font-size:11px;color:#0F6E56;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(roleInfo)}</div>` : ''}
                     </div>
-                </td>
-            </tr>`;
-        });
-        html += '</tbody></table>';
-        container.innerHTML = html;
+                    ${yrs != null ? `<div style="text-align:center;flex-shrink:0;background:#F9FAFB;border-radius:8px;padding:4px 8px;"><div style="font-size:16px;font-weight:700;color:#1B2A4A;line-height:1;">${yrs}</div><div style="font-size:9px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.04em;">yrs</div></div>` : ''}
+                </div>
+                ${skills.length ? `<div style="display:flex;flex-wrap:wrap;gap:2px;">${skills.map(skillPill).join('')}</div>` : '<div style="height:2px;"></div>'}
+                <div style="display:flex;gap:8px;margin-top:auto;">
+                    <button onclick="viewTalentProfile(${candidateId})" style="flex:1;padding:8px 4px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;">👁 View Profile</button>
+                    <button onclick="inviteToApply(${candidateId})" style="flex:1;padding:8px 4px;background:#C9A84C;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;">✉ Invite</button>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px;padding:20px;">${cards}</div>`;
     }
 
     async function viewTalentProfile(candidateId) {
@@ -2249,24 +2294,6 @@
         document.getElementById('talent-profile-overlay').style.display = 'none';
     }
 
-    function downloadTalentCV(candidateId, safeName) {
-        const token = localStorage.getItem('token');
-        fetch(`${API_URL}/candidates/${candidateId}/cv`, { headers: { 'Authorization': `Bearer ${token}` } })
-            .then(res => {
-                if (!res.ok) return res.text().then(t => { let m = 'CV not available'; try { m = JSON.parse(t).detail || m; } catch(_) {} throw new Error(m); });
-                return res.blob();
-            })
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = `CV_${safeName}.pdf`;
-                document.body.appendChild(a); a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            })
-            .catch(err => alert(err.message || 'CV not available'));
-    }
-
     async function inviteToApply(candidateId) {
         const c = _talentPool[candidateId] || {};
         const candidateName = c.name || 'Candidate';
@@ -2307,6 +2334,118 @@
         window.location.href = 'mailto:' + toEmail + '?subject=' + encodeURIComponent('Invitation to Apply — ' + jobTitle + ' at Hunters HR') + '&body=' + encodeURIComponent(body);
         showToast('Email client opened for ' + toEmail, 'success');
         closeTalentModal();
+    }
+
+    /* ──────────────────────────────
+       Interviews (Company Admin)
+    ────────────────────────────── */
+    let _coInterviewsData = [];
+
+    async function loadCoInterviews() {
+        const container = document.getElementById('co-interviews-table-container');
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>';
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/api/admin/interviews/all`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Failed to load interviews');
+            const data = await res.json();
+            _coInterviewsData = data.interviews || [];
+            coFilterInterviews();
+        } catch (e) {
+            container.innerHTML = `<div style="padding:32px;text-align:center;color:#CC2B2B;font-size:13px;">${escHtml(e.message)}</div>`;
+        }
+    }
+
+    function coFilterInterviews() {
+        const q = ((document.getElementById('co-iv-search') || {}).value || '').toLowerCase().trim();
+        const st = ((document.getElementById('co-iv-status-filter') || {}).value || '').toLowerCase();
+        let rows = _coInterviewsData;
+        if (q) rows = rows.filter(iv => (iv.candidate_name + ' ' + iv.job_title).toLowerCase().includes(q));
+        if (st) rows = rows.filter(iv => (iv.status || '').toLowerCase() === st);
+        renderCoInterviewsTable(rows);
+    }
+
+    function renderCoInterviewsTable(rows) {
+        const container = document.getElementById('co-interviews-table-container');
+        if (!rows.length) {
+            container.innerHTML = '<div style="padding:48px;text-align:center;color:#9CA3AF;font-size:13px;">No interviews found.</div>';
+            return;
+        }
+        const statusBadge = s => {
+            const map = { scheduled: ['#185FA5','#E6F1FB'], cancelled: ['#A32D2D','#FCEBEB'], completed: ['#0F6E56','#E1F5EE'] };
+            const [c, bg] = map[(s||'').toLowerCase()] || ['#6B7280','#F3F4F6'];
+            return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:${bg};color:${c};font-size:11px;font-weight:500;">${escHtml((s||'').charAt(0).toUpperCase()+(s||'').slice(1))}</span>`;
+        };
+        let html = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">';
+        html += `<thead><tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;">
+            <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Candidate</th>
+            <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Job Title</th>
+            <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Date</th>
+            <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Time</th>
+            <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Location</th>
+            <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Interviewer(s)</th>
+            <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Status</th>
+            <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:11px;font-weight:500;white-space:nowrap;">Actions</th>
+        </tr></thead><tbody>`;
+        rows.forEach(iv => {
+            const locLabel = iv.location_type === 'online'
+                ? `<a href="${escHtml(iv.location_value||'#')}" target="_blank" style="color:#185FA5;font-size:12px;">🔗 Online</a>`
+                : `<span style="font-size:12px;">${escHtml(iv.location_value || 'TBD')}</span>`;
+            html += `<tr style="border-top:0.5px solid #F3F4F6;" onmouseover="this.style.background='#FAFBFF'" onmouseout="this.style.background=''">
+                <td style="padding:11px 14px;">
+                    <div style="font-weight:500;color:#1B2A4A;font-size:13px;">${escHtml(iv.candidate_name||'')}</div>
+                    <div style="font-size:11px;color:#9CA3AF;">${escHtml(iv.candidate_email||'')}</div>
+                </td>
+                <td style="padding:11px 14px;color:#374151;font-size:12px;">${escHtml(iv.job_title||'')}</td>
+                <td style="padding:11px 14px;color:#374151;font-size:12px;white-space:nowrap;">${escHtml(iv.interview_date||'')}</td>
+                <td style="padding:11px 14px;color:#374151;font-size:12px;white-space:nowrap;">${escHtml(iv.interview_time||'')}</td>
+                <td style="padding:11px 14px;">${locLabel}</td>
+                <td style="padding:11px 14px;color:#374151;font-size:12px;">${escHtml(iv.interviewer_names||'TBD')}</td>
+                <td style="padding:11px 14px;">${statusBadge(iv.status)}</td>
+                <td style="padding:11px 14px;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        ${iv.status !== 'cancelled' ? `<button onclick="_coOpenEditInterview(${iv.id})" style="font-size:11px;padding:5px 10px;background:#1B2A4A;color:#fff;border:none;border-radius:6px;cursor:pointer;">Edit</button>` : ''}
+                        ${iv.status !== 'cancelled' ? `<button onclick="cancelInterviewConfirm(${iv.id})" style="font-size:11px;padding:5px 10px;background:#CC2B2B;color:#fff;border:none;border-radius:6px;cursor:pointer;">Cancel</button>` : ''}
+                        <button onclick="downloadIcs(${iv.application_id})" style="font-size:11px;padding:5px 10px;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:6px;cursor:pointer;">↓ .ics</button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    }
+
+    function coExportInterviewsExcel() {
+        if (!_coInterviewsData.length) { showToast('No interviews to export.', 'info'); return; }
+        const rows = _coInterviewsData;
+        const headers = ['Candidate Name','Email','Phone','Job Title','Interview Date','Interview Time','Duration (min)','Location Type','Location','Interviewer(s)','Status','Notes'];
+        const csvRows = [headers.join(',')];
+        rows.forEach(iv => {
+            const cells = [
+                iv.candidate_name||'', iv.candidate_email||'', iv.candidate_phone||'',
+                iv.job_title||'', iv.interview_date||'', iv.interview_time||'',
+                iv.duration_minutes||60, iv.location_type||'', iv.location_value||'',
+                iv.interviewer_names||'', iv.status||'', iv.notes_for_candidate||''
+            ].map(v => '"' + String(v).replace(/"/g, '""') + '"');
+            csvRows.push(cells.join(','));
+        });
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const today = new Date().toISOString().slice(0, 10);
+        a.href = url; a.download = `interviews-${today}.csv`;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Exported successfully.', 'success');
+    }
+
+    function _coOpenEditInterview(ivId) {
+        const iv = _coInterviewsData.find(i => i.id === ivId);
+        if (!iv) return;
+        _openEditInterview(iv.id, iv.application_id);
     }
 
     /* ──────────────────────────────
