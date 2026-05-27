@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Candidates Portal | Hunters for HR Solutions</title>
+<!-- CACHE VERSION: v1.09 -->
 <style>
 :root{--navy:#1B2A4A;--gold:#C9A84C;--bg:#F4F5FA;--white:#fff;--muted:#6B7280;--border:rgba(0,0,0,0.06);}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;}
@@ -1330,6 +1331,15 @@ async function submitApply(){
 function closeOverlay(){document.getElementById('job-overlay').classList.remove('active');_applyFile=null;currentJob=null;}
 
 /* ─── My Applications ─── */
+function cpDownloadIcs(base64Content, filename) {
+  var decoded = atob(base64Content);
+  var blob = new Blob([decoded], { type: 'text/calendar' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function renderMyApps(){
   var el=document.getElementById('apps-content');
   if(!el)return;
@@ -1346,7 +1356,53 @@ async function renderMyApps(){
         '<button onclick="showPortalSection(\'all-jobs\')" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;">Browse Jobs</button>'+
       '</div>';return;
     }
-    el.innerHTML='<div style="background:#fff;border-radius:16px;border:0.5px solid rgba(0,0,0,0.06);box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;">' +
+
+    // Fetch interview card if any application is in Interview stage
+    var hasInterview = apps.some(function(a){ return (a.stage||'').toLowerCase()==='interview'; });
+    var ivHtml = '';
+    if(hasInterview){
+      try{
+        var ivRes=await fetch(API_BASE+'/api/candidate/interview',{headers:hdrs()});
+        if(ivRes.ok){
+          var ivData=await ivRes.json();
+          var iv=ivData && ivData.interview ? ivData.interview : null;
+          if(iv){
+            var dt=new Date(iv.interview_date+'T00:00:00');
+            var dateLabel=dt.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+            var isOnline=iv.location_type==='online';
+            var locHtml=isOnline&&iv.location_value
+              ?'<a href="'+esc(iv.location_value)+'" target="_blank" rel="noopener" style="color:#1B2A4A;text-decoration:underline;word-break:break-all;">'+esc(iv.location_value)+'</a>'
+              :esc(iv.location_value||'TBD');
+            var icsBtn='';
+            if(ivData.ics_file && ivData.ics_file.content){
+              var icsContent=ivData.ics_file.content;
+              var icsFilename=esc(ivData.ics_file.filename||'interview.ics');
+              icsBtn='<button onclick="cpDownloadIcs(\''+icsContent+'\',\''+icsFilename+'\')" style="padding:9px 18px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:12px;font-weight:600;cursor:pointer;min-height:40px;">↓ Add to Calendar</button>';
+            }
+            ivHtml='<div style="background:#fff;border-radius:14px;border:1px solid #E5E7EB;border-left:4px solid #C9A84C;padding:20px 24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);">' +
+              '<div style="font-size:13px;font-weight:700;color:#1B2A4A;margin-bottom:14px;">📅 Your Upcoming Interview</div>' +
+              '<div style="display:grid;gap:10px;">' +
+                '<div><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">Date &amp; Time</div>' +
+                '<div style="font-size:13px;color:#374151;">'+dateLabel+' · '+(iv.interview_time||'')+' · '+(iv.duration_minutes||60)+' min</div></div>' +
+                '<div><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">Location</div>' +
+                '<div style="font-size:13px;color:#374151;">'+locHtml+'</div></div>' +
+                (iv.interviewer_names?'<div><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">Interviewer(s)</div><div style="font-size:13px;color:#374151;">'+esc(iv.interviewer_names)+'</div></div>':'') +
+                (iv.notes_for_candidate?'<div><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">Notes</div><div style="font-size:13px;color:#374151;">'+esc(iv.notes_for_candidate)+'</div></div>':'') +
+              '</div>' +
+              (icsBtn?'<div style="margin-top:16px;">'+icsBtn+'</div>':'') +
+            '</div>';
+          } else {
+            ivHtml='<div style="background:#FFF7E0;border-radius:14px;border:1px solid #F5D789;border-left:4px solid #C9A84C;padding:14px 20px;margin-bottom:16px;font-size:13px;color:#854F0B;">📅 Interview details will be shared soon.</div>';
+          }
+        } else {
+          ivHtml='<div style="background:#FFF7E0;border-radius:14px;border:1px solid #F5D789;border-left:4px solid #C9A84C;padding:14px 20px;margin-bottom:16px;font-size:13px;color:#854F0B;">📅 Interview details will be shared soon.</div>';
+        }
+      } catch(e){
+        ivHtml='<div style="background:#FFF7E0;border-radius:14px;border:1px solid #F5D789;border-left:4px solid #C9A84C;padding:14px 20px;margin-bottom:16px;font-size:13px;color:#854F0B;">📅 Interview details will be shared soon.</div>';
+      }
+    }
+
+    var tableHtml='<div style="background:#fff;border-radius:16px;border:0.5px solid rgba(0,0,0,0.06);box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;">' +
       '<div style="padding:16px 20px;border-bottom:1px solid #E5E7EB;">' +
         '<div style="font-size:15px;font-weight:500;color:#1B2A4A;">My Applications</div>' +
         '<div style="font-size:12px;color:#9CA3AF;margin-top:2px;">'+apps.length+' application(s)</div>' +
@@ -1367,6 +1423,8 @@ async function renderMyApps(){
         '</tr>';
       }).join('')+
       '</tbody></table></div></div>';
+
+    el.innerHTML = ivHtml + tableHtml;
   } catch(e) {
     // Fallback to localStorage if API fails (e.g., not yet logged in)
     var cached=JSON.parse(localStorage.getItem('hunters_portal_apps')||'[]');

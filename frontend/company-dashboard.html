@@ -2670,22 +2670,9 @@
         }
     }
 
-    function _coStageNotifPreviews(stage, app) {
-        const cand = app ? (app.name || 'Candidate') : 'Candidate';
-        const co = app ? (app.company_name || 'Company') : 'Company';
-        switch (stage) {
-            case 'interview': return [cand + ' — interview invitation', 'Hunters HR (hr@hunters-egypt.com) — interview alert'];
-            case 'offered':   return [cand + ' — offer notification'];
-            case 'hired':     return [co + ' admin — placement confirmed', 'Hunters HR (hr@hunters-egypt.com) — placement record'];
-            default: return [];
-        }
-    }
-
     function _coShowStageConfirm(appId, newStage, app) {
         const label = newStage.charAt(0).toUpperCase() + newStage.slice(1);
         const candName = app ? (app.name || 'Candidate') : 'Candidate';
-        const previews = _coStageNotifPreviews(newStage, app);
-        const previewHtml = previews.map(p => `<li style="font-size:12px;color:#374151;padding:3px 0;">📧 ${escHtml(p)}</li>`).join('');
         const m = document.createElement('div');
         m.id = 'co-stage-confirm-modal';
         m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
@@ -2695,11 +2682,10 @@
                 <button onclick="document.getElementById('co-stage-confirm-modal').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:15px;">×</button>
             </div>
             <div style="padding:20px;">
-                <p style="font-size:13px;color:#374151;margin:0 0 12px;">Move <strong>${escHtml(candName)}</strong> to <strong>${label}</strong> stage?</p>
-                ${previews.length ? `<p style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 6px;">Notifications will be sent to:</p><ul style="margin:0 0 4px;padding-left:0;list-style:none;">${previewHtml}</ul>` : ''}
-                <div style="display:flex;gap:10px;margin-top:18px;">
+                <p style="font-size:13px;color:#374151;margin:0 0 18px;">Move <strong>${escHtml(candName)}</strong> to <strong>${label}</strong> stage?</p>
+                <div style="display:flex;gap:10px;">
                     <button onclick="document.getElementById('co-stage-confirm-modal').remove()" style="flex:1;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Cancel</button>
-                    <button onclick="document.getElementById('co-stage-confirm-modal').remove();_coDoStageChange(${appId},'${newStage}')" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;">Confirm &amp; Notify</button>
+                    <button onclick="document.getElementById('co-stage-confirm-modal').remove();_coDoStageChange(${appId},'${newStage}')" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;">Confirm</button>
                 </div>
             </div>
         </div>`;
@@ -2732,56 +2718,9 @@
                 renderCoStageTabs();
                 showToast(candName + ' moved to ' + data.stage, 'success');
             }, 300);
-            if (data.notifications && data.notifications.length > 0) setTimeout(() => _coShowNotifModal(data.notifications), 400);
         } catch (e) { showToast('Stage update failed', 'error'); }
     }
 
-    function _coShowNotifModal(notifications) {
-        if (notifications.length === 1) {
-            const n = notifications[0];
-            window.open('mailto:' + encodeURIComponent(n.to) + '?subject=' + encodeURIComponent(n.subject) + '&body=' + encodeURIComponent(n.body));
-            showToast('Email client opened', 'info');
-            return;
-        }
-        const rows = notifications.map((n, i) => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid #F3F4F6;">
-                <div style="min-width:0;flex:1;margin-right:8px;">
-                    <div style="font-size:12px;font-weight:500;color:#1B2A4A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.subject)}</div>
-                    <div style="font-size:11px;color:#6B7280;">To: ${escHtml(n.to)}</div>
-                </div>
-                <button onclick="_coOpenMailto(${i})" style="flex-shrink:0;font-size:11px;padding:4px 10px;border:0.5px solid #1B2A4A;border-radius:6px;background:#fff;color:#1B2A4A;cursor:pointer;">Open</button>
-            </div>`).join('');
-        const m = document.createElement('div');
-        m.id = 'co-notif-modal';
-        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
-        m.innerHTML = `<div style="background:#fff;border-radius:16px;width:460px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.2);overflow:hidden;">
-            <div style="background:#1B2A4A;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="color:#fff;font-weight:600;">Send Notifications (${notifications.length})</span>
-                <button onclick="document.getElementById('co-notif-modal').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:15px;">×</button>
-            </div>
-            <div style="padding:20px;">${rows}
-                <div style="display:flex;gap:10px;margin-top:16px;">
-                    <button onclick="document.getElementById('co-notif-modal').remove()" style="flex:1;padding:10px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Close</button>
-                    <button onclick="_coOpenAllMailtos(0)" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;">Send All</button>
-                </div>
-            </div>
-        </div>`;
-        window._coNotifs = notifications;
-        document.body.appendChild(m);
-    }
-
-    function _coOpenMailto(idx) {
-        const n = (window._coNotifs || [])[idx];
-        if (!n) return;
-        window.open('mailto:' + encodeURIComponent(n.to) + '?subject=' + encodeURIComponent(n.subject) + '&body=' + encodeURIComponent(n.body));
-    }
-
-    function _coOpenAllMailtos(idx) {
-        const notifs = window._coNotifs || [];
-        if (idx >= notifs.length) { showToast('All notifications sent', 'success'); const m = document.getElementById('co-notif-modal'); if (m) m.remove(); return; }
-        _coOpenMailto(idx);
-        setTimeout(() => _coOpenAllMailtos(idx + 1), 600);
-    }
 
     function coViewReport(appId) {
         const app = coAppsData.find(a => a.application_id === appId);
