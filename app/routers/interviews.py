@@ -588,15 +588,22 @@ def get_my_interview(
         .filter(models.Candidate.user_id == current_user.id)
         .first()
     )
-    if not candidate:
-        return None
 
-    app_ids = [
-        row[0]
-        for row in db.query(models.Application.id)
-        .filter(models.Application.candidate_id == candidate.id)
-        .all()
-    ]
+    # Collect app IDs by candidate_id AND by email (handles Type B applications
+    # where candidate_id is NULL but applicant_email matches the user's email)
+    app_ids_set = set()
+    if candidate:
+        rows = db.query(models.Application.id).filter(
+            models.Application.candidate_id == candidate.id
+        ).all()
+        app_ids_set.update(r[0] for r in rows)
+    if current_user.email:
+        rows = db.query(models.Application.id).filter(
+            models.Application.applicant_email == current_user.email
+        ).all()
+        app_ids_set.update(r[0] for r in rows)
+
+    app_ids = list(app_ids_set)
     if not app_ids:
         return None
 

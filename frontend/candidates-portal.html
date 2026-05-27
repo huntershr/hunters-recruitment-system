@@ -1389,7 +1389,7 @@ async function renderMyApps(){
                 (iv.interviewer_names?'<div><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">Interviewer(s)</div><div style="font-size:13px;color:#374151;">'+esc(iv.interviewer_names)+'</div></div>':'') +
                 (iv.notes_for_candidate?'<div><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">Notes</div><div style="font-size:13px;color:#374151;">'+esc(iv.notes_for_candidate)+'</div></div>':'') +
               '</div>' +
-              (icsBtn?'<div style="margin-top:16px;">'+icsBtn+'</div>':'') +
+              (icsBtn?'<div style="margin-top:16px;">'+icsBtn+'<div style="font-size:11px;color:#6B7280;margin-top:8px;">Download the .ics file, then open it to add the interview to Google Calendar, Outlook, or Apple Calendar automatically.</div></div>':'') +
             '</div>';
           } else {
             ivHtml='<div style="background:#FFF7E0;border-radius:14px;border:1px solid #F5D789;border-left:4px solid #C9A84C;padding:14px 20px;margin-bottom:16px;font-size:13px;color:#854F0B;">📅 Interview details will be shared soon.</div>';
@@ -1415,16 +1415,19 @@ async function renderMyApps(){
           '<th style="padding:10px 16px;font-size:11px;font-weight:500;text-align:left;">Status</th>' +
         '</tr></thead><tbody>' +
       apps.map(function(a){
-        return '<tr style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background=\'#F8F9FF\'" onmouseout="this.style.background=\'transparent\'">' +
+        var isIv = (a.stage||'').toLowerCase() === 'interview';
+        var mainRow = '<tr style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background=\'#F8F9FF\'" onmouseout="this.style.background=\'transparent\'">' +
           '<td style="padding:12px 16px;font-size:13px;font-weight:500;color:#1B2A4A;">'+esc(a.job_title||'—')+'</td>' +
           '<td style="padding:12px 16px;font-size:12px;color:#6B7280;">'+esc(a.company_name||'—')+'</td>' +
           '<td style="padding:12px 16px;font-size:12px;color:#6B7280;">'+(a.applied_at?new Date(a.applied_at).toLocaleDateString():'—')+'</td>' +
           '<td style="padding:12px 16px;"><span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;background:'+(a.stage_bg||'#EFF2F8')+';color:'+(a.stage_color||'#1B2A4A')+';">'+esc(a.stage_label||a.stage||'Under Review')+'</span></td>' +
         '</tr>';
+        var ivRow = isIv && ivHtml ? '<tr><td colspan="4" style="padding:0 16px 16px;">'+ivHtml+'</td></tr>' : '';
+        return mainRow + ivRow;
       }).join('')+
       '</tbody></table></div></div>';
 
-    el.innerHTML = ivHtml + tableHtml;
+    el.innerHTML = tableHtml;
   } catch(e) {
     // Fallback to localStorage if API fails (e.g., not yet logged in)
     var cached=JSON.parse(localStorage.getItem('hunters_portal_apps')||'[]');
