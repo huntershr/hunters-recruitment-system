@@ -594,6 +594,7 @@
         <div>
             <div class="sidebar-company-name" id="company-name-sidebar">Loading...</div>
             <div class="sidebar-company-sub">Company Portal</div>
+            <div style="font-size:10px;color:#C9A84C;opacity:0.75;font-weight:500;letter-spacing:0.2px;text-align:center;margin-top:3px;">Hunters AI-Powered Recruitment</div>
         </div>
     </div>
 
@@ -1185,23 +1186,50 @@
     /* ──────────────────────────────
        Logo upload
     ────────────────────────────── */
+    function _resizeLogo(file, maxPx, cb) {
+        const img = new Image();
+        const objUrl = URL.createObjectURL(file);
+        img.onload = function() {
+            const ratio = Math.min(maxPx / img.width, maxPx / img.height, 1);
+            const w = Math.round(img.width * ratio);
+            const h = Math.round(img.height * ratio);
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            URL.revokeObjectURL(objUrl);
+            cb(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.onerror = function() { URL.revokeObjectURL(objUrl); cb(null); };
+        img.src = objUrl;
+    }
+
     (function setupLogoUpload() {
         const input = document.getElementById('logo-file-input');
         input.addEventListener('change', function() {
             const file = this.files[0];
             if (!file) return;
-            if (file.size > 2 * 1024 * 1024) {
-                showToast('Image must be under 2 MB.', 'error');
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Image must be under 5 MB.', 'error');
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const dataUrl = e.target.result;
+            _resizeLogo(file, 300, function(dataUrl) {
+                if (!dataUrl) { showToast('Could not process image.', 'error'); return; }
                 updateLogoUI(dataUrl);
                 localStorage.setItem('companyLogoDataUrl', dataUrl);
-                showToast('Logo updated successfully.', 'success');
-            };
-            reader.readAsDataURL(file);
+                // Persist to backend so logo survives deploys
+                if (currentCompany) {
+                    fetch(`${API_URL}/companies/${currentCompany.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ logo_url: dataUrl })
+                    }).then(r => r.ok ? r.json() : null).then(data => {
+                        if (data) { currentCompany = data; window.__huntersCurrentCompany = data; }
+                        showToast('Logo saved.', 'success');
+                    }).catch(() => showToast('Logo saved locally only.', 'info'));
+                } else {
+                    showToast('Logo updated (not yet persisted — refresh and re-upload after login).', 'info');
+                }
+            });
         });
     })();
 
@@ -1373,7 +1401,7 @@
         if (navItem) navItem.classList.add('active');
 
         if (page === 'jobs')          loadJobsList();
-        if (page === 'candidates')    { loadCandidatesList(); loadCompanyApplications(); }
+        if (page === 'candidates')    { loadCompanyApplications().then(() => loadCandidatesList()); }
         if (page === 'talent-pool')   loadTalentPool();
         if (page === 'profile')       loadProfileData();
         if (page === 'interviews-co') loadCoInterviews();
@@ -1675,6 +1703,25 @@
             } catch (e) { /* non-critical fallback */ }
 
             if (currentFilterVal) jobFilter.value = currentFilterVal;
+
+            // Enrich allCandidatesData with accurate stage from applications table
+            if (typeof coAppsData !== 'undefined' && coAppsData.length) {
+                const stageMap = new Map();
+                coAppsData.forEach(a => {
+                    // key by email+job_id for precision; also store by email alone as fallback
+                    if (a.email && a.stage) {
+                        const emailKey = a.email.toLowerCase();
+                        stageMap.set(emailKey + ':' + a.job_id, a.stage.toLowerCase());
+                        if (!stageMap.has(emailKey)) stageMap.set(emailKey, a.stage.toLowerCase());
+                    }
+                });
+                allCandidatesData.forEach(c => {
+                    const emailKey = (c.email || '').toLowerCase();
+                    const precise  = stageMap.get(emailKey + ':' + c.job_id);
+                    const fallback = stageMap.get(emailKey);
+                    if (precise || fallback) c.stage = precise || fallback;
+                });
+            }
 
             renderCandidatesTable(allCandidatesData);
         } catch (error) {
@@ -2842,7 +2889,7 @@
         const scoreBg    = pct===null?'#F3F4F6':pct>=80?'#E1F5EE':pct>=60?'#E6F1FB':'#FAEEDA';
         const scoreText  = pct===null?'Pending':pct+'%';
         const initials   = (app.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-        const isReg      = !!app.candidate_id;
+        const isReg      = app.candidate_type === 'registered';
         const typePill   = isReg
             ? `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#F3F4F6;color:#6B7280;">Registered</span>`
             : `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#FEF9EC;color:#854F0B;border:0.5px solid #F6D97A;">External</span>`;
@@ -3942,7 +3989,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=2.7"></script>
+<script src="hunters-jobs.js?v=2.8"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies

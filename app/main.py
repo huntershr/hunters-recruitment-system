@@ -412,6 +412,7 @@ def startup_populate_db():
             "ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free'",
             "ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMP",
             "ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_status TEXT DEFAULT 'active'",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo_url TEXT",
         ]:
             try:
                 from sqlalchemy import text as _text

@@ -18,6 +18,7 @@ class CompanyResponse(CompanyBase):
     id: int
     is_approved: bool
     created_at: datetime
+    logo_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -30,6 +31,7 @@ class CompanyUpdate(BaseModel):
     company_name: Optional[str] = None
     company_website: Optional[str] = None
     registration_number: Optional[str] = None
+    logo_url: Optional[str] = None
 
 # Auth Schemas
 class Token(BaseModel):

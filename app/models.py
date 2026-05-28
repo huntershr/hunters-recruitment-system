@@ -17,6 +17,7 @@ class Company(Base):
     plan = Column(String, default='free', nullable=True)
     plan_expires_at = Column(DateTime, nullable=True)
     billing_status = Column(String, default='active', nullable=True)
+    logo_url = Column(Text, nullable=True)
 
     users = relationship("User", back_populates="company")
 
