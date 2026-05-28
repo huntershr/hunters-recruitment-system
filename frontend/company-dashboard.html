@@ -1634,6 +1634,9 @@
             const jobFilter = document.getElementById('cand-job-filter');
             const currentFilterVal = jobFilter.value;
             jobFilter.innerHTML = '<option value="">All Jobs</option>';
+            // Reset stage filter so candidates always appear on initial load
+            const stageFilterEl = document.getElementById('cand-stage-filter');
+            if (stageFilterEl) stageFilterEl.value = '';
 
             const seenIds = new Set();
 
@@ -1708,6 +1711,16 @@
         if (coCompanyView === 'tabs') renderCoStageTabs();
     }
 
+    function clearCandidateFilters() {
+        const s = document.getElementById('cand-search');
+        const j = document.getElementById('cand-job-filter');
+        const st = document.getElementById('cand-stage-filter');
+        if (s) s.value = '';
+        if (j) j.value = '';
+        if (st) st.value = '';
+        filterCandidates();
+    }
+
     function scorePill(score) {
         if (score == null || score === '') return `<span class="score-chip score-none">N/A</span>`;
         const n = parseFloat(score);
@@ -1729,12 +1742,18 @@
         const container = document.getElementById('candidates-list-container');
 
         if (candidates.length === 0) {
+            const filtersActive = allCandidatesData.length > 0;
             container.innerHTML = `
                 <div style="text-align:center; padding:48px; background:#FFFFFF;">
                     <svg width="44" height="44" fill="none" stroke="#D1D5DB" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-                    <div style="font-size:14px; font-weight:500; color:#1B2A4A; margin-top:12px;">No candidates yet</div>
-                    <div style="font-size:12px; color:#9CA3AF; margin-top:4px;">Use Bulk Upload to screen multiple CVs at once</div>
-                    <button onclick="document.getElementById('bulk-trigger-input').click()" style="margin-top:16px; background:#1B2A4A; color:#FFFFFF; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer;">Bulk Upload</button>
+                    ${filtersActive
+                        ? `<div style="font-size:14px; font-weight:500; color:#1B2A4A; margin-top:12px;">No candidates match your current filters</div>
+                           <div style="font-size:12px; color:#9CA3AF; margin-top:4px;">${allCandidatesData.length} candidate${allCandidatesData.length !== 1 ? 's' : ''} on file — try adjusting or clearing your filters</div>
+                           <button onclick="clearCandidateFilters()" style="margin-top:16px; background:#C9A84C; color:#1B2A4A; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer;">Clear Filters</button>`
+                        : `<div style="font-size:14px; font-weight:500; color:#1B2A4A; margin-top:12px;">No candidates yet</div>
+                           <div style="font-size:12px; color:#9CA3AF; margin-top:4px;">Use Bulk Upload to screen multiple CVs at once</div>
+                           <button onclick="document.getElementById('bulk-trigger-input').click()" style="margin-top:16px; background:#1B2A4A; color:#FFFFFF; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer;">Bulk Upload</button>`
+                    }
                 </div>`;
             return;
         }
@@ -3923,7 +3942,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=2.6"></script>
+<script src="hunters-jobs.js?v=2.7"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies
