@@ -18,6 +18,11 @@ from sqlalchemy import text
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
+# Startup env diagnostic
+_db_url = os.environ.get("DATABASE_URL", "NOT FOUND")
+_db_safe = _db_url[:30] + "..." if len(_db_url) > 30 else _db_url
+print(f"STARTUP DATABASE_URL = {_db_safe}", flush=True)
+
 def wait_for_db(max_retries=5, delay=5):
     for attempt in range(max_retries):
         try:
