@@ -88,15 +88,20 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    HUNTERS_LOGO = "/hunters-logo-blue.jpeg"
     company_name = None
     company_id = None
     company_logo_url = None
-    if job.owner and job.owner.company_id:
-        company = db.query(models.Company).filter(models.Company.id == job.owner.company_id).first()
-        if company:
-            company_name = company.company_name
-            company_id = company.id
-            company_logo_url = company.logo_url
+    if job.owner:
+        if job.owner.is_admin:
+            company_name = "Hunters for HR Solutions"
+            company_logo_url = HUNTERS_LOGO
+        elif job.owner.company_id:
+            company = db.query(models.Company).filter(models.Company.id == job.owner.company_id).first()
+            if company:
+                company_name = company.company_name
+                company_id = company.id
+                company_logo_url = company.logo_url or None
 
     hide_salary = bool(job.hide_salary)
     return {
@@ -303,8 +308,10 @@ def get_public_jobs(db: Session = Depends(get_db)):
             try:
                 owner = job.owner
                 company_id = owner.company_id if owner else None
+                HUNTERS_LOGO = "/hunters-logo-blue.jpeg"
                 if owner and owner.is_admin:
-                    company_name = "Hunters HR Solutions"
+                    company_name = "Hunters for HR Solutions"
+                    company_id = None
                 else:
                     company_name = company_map.get(company_id, "Unknown Company") if company_id else "Unknown Company"
                 hide_salary = bool(getattr(job, 'hide_salary', False))
@@ -327,7 +334,7 @@ def get_public_jobs(db: Session = Depends(get_db)):
                     "created_at": job.created_at.isoformat() if job.created_at else None,
                     "company_name": company_name,
                     "company_id": company_id,
-                    "company_logo_url": logo_map.get(company_id) if company_id else None,
+                    "company_logo_url": HUNTERS_LOGO if (owner and owner.is_admin) else (logo_map.get(company_id) if company_id else None),
                     "hide_salary": hide_salary,
                     "salary_min": None,
                     "salary_max": None,

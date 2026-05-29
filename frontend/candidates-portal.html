@@ -1833,17 +1833,34 @@ function downloadCV(){
   var cvPreview=document.getElementById('cv-preview');
   if(!cvPreview){showToast('Generate your CV first','error');return;}
   var name=((_cvData&&_cvData.name)||'My_CV').replace(/\s+/g,'_');
-  var printContent='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>CV - '+name+'</title>'
-    +'<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:"Segoe UI",Arial,sans-serif;color:#1B2A4A;background:#fff;}'
-    +'@media print{body{margin:0;}.no-print{display:none!important;}@page{margin:0;size:A4;}}</style>'
-    +'</head><body>'+cvPreview.outerHTML+'</body></html>';
-  var blob=new Blob([printContent],{type:'text/html'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url;a.download='Hunters_CV_'+name+'.html';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('CV downloaded! Open the file and press Ctrl+P → Save as PDF.','success');
+  var base=window.location.origin+'/';
+  // Build ATS-compatible print document — real text, not images
+  var printContent='<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+    +'<base href="'+base+'">'
+    +'<title>CV - '+name+'</title>'
+    +'<style>'
+    +'*{margin:0;padding:0;box-sizing:border-box;}'
+    +'body{font-family:Arial,Helvetica,sans-serif;color:#1B2A4A;background:#fff;font-size:11pt;line-height:1.5;}'
+    +'@page{size:A4;margin:12mm 16mm;}'
+    +'@media print{'
+    +'  body{margin:0;}'
+    +'  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
+    +'  .no-print{display:none!important;}'
+    +'}'
+    +'</style>'
+    +'</head><body>'
+    +cvPreview.outerHTML
+    +'<script>window.onload=function(){setTimeout(function(){window.print();},350);};<\/script>'
+    +'</body></html>';
+  var pw=window.open('','_blank','width=900,height=700,menubar=no,toolbar=no');
+  if(!pw){
+    // Popup blocked — fall back to print current page region
+    showToast('Allow popups for PDF download, or use Ctrl+P to print this page.','error');
+    return;
+  }
+  pw.document.write(printContent);
+  pw.document.close();
+  showToast('Print dialog opening — choose "Save as PDF" to download.','info');
 }
 
 /* ─── Talent Pool helpers ─── */
