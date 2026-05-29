@@ -667,6 +667,28 @@ def health_check():
     return {"status": "healthy"}
 
 
+@app.get("/api/diagnostic")
+def diagnostic():
+    db_url = os.getenv("DATABASE_URL", "NOT SET")
+    masked = db_url[:50] + "..." if len(db_url) > 50 else db_url
+    # hide password: show only scheme+user and host portion
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(db_url)
+        masked = f"{parsed.scheme}://{parsed.username}:***@{parsed.hostname}:{parsed.port}{parsed.path}"
+    except Exception:
+        pass
+    counts = {}
+    try:
+        with engine.connect() as conn:
+            for table in ["users", "companies", "jobs", "candidates", "applications", "evaluations"]:
+                result = conn.execute(text(f"SELECT COUNT(*) FROM {table}"))
+                counts[table] = result.scalar()
+    except Exception as e:
+        counts["error"] = str(e)
+    return {"database_url": masked, "counts": counts}
+
+
 
 
 
