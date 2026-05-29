@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
-from .database import engine, Base, SessionLocal
+from .database import engine, Base, SessionLocal, get_db
+from sqlalchemy.orm import Session
 from .routers import jobs, candidates, evaluations, sheets, auth, public, companies, admin, profile, interviews
 from .routers.auth import get_current_user
 from . import models, auth_utils
@@ -673,25 +674,19 @@ def health_check():
 
 
 @app.get("/api/diagnostic")
-def diagnostic():
-    db_url = os.getenv("DATABASE_URL", "NOT SET")
-    masked = db_url[:50] + "..." if len(db_url) > 50 else db_url
-    # hide password: show only scheme+user and host portion
-    try:
-        from urllib.parse import urlparse
-        parsed = urlparse(db_url)
-        masked = f"{parsed.scheme}://{parsed.username}:***@{parsed.hostname}:{parsed.port}{parsed.path}"
-    except Exception:
-        pass
+def diagnostic(db: Session = Depends(get_db)):
+    url = os.environ.get("DATABASE_URL", "NOT FOUND")
     counts = {}
-    try:
-        with engine.connect() as conn:
-            for table in ["users", "companies", "jobs", "candidates", "applications", "evaluations"]:
-                result = conn.execute(text(f"SELECT COUNT(*) FROM {table}"))
-                counts[table] = result.scalar()
-    except Exception as e:
-        counts["error"] = str(e)
-    return {"database_url": masked, "counts": counts}
+    for table in ["users", "companies", "jobs", "candidates", "applications", "evaluations"]:
+        try:
+            result = db.execute(text(f"SELECT COUNT(*) FROM {table}"))
+            counts[table] = result.scalar()
+        except Exception:
+            counts[table] = "ERROR"
+    return {
+        "raw_database_url": url[:30] + "..." if url != "NOT FOUND" else "NOT FOUND",
+        "counts": counts
+    }
 
 
 
