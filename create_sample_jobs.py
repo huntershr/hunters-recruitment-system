@@ -2,7 +2,12 @@
 Seed real Hunters HR jobs into the database on startup.
 Runs automatically via railway.json start command.
 """
-import sys, os
+import os
+if not os.environ.get("DATABASE_URL") or "sqlite" in os.environ.get("DATABASE_URL", ""):
+    print("Skipping sample jobs creation — no PostgreSQL DATABASE_URL set")
+    exit(0)
+
+import sys
 sys.path.insert(0, '/app')
 
 from app.database import SessionLocal
