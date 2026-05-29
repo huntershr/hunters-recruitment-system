@@ -393,6 +393,14 @@ function showToast(msg,type){
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function ini(n){return String(n||'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase()||'?';}
 
+function logoHtml(j,px){
+  var url=j&&(j.company_logo_url||j.logo_url);
+  if(url)return'<img src="'+esc(url)+'" alt="" style="width:'+px+'px;height:'+px+'px;border-radius:50%;object-fit:cover;flex-shrink:0;border:0.5px solid rgba(0,0,0,0.08);background:#fff;">';
+  var ci=ini((j&&j.company_name)||'C');
+  var fs=Math.round(px*0.33);
+  return'<div style="width:'+px+'px;height:'+px+'px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:'+fs+'px;font-weight:500;flex-shrink:0;">'+esc(ci)+'</div>';
+}
+
 function portalGetShareUrl(jobId){return window.location.origin+'/apply.html?job_id='+jobId;}
 function portalShareJob(platform,jobId){
   var j=(allJobs||[]).find(function(x){return x.id===jobId;})||{};
@@ -1162,14 +1170,13 @@ function renderSection(sid){
   }
 
   grid.innerHTML=list.map(function(j){
-    var ci=ini(j.company_name||'C');
     var sal=(function(){if(j.hide_salary===true||j.hide_salary===1||j.hide_salary==='true')return'Competitive salary';var r=j.salary_range||j.salary||'';if(r.trim())return r;var mn=j.salary_min||'',mx=j.salary_max||'';if(mn&&mx)return mn+' - '+mx+' EGP';return'Competitive salary';})();
     var emp=j.education_level||j.employment_type||'';
     var posted=daysAgo(j.created_at);
     var eduBadge=isEdu(j)?'<span style="font-size:10px;background:#E6F1FB;color:#185FA5;padding:2px 7px;border-radius:10px;margin-left:6px;">Education</span>':'';
     return '<div class="job-card" onclick="openJob('+j.id+')">' +
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
-        '<div style="width:40px;height:40px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0;">'+esc(ci)+'</div>' +
+        logoHtml(j,40) +
         '<div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:500;color:#C9A84C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(j.company_name||'Company')+eduBadge+'</div></div>' +
       '</div>' +
       '<h3 style="font-size:15px;font-weight:500;color:#1B2A4A;margin-bottom:8px;line-height:1.3;">'+esc(j.job_title)+'</h3>' +
@@ -1206,12 +1213,12 @@ function alreadyAppliedPanelHtml(){
 async function openJob(id){
   currentJob=allJobs.find(function(j){return j.id===id;});if(!currentJob)return;
   _applyFile=null;
-  var j=currentJob,ci=ini(j.company_name||'C');
+  var j=currentJob;
   var sal=(function(){if(j.hide_salary===true||j.hide_salary===1||j.hide_salary==='true')return'Competitive salary';var r=j.salary_range||j.salary||'';if(r.trim())return r;var mn=j.salary_min||'',mx=j.salary_max||'';if(mn&&mx)return mn+' - '+mx+' EGP';return'Competitive salary';})();
   document.getElementById('overlay-inner').innerHTML=
     '<div style="background:#1B2A4A;padding:20px 28px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;">' +
       '<div style="display:flex;align-items:center;gap:14px;">' +
-        '<div style="width:48px;height:48px;border-radius:50%;background:#C9A84C;color:#1B2A4A;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:500;">'+esc(ci)+'</div>' +
+        logoHtml(j,48) +
         '<div><div style="color:#C9A84C;font-size:13px;font-weight:500;">'+esc(j.company_name||'Company')+'</div>' +
           '<div style="color:#fff;font-size:20px;font-weight:500;margin-top:2px;">'+esc(j.job_title)+'</div></div>' +
       '</div>' +
