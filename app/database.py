@@ -3,10 +3,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Fallback to SQLite if DATABASE_URL is not set
-SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL") or os.getenv("DATABASE_URL")
-if not SQLALCHEMY_DATABASE_URL or "sqlite" in SQLALCHEMY_DATABASE_URL:
-    raise RuntimeError("DATABASE_URL must be set to PostgreSQL. SQLite is not allowed.")
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./recruitment.db")
+print(f"DATABASE_URL from env: {os.getenv('DATABASE_URL', 'NOT SET - using SQLite fallback')}")
 
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
