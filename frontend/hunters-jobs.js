@@ -112,7 +112,7 @@ function huntersCompanyLogoCircle(job, size) {
     const initials = String(name).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
     const url = (comp && comp.logo_url) || job.company_logo_url;
     if (url) {
-        return `<img src="${huntersEsc(url)}" alt="" style="width:${px}px;height:${px}px;border-radius:50%;object-fit:cover;border:0.5px solid rgba(0,0,0,0.06);">`;
+        return `<img src="${huntersEsc(url)}" alt="" style="width:${px}px;height:${px}px;border-radius:50%;object-fit:contain;background:#fff;border:0.5px solid rgba(0,0,0,0.08);padding:3px;">`;
     }
     return `<div style="width:${px}px;height:${px}px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:${px > 32 ? 14 : 11}px;font-weight:500;">${huntersEsc(initials)}</div>`;
 }

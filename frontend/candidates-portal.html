@@ -395,7 +395,7 @@ function ini(n){return String(n||'').split(/\s+/).filter(Boolean).slice(0,2).map
 
 function logoHtml(j,px){
   var url=j&&(j.company_logo_url||j.logo_url);
-  if(url)return'<img src="'+esc(url)+'" alt="" style="width:'+px+'px;height:'+px+'px;border-radius:50%;object-fit:cover;flex-shrink:0;border:0.5px solid rgba(0,0,0,0.08);background:#fff;">';
+  if(url)return'<img src="'+esc(url)+'" alt="" style="width:'+px+'px;height:'+px+'px;border-radius:50%;object-fit:contain;flex-shrink:0;border:0.5px solid rgba(0,0,0,0.08);background:#fff;padding:3px;">';
   var ci=ini((j&&j.company_name)||'C');
   var fs=Math.round(px*0.33);
   return'<div style="width:'+px+'px;height:'+px+'px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:'+fs+'px;font-weight:500;flex-shrink:0;">'+esc(ci)+'</div>';
