@@ -90,11 +90,13 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
 
     company_name = None
     company_id = None
+    company_logo_url = None
     if job.owner and job.owner.company_id:
         company = db.query(models.Company).filter(models.Company.id == job.owner.company_id).first()
         if company:
             company_name = company.company_name
             company_id = company.id
+            company_logo_url = company.logo_url
 
     hide_salary = bool(job.hide_salary)
     return {
@@ -121,6 +123,7 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
         "hide_salary": hide_salary,
         "company_name": company_name,
         "company_id": company_id,
+        "company_logo_url": company_logo_url,
     }
 
 @router.post("/apply/{job_id}")
@@ -272,6 +275,7 @@ def get_public_jobs(db: Session = Depends(get_db)):
         ).all()
         approved_company_ids = [c.id for c in approved_companies]
         company_map = {c.id: c.company_name for c in approved_companies}
+        logo_map    = {c.id: c.logo_url for c in approved_companies}
         print(f"=== APPROVED COMPANIES: {len(approved_company_ids)} ===")
 
         # Build filter: approved jobs from admin users OR approved companies
@@ -323,6 +327,7 @@ def get_public_jobs(db: Session = Depends(get_db)):
                     "created_at": job.created_at.isoformat() if job.created_at else None,
                     "company_name": company_name,
                     "company_id": company_id,
+                    "company_logo_url": logo_map.get(company_id) if company_id else None,
                     "hide_salary": hide_salary,
                     "salary_min": None,
                     "salary_max": None,
