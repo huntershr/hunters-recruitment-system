@@ -1,0 +1,11 @@
+.env
+.env.*
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.db
+.gitignore
+.railwayignore
+README.md
+TESTING_GUIDE.md

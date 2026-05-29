@@ -2,9 +2,6 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # Fallback to SQLite if DATABASE_URL is not set
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./recruitment.db")
