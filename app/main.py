@@ -11,13 +11,35 @@ from .services.ai_evaluator import generate_job_details
 import logging
 import os
 import json
+import time
 from pathlib import Path
+from sqlalchemy import text
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
+def wait_for_db(max_retries=5, delay=5):
+    for attempt in range(max_retries):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            print("Database connected successfully")
+            return True
+        except Exception as e:
+            print(f"DB connection attempt {attempt+1}/{max_retries} failed: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+    return False
+
+if not wait_for_db():
+    print("Could not connect to database after retries — starting anyway, endpoints will fail until DB recovers")
+
 # Create database tables
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Warning: Could not create tables at startup: {e}")
+    print("App will start anyway and retry on first request")
 
 app = FastAPI(
     title="AI Recruitment System",
