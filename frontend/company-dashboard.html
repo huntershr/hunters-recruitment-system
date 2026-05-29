@@ -1420,9 +1420,11 @@
     async function loadOverviewData() {
         const token = localStorage.getItem('token');
         try {
-            const jobsResponse = await fetch(`${API_URL}/jobs`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            // Load jobs + applications in parallel for speed
+            const [jobsResponse] = await Promise.all([
+                fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                loadCompanyApplications()   // populates coAppsData with accurate stage
+            ]);
             const jobs = await jobsResponse.json();
             window.__allCompanyJobs = jobs;
 
@@ -1442,8 +1444,28 @@
                 }
             }
 
+            // Enrich with accurate stage from applications table
+            if (typeof coAppsData !== 'undefined' && coAppsData.length) {
+                const stageMap = new Map();
+                coAppsData.forEach(a => {
+                    if (a.email && a.stage) {
+                        const emailKey = a.email.toLowerCase();
+                        stageMap.set(emailKey + ':' + a.job_id, a.stage.toLowerCase());
+                        if (!stageMap.has(emailKey)) stageMap.set(emailKey, a.stage.toLowerCase());
+                    }
+                });
+                allCandidatesData.forEach(c => {
+                    const emailKey = (c.email || '').toLowerCase();
+                    const precise  = stageMap.get(emailKey + ':' + c.job_id);
+                    const fallback = stageMap.get(emailKey);
+                    if (precise || fallback) c.stage = precise || fallback;
+                });
+                // Use coAppsData count as authoritative total when available
+                if (coAppsData.length > totalApps) totalApps = coAppsData.length;
+            }
+
             const shortlisted = allCandidatesData.filter(c => (c.stage || c.status || '').toLowerCase() === 'shortlisted').length;
-            const interviews = allCandidatesData.filter(c => (c.stage || c.status || '').toLowerCase() === 'interview').length;
+            const interviews   = allCandidatesData.filter(c => (c.stage || c.status || '').toLowerCase() === 'interview').length;
 
             document.getElementById('stat-jobs').textContent = activeJobs;
             document.getElementById('stat-jobs-sub').textContent = jobs.length + ' total jobs';
@@ -1513,7 +1535,8 @@
         wrap.innerHTML = recent.map(c => {
             const name = escHtml((c.name || c.full_name || c.applicant_name || c.email || 'Applicant').slice(0, 22));
             const job = escHtml((c.job_title || '').slice(0, 20));
-            const status = c.status || 'Applied';
+            const rawStage = c.stage || c.status || 'applied';
+            const status = rawStage.charAt(0).toUpperCase() + rawStage.slice(1).toLowerCase();
             const color = stageColor[status] || '#6B7280';
             return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F3F4F6;">
                 <div>
@@ -3989,7 +4012,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=2.8"></script>
+<script src="hunters-jobs.js?v=2.9"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies
