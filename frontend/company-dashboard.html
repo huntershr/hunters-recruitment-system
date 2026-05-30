@@ -2918,6 +2918,9 @@
             return;
         }
         cardsList.innerHTML = '<div style="display:flex;flex-direction:column;gap:12px;">' + tabApps.map(_renderCoStageCard).join('') + '</div>';
+        if (coActiveStageTab === 'offered' && tabApps.length > 0) {
+            setTimeout(() => _loadOffersForTab(tabApps.map(a => a.application_id)), 50);
+        }
     }
 
     function _renderCoStageCard(app) {
@@ -2950,6 +2953,7 @@
                     <div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;">
                         ${typePill}
                         <span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:${stgBg};color:${stgColor};">${stgLabel}</span>
+                        ${stg==='offered'?`<span id="offer-badge-${app.application_id}" style="display:none;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;"></span>`:''}
                     </div>
                 </div>
             </div>
@@ -2960,6 +2964,7 @@
                     ${isReg&&app.candidate_id?`<button onclick="coViewProfile(${app.candidate_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#185FA5;cursor:pointer;min-height:44px;">Profile</button>`:''}
                     ${app.email?`<button onclick="coInvite(${app.candidate_id||'null'},'${escHtml(app.name||'')}','${escHtml(app.email||'')}')" style="padding:7px 12px;border:1px solid #9FE1CB;border-radius:8px;background:#E1F5EE;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">Invite</button>`:''}
                     ${stg==='interview'?`<button onclick="openScheduleInterviewModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}',null)" style="padding:7px 12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">📅 Schedule</button>`:''}
+                    ${stg==='offered'?`<button onclick="openOfferModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}')\" style="padding:7px 12px;border:none;border-radius:8px;background:#C9A84C;color:#fff;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">Send Offer</button>`:''}
                 </div>
                 <div onclick="event.stopPropagation()" style="min-width:160px;">
                     <select onchange="coChangeStage(${app.application_id},this.value,this)" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:11px;color:#6B7280;background:#F9FAFB;cursor:pointer;min-height:44px;">
@@ -4220,6 +4225,193 @@ async function runBulkScreening() {
 
   btn.textContent = 'Done ✓';
   if (typeof loadCandidatesList === 'function') loadCandidatesList();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  JOB OFFER FEATURE
+// ═══════════════════════════════════════════════════════════════
+
+let coOffersMap = {};  // application_id → offer object
+
+const _OFFER_BADGE = {
+    pending:  ['#C9A84C', '#FEF9EC', 'Offer Pending'],
+    accepted: ['#0F6E56', '#E1F5EE', 'Offer Accepted'],
+    rejected: ['#A32D2D', '#FCEBEB', 'Offer Rejected'],
+};
+
+function _updateOfferBadge(appId) {
+    const el = document.getElementById('offer-badge-' + appId);
+    if (!el) return;
+    const offer = coOffersMap[appId];
+    if (!offer) { el.style.display = 'none'; return; }
+    const [color, bg, label] = _OFFER_BADGE[offer.status] || _OFFER_BADGE.pending;
+    el.style.color      = color;
+    el.style.background = bg;
+    el.textContent      = label;
+    el.style.display    = 'inline-flex';
+}
+
+async function _loadOffersForTab(appIds) {
+    const token = localStorage.getItem('token');
+    for (const appId of appIds) {
+        try {
+            const res = await fetch(API_URL + '/api/admin/offers/application/' + appId, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (res.ok) {
+                const offer = await res.json();
+                if (offer) { coOffersMap[appId] = offer; _updateOfferBadge(appId); }
+            }
+        } catch (e) {}
+    }
+}
+
+function openOfferModal(appId, candName, jobTitle) {
+    document.getElementById('offer-modal')?.remove();
+    const existing = coOffersMap[appId];
+    const pf = existing || {};
+
+    const modal = document.createElement('div');
+    modal.id = 'offer-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10002;display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto;';
+    modal.innerHTML =
+        '<div style="background:#fff;border-radius:20px;width:640px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.25);overflow:hidden;margin:auto;">' +
+        // Header
+        '<div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">' +
+            '<div><div style="color:#fff;font-size:16px;font-weight:600;">Job Offer — ' + escHtml(candName) + '</div>' +
+            '<div style="color:#C9A84C;font-size:12px;margin-top:2px;">' + escHtml(jobTitle) + '</div></div>' +
+            '<button onclick="document.getElementById(\'offer-modal\').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">\xd7</button>' +
+        '</div>' +
+        // Body
+        '<div style="padding:24px;max-height:calc(100vh - 200px);overflow-y:auto;">' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">' +
+                _offerField('offer-cand-name',   'Candidate Name *', 'text',   pf.candidate_name || candName) +
+                _offerField('offer-job-title',   'Job Title *',      'text',   pf.job_title      || jobTitle) +
+                _offerField('offer-dept',        'Department / Division / Site', 'text', pf.department || '') +
+                _offerField('offer-start-date',  'Proposed Start Date',          'date', pf.start_date || '') +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;">' +
+                _offerField('offer-hours-from', 'Working Hours From (AM)', 'text', pf.working_hours_from || '9:00', '9:00') +
+                _offerField('offer-hours-to',   'Working Hours To (PM)',   'text', pf.working_hours_to   || '5:00', '5:00') +
+                _offerField('offer-salary',     'Net Salary (EGP)',        'text', pf.net_salary         || '') +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">' +
+                _offerField('offer-reporting',  'Reporting To', 'text', pf.reporting_to || '') +
+            '</div>' +
+            '<div style="margin-bottom:14px;">' +
+                '<label style="display:block;font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Exceptions and Permissions</label>' +
+                '<textarea id="offer-exceptions" rows="3" placeholder="Any exceptions, special conditions, or permissions…" style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;">' + escHtml(pf.exceptions || '') + '</textarea>' +
+            '</div>' +
+            (existing ? '<div style="padding:10px 14px;border-radius:8px;background:#F8F9FF;border:1px solid #E5E7EB;font-size:12px;color:#1B2A4A;margin-bottom:4px;">Current status: <strong id="offer-status-label" style="color:' + (_OFFER_BADGE[existing.status]||_OFFER_BADGE.pending)[0] + '">' + (_OFFER_BADGE[existing.status]||_OFFER_BADGE.pending)[2] + '</strong></div>' : '') +
+        '</div>' +
+        // Footer
+        '<div style="padding:16px 24px;border-top:1px solid #F3F4F6;display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;">' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                (existing ? '<button onclick="_offerStatus(' + appId + ',' + existing.id + ',\'accepted\')" style="padding:9px 16px;border:none;border-radius:8px;background:#0F6E56;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">✓ Accepted</button>' : '') +
+                (existing ? '<button onclick="_offerStatus(' + appId + ',' + existing.id + ',\'rejected\')" style="padding:9px 16px;border:none;border-radius:8px;background:#A32D2D;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">✗ Rejected</button>' : '') +
+            '</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                '<button onclick="document.getElementById(\'offer-modal\').remove()" style="padding:9px 18px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Cancel</button>' +
+                (existing ? '<button onclick="_offerDownload(' + existing.id + ')" style="padding:9px 18px;border:none;border-radius:8px;background:#1B2A4A;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">↓ Download Word Doc</button>' : '') +
+                '<button id="offer-save-btn" onclick="_offerSave(' + appId + (existing ? ',' + existing.id : '') + ')" style="padding:9px 18px;border:none;border-radius:8px;background:#C9A84C;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Save Offer</button>' +
+            '</div>' +
+        '</div>' +
+        '</div>';
+    document.body.appendChild(modal);
+}
+
+function _offerField(id, label, type, value, placeholder) {
+    return '<div><label style="display:block;font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">' + label + '</label>' +
+        '<input id="' + id + '" type="' + type + '" value="' + escHtml(String(value||'')) + '"' +
+        (placeholder ? ' placeholder="' + escHtml(placeholder) + '"' : '') +
+        ' style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>';
+}
+
+async function _offerSave(appId, existingOfferId) {
+    const btn = document.getElementById('offer-save-btn');
+    const candName = (document.getElementById('offer-cand-name')?.value || '').trim();
+    const jobTitle = (document.getElementById('offer-job-title')?.value || '').trim();
+    if (!candName || !jobTitle) { showToast('Candidate name and job title are required', 'error'); return; }
+
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving…'; }
+    const token = localStorage.getItem('token');
+    const payload = {
+        application_id:    appId,
+        candidate_name:    candName,
+        job_title:         jobTitle,
+        department:        (document.getElementById('offer-dept')?.value       || '').trim(),
+        start_date:        (document.getElementById('offer-start-date')?.value || '').trim(),
+        working_hours_from:(document.getElementById('offer-hours-from')?.value || '').trim(),
+        working_hours_to:  (document.getElementById('offer-hours-to')?.value   || '').trim(),
+        net_salary:        (document.getElementById('offer-salary')?.value     || '').trim(),
+        reporting_to:      (document.getElementById('offer-reporting')?.value  || '').trim(),
+        exceptions:        (document.getElementById('offer-exceptions')?.value || '').trim(),
+    };
+    try {
+        const res = await fetch(API_URL + '/api/admin/offers/', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const offer = await res.json();
+        coOffersMap[appId] = offer;
+        _updateOfferBadge(appId);
+        showToast('Offer saved successfully', 'success');
+        document.getElementById('offer-modal')?.remove();
+        // Re-open modal with updated data to reveal Download + status buttons
+        openOfferModal(appId, offer.candidate_name, offer.job_title);
+    } catch (e) {
+        showToast('Failed to save offer: ' + e.message, 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Save Offer'; }
+    }
+}
+
+async function _offerDownload(offerId) {
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(API_URL + '/api/admin/offers/' + offerId + '/download', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Download failed');
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const cd   = res.headers.get('Content-Disposition') || '';
+        const fnMatch = cd.match(/filename="([^"]+)"/);
+        a.download = fnMatch ? fnMatch[1] : 'JobOffer.docx';
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        showToast('Download failed: ' + e.message, 'error');
+    }
+}
+
+async function _offerStatus(appId, offerId, status) {
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(API_URL + '/api/admin/offers/' + offerId + '/status', {
+            method: 'PATCH',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const offer = await res.json();
+        coOffersMap[appId] = offer;
+        _updateOfferBadge(appId);
+        const lbl = document.getElementById('offer-status-label');
+        if (lbl) {
+            const [color,, text] = _OFFER_BADGE[status] || _OFFER_BADGE.pending;
+            lbl.style.color = color;
+            lbl.textContent = text;
+        }
+        showToast('Offer marked as ' + status, 'success');
+    } catch (e) {
+        showToast('Failed to update status: ' + e.message, 'error');
+    }
 }
 </script>
 

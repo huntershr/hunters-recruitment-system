@@ -5,8 +5,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-ARG CACHEBUST=8
+ARG CACHEBUST=10
 COPY . .
+COPY frontend/hunters-logo-card.jpeg /app/frontend/hunters-logo-card.jpeg
 
 # Expose default port (Railway overrides with $PORT at runtime)
 EXPOSE 8000

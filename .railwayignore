@@ -1,17 +1,13 @@
 venv/
 __pycache__/
 *.pyc
-*.pyd
 *.pyo
 .env
 recruitment.db
-*.db
 *.log
 .vscode/
 .idea/
 *.xlsx
-*.pdf
-*.docx
 temp/
 uploads/
 node_modules/

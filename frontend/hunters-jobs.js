@@ -110,6 +110,10 @@ function huntersCompanyLogoCircle(job, size) {
     const comp = job.company || window.__huntersCompanyContext;
     const name = (comp && comp.company_name) || job.company_name || 'Co';
     const initials = String(name).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+    const isHunters = name.toLowerCase().startsWith('hunters');
+    if (isHunters) {
+        return `<img src="/hunters-logo-card.jpeg" alt="Hunters" style="width:${px}px;height:${px}px;border-radius:50%;object-fit:contain;flex-shrink:0;background:#fff;border:0.5px solid rgba(0,0,0,0.08);">`;
+    }
     const url = (comp && comp.logo_url) || job.company_logo_url;
     if (url) {
         return `<img src="${huntersEsc(url)}" alt="" style="width:${px}px;height:${px}px;border-radius:50%;object-fit:contain;background:#fff;border:0.5px solid rgba(0,0,0,0.08);padding:3px;">`;

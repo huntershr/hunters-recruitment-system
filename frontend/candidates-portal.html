@@ -393,12 +393,32 @@ function showToast(msg,type){
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function ini(n){return String(n||'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase()||'?';}
 
+function _isHuntersJob(j){return j&&(j.company_name||'').toLowerCase().indexOf('hunters')===0;}
+
+/* Job card logo — white background context */
 function logoHtml(j,px){
+  if(_isHuntersJob(j)){
+    /* Card logo designed to fit circular avatar containers */
+    return'<img src="/hunters-logo-card.jpeg" alt="Hunters" style="width:'+px+'px;height:'+px+'px;border-radius:50%;object-fit:contain;flex-shrink:0;background:#fff;border:0.5px solid rgba(0,0,0,0.08);">';
+  }
   var url=j&&(j.company_logo_url||j.logo_url);
   if(url)return'<img src="'+esc(url)+'" alt="" style="width:'+px+'px;height:'+px+'px;border-radius:50%;object-fit:contain;flex-shrink:0;border:0.5px solid rgba(0,0,0,0.08);background:#fff;padding:3px;">';
   var ci=ini((j&&j.company_name)||'C');
   var fs=Math.round(px*0.33);
   return'<div style="width:'+px+'px;height:'+px+'px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:'+fs+'px;font-weight:500;flex-shrink:0;">'+esc(ci)+'</div>';
+}
+
+/* Overlay header logo — dark navy background context */
+function logoHtmlDark(j,px){
+  if(_isHuntersJob(j)){
+    /* Dark-navy-bg logo blends seamlessly with the #1B2A4A overlay header */
+    return'<img src="/hunters-logo-blue.jpeg" alt="Hunters" style="height:'+px+'px;width:auto;max-width:'+(px*3.2)+'px;object-fit:contain;flex-shrink:0;">';
+  }
+  var url=j&&(j.company_logo_url||j.logo_url);
+  if(url)return'<img src="'+esc(url)+'" alt="" style="width:'+px+'px;height:'+px+'px;border-radius:50%;object-fit:contain;flex-shrink:0;border:0.5px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.12);padding:3px;">';
+  var ci=ini((j&&j.company_name)||'C');
+  var fs=Math.round(px*0.33);
+  return'<div style="width:'+px+'px;height:'+px+'px;border-radius:50%;background:rgba(255,255,255,0.15);color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:'+fs+'px;font-weight:600;flex-shrink:0;">'+esc(ci)+'</div>';
 }
 
 function portalGetShareUrl(jobId){return window.location.origin+'/apply.html?job_id='+jobId;}
@@ -1218,7 +1238,7 @@ async function openJob(id){
   document.getElementById('overlay-inner').innerHTML=
     '<div style="background:#1B2A4A;padding:20px 28px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;">' +
       '<div style="display:flex;align-items:center;gap:14px;">' +
-        logoHtml(j,48) +
+        logoHtmlDark(j,48) +
         '<div><div style="color:#C9A84C;font-size:13px;font-weight:500;">'+esc(j.company_name||'Company')+'</div>' +
           '<div style="color:#fff;font-size:20px;font-weight:500;margin-top:2px;">'+esc(j.job_title)+'</div></div>' +
       '</div>' +

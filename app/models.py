@@ -125,6 +125,7 @@ class Application(Base):
     candidate = relationship("Candidate", back_populates="applications")
     evaluation = relationship("Evaluation", back_populates="application", uselist=False)
     interview = relationship("Interview", back_populates="application", uselist=False)
+    offer = relationship("Offer", back_populates="application", uselist=False)
 
 
 class Evaluation(Base):
@@ -169,3 +170,25 @@ class Interview(Base):
 
     application = relationship("Application", back_populates="interview")
     scheduler = relationship("User", foreign_keys=[scheduled_by])
+
+
+class Offer(Base):
+    __tablename__ = "offers"
+
+    id = Column(Integer, primary_key=True)
+    application_id = Column(Integer, ForeignKey("applications.id"), nullable=False)
+    candidate_name = Column(String)
+    job_title = Column(String)
+    department = Column(String)
+    start_date = Column(String)
+    working_hours_from = Column(String)
+    working_hours_to = Column(String)
+    net_salary = Column(String)
+    reporting_to = Column(String)
+    exceptions = Column(String)
+    status = Column(String, default="pending")  # pending / accepted / rejected
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(Integer, ForeignKey("users.id"))
+
+    application = relationship("Application", back_populates="offer")
+    creator = relationship("User", foreign_keys=[created_by])

@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from .database import engine, Base, SessionLocal, get_db
 from sqlalchemy.orm import Session
-from .routers import jobs, candidates, evaluations, sheets, auth, public, companies, admin, profile, interviews
+from .routers import jobs, candidates, evaluations, sheets, auth, public, companies, admin, profile, interviews, offers
 from .routers.auth import get_current_user
 from . import models, auth_utils
 from .services.ai_evaluator import generate_job_details
@@ -435,6 +435,33 @@ def startup_populate_db():
                 logging.info(f"Migration Phase 9 skipped ({_col_sql}): {_e}")
                 db.rollback()
 
+        # Offers table
+        try:
+            from sqlalchemy import text as _text
+            db.execute(_text("""
+                CREATE TABLE IF NOT EXISTS offers (
+                    id SERIAL PRIMARY KEY,
+                    application_id INTEGER REFERENCES applications(id) NOT NULL,
+                    candidate_name VARCHAR,
+                    job_title VARCHAR,
+                    department VARCHAR,
+                    start_date VARCHAR,
+                    working_hours_from VARCHAR,
+                    working_hours_to VARCHAR,
+                    net_salary VARCHAR,
+                    reporting_to VARCHAR,
+                    exceptions VARCHAR,
+                    status VARCHAR DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    created_by INTEGER REFERENCES users(id)
+                )
+            """))
+            db.commit()
+            logging.info("Migration: offers table ensured")
+        except Exception as _e:
+            logging.info(f"Migration offers table skipped: {_e}")
+            db.rollback()
+
         # Plan management — companies billing columns
         for _col_sql in [
             "ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free'",
@@ -524,6 +551,7 @@ app.include_router(evaluations.router)
 app.include_router(sheets.router)
 app.include_router(interviews.admin_router)
 app.include_router(interviews.candidate_router)
+app.include_router(offers.router)
 
 class GenerateJobRequest(BaseModel):
     job_title: str

@@ -19,6 +19,21 @@ class StageUpdateRequest(BaseModel):
     stage: str
 
 
+class AdminJobPayload(BaseModel):
+    company_id: int
+    title: str
+    location: Optional[str] = None
+    description: Optional[str] = None
+    experience_years: int = 0
+    required_skills: str = ""
+    nice_to_have_skills: Optional[str] = None
+    behavioral_skills: Optional[str] = None
+    education_level: Optional[str] = None
+    salary_range: Optional[str] = None
+    hide_salary: bool = False
+    industry_experience: Optional[str] = None
+
+
 class PlanUpdateRequest(BaseModel):
     plan: str
     plan_expires_at: str = None   # ISO date string or null
@@ -262,6 +277,7 @@ def get_all_companies_full(
             "plan": getattr(c, "plan", None) or "free",
             "plan_expires_at": c.plan_expires_at.isoformat() if getattr(c, "plan_expires_at", None) else None,
             "billing_status": getattr(c, "billing_status", None) or "active",
+            "logo_url": getattr(c, "logo_url", None) or None,
         })
     return result
 
@@ -408,6 +424,7 @@ def get_company_overview(
         "applications_count": len(apps),
         "interviews_count": interviews_count,
         "pipeline": stage_counts,
+        "logo_url": getattr(company, "logo_url", None) or None,
         "recent_jobs": [
             {
                 "id": j.id,
@@ -559,6 +576,10 @@ def get_all_users(
             if u.company_id else None
         )
         user_type = "admin" if u.is_admin else ("company" if u.company_id else "candidate")
+        candidate = (
+            db.query(models.Candidate).filter(models.Candidate.user_id == u.id).first()
+            if user_type == "candidate" else None
+        )
         result.append({
             "id": u.id,
             "email": u.email,
@@ -568,6 +589,8 @@ def get_all_users(
             "is_admin": u.is_admin,
             "company_id": u.company_id,
             "company_name": company.company_name if company else "",
+            "candidate_id": candidate.id if candidate else None,
+            "has_cv": bool(candidate and ((candidate.cv_file_data) or (candidate.cv_text and candidate.cv_text.strip()))) if candidate else False,
             "password_hash_preview": (u.hashed_password or "")[:30] + "...",
         })
     return result
@@ -1132,3 +1155,135 @@ def get_admin_analytics(
         ],
         "top_companies": top[:10],
     }
+
+
+# ── Admin Job Management ───────────────────────────────────────────────────────
+
+def _job_to_dict(j: models.Job) -> dict:
+    return {
+        "id": j.id,
+        "job_title": j.job_title or "",
+        "job_description": j.job_description or "",
+        "job_location": j.job_location or "",
+        "min_experience": j.min_experience or 0,
+        "required_skills": j.required_skills or "",
+        "nice_to_have_skills": j.nice_to_have_skills or "",
+        "behavioral_skills": j.behavioral_skills or "",
+        "education_level": j.education_level or "",
+        "salary_range": j.salary_range or "",
+        "hide_salary": bool(j.hide_salary),
+        "industry_experience": j.industry_experience or "",
+        "is_approved": bool(j.is_approved),
+        "created_at": j.created_at.isoformat() if j.created_at else "",
+        "owner_id": j.owner_id,
+    }
+
+
+@router.get("/jobs")
+def list_admin_jobs(
+    company_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """List all jobs as admin, optionally scoped to a company."""
+    _admin(current_user)
+    q = db.query(models.Job)
+    if company_id is not None:
+        co_user_ids = (
+            db.query(models.User.id).filter(models.User.company_id == company_id).subquery()
+        )
+        q = q.filter(models.Job.owner_id.in_(co_user_ids))
+    jobs = q.order_by(models.Job.id.desc()).all()
+    return [_job_to_dict(j) for j in jobs]
+
+
+@router.post("/jobs")
+def admin_create_job(
+    payload: AdminJobPayload,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Create a job as admin on behalf of a company (auto-approved)."""
+    _admin(current_user)
+    owner = db.query(models.User).filter(models.User.company_id == payload.company_id).first()
+    if not owner:
+        raise HTTPException(status_code=404, detail="No user found for this company")
+    job = models.Job(
+        owner_id=owner.id,
+        job_title=payload.title,
+        job_description=payload.description or "",
+        job_location=payload.location or "",
+        min_experience=payload.experience_years,
+        required_skills=payload.required_skills,
+        nice_to_have_skills=payload.nice_to_have_skills,
+        behavioral_skills=payload.behavioral_skills,
+        education_level=payload.education_level or "Not specified",
+        salary_range=payload.salary_range or "",
+        hide_salary=payload.hide_salary,
+        industry_experience=payload.industry_experience,
+        is_approved=True,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return _job_to_dict(job)
+
+
+@router.put("/jobs/{job_id}")
+def admin_update_job(
+    job_id: int,
+    payload: AdminJobPayload,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Update any job as admin."""
+    _admin(current_user)
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.job_title = payload.title
+    job.job_description = payload.description or ""
+    job.job_location = payload.location or ""
+    job.min_experience = payload.experience_years
+    job.required_skills = payload.required_skills
+    job.nice_to_have_skills = payload.nice_to_have_skills
+    job.behavioral_skills = payload.behavioral_skills
+    job.education_level = payload.education_level or "Not specified"
+    job.salary_range = payload.salary_range or ""
+    job.hide_salary = payload.hide_salary
+    job.industry_experience = payload.industry_experience
+    db.commit()
+    db.refresh(job)
+    return _job_to_dict(job)
+
+
+@router.delete("/jobs/{job_id}")
+def admin_delete_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Delete any job as admin, cascading to applications and evaluations."""
+    _admin(current_user)
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    app_ids = [
+        a.id for a in db.query(models.Application.id).filter(models.Application.job_id == job_id).all()
+    ]
+    if app_ids:
+        db.query(models.Evaluation).filter(
+            models.Evaluation.application_id.in_(app_ids)
+        ).delete(synchronize_session=False)
+        db.query(models.Application).filter(
+            models.Application.job_id == job_id
+        ).delete(synchronize_session=False)
+
+    db.query(models.Candidate).filter(
+        models.Candidate.job_applied == job_id
+    ).delete(synchronize_session=False)
+
+    db.query(models.Job).filter(models.Job.id == job_id).delete(synchronize_session=False)
+    db.commit()
+    return {"message": "Job deleted"}
