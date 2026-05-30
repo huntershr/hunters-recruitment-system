@@ -1330,8 +1330,7 @@
             }
 
             loadSavedLogo();
-            loadOverviewData();
-            applyRouteFromHash();
+            applyRouteFromHash();  // triggers loadOverviewData() only if hash === overview or empty
         } catch (error) {
             console.error('Init error:', error);
             localStorage.removeItem('token');
@@ -1404,6 +1403,12 @@
         const navItem = document.querySelector(`[data-page="${page}"]`);
         if (navItem) navItem.classList.add('active');
 
+        const _spinnerPages = { jobs: 'jobs-list-container', 'talent-pool': 'talent-pool-container', 'interviews-co': 'co-interviews-list' };
+        if (_spinnerPages[page]) {
+            const _sp = document.getElementById(_spinnerPages[page]);
+            if (_sp && !_sp.dataset.loaded) _sp.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>';
+        }
+        if (page === 'overview')      loadOverviewData();
         if (page === 'jobs')          loadJobsList();
         if (page === 'candidates')    { loadCompanyApplications().then(() => loadCandidatesList()); }
         if (page === 'talent-pool')   loadTalentPool();
@@ -1424,9 +1429,8 @@
     async function loadOverviewData() {
         const token = localStorage.getItem('token');
         try {
-            // Load jobs then applications sequentially to avoid pool exhaustion
-            const jobsResponse = await fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } });
-            const jobs = await jobsResponse.json();
+            // Load jobs (cached) then applications sequentially
+            const jobs = await fetchWithCache('jobs', `${API_URL}/jobs`, token);
             await loadCompanyApplications();   // populates coAppsData with accurate stage
             window.__allCompanyJobs = jobs;
 
@@ -1591,10 +1595,7 @@
     async function loadJobsList() {
         const token = localStorage.getItem('token');
         try {
-            const response = await fetch(`${API_URL}/jobs`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            let rawJobs = await response.json();
+            let rawJobs = await fetchWithCache('jobs', `${API_URL}/jobs`, token);
             if(!Array.isArray(rawJobs)) rawJobs = [];
             
             // Map keys
@@ -2104,7 +2105,7 @@
                     </button>
                 </div>
             </form>`;
-        void loadJobsList();
+        coInvalidateCache('jobs'); void loadJobsList();
     }
 
     async function saveCompanyProfile(event) {
@@ -2225,7 +2226,7 @@
 
             if (response.ok) {
                 showJobAlert('Job posted! It will be visible once approved by admin.', 'success');
-                setTimeout(() => { cancelJobForm(); loadJobsList(); }, 1500);
+                setTimeout(() => { cancelJobForm(); coInvalidateCache('jobs'); loadJobsList(); }, 1500);
             } else {
                 showJobAlert(`Error: ${data.detail || 'Failed to post job'}`, 'error');
             }
@@ -2262,7 +2263,7 @@
 
             if (response.ok) {
                 showToast('Job deleted successfully.', 'success');
-                loadJobsList();
+                coInvalidateCache('jobs'); loadJobsList();
             } else {
                 showToast('Failed to delete job.', 'error');
             }
@@ -2307,15 +2308,7 @@
         container.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>';
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/api/admin/talent-pool`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res.ok) {
-                let detail = '';
-                try { detail = (await res.json()).detail || ''; } catch(_) {}
-                throw new Error(`Failed to load talent pool (HTTP ${res.status}${detail ? ': ' + detail : ''})`);
-            }
-            _talentPoolData = await res.json();
+            _talentPoolData = await fetchWithCache('talent-pool', `${API_URL}/api/admin/talent-pool`, token);
             _talentPool = {};
             _talentPoolData.forEach(c => {
                 const key = c.candidate_id || c.user_id;
@@ -2830,6 +2823,18 @@
             '</div></body></html>';
         printWindow.document.write(html);
         printWindow.document.close();
+    }
+
+    /* ── Data cache — avoids re-fetching stable data on section revisit ── */
+    const coDataCache = {};
+    function coInvalidateCache(...keys) { keys.forEach(k => delete coDataCache[k]); }
+    async function fetchWithCache(key, url, token) {
+        if (coDataCache[key]) return coDataCache[key];
+        const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        coDataCache[key] = data;
+        return data;
     }
 
     /* ── Company Pipeline Stage Tabs ── */
