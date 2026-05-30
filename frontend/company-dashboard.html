@@ -846,6 +846,10 @@
                     </select>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
+                    <button id="co-card-btn" onclick="setCompanyView('tabs')" style="padding:9px 14px;font-size:12px;font-weight:500;border:1px solid #E5E7EB;border-radius:8px;cursor:pointer;background:#1B2A4A;color:#fff;display:flex;align-items:center;gap:6px;">
+                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+                        Card View
+                    </button>
                     <button id="co-list-btn" onclick="setCompanyView('list')" style="padding:9px 14px;font-size:12px;font-weight:500;border:1px solid #E5E7EB;border-radius:8px;cursor:pointer;background:#fff;color:#1B2A4A;display:flex;align-items:center;gap:6px;">
                         <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="14" y2="4" stroke-linecap="round"/><line x1="2" y1="8" x2="14" y2="8" stroke-linecap="round"/><line x1="2" y1="12" x2="14" y2="12" stroke-linecap="round"/></svg>
                         Table View
@@ -890,7 +894,7 @@
                 <div id="co-stage-tabs-bar" style="display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:4px;margin-bottom:16px;gap:2px;"></div>
                 <div id="co-stage-candidates-list"></div>
             </div>
-            <div id="co-list-wrapper" style="overflow-x:auto;">
+            <div id="co-list-wrapper" style="overflow-x:auto; display:none;">
                 <div id="candidates-list-container"></div>
             </div>
         </div>
@@ -1462,6 +1466,8 @@
                 });
                 // Use coAppsData count as authoritative total when available
                 if (coAppsData.length > totalApps) totalApps = coAppsData.length;
+                // If per-job fetches returned nothing, use coAppsData for stage counts too
+                if (allCandidatesData.length === 0 && coAppsData.length > 0) allCandidatesData = coAppsData.slice();
             }
 
             const shortlisted = allCandidatesData.filter(c => (c.stage || c.status || '').toLowerCase() === 'shortlisted').length;
@@ -2855,9 +2861,14 @@
         const listBtn  = document.getElementById('co-list-btn');
         if (tabsView) tabsView.style.display = v === 'list' ? 'none' : 'block';
         if (listView) listView.style.display  = v === 'list' ? 'block' : 'none';
+        const cardBtn  = document.getElementById('co-card-btn');
         if (listBtn) {
             listBtn.style.background = v === 'list' ? '#1B2A4A' : '#fff';
             listBtn.style.color      = v === 'list' ? '#fff'    : '#1B2A4A';
+        }
+        if (cardBtn) {
+            cardBtn.style.background = v === 'tabs' ? '#1B2A4A' : '#fff';
+            cardBtn.style.color      = v === 'tabs' ? '#fff'    : '#1B2A4A';
         }
         if (v === 'tabs') renderCoStageTabs();
     }
@@ -2880,10 +2891,13 @@
         if (!tabsBar || !cardsList) return;
 
         const lf = (document.getElementById('cand-search') ? document.getElementById('cand-search').value : '').toLowerCase();
+        const jobFilterEl = document.getElementById('cand-job-filter');
+        const selectedJobId = jobFilterEl ? jobFilterEl.value : '';
+        const visibleApps = selectedJobId ? coAppsData.filter(app => String(app.job_id) === selectedJobId) : coAppsData;
 
         const counts = {};
         _CO_STAGE_TABS.forEach(tab => {
-            counts[tab.id] = coAppsData.filter(app => tab.stages.includes((app.stage||'applied').toLowerCase())).length;
+            counts[tab.id] = visibleApps.filter(app => tab.stages.includes((app.stage||'applied').toLowerCase())).length;
         });
 
         tabsBar.innerHTML = _CO_STAGE_TABS.map(tab => {
@@ -2892,7 +2906,7 @@
         }).join('');
 
         const activeTabDef = _CO_STAGE_TABS.find(t => t.id === coActiveStageTab) || _CO_STAGE_TABS[0];
-        const tabApps = coAppsData.filter(app => {
+        const tabApps = visibleApps.filter(app => {
             const stg = (app.stage||'applied').toLowerCase();
             if (!activeTabDef.stages.includes(stg)) return false;
             if (lf) return (app.name||'').toLowerCase().includes(lf)||(app.email||'').toLowerCase().includes(lf)||(app.job_title||'').toLowerCase().includes(lf);
@@ -4012,7 +4026,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.0"></script>
+<script src="hunters-jobs.js?v=3.2"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies
