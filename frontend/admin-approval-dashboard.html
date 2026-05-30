@@ -1016,7 +1016,7 @@
                     const createdDate = job.created_at ? new Date(job.created_at).toLocaleDateString() : 'N/A';
                     jh += `<div class="approval-item">
                         <div class="approval-item-left">
-                            <div class="approval-item-name">${job.title}</div>
+                            <div class="approval-item-name">${job.job_title}</div>
                             <div class="approval-item-email">${job.company_name || ''}</div>
                             <div class="approval-item-date">Posted: ${createdDate}</div>
                         </div>
