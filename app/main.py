@@ -66,476 +66,294 @@ app.add_middleware(
 def startup_populate_db():
     """
     Initialize database on startup and create default admin user.
+    DDL migrations are batched into a single connection to avoid exhausting
+    the Supabase connection pool at startup.
     """
-    db = SessionLocal()
+    logging.info("Application startup - initializing database")
+
+    # ── Fast guard: if all DDL already applied, skip the entire migration block ──
+    _ddl_done = False
     try:
-        logging.info("Application startup - initializing database")
-        # Create default admin user if it doesn't exist yet.
-        # NOTE: In production (e.g. Railway) the DB may already contain users,
-        # so we must not rely on "users table is empty" for seeding.
-        # Schema migrations for new columns (safe on existing DBs)
-        try:
-            from sqlalchemy import text as _text
-            db.execute(_text("ALTER TABLE candidates ADD COLUMN last_title VARCHAR"))
-            db.commit()
-            logging.info("Migration: added last_title column to candidates")
-        except Exception:
-            db.rollback()
+        with engine.connect() as _c:
+            _ddl_done = bool(_c.execute(text(
+                "SELECT 1 FROM _schema_migrations WHERE name = 'startup_schema_complete'"
+            )).fetchone())
+    except Exception:
+        pass  # _schema_migrations doesn't exist yet on first deploy
 
-        try:
-            from sqlalchemy import text as _text
-            db.execute(_text("ALTER TABLE candidates ADD COLUMN last_employer VARCHAR"))
-            db.commit()
-            logging.info("Migration: added last_employer column to candidates")
-        except Exception:
-            db.rollback()
-
-        try:
-            from sqlalchemy import text as _text
-            db.execute(_text("ALTER TABLE jobs ADD COLUMN hide_salary BOOLEAN DEFAULT FALSE"))
-            db.commit()
-            logging.info("Migration: added hide_salary column to jobs")
-        except Exception as _e:
-            logging.info(f"Migration hide_salary (column likely exists): {_e}")
-            db.rollback()
-
-        # Phase 1.1 — additive schema migrations
-        _phase11_columns = [
-            ("candidates", "user_id",           "INTEGER REFERENCES users(id)"),
-            ("candidates", "photo_url",          "TEXT"),
-            ("candidates", "summary",            "TEXT"),
-            ("candidates", "location",           "VARCHAR"),
-            ("candidates", "experiences",        "JSONB"),
-            ("candidates", "education_history",  "JSONB"),
-            ("candidates", "languages",          "JSONB"),
-            ("evaluations", "application_id",    "INTEGER REFERENCES applications(id)"),
-        ]
-        for _tbl, _col, _typedef in _phase11_columns:
-            try:
-                from sqlalchemy import text as _text
-                db.execute(_text(f"ALTER TABLE {_tbl} ADD COLUMN IF NOT EXISTS {_col} {_typedef}"))
-                db.commit()
-                logging.info(f"Migration: {_tbl}.{_col} ensured")
-            except Exception as _e:
-                logging.info(f"Migration {_tbl}.{_col} skipped: {_e}")
-                db.rollback()
-
-        # Phase 1.4 guard table
-        try:
-            from sqlalchemy import text as _text
-            db.execute(_text(
-                "CREATE TABLE IF NOT EXISTS _schema_migrations "
-                "(name TEXT PRIMARY KEY, applied_at TIMESTAMP DEFAULT NOW())"
-            ))
-            db.commit()
-            logging.info("Migration: _schema_migrations table ensured")
-        except Exception as _e:
-            logging.info(f"Migration _schema_migrations skipped: {_e}")
-            db.rollback()
-
-        # Phase 1.3 cleanup — reset test artifact on Ahmed's summary
-        try:
-            from sqlalchemy import text as _text
-            db.execute(_text(
-                "UPDATE candidates SET summary = NULL "
-                "WHERE user_id = 12 AND summary = 'Phase 1.3 test summary'"
-            ))
-            db.commit()
-        except Exception:
-            db.rollback()
-
-        # Phase 1.2 — email backfill (guarded, runs once)
-        try:
-            from sqlalchemy import text as _text
-            already_run = db.execute(_text(
-                "SELECT 1 FROM _schema_migrations WHERE name = 'phase_1_2_email_backfill'"
-            )).fetchone()
-            if already_run:
-                logging.info("Phase 1.2 backfill already applied — skipping")
-            else:
-                logging.info("Phase 1.2: running email backfill...")
-                db.execute(_text("""
-                    UPDATE candidates c
-                    SET user_id = u.id
-                    FROM users u
-                    WHERE LOWER(c.email) = LOWER(u.email)
-                      AND c.user_id IS NULL
-                      AND c.id = (
-                        SELECT MAX(id) FROM candidates c2
-                        WHERE LOWER(c2.email) = LOWER(c.email)
-                          AND c2.name NOT LIKE '%@%'
-                      )
-                """))
-                db.execute(_text(
-                    "INSERT INTO _schema_migrations (name) VALUES ('phase_1_2_email_backfill') "
-                    "ON CONFLICT (name) DO NOTHING"
-                ))
-                db.commit()
-                logging.info("Phase 1.2: backfill committed and migration marker inserted")
-
-                # Reporting — read-only diagnostics logged to stdout
-                total = db.execute(_text("SELECT COUNT(*) FROM candidates")).scalar()
-                linked = db.execute(_text("SELECT COUNT(*) FROM candidates WHERE user_id IS NOT NULL")).scalar()
-                unlinked = db.execute(_text("SELECT COUNT(*) FROM candidates WHERE user_id IS NULL")).scalar()
-                logging.info(f"Phase 1.2 report | total candidates: {total} | type_a (user_id set): {linked} | unlinked: {unlinked}")
-
-                dupes = db.execute(_text(
-                    "SELECT email, COUNT(*) AS cnt FROM candidates "
-                    "WHERE user_id IS NULL GROUP BY email HAVING COUNT(*) > 1"
-                )).fetchall()
-                if dupes:
-                    for row in dupes:
-                        logging.info(f"Phase 1.2 report | duplicate unlinked email: {row[0]} (count: {row[1]})")
-                else:
-                    logging.info("Phase 1.2 report | no duplicate unlinked emails")
-
-                degraded = db.execute(_text(
-                    "SELECT id, name, email FROM candidates WHERE name LIKE '%@%'"
-                )).fetchall()
-                if degraded:
-                    for row in degraded:
-                        logging.info(f"Phase 1.2 report | degraded name row: id={row[0]} name={row[1]} email={row[2]}")
-                else:
-                    logging.info("Phase 1.2 report | no degraded name-as-email rows found")
-
-        except Exception as _e:
-            logging.error(f"Phase 1.2 backfill failed: {_e}")
-            db.rollback()
-
-        # Phase 1.4 — data split (DESTRUCTIVE, single transaction, guarded)
-        try:
-            from sqlalchemy import text as _text
-            already_run = db.execute(_text(
-                "SELECT 1 FROM _schema_migrations WHERE name = 'phase_1_4_data_split'"
-            )).fetchone()
-            if already_run:
-                logging.info("Phase 1.4 data split already applied — skipping")
-            else:
-                logging.info("Phase 1.4: starting data split — all steps in one transaction")
-
-                # Step 1 — Application rows for Type A (user_id IS NOT NULL)
-                db.execute(_text("""
-                    INSERT INTO applications (job_id, candidate_id, stage, created_at)
-                    SELECT job_applied, id, 'New', NOW()
-                    FROM candidates
-                    WHERE user_id IS NOT NULL AND job_applied IS NOT NULL
-                """))
-                logging.info("Phase 1.4 step 1: Type A application rows inserted")
-
-                # Step 2 — Application rows for Type B (user_id IS NULL, anonymous)
-                db.execute(_text("""
-                    INSERT INTO applications
-                      (job_id, candidate_id, applicant_name, applicant_email,
-                       applicant_phone, expected_salary, stage, created_at)
-                    SELECT job_applied, NULL, name, email, phone, expected_salary, 'New', NOW()
-                    FROM candidates
-                    WHERE user_id IS NULL AND job_applied IS NOT NULL
-                """))
-                logging.info("Phase 1.4 step 2: Type B application rows inserted")
-
-                # Step 3 — Reparent evaluations: set application_id
-                db.execute(_text("""
-                    UPDATE evaluations e
-                    SET application_id = a.id
-                    FROM applications a
-                    WHERE (
-                        a.candidate_id = e.candidate_id
-                        OR (
-                            a.applicant_email IS NOT NULL
-                            AND LOWER(a.applicant_email) = LOWER(
-                                (SELECT email FROM candidates WHERE id = e.candidate_id)
-                            )
-                        )
-                    )
-                    AND a.job_id = e.job_id
-                    AND e.application_id IS NULL
-                """))
-                logging.info("Phase 1.4 step 3: evaluations reparented to applications")
-
-                # Verify step 3 — abort entire transaction if any eval couldn't be reparented
-                unlinked_check = db.execute(_text(
-                    "SELECT COUNT(*) FROM evaluations WHERE application_id IS NULL"
-                )).scalar()
-                if unlinked_check > 0:
-                    raise Exception(
-                        f"Phase 1.4 abort: {unlinked_check} evaluation(s) could not be "
-                        f"reparented — rolling back entire transaction"
-                    )
-
-                # Step 3b — Nullify candidate_id on Type B evaluations before deletion
-                # Required: evaluations.candidate_id has FK → candidates.id (NO ACTION)
-                # Setting to NULL satisfies the constraint and keeps the eval linked via application_id
-                db.execute(_text("""
-                    UPDATE evaluations
-                    SET candidate_id = NULL
-                    WHERE candidate_id IN (SELECT id FROM candidates WHERE user_id IS NULL)
-                """))
-                logging.info("Phase 1.4 step 3b: candidate_id nullified on Type B evaluations (FK safety)")
-
-                # Step 4 — Delete Type B Candidate rows (FK-safe now that their evals are nulled)
-                db.execute(_text("DELETE FROM candidates WHERE user_id IS NULL"))
-                logging.info("Phase 1.4 step 4: Type B candidate rows deleted")
-
-                # Step 5 — Mark migration complete
-                db.execute(_text(
-                    "INSERT INTO _schema_migrations (name) VALUES ('phase_1_4_data_split')"
-                ))
-
-                db.commit()
-                logging.info("Phase 1.4: transaction committed successfully")
-
-                # Post-migration report (read-only, after commit)
-                total_apps    = db.execute(_text("SELECT COUNT(*) FROM applications")).scalar()
-                type_a_apps   = db.execute(_text("SELECT COUNT(*) FROM applications WHERE candidate_id IS NOT NULL")).scalar()
-                type_b_apps   = db.execute(_text("SELECT COUNT(*) FROM applications WHERE candidate_id IS NULL")).scalar()
-                reparented    = db.execute(_text("SELECT COUNT(*) FROM evaluations WHERE application_id IS NOT NULL")).scalar()
-                still_unlinked = db.execute(_text("SELECT COUNT(*) FROM evaluations WHERE application_id IS NULL")).scalar()
-                remaining_cands = db.execute(_text("SELECT COUNT(*) FROM candidates")).scalar()
-                orphan_apps   = db.execute(_text(
-                    "SELECT COUNT(*) FROM applications a "
-                    "WHERE a.candidate_id IS NOT NULL "
-                    "AND NOT EXISTS (SELECT 1 FROM candidates c WHERE c.id = a.candidate_id)"
-                )).scalar()
-
-                logging.info(f"Phase 1.4 report | a) total applications: {total_apps}")
-                logging.info(f"Phase 1.4 report | b) type_a (linked to candidate): {type_a_apps}")
-                logging.info(f"Phase 1.4 report | c) type_b (anonymous): {type_b_apps}")
-                logging.info(f"Phase 1.4 report | d) evaluations reparented: {reparented}")
-                logging.info(f"Phase 1.4 report | e) evaluations still unlinked (RED FLAG if >0): {still_unlinked}")
-                logging.info(f"Phase 1.4 report | f) candidates remaining: {remaining_cands}")
-                logging.info(f"Phase 1.4 report | g) orphan applications: {orphan_apps}")
-
-                if still_unlinked > 0:
-                    logging.error(f"Phase 1.4 RED FLAG: {still_unlinked} evaluations are still unlinked!")
-                if orphan_apps > 0:
-                    logging.error(f"Phase 1.4 RED FLAG: {orphan_apps} orphan applications found!")
-
-        except Exception as _e:
-            logging.error(f"Phase 1.4 data split FAILED — rolled back: {_e}")
-            db.rollback()
-
-        # Phase 1.5 heal — backfill user_id for any Candidate rows created with NULL
-        # user_id after Phase 1.4 (e.g. portal applies before the screen-cv fix landed).
-        # Guarded so it runs once; "MAX(id) GROUP BY email" keeps canonical-row selection
-        # consistent with Phase 1.2.
-        try:
-            from sqlalchemy import text as _text
-            already_run = db.execute(_text(
-                "SELECT 1 FROM _schema_migrations WHERE name = 'phase_1_5_heal_user_ids'"
-            )).fetchone()
-            if already_run:
-                logging.info("Phase 1.5 heal already applied — skipping")
-            else:
-                logging.info("Phase 1.5: healing Candidate rows with user_id=NULL...")
-                result = db.execute(_text("""
-                    UPDATE candidates c
-                    SET user_id = u.id
-                    FROM users u
-                    WHERE LOWER(c.email) = LOWER(u.email)
-                      AND c.user_id IS NULL
-                      AND c.id IN (SELECT MAX(id) FROM candidates GROUP BY email)
-                """))
-                healed = result.rowcount
-                db.execute(_text(
-                    "INSERT INTO _schema_migrations (name) VALUES ('phase_1_5_heal_user_ids') "
-                    "ON CONFLICT (name) DO NOTHING"
-                ))
-                db.commit()
-                logging.info(f"Phase 1.5 heal: {healed} row(s) healed and migration marker inserted")
-
-                still_null = db.execute(_text(
-                    "SELECT COUNT(*) FROM candidates WHERE user_id IS NULL"
-                )).scalar()
-                logging.info(f"Phase 1.5 heal report | candidates with user_id=NULL after heal: {still_null}")
-                if still_null > 0:
-                    logging.warning(
-                        f"Phase 1.5 heal: {still_null} candidate(s) still have user_id=NULL "
-                        f"— their email does not match any User row (expected 0 post-Phase-1.4)"
-                    )
-        except Exception as _e:
-            logging.error(f"Phase 1.5 heal FAILED: {_e}")
-            db.rollback()
-
-        # Phase 2 — drop unique constraint on evaluations.candidate_id
-        # Phase 2 allows multiple Evaluations per Candidate (one per Application).
-        # The old unique=True enforced one-to-one but is incompatible with re-applies.
-        try:
-            from sqlalchemy import text as _text
-            db.execute(_text(
-                "ALTER TABLE evaluations DROP CONSTRAINT IF EXISTS evaluations_candidate_id_key"
-            ))
-            db.commit()
-            logging.info("Migration: evaluations.candidate_id unique constraint dropped (Phase 2)")
-        except Exception as _e:
-            logging.info(f"Migration Phase 2 unique constraint drop: {_e}")
-            db.rollback()
-
-        # Phase 3 — add cv_text to applications for Type B CV storage
-        try:
-            from sqlalchemy import text as _text
-            db.execute(_text("ALTER TABLE applications ADD COLUMN IF NOT EXISTS cv_text TEXT"))
-            db.commit()
-            logging.info("Migration: applications.cv_text column ensured (Phase 3)")
-        except Exception as _e:
-            logging.info(f"Migration applications.cv_text skipped: {_e}")
-            db.rollback()
-
-        # Phase 8 — stage audit column
-        try:
-            from sqlalchemy import text as _text
-            db.execute(_text(
-                "ALTER TABLE applications ADD COLUMN IF NOT EXISTS stage_updated_at TIMESTAMP"
-            ))
-            db.commit()
-            logging.info("Migration Phase 8: applications.stage_updated_at ensured")
-        except Exception as _e:
-            logging.info(f"Migration Phase 8 stage_updated_at skipped: {_e}")
-            db.rollback()
-
-        # Phase 9 — interviews table
-        try:
-            from sqlalchemy import text as _text
-            db.execute(_text("""
-                CREATE TABLE IF NOT EXISTS interviews (
-                    id SERIAL PRIMARY KEY,
-                    application_id INTEGER REFERENCES applications(id) NOT NULL,
-                    scheduled_by INTEGER REFERENCES users(id) NOT NULL,
-                    interview_date DATE NOT NULL,
-                    interview_time TIME NOT NULL,
-                    duration_minutes INTEGER DEFAULT 60,
-                    location_type TEXT NOT NULL,
-                    location_value TEXT,
-                    interviewer_names TEXT,
-                    notes_for_candidate TEXT,
-                    internal_notes TEXT,
-                    status TEXT DEFAULT 'scheduled',
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW()
-                )
-            """))
-            db.commit()
-            logging.info("Migration Phase 9: interviews table ensured")
-        except Exception as _e:
-            logging.info(f"Migration Phase 9 interviews table skipped: {_e}")
-            db.rollback()
-
-        # Phase 9 — per-dimension AI score breakdown on evaluations
-        for _col_sql in [
+    if not _ddl_done:
+        # ── All DDL in one connection, one commit, savepoints per statement ──
+        _DDL_STATEMENTS = [
+            # Early columns (no IF NOT EXISTS in original — adding it here is safe)
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS last_title VARCHAR",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS last_employer VARCHAR",
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hide_salary BOOLEAN DEFAULT FALSE",
+            # Phase 1.1
+            "ALTER TABLE candidates  ADD COLUMN IF NOT EXISTS user_id          INTEGER REFERENCES users(id)",
+            "ALTER TABLE candidates  ADD COLUMN IF NOT EXISTS photo_url         TEXT",
+            "ALTER TABLE candidates  ADD COLUMN IF NOT EXISTS summary           TEXT",
+            "ALTER TABLE candidates  ADD COLUMN IF NOT EXISTS location          VARCHAR",
+            "ALTER TABLE candidates  ADD COLUMN IF NOT EXISTS experiences       JSONB",
+            "ALTER TABLE candidates  ADD COLUMN IF NOT EXISTS education_history JSONB",
+            "ALTER TABLE candidates  ADD COLUMN IF NOT EXISTS languages         JSONB",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS application_id    INTEGER REFERENCES applications(id)",
+            # Guard table (must exist before data-migration markers are written)
+            "CREATE TABLE IF NOT EXISTS _schema_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMP DEFAULT NOW())",
+            # Phase 2
+            "ALTER TABLE evaluations DROP CONSTRAINT IF EXISTS evaluations_candidate_id_key",
+            # Phase 3
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS cv_text TEXT",
+            # Phase 8
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS stage_updated_at TIMESTAMP",
+            # Phase 9 — interviews table
+            """CREATE TABLE IF NOT EXISTS interviews (
+                id SERIAL PRIMARY KEY,
+                application_id   INTEGER REFERENCES applications(id) NOT NULL,
+                scheduled_by     INTEGER REFERENCES users(id) NOT NULL,
+                interview_date   DATE NOT NULL,
+                interview_time   TIME NOT NULL,
+                duration_minutes INTEGER DEFAULT 60,
+                location_type    TEXT NOT NULL,
+                location_value   TEXT,
+                interviewer_names      TEXT,
+                notes_for_candidate    TEXT,
+                internal_notes         TEXT,
+                status      TEXT DEFAULT 'scheduled',
+                created_at  TIMESTAMP DEFAULT NOW(),
+                updated_at  TIMESTAMP DEFAULT NOW()
+            )""",
+            # Phase 9 — score breakdown
             "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS score_experience FLOAT DEFAULT NULL",
             "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS score_skills     FLOAT DEFAULT NULL",
             "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS score_education  FLOAT DEFAULT NULL",
             "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS score_behavioral FLOAT DEFAULT NULL",
-        ]:
-            try:
-                from sqlalchemy import text as _text
-                db.execute(_text(_col_sql))
-                db.commit()
-                logging.info(f"Migration Phase 9: {_col_sql}")
-            except Exception as _e:
-                logging.info(f"Migration Phase 9 skipped ({_col_sql}): {_e}")
-                db.rollback()
-
-        # Offers table
-        try:
-            from sqlalchemy import text as _text
-            db.execute(_text("""
-                CREATE TABLE IF NOT EXISTS offers (
-                    id SERIAL PRIMARY KEY,
-                    application_id INTEGER REFERENCES applications(id) NOT NULL,
-                    candidate_name VARCHAR,
-                    job_title VARCHAR,
-                    department VARCHAR,
-                    start_date VARCHAR,
-                    working_hours_from VARCHAR,
-                    working_hours_to VARCHAR,
-                    net_salary VARCHAR,
-                    reporting_to VARCHAR,
-                    exceptions VARCHAR,
-                    status VARCHAR DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    created_by INTEGER REFERENCES users(id)
-                )
-            """))
-            db.commit()
-            logging.info("Migration: offers table ensured")
-        except Exception as _e:
-            logging.info(f"Migration offers table skipped: {_e}")
-            db.rollback()
-
-        # Plan management — companies billing columns
-        for _col_sql in [
-            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free'",
+            # Offers table
+            """CREATE TABLE IF NOT EXISTS offers (
+                id             SERIAL PRIMARY KEY,
+                application_id INTEGER REFERENCES applications(id) NOT NULL,
+                candidate_name VARCHAR,
+                job_title      VARCHAR,
+                department     VARCHAR,
+                start_date     VARCHAR,
+                working_hours_from VARCHAR,
+                working_hours_to   VARCHAR,
+                net_salary     VARCHAR,
+                reporting_to   VARCHAR,
+                exceptions     VARCHAR,
+                status         VARCHAR DEFAULT 'pending',
+                created_at     TIMESTAMP DEFAULT NOW(),
+                created_by     INTEGER REFERENCES users(id)
+            )""",
+            # Plan management
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan            TEXT DEFAULT 'free'",
             "ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMP",
-            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_status TEXT DEFAULT 'active'",
-            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo_url TEXT",
-        ]:
-            try:
-                from sqlalchemy import text as _text
-                db.execute(_text(_col_sql))
-                db.commit()
-                logging.info(f"Migration: {_col_sql}")
-            except Exception as _e:
-                logging.info(f"Migration skipped ({_col_sql}): {_e}")
-                db.rollback()
-
-        # Phase 4 — BYTEA original file storage on candidates + applications
-        for _col_sql in [
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_status  TEXT DEFAULT 'active'",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo_url        TEXT",
+            # Phase 4 — file storage
             "ALTER TABLE candidates   ADD COLUMN IF NOT EXISTS cv_file_data BYTEA",
             "ALTER TABLE candidates   ADD COLUMN IF NOT EXISTS cv_file_mime TEXT",
             "ALTER TABLE applications ADD COLUMN IF NOT EXISTS cv_file_data BYTEA",
             "ALTER TABLE applications ADD COLUMN IF NOT EXISTS cv_file_mime TEXT",
-        ]:
-            try:
-                from sqlalchemy import text as _text
-                db.execute(_text(_col_sql))
-                db.commit()
-                logging.info(f"Migration Phase 4: {_col_sql}")
-            except Exception as _e:
-                logging.info(f"Migration Phase 4 skipped ({_col_sql}): {_e}")
-                db.rollback()
+        ]
 
         try:
-            admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
-            admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+            with engine.connect() as conn:
+                for _stmt in _DDL_STATEMENTS:
+                    try:
+                        conn.execute(text("SAVEPOINT _mig"))
+                        conn.execute(text(_stmt))
+                        conn.execute(text("RELEASE SAVEPOINT _mig"))
+                    except Exception as _e:
+                        conn.execute(text("ROLLBACK TO SAVEPOINT _mig"))
+                        logging.info(f"DDL skipped (already applied): {str(_e)[:120]}")
+                # Mark the entire DDL batch complete
+                conn.execute(text(
+                    "INSERT INTO _schema_migrations (name) VALUES ('startup_schema_complete') "
+                    "ON CONFLICT (name) DO NOTHING"
+                ))
+                conn.commit()
+                logging.info("All DDL migrations applied in one connection")
+        except Exception as _e:
+            logging.error(f"DDL batch migration failed: {_e}")
 
-            existing_admin = db.query(models.User).filter(models.User.email == admin_email).first()
-            if existing_admin is None:
-                logging.info(f"Creating default admin user: {admin_email}")
-                hashed_pw = auth_utils.get_password_hash(admin_password)
-                admin = models.User(
-                    email=admin_email,
-                    hashed_password=hashed_pw,
-                    full_name="Administrator",
-                    is_admin=True,
-                    is_active=True,
-                )
-                db.add(admin)
+        # ── Data migrations (each guarded by _schema_migrations, run once) ───
+        db = SessionLocal()
+        try:
+            # Phase 1.3 cleanup — reset test artifact
+            try:
+                db.execute(text(
+                    "UPDATE candidates SET summary = NULL "
+                    "WHERE user_id = 12 AND summary = 'Phase 1.3 test summary'"
+                ))
                 db.commit()
-                logging.info("Default admin user created (email from ADMIN_EMAIL, password from ADMIN_PASSWORD).")
-            else:
-                # Ensure the seeded admin remains active/admin if it already exists.
-                updated = False
-                if not existing_admin.is_admin:
-                    existing_admin.is_admin = True
-                    updated = True
-                if not existing_admin.is_active:
-                    existing_admin.is_active = True
-                    updated = True
+            except Exception:
+                db.rollback()
 
-                # Optional, controlled password reset for recovery.
-                # Set ADMIN_RESET_PASSWORD=true temporarily to force reset.
-                reset_flag = os.getenv("ADMIN_RESET_PASSWORD", "").strip().lower() in {"1", "true", "yes", "y", "on"}
-                if reset_flag:
-                    existing_admin.hashed_password = auth_utils.get_password_hash(admin_password)
-                    updated = True
-                    logging.warning(f"ADMIN_RESET_PASSWORD is enabled. Resetting password for: {admin_email}")
-
-                if updated:
+            # Phase 1.2 — email backfill (guarded, runs once)
+            try:
+                already_run = db.execute(text(
+                    "SELECT 1 FROM _schema_migrations WHERE name = 'phase_1_2_email_backfill'"
+                )).fetchone()
+                if already_run:
+                    logging.info("Phase 1.2 backfill already applied — skipping")
+                else:
+                    logging.info("Phase 1.2: running email backfill...")
+                    db.execute(text("""
+                        UPDATE candidates c
+                        SET user_id = u.id
+                        FROM users u
+                        WHERE LOWER(c.email) = LOWER(u.email)
+                          AND c.user_id IS NULL
+                          AND c.id = (
+                            SELECT MAX(id) FROM candidates c2
+                            WHERE LOWER(c2.email) = LOWER(c.email)
+                              AND c2.name NOT LIKE '%@%'
+                          )
+                    """))
+                    db.execute(text(
+                        "INSERT INTO _schema_migrations (name) VALUES ('phase_1_2_email_backfill') "
+                        "ON CONFLICT (name) DO NOTHING"
+                    ))
                     db.commit()
-                    logging.info(f"Updated existing admin flags for: {admin_email}")
-        except Exception as e:
-            logging.warning(f"Could not create default admin user: {e}")
-            db.rollback()
+                    logging.info("Phase 1.2: backfill committed and migration marker inserted")
+                    total    = db.execute(text("SELECT COUNT(*) FROM candidates")).scalar()
+                    linked   = db.execute(text("SELECT COUNT(*) FROM candidates WHERE user_id IS NOT NULL")).scalar()
+                    unlinked = db.execute(text("SELECT COUNT(*) FROM candidates WHERE user_id IS NULL")).scalar()
+                    logging.info(f"Phase 1.2 report | total: {total} | linked: {linked} | unlinked: {unlinked}")
+            except Exception as _e:
+                logging.error(f"Phase 1.2 backfill failed: {_e}")
+                db.rollback()
+
+            # Phase 1.4 — data split (DESTRUCTIVE, single transaction, guarded)
+            try:
+                already_run = db.execute(text(
+                    "SELECT 1 FROM _schema_migrations WHERE name = 'phase_1_4_data_split'"
+                )).fetchone()
+                if already_run:
+                    logging.info("Phase 1.4 data split already applied — skipping")
+                else:
+                    logging.info("Phase 1.4: starting data split — all steps in one transaction")
+                    db.execute(text("""
+                        INSERT INTO applications (job_id, candidate_id, stage, created_at)
+                        SELECT job_applied, id, 'New', NOW()
+                        FROM candidates
+                        WHERE user_id IS NOT NULL AND job_applied IS NOT NULL
+                    """))
+                    db.execute(text("""
+                        INSERT INTO applications
+                          (job_id, candidate_id, applicant_name, applicant_email,
+                           applicant_phone, expected_salary, stage, created_at)
+                        SELECT job_applied, NULL, name, email, phone, expected_salary, 'New', NOW()
+                        FROM candidates
+                        WHERE user_id IS NULL AND job_applied IS NOT NULL
+                    """))
+                    db.execute(text("""
+                        UPDATE evaluations e
+                        SET application_id = a.id
+                        FROM applications a
+                        WHERE (
+                            a.candidate_id = e.candidate_id
+                            OR (
+                                a.applicant_email IS NOT NULL
+                                AND LOWER(a.applicant_email) = LOWER(
+                                    (SELECT email FROM candidates WHERE id = e.candidate_id)
+                                )
+                            )
+                        )
+                        AND a.job_id = e.job_id
+                        AND e.application_id IS NULL
+                    """))
+                    unlinked_check = db.execute(text(
+                        "SELECT COUNT(*) FROM evaluations WHERE application_id IS NULL"
+                    )).scalar()
+                    if unlinked_check > 0:
+                        raise Exception(
+                            f"Phase 1.4 abort: {unlinked_check} evaluation(s) could not be reparented"
+                        )
+                    db.execute(text("""
+                        UPDATE evaluations
+                        SET candidate_id = NULL
+                        WHERE candidate_id IN (SELECT id FROM candidates WHERE user_id IS NULL)
+                    """))
+                    db.execute(text("DELETE FROM candidates WHERE user_id IS NULL"))
+                    db.execute(text(
+                        "INSERT INTO _schema_migrations (name) VALUES ('phase_1_4_data_split')"
+                    ))
+                    db.commit()
+                    logging.info("Phase 1.4: transaction committed successfully")
+            except Exception as _e:
+                logging.error(f"Phase 1.4 data split FAILED — rolled back: {_e}")
+                db.rollback()
+
+            # Phase 1.5 — heal user_id NULLs (guarded, runs once)
+            try:
+                already_run = db.execute(text(
+                    "SELECT 1 FROM _schema_migrations WHERE name = 'phase_1_5_heal_user_ids'"
+                )).fetchone()
+                if already_run:
+                    logging.info("Phase 1.5 heal already applied — skipping")
+                else:
+                    logging.info("Phase 1.5: healing Candidate rows with user_id=NULL...")
+                    result = db.execute(text("""
+                        UPDATE candidates c
+                        SET user_id = u.id
+                        FROM users u
+                        WHERE LOWER(c.email) = LOWER(u.email)
+                          AND c.user_id IS NULL
+                          AND c.id IN (SELECT MAX(id) FROM candidates GROUP BY email)
+                    """))
+                    healed = result.rowcount
+                    db.execute(text(
+                        "INSERT INTO _schema_migrations (name) VALUES ('phase_1_5_heal_user_ids') "
+                        "ON CONFLICT (name) DO NOTHING"
+                    ))
+                    db.commit()
+                    logging.info(f"Phase 1.5 heal: {healed} row(s) healed")
+            except Exception as _e:
+                logging.error(f"Phase 1.5 heal FAILED: {_e}")
+                db.rollback()
+        finally:
+            db.close()
+
+    # ── Admin user seed (always runs — fast single SELECT) ────────────────────
+    db = SessionLocal()
+    try:
+        admin_email    = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
+        admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+
+        existing_admin = db.query(models.User).filter(models.User.email == admin_email).first()
+        if existing_admin is None:
+            logging.info(f"Creating default admin user: {admin_email}")
+            hashed_pw = auth_utils.get_password_hash(admin_password)
+            admin = models.User(
+                email=admin_email,
+                hashed_password=hashed_pw,
+                full_name="Administrator",
+                is_admin=True,
+                is_active=True,
+            )
+            db.add(admin)
+            db.commit()
+            logging.info("Default admin user created.")
+        else:
+            updated = False
+            if not existing_admin.is_admin:
+                existing_admin.is_admin = True
+                updated = True
+            if not existing_admin.is_active:
+                existing_admin.is_active = True
+                updated = True
+            reset_flag = os.getenv("ADMIN_RESET_PASSWORD", "").strip().lower() in {"1", "true", "yes", "y", "on"}
+            if reset_flag:
+                existing_admin.hashed_password = auth_utils.get_password_hash(admin_password)
+                updated = True
+                logging.warning(f"ADMIN_RESET_PASSWORD is enabled. Resetting password for: {admin_email}")
+            if updated:
+                db.commit()
+                logging.info(f"Updated existing admin flags for: {admin_email}")
+    except Exception as e:
+        logging.warning(f"Could not create default admin user: {e}")
+        db.rollback()
     finally:
         db.close()
 
