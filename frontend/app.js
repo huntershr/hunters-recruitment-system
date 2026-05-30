@@ -218,8 +218,8 @@ function stagePillHtml(decision) {
 }
 
 function updateDashboard() {
-    document.getElementById("total-jobs").innerText = jobs.length;
-    document.getElementById("total-candidates").innerText = candidates.length;
+    // total-jobs, total-candidates, jobs-trend, candidates-trend are owned by
+    // loadAdminStats() which reads from /api/admin/stats — do not overwrite here.
 
     const shortlisted = evaluations.filter(e => (e.decision || '').toLowerCase() === "shortlist").length;
     document.getElementById("total-accepted").innerText = shortlisted;
@@ -231,10 +231,6 @@ function updateDashboard() {
     }
 
     // Trend texts
-    const jobsTrend = document.getElementById("jobs-trend");
-    if (jobsTrend) jobsTrend.innerText = jobs.length > 0 ? `${jobs.length} active` : "No jobs yet";
-    const candTrend = document.getElementById("candidates-trend");
-    if (candTrend) candTrend.innerText = candidates.length > 0 ? `${candidates.length} total` : "No candidates";
     const shortTrend = document.getElementById("shortlisted-trend");
     if (shortTrend) shortTrend.innerText = shortlisted > 0 ? `${shortlisted} shortlisted` : "None yet";
 
@@ -349,6 +345,13 @@ function renderJobs() {
 
         group.forEach(j => {
             const initials = (j.job_title || '').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'J';
+            const _isAdmin = currentUser && currentUser.is_admin;
+            const jobLogoHtml36 = _isAdmin
+                ? `<img src="/hunters-logo-card.jpeg" alt="Hunters" style="width:36px;height:36px;border-radius:50%;object-fit:contain;flex-shrink:0;background:#fff;border:0.5px solid rgba(0,0,0,0.08);">`
+                : `<div style="width:36px;height:36px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;">${initials}</div>`;
+            const jobLogoHtml28 = _isAdmin
+                ? `<img src="/hunters-logo-card.jpeg" alt="Hunters" style="width:28px;height:28px;border-radius:50%;object-fit:contain;flex-shrink:0;background:#fff;border:0.5px solid rgba(0,0,0,0.08);">`
+                : `<div style="width:28px;height:28px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${initials}</div>`;
             const salary   = j.salary_range || 'Negotiable';
             const statusPill = j.is_approved
                 ? `<span style="background:#E1F5EE;color:#0F6E56;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;display:inline-flex;align-items:center;gap:3px;"><span style="width:5px;height:5px;border-radius:50%;background:#0F6E56;flex-shrink:0;"></span>Approved</span>`
@@ -366,7 +369,7 @@ function renderJobs() {
                     <div class="job-card">
                         <div class="job-card-header" style="flex-wrap:wrap;gap:8px;">
                             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-                                <div style="width:36px;height:36px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;">${initials}</div>
+                                ${jobLogoHtml36}
                                 <h3 style="margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.job_title}</h3>
                             </div>
                             <div style="display:flex;gap:7px;align-items:center;flex-shrink:0;">
@@ -400,7 +403,7 @@ function renderJobs() {
                     <tr style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background='#FAFBFF'" onmouseout="this.style.background='transparent'">
                         <td style="padding:10px 14px;">
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <div style="width:28px;height:28px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${initials}</div>
+                                ${jobLogoHtml28}
                                 <span style="font-weight:500;font-size:13px;color:#1B2A4A;">${j.job_title}</span>
                             </div>
                         </td>
@@ -2364,14 +2367,7 @@ function _renderCoWorkspace(co, activeTab) {
             </div>`;
 
     } else if (activeTab === 'jobs') {
-        const jobs = co.recent_jobs || [];
-        bodyHtml = jobs.length
-            ? '<div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden;">' +
-              jobs.map(j => `<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:0.5px solid #F3F4F6;">
-                <div><div style="font-size:13px;font-weight:500;color:#1B2A4A;">${escHtml(j.job_title||'')}</div><div style="font-size:11px;color:#9CA3AF;">${j.created_at?new Date(j.created_at).toLocaleDateString('en-GB'):''}</div></div>
-                <span style="padding:3px 10px;border-radius:10px;font-size:11px;background:${j.is_approved?'#E1F5EE':'#FAEEDA'};color:${j.is_approved?'#0F6E56':'#854F0B'};">${j.is_approved?'Live':'Pending'}</span>
-              </div>`).join('') + '</div>'
-            : '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">No jobs for this company.</div>';
+        bodyHtml = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading jobs…</div>';
 
     } else if (activeTab === 'candidates') {
         bodyHtml = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading candidates…</div>';
@@ -2409,12 +2405,14 @@ function _renderCoWorkspace(co, activeTab) {
             </div>`;
     }
 
+    const _coLogoHtml = co.logo_url
+        ? `<img src="${escHtml(co.logo_url)}" alt="" style="width:42px;height:42px;border-radius:10px;object-fit:contain;background:#fff;padding:3px;border:0.5px solid rgba(0,0,0,0.08);flex-shrink:0;">`
+        : `<div style="width:42px;height:42px;border-radius:10px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;">${escHtml((co.name||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase())}</div>`;
+
     view.innerHTML =
         '<div style="background:linear-gradient(135deg,#C9A84C 0%,#B8932A 100%);border-radius:12px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">' +
             '<div style="display:flex;align-items:center;gap:12px;">' +
-                '<div style="width:42px;height:42px;border-radius:10px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;">' +
-                    escHtml((co.name||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()) +
-                '</div>' +
+                _coLogoHtml +
                 '<div>' +
                     '<div style="color:#fff;font-size:15px;font-weight:700;">Viewing as: ' + escHtml(co.name||'Company') + '</div>' +
                     '<span style="display:inline-block;padding:2px 8px;border-radius:8px;background:rgba(255,255,255,0.25);color:#fff;font-size:11px;">' + escHtml(planLabel) + ' plan</span>' +
@@ -2431,6 +2429,7 @@ function _coWsTab(tab) {
     if (!co) return;
     _renderCoWorkspace(co, tab);
     if (tab === 'candidates') _loadCoWsCandidates(co);
+    if (tab === 'jobs') _coWsLoadJobs(co);
 }
 
 async function _savePlanChanges(companyId) {
@@ -2484,14 +2483,18 @@ function _renderCoWsCandidates(apps, activeStage) {
             const sl = (a.stage||'applied').toLowerCase();
             const [sc, sb] = _STAGE_BADGE_MAP[sl] || ['#1B2A4A','#EFF2F8'];
             const displayStage = {new:'Applied',applied:'Applied',screening:'Screening',shortlisted:'Shortlisted',interview:'Interview',offer:'Offered',offered:'Offered',hired:'Hired',rejected:'Rejected'}[sl] || a.stage;
-            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:0.5px solid #F3F4F6;">
-                <div>
+            const appId = a.application_id || a.id;
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:0.5px solid #F3F4F6;gap:8px;">
+                <div style="flex:1;min-width:0;">
                     <div style="font-size:13px;font-weight:500;color:#1B2A4A;">${escHtml(a.name||'Candidate')}</div>
                     <div style="font-size:11px;color:#9CA3AF;">${escHtml(a.email||'')}${a.job_title?' · '+escHtml(a.job_title):''}</div>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
                     ${a.score!=null?`<span style="font-size:12px;font-weight:600;color:#1B2A4A;">${a.score}%</span>`:''}
-                    <span style="padding:3px 10px;border-radius:10px;font-size:11px;background:${sb};color:${sc};">${escHtml(displayStage)}</span>
+                    <span style="padding:2px 8px;border-radius:8px;font-size:10px;background:${sb};color:${sc};">${escHtml(displayStage)}</span>
+                    <button onclick="_coWsMoveStage(${appId},'${sl}')" style="background:#FBF7E8;color:#C9A84C;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:500;">Move</button>
+                    <button onclick="_coWsViewCv(${appId})" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:500;">CV</button>
+                    <button onclick="_coWsViewReport(${appId})" style="background:#F3F4F6;color:#374151;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:500;">Report</button>
                 </div>
             </div>`;
         }).join('')
@@ -2515,6 +2518,267 @@ async function _loadCoWsCandidates(co) {
         _renderCoWsCandidates(window._coWsCandidates, 'applied');
     } catch(e) {
         if (body) body.innerHTML = '<div style="padding:24px;color:#DC2626;font-size:13px;">Failed to load candidates: ' + escHtml(e.message) + '</div>';
+    }
+}
+
+// ── Admin Workspace: Jobs ──────────────────────────────────────────────────────
+
+function _renderCoWsJobs(jobs) {
+    const body = document.getElementById('co-ws-body');
+    if (!body) return;
+    const co = window._coWorkspaceCo;
+    const rows = jobs.length
+        ? jobs.map(j => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:0.5px solid #F3F4F6;gap:10px;">
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:500;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(j.job_title||'')}</div>
+                    <div style="font-size:11px;color:#9CA3AF;">${j.created_at?new Date(j.created_at).toLocaleDateString('en-GB'):''} ${j.job_location?'· '+escHtml(j.job_location):''}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                    <span style="padding:2px 8px;border-radius:8px;font-size:10px;background:${j.is_approved?'#E1F5EE':'#FAEEDA'};color:${j.is_approved?'#0F6E56':'#854F0B'};">${j.is_approved?'Live':'Pending'}</span>
+                    <button onclick="window.open('/job-view.html?job=${j.id}','_blank')" title="Preview" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Preview</button>
+                    <button onclick="_coWsEditJobModal(${j.id})" title="Edit" style="background:#FBF7E8;color:#C9A84C;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Edit</button>
+                    <button onclick="_coWsShareJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" title="Share" style="background:#F0FFF4;color:#0F6E56;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Share</button>
+                    <button onclick="_coWsDeleteJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" title="Delete" style="background:#FEECEC;color:#DC2626;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Delete</button>
+                </div>
+            </div>`).join('')
+        : '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">No jobs for this company yet.</div>';
+
+    body.innerHTML =
+        `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="font-size:12px;color:#9CA3AF;">${jobs.length} job${jobs.length!==1?'s':''}</div>
+            <button onclick="_coWsPostJobModal()" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;">+ Post New Job</button>
+        </div>
+        <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden;">${rows}</div>`;
+}
+
+async function _coWsLoadJobs(co) {
+    const body = document.getElementById('co-ws-body');
+    try {
+        const res = await fetch('/api/admin/jobs?company_id=' + co.id, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const jobs = await res.json();
+        window._coWsJobs = Array.isArray(jobs) ? jobs : [];
+        _renderCoWsJobs(window._coWsJobs);
+    } catch(e) {
+        if (body) body.innerHTML = '<div style="padding:24px;color:#DC2626;font-size:13px;">Failed to load jobs: ' + escHtml(e.message) + '</div>';
+    }
+}
+
+function _coWsPostJobModal() {
+    const co = window._coWorkspaceCo;
+    if (!co) return;
+    _coWsJobFormModal(null, co.id);
+}
+
+function _coWsEditJobModal(jobId) {
+    const co = window._coWorkspaceCo;
+    if (!co) return;
+    const job = (window._coWsJobs || []).find(j => j.id === jobId);
+    if (!job) return;
+    _coWsJobFormModal(job, co.id);
+}
+
+function _coWsJobFormModal(job, companyId) {
+    const title = job ? 'Edit Job — ' + (job.job_title || '') : 'Post New Job';
+    const v = f => escHtml(String(job && job[f] != null ? job[f] : ''));
+    const html = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div style="grid-column:span 2;">
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Job Title *</label>
+                <input id="cj-title" value="${v('job_title')}" placeholder="e.g. Senior Accountant" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Location</label>
+                <input id="cj-location" value="${v('job_location')}" placeholder="e.g. Cairo, Egypt" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Min Experience (years)</label>
+                <input id="cj-exp" type="number" min="0" value="${job ? (job.min_experience||0) : 0}" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Salary Range</label>
+                <input id="cj-salary" value="${v('salary_range')}" placeholder="e.g. 15,000 - 20,000 EGP" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Education Level</label>
+                <input id="cj-edu" value="${v('education_level')}" placeholder="e.g. Bachelor's Degree" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+            </div>
+            <div style="grid-column:span 2;">
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Required Skills</label>
+                <input id="cj-skills" value="${v('required_skills')}" placeholder="e.g. Excel, SAP, Financial Reporting" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+            </div>
+            <div style="grid-column:span 2;">
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Nice to Have</label>
+                <input id="cj-nice" value="${v('nice_to_have_skills')}" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+            </div>
+            <div style="grid-column:span 2;">
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Behavioral Skills</label>
+                <input id="cj-behav" value="${v('behavioral_skills')}" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+            </div>
+            <div style="grid-column:span 2;">
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Industry Experience</label>
+                <input id="cj-industry" value="${v('industry_experience')}" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+            </div>
+            <div style="grid-column:span 2;">
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Job Description</label>
+                <textarea id="cj-desc" rows="4" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;resize:vertical;">${v('job_description')}</textarea>
+            </div>
+        </div>`;
+
+    createAdminModal(title, html, async () => {
+        const payload = {
+            company_id: companyId,
+            title: (document.getElementById('cj-title')?.value || '').trim(),
+            location: document.getElementById('cj-location')?.value || '',
+            experience_years: parseInt(document.getElementById('cj-exp')?.value) || 0,
+            salary_range: document.getElementById('cj-salary')?.value || '',
+            education_level: document.getElementById('cj-edu')?.value || '',
+            required_skills: document.getElementById('cj-skills')?.value || '',
+            nice_to_have_skills: document.getElementById('cj-nice')?.value || '',
+            behavioral_skills: document.getElementById('cj-behav')?.value || '',
+            industry_experience: document.getElementById('cj-industry')?.value || '',
+            description: document.getElementById('cj-desc')?.value || '',
+        };
+        if (!payload.title) { showToast('Job Title is required', 'error'); return; }
+        const token = localStorage.getItem('token');
+        const url = job ? `/api/admin/jobs/${job.id}` : '/api/admin/jobs';
+        const method = job ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+            method, headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            showToast(job ? 'Job updated' : 'Job posted', 'success');
+            closeAdminModal();
+            _coWsLoadJobs(window._coWorkspaceCo);
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast('Failed: ' + (err.detail || 'Unknown error'), 'error');
+        }
+    });
+}
+
+async function _coWsDeleteJob(jobId, jobTitle) {
+    createConfirmModal('Delete "' + jobTitle + '"?',
+        'This will permanently delete the job and all its applications.',
+        async () => {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/admin/jobs/' + jobId, {
+                method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (res.ok) {
+                showToast('Job deleted', 'success');
+                closeAdminModal();
+                _coWsLoadJobs(window._coWorkspaceCo);
+            } else {
+                showToast('Delete failed', 'error');
+            }
+        }
+    );
+}
+
+function _coWsShareJob(jobId, jobTitle) {
+    const url = window.location.origin + '/job-view.html?job=' + jobId;
+    const caption = encodeURIComponent(jobTitle + '\n' + url);
+    createAdminModal('Share Job — ' + jobTitle,
+        `<div style="display:flex;flex-direction:column;gap:10px;">
+            <input value="${escHtml(url)}" readonly onclick="this.select()" style="width:100%;padding:9px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;color:#1B2A4A;box-sizing:border-box;outline:none;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button onclick="navigator.clipboard.writeText('${escHtml(url)}').then(()=>showToast('Link copied','success'))" style="flex:1;padding:10px;background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Copy Link</button>
+                <a href="https://wa.me/?text=${caption}" target="_blank" style="flex:1;padding:10px;background:#25D366;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;display:block;">WhatsApp</a>
+                <a href="https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}" target="_blank" style="flex:1;padding:10px;background:#0A66C2;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;display:block;">LinkedIn</a>
+            </div>
+        </div>`,
+        null
+    );
+}
+
+// ── Admin Workspace: Candidate Actions ────────────────────────────────────────
+
+async function _coWsMoveStage(appId, currentStage) {
+    const stages = ['applied','screening','shortlisted','interview','offered','hired','rejected'];
+    const opts = stages.map(s => `<option value="${s}" ${s===currentStage.toLowerCase()?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
+    createAdminModal('Move to Stage', `
+        <div>
+            <label style="font-size:12px;font-weight:500;color:#374151;display:block;margin-bottom:8px;">Select new stage</label>
+            <select id="ws-stage-sel" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;">${opts}</select>
+        </div>`, async () => {
+        const stage = document.getElementById('ws-stage-sel')?.value;
+        if (!stage) return;
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/admin/applications/' + appId + '/stage', {
+            method: 'PATCH',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stage })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            showToast('Moved to ' + data.stage, 'success');
+            closeAdminModal();
+            // Handle notifications
+            (data.notifications || []).forEach(n => {
+                if (n.to) {
+                    const ml = 'mailto:' + encodeURIComponent(n.to) + '?subject=' + encodeURIComponent(n.subject||'') + '&body=' + encodeURIComponent(n.body||'');
+                    window.open(ml, '_blank');
+                }
+            });
+            _loadCoWsCandidates(window._coWorkspaceCo);
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast('Failed: ' + (err.detail || 'Unknown'), 'error');
+        }
+    });
+}
+
+async function _coWsViewCv(appId) {
+    const token = localStorage.getItem('token');
+    showToast('Downloading CV…', 'info');
+    try {
+        const res = await fetch('/api/admin/applications/' + appId + '/cv', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('CV not available');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'CV_' + appId + '.pdf';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('CV downloaded', 'success');
+    } catch(e) {
+        showToast('CV not available: ' + e.message, 'error');
+    }
+}
+
+function _coWsViewReport(appId) {
+    try {
+        const apps = window._coWsCandidates || [];
+        const app = apps.find(a => (a.application_id === appId) || (a.id === appId));
+        if (!app) { showToast('Application not found in cache', 'error'); return; }
+        const score = app.score != null ? app.score + '%' : 'N/A';
+        const strengths = app.strengths || '—';
+        const weaknesses = app.weaknesses || '—';
+        const reason = app.reason || '—';
+        createAdminModal('AI Evaluation — ' + escHtml(app.name || 'Candidate'), `
+            <div style="display:flex;flex-direction:column;gap:14px;">
+                <div style="display:flex;gap:16px;align-items:center;">
+                    <div style="text-align:center;background:#F3F4F6;border-radius:10px;padding:14px 20px;">
+                        <div style="font-size:26px;font-weight:700;color:#1B2A4A;">${escHtml(score)}</div>
+                        <div style="font-size:11px;color:#9CA3AF;">AI Score</div>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Decision: ${escHtml(app.decision||'—')}</div>
+                        <div style="font-size:12px;color:#6B7280;">${escHtml(reason)}</div>
+                    </div>
+                </div>
+                <div><div style="font-size:11px;font-weight:600;color:#0F6E56;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Strengths</div><div style="font-size:12px;color:#374151;white-space:pre-wrap;">${escHtml(strengths)}</div></div>
+                <div><div style="font-size:11px;font-weight:600;color:#DC2626;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Weaknesses</div><div style="font-size:12px;color:#374151;white-space:pre-wrap;">${escHtml(weaknesses)}</div></div>
+            </div>`, null);
+    } catch(e) {
+        showToast('Could not load report: ' + e.message, 'error');
     }
 }
 
@@ -2749,6 +3013,8 @@ function renderAdminUsersTable(users) {
                             <td style="padding:10px 14px;">
                                 <div style="display:flex;gap:4px;flex-wrap:wrap;">
                                     <button onclick="editUserAdmin('${u.id}')" style="background:#1B2A4A;color:#fff;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Edit</button>
+                                    ${u.candidate_id ? `<button onclick="adminViewCandidateProfile(${u.candidate_id},'${escHtml(u.full_name||u.email).replace(/'/g,"&#39;")}')" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Profile</button>` : ''}
+                                    ${u.has_cv && u.candidate_id ? `<button onclick="adminDownloadCandidateCv(${u.candidate_id},'${escHtml(u.full_name||u.email).replace(/'/g,"&#39;")}')" style="background:#E1F5EE;color:#0F6E56;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">CV</button>` : ''}
                                     <button onclick="toggleUserActive('${u.id}',${u.is_active})" style="background:${u.is_active?'#FAEEDA':'#E1F5EE'};color:${u.is_active?'#854F0B':'#0F6E56'};border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">${u.is_active?'Deactivate':'Activate'}</button>
                                     <button onclick="deleteUserAdmin('${u.id}','${(u.full_name||u.email).replace(/'/g,"\\'")}')" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Delete</button>
                                 </div>
@@ -2770,6 +3036,83 @@ function filterAdminUsersByType(type) {
     document.querySelectorAll('#admin-users-tbody tr').forEach(row => {
         row.style.display = !type || row.dataset.type === type ? '' : 'none';
     });
+}
+
+async function adminViewCandidateProfile(candidateId, name) {
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/admin/candidate/' + candidateId + '/profile', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Profile not found');
+        const p = await res.json();
+
+        const infoRows = [
+            ['Email', p.email], ['Phone', p.phone], ['Location', p.location],
+            ['Title', p.last_title], ['Employer', p.last_employer],
+            ['Experience', p.experience_years != null ? p.experience_years + ' yrs' : null],
+            ['Skills', p.skills], ['Expected Salary', p.expected_salary],
+        ].filter(([,v]) => v).map(([l,v]) =>
+            `<div><span style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;">${l}</span><div style="font-size:12px;color:#1B2A4A;margin-top:2px;">${escHtml(String(v))}</div></div>`
+        ).join('');
+
+        const appRows = (p.applications || []).map(a => {
+            const score = a.score != null ? Math.round(a.score > 1 ? (a.score > 10 ? a.score : a.score*10) : a.score*100) : null;
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:0.5px solid #F3F4F6;">
+                <div style="font-size:12px;color:#1B2A4A;">${escHtml(a.job_title||'Unknown Job')}</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    ${score!=null?`<span style="font-size:11px;font-weight:600;color:#1B2A4A;">${score}%</span>`:''}
+                    <span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#F3F4F6;color:#374151;">${escHtml(a.stage||'')}</span>
+                </div>
+            </div>`;
+        }).join('') || '<div style="font-size:12px;color:#9CA3AF;padding:8px 0;">No applications yet</div>';
+
+        const summaryBlock = p.summary
+            ? `<div style="background:#F9FAFB;border-radius:8px;padding:12px;font-size:12px;color:#374151;line-height:1.6;margin-bottom:14px;">${escHtml(p.summary)}</div>` : '';
+
+        createAdminModal('Candidate Profile — ' + escHtml(p.name || name), `
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                <div style="display:flex;align-items:center;gap:14px;">
+                    ${p.photo_url ? `<img src="${escHtml(p.photo_url)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;">` :
+                    `<div style="width:56px;height:56px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0;">${escHtml((p.name||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase())}</div>`}
+                    <div>
+                        <div style="font-size:15px;font-weight:700;color:#1B2A4A;">${escHtml(p.name||'')}</div>
+                        <div style="font-size:12px;color:#9CA3AF;">${escHtml(p.email||'')}</div>
+                    </div>
+                </div>
+                ${summaryBlock}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${infoRows}</div>
+                ${p.education ? `<div><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Education</div><div style="font-size:12px;color:#374151;">${escHtml(p.education)}</div></div>` : ''}
+                <div>
+                    <div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Applications (${(p.applications||[]).length})</div>
+                    ${appRows}
+                </div>
+                ${p.has_cv !== false ? `<div style="padding-top:4px;"><button onclick="adminDownloadCandidateCv(${candidateId},'${escHtml(p.name||name).replace(/'/g,'&#39;')}')" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;">↓ Download CV</button></div>` : ''}
+            </div>`, null);
+    } catch(e) {
+        showToast('Could not load profile: ' + e.message, 'error');
+    }
+}
+
+async function adminDownloadCandidateCv(candidateId, name) {
+    const token = localStorage.getItem('token');
+    showToast('Downloading CV…', 'info');
+    try {
+        const res = await fetch('/api/candidates/' + candidateId + '/cv', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('CV not available');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safeName = (name || 'Candidate').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_');
+        a.href = url; a.download = safeName + '_CV.pdf';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('CV downloaded', 'success');
+    } catch(e) {
+        showToast('CV not available: ' + e.message, 'error');
+    }
 }
 
 async function editUserAdmin(userId) {
