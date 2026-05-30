@@ -1314,7 +1314,9 @@ async function submitApply(){
   var iv=setInterval(function(){si=Math.min(si+1,steps.length-1);var s=document.getElementById('p-step'),b=document.getElementById('p-bar');if(s)s.textContent=steps[si];if(b)b.style.width=((si+1)/steps.length*80)+'%';},1600);
   try{
     var fd=new FormData();fd.append('file',_applyFile);fd.append('job_id',String(currentJob.id));
-    var res=await fetch('/candidates/screen-cv',{method:'POST',headers:hdrs(),body:fd});
+    var _ac=new AbortController();var _at=setTimeout(function(){_ac.abort();},120000);
+    var res=await fetch('/candidates/screen-cv',{method:'POST',headers:hdrs(),body:fd,signal:_ac.signal});
+    clearTimeout(_at);
     clearInterval(iv);var pb=document.getElementById('p-bar');if(pb)pb.style.width='100%';
     if(!res.ok){
       var e=await res.json();
@@ -1601,7 +1603,9 @@ async function extractCVForProfile(file){
 
   try{
     var fd=new FormData();fd.append('file',file);
-    var r=await fetch(API_BASE+'/api/ai/extract-cv',{method:'POST',headers:hdrs(),body:fd});
+    var _xc=new AbortController();var _xt=setTimeout(function(){_xc.abort();},120000);
+    var r=await fetch(API_BASE+'/api/ai/extract-cv',{method:'POST',headers:hdrs(),body:fd,signal:_xc.signal});
+    clearTimeout(_xt);
     if(!r.ok){
       var errBody=await r.json().catch(function(){return{};});
       throw new Error(errBody.detail||'Server error '+r.status);

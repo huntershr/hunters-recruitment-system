@@ -4088,11 +4088,15 @@ async function runSingleScreening() {
   if (jobId) formData.append('job_id', jobId);
 
   try {
+    var _sc = new AbortController();
+    var _st = setTimeout(function() { _sc.abort(); }, 120000);
     var res = await fetch(_apiBase() + '/candidates/screen-cv', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + _token() },
-      body: formData
+      body: formData,
+      signal: _sc.signal
     });
+    clearTimeout(_st);
     var data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Screening failed');
 
@@ -4190,11 +4194,15 @@ async function runBulkScreening() {
         var fd = new FormData();
         fd.append('file', f);
         if (jobId) fd.append('job_id', jobId);
+        var _bc = new AbortController();
+        var _bt = setTimeout(function() { _bc.abort(); }, 120000);
         var res = await fetch(_apiBase() + '/candidates/screen-cv', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + _token() },
-          body: fd
+          body: fd,
+          signal: _bc.signal
         });
+        clearTimeout(_bt);
         var d = await res.json();
         if (!res.ok) throw new Error(d.detail || 'Failed');
         var s = d.score != null ? Math.round(d.score) : null;
@@ -4206,11 +4214,15 @@ async function runBulkScreening() {
         // Excel — use bulk upload endpoint
         var fd2 = new FormData();
         fd2.append('file', f);
+        var _ec = new AbortController();
+        var _et = setTimeout(function() { _ec.abort(); }, 120000);
         var res2 = await fetch(_apiBase() + '/candidates/upload?job_id=' + (jobId || '1'), {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + _token() },
-          body: fd2
+          body: fd2,
+          signal: _ec.signal
         });
+        clearTimeout(_et);
         var d2 = await res2.json();
         document.getElementById(rowId + '-status').innerHTML =
           '<span style="color:#185FA5;font-weight:600;">' + (d2.message || 'Imported') + '</span>';

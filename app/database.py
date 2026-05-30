@@ -2,6 +2,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./recruitment.db")
 print(f"DATABASE_URL from env: {os.getenv('DATABASE_URL', 'NOT SET - using SQLite fallback')}")
@@ -13,11 +14,7 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
 else:
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
-        pool_size=5,
-        max_overflow=10,
-        pool_timeout=60,
-        pool_recycle=300,
-        pool_pre_ping=True
+        poolclass=NullPool
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
