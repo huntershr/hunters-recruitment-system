@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
@@ -565,6 +565,19 @@ def diagnostic(db: Session = Depends(get_db)):
 
 
 
+
+
+@app.get("/website", include_in_schema=False)
+async def website():
+    return FileResponse("frontend/website.html")
+
+
+@app.middleware("http")
+async def domain_router(request: Request, call_next):
+    host = request.headers.get("host", "")
+    if "www.hunters-egypt.com" in host and request.url.path == "/":
+        return FileResponse("frontend/website.html")
+    return await call_next(request)
 
 
 # Mount the frontend directory to serve HTML/JS/CSS
