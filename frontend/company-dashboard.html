@@ -1424,12 +1424,10 @@
     async function loadOverviewData() {
         const token = localStorage.getItem('token');
         try {
-            // Load jobs + applications in parallel for speed
-            const [jobsResponse] = await Promise.all([
-                fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                loadCompanyApplications()   // populates coAppsData with accurate stage
-            ]);
+            // Load jobs then applications sequentially to avoid pool exhaustion
+            const jobsResponse = await fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } });
             const jobs = await jobsResponse.json();
+            await loadCompanyApplications();   // populates coAppsData with accurate stage
             window.__allCompanyJobs = jobs;
 
             const activeJobs = jobs.filter(j => j.is_approved).length;
@@ -1602,7 +1600,9 @@
             // Map keys
             window.__huntersCompanyContext = currentCompany || null;
 
-            const mappedJobs = await Promise.all(rawJobs.map(async (j) => {
+            // Fetch candidates per job sequentially to avoid pool exhaustion
+            const mappedJobs = [];
+            for (const j of rawJobs) {
                 let cands = [];
                 try {
                     const cr = await fetch(`${API_URL}/jobs/${j.id}/candidates`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -1613,7 +1613,7 @@
                     const scores = cands.map(c => c.ai_score != null ? Number(c.ai_score) : null).filter(v => v != null && !Number.isNaN(v));
                     if (scores.length) aiScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
                 }
-                return {
+                mappedJobs.push({
                     id: j.id,
                     title: j.job_title || j.title,
                     location: j.job_location || j.location,
@@ -1637,8 +1637,8 @@
                         education: Math.round((j.weight_education || 0) * 100),
                         behavioral: Math.round((j.weight_behavioral || 0) * 100)
                     }
-                };
-            }));
+                });
+            }
             
             if (typeof huntersInitJobs === 'function') {
                 huntersInitJobs(false);

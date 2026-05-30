@@ -13,9 +13,9 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
 else:
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
-        pool_size=2,
-        max_overflow=3,
-        pool_timeout=30,
+        pool_size=5,
+        max_overflow=10,
+        pool_timeout=60,
         pool_recycle=300,
         pool_pre_ping=True
     )
