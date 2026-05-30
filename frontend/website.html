@@ -1309,11 +1309,45 @@ function togglePricing() {
   ['growth','pro','ent'].forEach(k => document.getElementById('period-'+k).innerHTML = period);
 }
 
-function submitForm() {
-  const ar = document.body.classList.contains('ar');
-  alert(ar
-    ? 'شكراً! سيتواصل معكم فريقنا خلال 24 ساعة. واتساب: 01111176767'
-    : 'Thank you! Our team will be in touch within 24 hours. WhatsApp: 01111176767');
+async function submitForm() {
+    const name = document.getElementById('f-name').value;
+    const org = document.getElementById('f-org').value;
+    const phone = document.getElementById('f-phone').value;
+    const service = document.getElementById('f-service').value;
+    const msg = document.getElementById('f-msg').value;
+    const ar = document.body.classList.contains('ar');
+
+    if (!name || !phone) {
+        alert(ar ? 'يرجى إدخال الاسم ورقم الهاتف' : 'Please enter your name and phone number');
+        return;
+    }
+
+    const btn = document.querySelector('.form-submit');
+    btn.textContent = ar ? 'جاري الإرسال...' : 'Sending...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('https://formspree.io/f/xlgvkgjq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, organization: org, phone, service, message: msg })
+        });
+        if (response.ok) {
+            btn.textContent = ar ? '✓ تم الإرسال!' : '✓ Message Sent!';
+            btn.style.background = '#22c55e';
+            btn.style.color = '#fff';
+            document.getElementById('f-name').value = '';
+            document.getElementById('f-org').value = '';
+            document.getElementById('f-phone').value = '';
+            document.getElementById('f-msg').value = '';
+        } else {
+            throw new Error('Failed');
+        }
+    } catch(e) {
+        btn.textContent = ar ? 'حاول مرة أخرى' : 'Try Again';
+        btn.disabled = false;
+        btn.style.background = '';
+    }
 }
 
 document.querySelectorAll('a[href^="#"]').forEach(a => {
