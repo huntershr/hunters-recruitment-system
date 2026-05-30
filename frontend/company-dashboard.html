@@ -913,7 +913,10 @@
                 </h1>
                 <p style="margin:0;font-size:13px;color:#9CA3AF;">Browse registered candidates who have created profiles on the platform</p>
             </div>
-            <div id="talent-pool-count" style="font-size:13px;color:#9CA3AF;"></div>
+            <div style="text-align:right;">
+                <div id="talent-pool-count" style="font-size:13px;color:#9CA3AF;"></div>
+                <div id="invite-counter-badge" style="display:none;font-size:12px;font-weight:500;margin-top:4px;"></div>
+            </div>
         </div>
         <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:8px;">
             <div style="padding:16px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -2309,6 +2312,7 @@
         try {
             const token = localStorage.getItem('token');
             _talentPoolData = await fetchWithCache('talent-pool', `${API_URL}/api/admin/talent-pool`, token);
+            _updateInviteCounterBadge();
             _talentPool = {};
             _talentPoolData.forEach(c => {
                 const key = c.candidate_id || c.user_id;
@@ -2491,7 +2495,7 @@
         } catch(e) { showToast('Failed to load jobs: ' + e.message, 'error'); }
     }
 
-    function confirmTalentInvite(candidateId, email) {
+    async function confirmTalentInvite(candidateId, email) {
         const sel = document.getElementById('invite-job-select');
         const msg = (document.getElementById('invite-msg-pool') || {}).value || '';
         if (!sel || !sel.value) { showToast('Please select a job', 'error'); return; }
@@ -2501,11 +2505,17 @@
         const name = c.name || 'Candidate';
         const toEmail = email || c.email || '';
         if (!toEmail) { showToast('No email address for this candidate', 'info'); return; }
+
+        // Check/increment invite counter
+        const ok = await _trackInvite();
+        if (!ok) { closeTalentModal(); return; }
+
         const portalUrl = window.location.origin + '/apply.html?job_id=' + jobId;
         const body = 'Hi ' + name + ',\n\nWe\'d like to invite you to apply for ' + jobTitle + ' at Hunters HR.\n\nApply here: ' + portalUrl + (msg ? '\n\n' + msg : '') + '\n\nBest regards,\nHunters HR';
         window.location.href = 'mailto:' + toEmail + '?subject=' + encodeURIComponent('Invitation to Apply — ' + jobTitle + ' at Hunters HR') + '&body=' + encodeURIComponent(body);
         showToast('Email client opened for ' + toEmail, 'success');
         closeTalentModal();
+        _refreshInviteCounter();
     }
 
     /* ──────────────────────────────
@@ -3485,17 +3495,23 @@
             }).catch(() => showToast('Could not load jobs', 'error'));
     }
 
-    function coSendInvite(name, email) {
+    async function coSendInvite(name, email) {
         const sel = document.getElementById('co-invite-job');
         const msg = (document.getElementById('co-invite-msg') || {}).value || '';
         if (!sel || !sel.value) { showToast('Please select a job', 'error'); return; }
         const jobTitle = sel.options[sel.selectedIndex].text;
         const jobId = sel.value;
+
+        // Check/increment invite counter
+        const limited = await _trackInvite();
+        if (!limited) return; // limit exceeded — modal already shown
+
         const portalUrl = window.location.origin + '/apply.html?job_id=' + jobId;
         const body = 'Hi ' + name + ',\n\nWe\'d like to invite you to apply for ' + jobTitle + '.\n\nApply here: ' + portalUrl + (msg ? '\n\n' + msg : '') + '\n\nBest regards,\nHunters HR';
         window.location.href = 'mailto:' + email + '?subject=' + encodeURIComponent('Invitation to Apply — ' + jobTitle + ' at Hunters HR') + '&body=' + encodeURIComponent(body);
         showToast('Email client opened', 'success');
         document.querySelectorAll('div[style*="z-index:10000"]').forEach(el => el.remove());
+        _refreshInviteCounter();
     }
 
     /* ── Boot ── */
@@ -4242,6 +4258,80 @@ async function runBulkScreening() {
 
   btn.textContent = 'Done ✓';
   if (typeof loadCandidatesList === 'function') loadCandidatesList();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INVITATION LIMIT ENFORCEMENT
+// ═══════════════════════════════════════════════════════════════
+
+async function _trackInvite() {
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(API_URL + '/companies/track-invite', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.status === 403) {
+            const err = await res.json().catch(function() { return {}; });
+            _showInviteLimitModal(err.detail || 'Monthly invitation limit reached. Please upgrade your plan.');
+            return false;
+        }
+        return true;
+    } catch (e) {
+        return true; // allow on network error — don't block HR
+    }
+}
+
+function _showInviteLimitModal(detail) {
+    document.getElementById('invite-limit-modal')?.remove();
+    const planLimitMatch = detail.match(/\((\d+) invitations/);
+    const limitNum = planLimitMatch ? planLimitMatch[1] : '';
+    const m = document.createElement('div');
+    m.id = 'invite-limit-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10005;display:flex;align-items:center;justify-content:center;padding:24px;';
+    m.innerHTML =
+        '<div style="background:#fff;border-radius:20px;width:440px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.25);overflow:hidden;">' +
+        '<div style="background:#A32D2D;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">' +
+            '<span style="color:#fff;font-weight:600;font-size:15px;">Invitation Limit Reached</span>' +
+            '<button onclick="document.getElementById(\'invite-limit-modal\').remove()" style="color:#fff;background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px;">×</button>' +
+        '</div>' +
+        '<div style="padding:24px;text-align:center;">' +
+            '<div style="font-size:36px;margin-bottom:12px;">🚫</div>' +
+            '<div style="font-size:15px;font-weight:600;color:#1B2A4A;margin-bottom:8px;">You\'ve reached your monthly invitation limit' + (limitNum ? ' (' + limitNum + ' invitations)' : '') + '</div>' +
+            '<div style="font-size:13px;color:#6B7280;line-height:1.6;margin-bottom:20px;">Upgrade your plan to invite more candidates to apply for your jobs.</div>' +
+            '<a href="https://wa.me/201111176767" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#25D366;color:#fff;border:none;border-radius:10px;padding:12px 22px;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;">📱 Contact Hunters HR to Upgrade</a>' +
+        '</div></div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', function(e) { if (e.target === m) m.remove(); });
+}
+
+async function _refreshInviteCounter() {
+    const token = localStorage.getItem('token');
+    if (!currentCompany) return;
+    try {
+        const res = await fetch(API_URL + '/companies/' + currentCompany.id, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            currentCompany.invitations_used_this_month = data.invitations_used_this_month || 0;
+            _updateInviteCounterBadge();
+        }
+    } catch (e) {}
+}
+
+function _updateInviteCounterBadge() {
+    const el = document.getElementById('invite-counter-badge');
+    if (!el || !currentCompany) return;
+    const plan = (currentCompany.selected_plan || 'free').toLowerCase();
+    const limits = { free: 10, growth: 50, professional: 150, enterprise: '∞' };
+    const limit = limits[plan] || 10;
+    const used = currentCompany.invitations_used_this_month || 0;
+    const isUnlimited = plan === 'enterprise';
+    const color = isUnlimited || used < limit * 0.8 ? '#0F6E56' : used < limit ? '#854F0B' : '#A32D2D';
+    el.style.color = color;
+    el.textContent = isUnlimited ? '∞ invitations' : used + ' / ' + limit + ' invitations used this month';
+    el.style.display = 'inline';
 }
 
 // ═══════════════════════════════════════════════════════════════

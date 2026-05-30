@@ -6,6 +6,13 @@ from datetime import datetime
 from jose import JWTError, jwt
 import logging
 
+_PLAN_INVITE_LIMITS = {
+    "free": 10,
+    "growth": 50,
+    "professional": 150,
+    "enterprise": 999999,
+}
+
 from .. import models, schemas, database, auth_utils
 from ..auth_utils import SECRET_KEY, ALGORITHM
 
@@ -79,7 +86,11 @@ def register_company(
         company_email=company_data.company_email,
         company_website=company_data.company_website,
         registration_number=company_data.registration_number,
-        is_approved=False
+        is_approved=False,
+        selected_plan=company_data.selected_plan or "free",
+        billing_preference=company_data.billing_preference or "monthly",
+        contact_phone=company_data.contact_phone,
+        preferred_contact=company_data.preferred_contact or "whatsapp",
     )
     db.add(new_company)
     db.flush()  # Get the company ID
@@ -254,6 +265,47 @@ def update_company(
     db.commit()
     db.refresh(company)
     return company
+
+@router.post("/track-invite")
+def track_invite(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Record a talent pool invitation send.
+    Enforces monthly limit based on the company's selected plan.
+    """
+    if not current_user.company_id:
+        raise HTTPException(status_code=403, detail="Company account required")
+
+    company = db.query(models.Company).filter(models.Company.id == current_user.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    plan = (company.selected_plan or "free").lower()
+    limit = _PLAN_INVITE_LIMITS.get(plan, 10)
+
+    now = datetime.utcnow()
+    if (
+        not company.invitations_reset_date
+        or company.invitations_reset_date.month != now.month
+        or company.invitations_reset_date.year != now.year
+    ):
+        company.invitations_used_this_month = 0
+        company.invitations_reset_date = now
+
+    used = company.invitations_used_this_month or 0
+    if used >= limit:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Monthly invitation limit reached ({limit} invitations on the {plan.title()} plan). Please upgrade to invite more candidates."
+        )
+
+    company.invitations_used_this_month = used + 1
+    db.commit()
+    logger.info(f"Company {company.id} sent invite {used + 1}/{limit} this month")
+    return {"invitations_used": used + 1, "limit": limit, "remaining": limit - (used + 1)}
+
 
 @router.get("/{company_id}", response_model=schemas.CompanyResponse)
 def get_company(company_id: int, db: Session = Depends(get_db)):

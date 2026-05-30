@@ -315,6 +315,28 @@ def startup_populate_db():
         finally:
             db.close()
 
+    # ── Plan/invite columns (additive, runs every startup — safe no-ops after first run) ──
+    try:
+        with engine.connect() as conn:
+            for _stmt in [
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS selected_plan VARCHAR DEFAULT 'free'",
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_preference VARCHAR DEFAULT 'monthly'",
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS contact_phone VARCHAR",
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS preferred_contact VARCHAR DEFAULT 'whatsapp'",
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS invitations_used_this_month INTEGER DEFAULT 0",
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS invitations_reset_date TIMESTAMP",
+            ]:
+                try:
+                    conn.execute(text("SAVEPOINT _mig"))
+                    conn.execute(text(_stmt))
+                    conn.execute(text("RELEASE SAVEPOINT _mig"))
+                except Exception:
+                    conn.execute(text("ROLLBACK TO SAVEPOINT _mig"))
+            conn.commit()
+            logging.info("Plan/invite column migrations ensured")
+    except Exception as _e:
+        logging.error(f"Plan/invite column migrations failed: {_e}")
+
     # ── Admin user seed (always runs — fast single SELECT) ────────────────────
     db = SessionLocal()
     try:

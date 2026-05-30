@@ -13,12 +13,22 @@ class CompanyRegister(CompanyBase):
     contact_person: str
     contact_email: EmailStr
     password: str
+    selected_plan: Optional[str] = "free"
+    billing_preference: Optional[str] = "monthly"
+    contact_phone: Optional[str] = None
+    preferred_contact: Optional[str] = "whatsapp"
 
 class CompanyResponse(CompanyBase):
     id: int
     is_approved: bool
     created_at: datetime
     logo_url: Optional[str] = None
+    selected_plan: Optional[str] = "free"
+    billing_preference: Optional[str] = "monthly"
+    contact_phone: Optional[str] = None
+    preferred_contact: Optional[str] = "whatsapp"
+    invitations_used_this_month: Optional[int] = 0
+    invitations_reset_date: Optional[datetime] = None
 
     class Config:
         from_attributes = True

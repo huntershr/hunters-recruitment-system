@@ -18,6 +18,14 @@ class Company(Base):
     plan_expires_at = Column(DateTime, nullable=True)
     billing_status = Column(String, default='active', nullable=True)
     logo_url = Column(Text, nullable=True)
+    # Plan selection at registration
+    selected_plan = Column(String, default='free', nullable=True)
+    billing_preference = Column(String, default='monthly', nullable=True)
+    contact_phone = Column(String, nullable=True)
+    preferred_contact = Column(String, default='whatsapp', nullable=True)
+    # Invitation counter
+    invitations_used_this_month = Column(Integer, default=0, nullable=True)
+    invitations_reset_date = Column(DateTime, nullable=True)
 
     users = relationship("User", back_populates="company")
 

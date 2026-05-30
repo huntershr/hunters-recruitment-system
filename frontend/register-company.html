@@ -7,354 +7,360 @@
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        .register-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #1B2A4A 0%, #2C3E6B 100%);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .register-overlay.active {
-            display: flex;
-        }
-
-        .register-card {
-            background: white;
-            border-radius: 16px;
-            padding: 40px 36px;
-            max-width: 560px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .register-card .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .register-card .logo i {
-            font-size: 48px;
-            color: var(--gold);
-            margin-bottom: 10px;
-            display: block;
-        }
-
-        .register-card h2 {
-            margin: 10px 0 5px 0;
-            font-size: 24px;
-            color: #333;
-        }
-
-        .register-card h2 span {
-            color: var(--gold);
-            font-size: 14px;
-            display: block;
-            font-weight: 400;
-        }
-
-        .register-card > p {
-            text-align: center;
-            color: #666;
-            margin-bottom: 25px;
-            font-size: 14px;
-        }
-
-        .register-form {
-            margin-top: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
-            font-size: 14px;
-        }
-
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 11px 14px;
-            border: 0.5px solid #E5E7EB;
-            border-radius: 8px;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 13px;
-            color: #1B2A4A;
-            background: #FFFFFF;
-            transition: border-color 0.15s;
-            box-sizing: border-box;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #1B2A4A;
-            background: #FAFBFF;
-            box-shadow: none;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .form-row .form-group {
-            margin-bottom: 0;
-        }
-
-        .btn-primary {
-            background: #1B2A4A;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            width: 100%;
-            transition: opacity 0.15s;
-        }
-
-        .btn-primary:hover { opacity: 0.85; }
-        .btn-primary:active { transform: scale(0.98); }
-
-        .btn-primary:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-        }
-
-        .form-footer {
-            margin-top: 20px;
-            text-align: center;
-            color: #666;
-            font-size: 14px;
-        }
-
-        .form-footer a {
-            color: #C9A84C;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .form-footer a:hover {
-            text-decoration: underline;
-        }
-
-        .alert {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            display: none;
-        }
-
-        .alert.show {
-            display: block;
-        }
-
-        .alert-success {
-            background: #E1F5EE;
-            color: #0F6E56;
-            border: 0.5px solid #9FE1CB;
-        }
-
-        .alert-error {
-            background: #FCEBEB;
-            color: #A32D2D;
-            border: 0.5px solid #F5B8B8;
-        }
-
-        .alert-info {
-            background: #E6F1FB;
-            color: #185FA5;
-            border: 0.5px solid #B5D4F4;
-        }
-
-        .form-group-note {
-            font-size: 12px;
-            color: #999;
-            margin-top: 5px;
-        }
+        body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:linear-gradient(135deg,#1B2A4A 0%,#2C3E6B 100%); min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:24px; box-sizing:border-box; }
+        .reg-card { background:#fff; border-radius:20px; padding:40px 36px; width:100%; max-width:560px; box-shadow:0 24px 64px rgba(0,0,0,0.25); }
+        .reg-card.wide { max-width:880px; }
+        /* Step indicator */
+        .steps { display:flex; align-items:center; justify-content:center; gap:0; margin-bottom:32px; }
+        .step-dot { display:flex; flex-direction:column; align-items:center; gap:6px; }
+        .step-dot-circle { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; transition:all 0.2s; }
+        .step-dot.active .step-dot-circle { background:#1B2A4A; color:#C9A84C; }
+        .step-dot.done .step-dot-circle { background:#0F6E56; color:#fff; }
+        .step-dot.pending .step-dot-circle { background:#F3F4F6; color:#9CA3AF; }
+        .step-dot-label { font-size:10px; font-weight:500; color:#6B7280; white-space:nowrap; }
+        .step-dot.active .step-dot-label { color:#1B2A4A; font-weight:600; }
+        .step-line { width:48px; height:2px; background:#E5E7EB; margin-bottom:18px; flex-shrink:0; }
+        .step-line.done { background:#0F6E56; }
+        /* Form */
+        .form-group { margin-bottom:18px; }
+        .form-group label { display:block; margin-bottom:7px; color:#1B2A4A; font-weight:500; font-size:13px; }
+        .form-group input, .form-group select, .form-group textarea { width:100%; padding:11px 14px; border:1px solid #E5E7EB; border-radius:8px; font-family:inherit; font-size:13px; color:#1B2A4A; background:#fff; transition:border 0.15s; box-sizing:border-box; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline:none; border-color:#1B2A4A; }
+        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .form-row .form-group { margin-bottom:0; }
+        .form-note { font-size:11px; color:#9CA3AF; margin-top:4px; }
+        .btn-primary { background:#1B2A4A; color:#fff; border:none; padding:12px 24px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; width:100%; transition:opacity 0.15s; }
+        .btn-primary:hover { opacity:0.88; }
+        .btn-primary:disabled { opacity:0.6; cursor:not-allowed; }
+        .btn-secondary { background:#F4F5FA; color:#1B2A4A; border:1px solid #E5E7EB; padding:12px 24px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; transition:opacity 0.15s; }
+        .btn-secondary:hover { opacity:0.85; }
+        .alert { padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:13px; display:none; }
+        .alert.show { display:block; }
+        .alert-error { background:#FCEBEB; color:#A32D2D; border:1px solid #F5B8B8; }
+        .alert-success { background:#E1F5EE; color:#0F6E56; border:1px solid #9FE1CB; }
+        .alert-info { background:#E6F1FB; color:#185FA5; border:1px solid #B5D4F4; }
+        /* Plan cards */
+        .plans-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px; }
+        @media(max-width:600px){ .plans-grid { grid-template-columns:1fr; } }
+        .plan-card { border:2px solid #E5E7EB; border-radius:14px; padding:20px; cursor:pointer; transition:all 0.2s; position:relative; background:#fff; }
+        .plan-card:hover { border-color:#1B2A4A; box-shadow:0 4px 16px rgba(0,0,0,0.08); }
+        .plan-card.selected { border-color:#1B2A4A; background:#F5F7FF; box-shadow:0 4px 20px rgba(27,42,74,0.12); }
+        .plan-card.popular { border-color:#C9A84C; }
+        .plan-card.popular.selected { border-color:#C9A84C; background:#FEF9EC; }
+        .plan-popular-badge { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:#C9A84C; color:#fff; font-size:10px; font-weight:700; padding:3px 12px; border-radius:20px; white-space:nowrap; letter-spacing:0.5px; }
+        .plan-name { font-size:16px; font-weight:700; color:#1B2A4A; margin-bottom:2px; }
+        .plan-price { font-size:24px; font-weight:800; color:#1B2A4A; margin:8px 0 4px; }
+        .plan-price span { font-size:13px; font-weight:400; color:#6B7280; }
+        .plan-annual-price { font-size:11px; color:#6B7280; margin-bottom:12px; min-height:16px; }
+        .plan-features { list-style:none; padding:0; margin:12px 0 0; }
+        .plan-features li { font-size:12px; color:#374151; padding:3px 0; display:flex; align-items:center; gap:6px; }
+        .plan-features li::before { content:'✓'; color:#0F6E56; font-weight:700; flex-shrink:0; }
+        .plan-features li.unlimited { color:#1B2A4A; font-weight:600; }
+        /* Annual toggle */
+        .annual-toggle-bar { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:24px; padding:12px 16px; background:#F8F9FF; border-radius:10px; border:1px solid #E5E7EB; }
+        .toggle-switch { position:relative; width:40px; height:22px; flex-shrink:0; }
+        .toggle-switch input { opacity:0; width:0; height:0; }
+        .toggle-slider { position:absolute; cursor:pointer; inset:0; background:#E5E7EB; border-radius:11px; transition:0.2s; }
+        .toggle-slider:before { content:''; position:absolute; height:16px; width:16px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:0.2s; }
+        .toggle-switch input:checked + .toggle-slider { background:#1B2A4A; }
+        .toggle-switch input:checked + .toggle-slider:before { transform:translateX(18px); }
+        /* Contact radio */
+        .radio-group { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+        .radio-option { display:flex; align-items:center; gap:6px; padding:8px 14px; border:1px solid #E5E7EB; border-radius:8px; cursor:pointer; font-size:13px; color:#374151; transition:all 0.15s; }
+        .radio-option input { accent-color:#1B2A4A; }
+        .radio-option:has(input:checked) { border-color:#1B2A4A; background:#F5F7FF; font-weight:500; color:#1B2A4A; }
+        .info-box { padding:14px 16px; border-radius:10px; font-size:12px; line-height:1.6; }
+        .info-box.free { background:#E1F5EE; color:#0F6E56; border:1px solid #9FE1CB; }
+        .info-box.paid { background:#E6F1FB; color:#185FA5; border:1px solid #B5D4F4; }
     </style>
 </head>
 <body>
-    <!-- Company Registration Screen -->
-    <div id="register-overlay" class="register-overlay active">
-        <div class="register-card">
-            <div class="logo">
-                <img src="hunters-logo-white.jpeg" alt="Hunters for HR Transformation &amp; Execution" style="height:64px;width:auto;object-fit:contain;display:block;margin:0 auto;">
-                <h2>Register Your Company<br><span>Hunters for HR Solutions</span></h2>
+    <div id="reg-wrap" class="reg-card">
+        <!-- Logo -->
+        <div style="text-align:center;margin-bottom:28px;">
+            <img src="hunters-logo-white.jpeg" alt="Hunters HR" style="height:56px;width:auto;object-fit:contain;display:block;margin:0 auto 10px;">
+            <div style="font-size:20px;font-weight:700;color:#1B2A4A;">Register Your Company</div>
+            <div style="font-size:13px;color:#9CA3AF;margin-top:3px;">Hunters for HR Solutions</div>
+        </div>
+
+        <!-- Step indicator -->
+        <div class="steps">
+            <div class="step-dot active" id="sdot-1">
+                <div class="step-dot-circle">1</div>
+                <div class="step-dot-label">Company Info</div>
             </div>
-            <p>Join our AI-powered recruitment platform</p>
-            
-            <div id="registration-alert" class="alert"></div>
+            <div class="step-line" id="sline-1"></div>
+            <div class="step-dot pending" id="sdot-2">
+                <div class="step-dot-circle">2</div>
+                <div class="step-dot-label">Choose Plan</div>
+            </div>
+            <div class="step-line" id="sline-2"></div>
+            <div class="step-dot pending" id="sdot-3">
+                <div class="step-dot-circle">3</div>
+                <div class="step-dot-label">Contact Details</div>
+            </div>
+        </div>
 
-            <form id="registration-form" class="register-form" onsubmit="handleCompanyRegistration(event)">
-                <!-- Company Information -->
+        <div id="reg-alert" class="alert"></div>
+
+        <!-- ── STEP 1: Company Info ── -->
+        <div id="step-1">
+            <form id="reg-form-1" onsubmit="goStep2(event)">
                 <div class="form-group">
-                    <label>Company Name</label>
-                    <input type="text" id="company-name" placeholder="Your Company Name" required>
+                    <label>Company Name *</label>
+                    <input type="text" id="f-company-name" placeholder="Your Company Name" required>
                 </div>
-
                 <div class="form-group">
-                    <label>Company Email</label>
-                    <input type="email" id="company-email" placeholder="company@example.com" required>
-                    <div class="form-group-note">This will be used as the admin account email</div>
+                    <label>Company Email *</label>
+                    <input type="email" id="f-company-email" placeholder="company@example.com" required>
+                    <div class="form-note">Used as the company admin login email</div>
                 </div>
-
                 <div class="form-group">
-                    <label>Company Website</label>
-                    <input type="url" id="company-website" placeholder="https://example.com" required>
+                    <label>Company Website *</label>
+                    <input type="url" id="f-company-website" placeholder="https://example.com" required>
                 </div>
-
                 <div class="form-group">
-                    <label>Registration Number</label>
-                    <input type="text" id="company-registration" placeholder="e.g., 12345678" required>
-                    <div class="form-group-note">Tax ID, Business Registration, or Legal Entity Number</div>
+                    <label>Registration Number *</label>
+                    <input type="text" id="f-company-reg" placeholder="Tax ID or Business Registration Number" required>
                 </div>
-
-                <!-- Contact Person Information -->
-                <hr style="border: none; border-top: 2px solid #e0e0e0; margin: 25px 0;">
-                
-                <div class="form-group">
-                    <label style="font-weight: 500; color: #C9A84C;">Contact Person</label>
-                </div>
-
+                <hr style="border:none;border-top:1px solid #E5E7EB;margin:20px 0;">
+                <div style="font-size:12px;font-weight:600;color:#C9A84C;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:14px;">Contact Person</div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Full Name</label>
-                        <input type="text" id="contact-person" placeholder="John Doe" required>
+                        <label>Full Name *</label>
+                        <input type="text" id="f-contact-name" placeholder="John Doe" required>
                     </div>
                     <div class="form-group">
-                        <label>Email Address</label>
-                        <input type="email" id="contact-email" placeholder="john@company.com" required>
+                        <label>Email Address *</label>
+                        <input type="email" id="f-contact-email" placeholder="john@company.com" required>
                     </div>
                 </div>
-
-                <!-- Password -->
                 <div class="form-group">
-                    <label>Password</label>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="password" id="company-password" placeholder="••••••••" required style="flex: 1;">
-                        <button type="button" onclick="togglePasswordVisibility()" style="background: none; border: none; cursor: pointer; color: #C9A84C; font-size: 20px;">
-                            <i class='bx bx-show' id="password-toggle-icon"></i>
-                        </button>
+                    <label>Password *</label>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="password" id="f-password" placeholder="••••••••" required style="flex:1;">
+                        <button type="button" onclick="togglePwd()" style="background:none;border:none;cursor:pointer;color:#C9A84C;font-size:20px;padding:0;"><i class='bx bx-show' id='pwd-icon'></i></button>
                     </div>
-                    <div class="form-group-note">Minimum 6 characters. Use a strong password.</div>
+                    <div class="form-note">Minimum 6 characters</div>
                 </div>
-
-                <!-- Submit -->
-                <button type="submit" class="btn-primary" style="margin-top: 25px;">
-                    Submit Registration
-                </button>
-
-                <div class="form-footer">
-                    Already have an account? <a href="index.html">Login here</a>
-                </div>
+                <button type="submit" class="btn-primary" style="margin-top:20px;">Next: Choose Plan →</button>
+                <div style="text-align:center;margin-top:16px;font-size:13px;color:#6B7280;">Already have an account? <a href="index.html" style="color:#C9A84C;text-decoration:none;font-weight:500;">Login here</a></div>
             </form>
+        </div>
+
+        <!-- ── STEP 2: Plan Selection ── -->
+        <div id="step-2" style="display:none;">
+            <div class="annual-toggle-bar">
+                <span style="font-size:13px;color:#374151;font-weight:500;">Monthly</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="annual-toggle" onchange="renderPlans()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span style="font-size:13px;color:#374151;font-weight:500;">Annual</span>
+                <span style="background:#E1F5EE;color:#0F6E56;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;margin-left:4px;">Save 2 months</span>
+            </div>
+            <div class="plans-grid" id="plans-grid"></div>
+            <div style="font-size:11px;color:#9CA3AF;text-align:center;margin-bottom:18px;">Job link applications are unlimited on all plans. Invitation limits apply only to HR-initiated talent pool invites.</div>
+            <div style="display:flex;gap:10px;">
+                <button type="button" class="btn-secondary" style="flex:1;" onclick="goStep(1)">← Back</button>
+                <button type="button" class="btn-primary" style="flex:2;" onclick="goStep3()">Next: Contact Details →</button>
+            </div>
+        </div>
+
+        <!-- ── STEP 3: Contact Details ── -->
+        <div id="step-3" style="display:none;">
+            <div class="form-group">
+                <label>Phone Number *</label>
+                <input type="tel" id="f-phone" placeholder="e.g. 01012345678" required>
+                <div class="form-note">We'll use this to contact you about your plan activation</div>
+            </div>
+            <div class="form-group">
+                <label>Contact Email</label>
+                <input type="email" id="f-contact-email2" placeholder="contact@company.com">
+                <div class="form-note">Pre-filled from Step 1 — edit if different</div>
+            </div>
+            <div class="form-group">
+                <label>Preferred Contact Method</label>
+                <div class="radio-group">
+                    <label class="radio-option"><input type="radio" name="contact-method" value="whatsapp" checked> 📱 WhatsApp</label>
+                    <label class="radio-option"><input type="radio" name="contact-method" value="call"> 📞 Phone Call</label>
+                    <label class="radio-option"><input type="radio" name="contact-method" value="email"> ✉️ Email</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Billing Preference</label>
+                <div class="radio-group">
+                    <label class="radio-option"><input type="radio" name="billing-pref" id="billing-monthly" value="monthly" checked> Monthly</label>
+                    <label class="radio-option"><input type="radio" name="billing-pref" id="billing-annual" value="annual"> Annual <span style="font-size:10px;color:#0F6E56;font-weight:600;margin-left:2px;">Save 2 months</span></label>
+                </div>
+            </div>
+            <div id="step3-info-box" class="info-box free" style="margin-bottom:18px;"></div>
+            <div style="display:flex;gap:10px;">
+                <button type="button" class="btn-secondary" style="flex:1;" onclick="goStep(2)">← Back</button>
+                <button type="button" class="btn-primary" style="flex:2;" id="submit-btn" onclick="submitRegistration()">Complete Registration</button>
+            </div>
+            <div style="text-align:center;margin-top:16px;font-size:13px;color:#6B7280;">Already have an account? <a href="index.html" style="color:#C9A84C;text-decoration:none;font-weight:500;">Login here</a></div>
         </div>
     </div>
 
     <script>
         const API_URL = window.location.origin;
 
-        async function handleCompanyRegistration(event) {
-            event.preventDefault();
+        const PLANS = [
+            { id:'free',         name:'Free',         monthly:0,    jobs:1,           invites:10,            users:1, popular:false },
+            { id:'growth',       name:'Growth',       monthly:500,  jobs:3,           invites:50,            users:2, popular:false },
+            { id:'professional', name:'Professional', monthly:1200, jobs:8,           invites:150,           users:2, popular:true  },
+            { id:'enterprise',   name:'Enterprise',   monthly:2500, jobs:'Unlimited', invites:'Unlimited',   users:3, popular:false },
+        ];
 
-            const companyName = document.getElementById('company-name').value;
-            const companyEmail = document.getElementById('company-email').value;
-            const companyWebsite = document.getElementById('company-website').value;
-            const companyRegistration = document.getElementById('company-registration').value;
-            const contactPerson = document.getElementById('contact-person').value;
-            const contactEmail = document.getElementById('contact-email').value;
-            const companyPassword = document.getElementById('company-password').value;
+        let selectedPlan = 'free';
 
-            if (companyPassword.length < 6) {
-                showAlert('Password must be at least 6 characters long', 'error');
-                return;
+        function renderPlans() {
+            const annual = document.getElementById('annual-toggle').checked;
+            const grid = document.getElementById('plans-grid');
+            grid.innerHTML = PLANS.map(p => {
+                const annualPrice = p.monthly > 0 ? p.monthly * 10 : 0;
+                const priceLabel = p.monthly === 0
+                    ? '<span style="font-size:16px;">0</span> <span>EGP</span>'
+                    : annual
+                        ? `<span style="font-size:24px;font-weight:800;">${annualPrice.toLocaleString()}</span><span> EGP/yr</span>`
+                        : `<span style="font-size:24px;font-weight:800;">${p.monthly.toLocaleString()}</span><span> EGP/mo</span>`;
+                const annualNote = p.monthly > 0 && annual
+                    ? `<div class="plan-annual-price" style="color:#0F6E56;">2 months free vs monthly</div>`
+                    : p.monthly > 0 && !annual
+                        ? `<div class="plan-annual-price">or ${(p.monthly * 10).toLocaleString()} EGP/yr (save 2 mo)</div>`
+                        : `<div class="plan-annual-price"></div>`;
+                const sel = selectedPlan === p.id;
+                return `<div class="plan-card${p.popular ? ' popular' : ''}${sel ? ' selected' : ''}" onclick="selectPlan('${p.id}')">
+                    ${p.popular ? '<div class="plan-popular-badge">⭐ Most Popular</div>' : ''}
+                    <div class="plan-name">${p.name}</div>
+                    <div class="plan-price">${priceLabel}</div>
+                    ${annualNote}
+                    <ul class="plan-features">
+                        <li>${typeof p.jobs === 'number' ? p.jobs + ' active job' + (p.jobs > 1 ? 's' : '') : `<span class="unlimited">Unlimited jobs</span>`}</li>
+                        <li>${typeof p.invites === 'number' ? p.invites + ' invitations / month' : `<span class="unlimited">Unlimited invitations</span>`}</li>
+                        <li>${p.users} user account${p.users > 1 ? 's' : ''}</li>
+                        <li>Unlimited job link applications</li>
+                        <li>AI screening & evaluation</li>
+                    </ul>
+                </div>`;
+            }).join('');
+        }
+
+        function selectPlan(id) {
+            selectedPlan = id;
+            renderPlans();
+        }
+
+        function goStep2(event) {
+            if (event) event.preventDefault();
+            const pwd = document.getElementById('f-password').value;
+            if (pwd.length < 6) { showAlert('Password must be at least 6 characters', 'error'); return; }
+            // Pre-fill email in step 3
+            document.getElementById('f-contact-email2').value = document.getElementById('f-contact-email').value;
+            goStep(2);
+        }
+
+        function goStep3() {
+            // Sync billing pref from annual toggle
+            const annual = document.getElementById('annual-toggle').checked;
+            document.getElementById(annual ? 'billing-annual' : 'billing-monthly').checked = true;
+            // Update info box
+            updateInfoBox();
+            goStep(3);
+        }
+
+        function updateInfoBox() {
+            const box = document.getElementById('step3-info-box');
+            if (!box) return;
+            if (selectedPlan === 'free') {
+                box.className = 'info-box free';
+                box.textContent = 'Your free account will be activated once approved by our team. No payment needed.';
+            } else {
+                const p = PLANS.find(x => x.id === selectedPlan);
+                box.className = 'info-box paid';
+                box.innerHTML = `<strong>${p ? p.name : 'Your'} plan selected.</strong> Our team will contact you within 24 hours to activate your plan. Payment via bank transfer or Paymob (coming soon).`;
             }
+        }
 
-            const submitBtn = event.target.querySelector('button[type="submit"]');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Submitting...';
+        function goStep(n) {
+            clearAlert();
+            [1, 2, 3].forEach(i => document.getElementById('step-' + i).style.display = 'none');
+            document.getElementById('step-' + n).style.display = 'block';
+            ['sdot-1','sdot-2','sdot-3'].forEach((id, idx) => {
+                const el = document.getElementById(id);
+                if (idx + 1 < n) el.className = 'step-dot done';
+                else if (idx + 1 === n) el.className = 'step-dot active';
+                else el.className = 'step-dot pending';
+                if (idx + 1 < n) el.querySelector('.step-dot-circle').textContent = '✓';
+                else el.querySelector('.step-dot-circle').textContent = idx + 1;
+            });
+            ['sline-1','sline-2'].forEach((id, idx) => {
+                document.getElementById(id).className = 'step-line' + (idx + 1 < n ? ' done' : '');
+            });
+            if (n === 2 && !document.getElementById('plans-grid').innerHTML) renderPlans();
+            document.getElementById('reg-wrap').className = 'reg-card' + (n === 2 ? ' wide' : '');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function submitRegistration() {
+            const phone = (document.getElementById('f-phone').value || '').trim();
+            if (!phone) { showAlert('Phone number is required', 'error'); return; }
+            const contactEmail = (document.getElementById('f-contact-email2').value || '').trim();
+            const contactMethod = document.querySelector('input[name="contact-method"]:checked')?.value || 'whatsapp';
+            const billingPref = document.querySelector('input[name="billing-pref"]:checked')?.value || 'monthly';
+
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.textContent = 'Submitting…';
 
             try {
-                const response = await fetch(`${API_URL}/companies/register`, {
+                const res = await fetch(`${API_URL}/companies/register`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        company_name: companyName,
-                        company_email: companyEmail,
-                        company_website: companyWebsite,
-                        registration_number: companyRegistration,
-                        contact_person: contactPerson,
-                        contact_email: contactEmail,
-                        password: companyPassword
+                        company_name:     document.getElementById('f-company-name').value,
+                        company_email:    document.getElementById('f-company-email').value,
+                        company_website:  document.getElementById('f-company-website').value,
+                        registration_number: document.getElementById('f-company-reg').value,
+                        contact_person:   document.getElementById('f-contact-name').value,
+                        contact_email:    contactEmail || document.getElementById('f-contact-email').value,
+                        password:         document.getElementById('f-password').value,
+                        selected_plan:    selectedPlan,
+                        billing_preference: billingPref,
+                        contact_phone:    phone,
+                        preferred_contact: contactMethod,
                     })
                 });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    showAlert('✓ Registration submitted successfully! Please wait for admin approval. Check your email for updates.', 'success');
-                    document.getElementById('registration-form').reset();
-                    
-                    // Redirect to login after 3 seconds
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 3000);
+                const data = await res.json();
+                if (res.ok) {
+                    showAlert('✓ Registration submitted! ' + (selectedPlan === 'free' ? 'Your free account will be activated once approved.' : 'Our team will contact you within 24 hours to activate your plan.'), 'success');
+                    setTimeout(() => { window.location.href = 'index.html'; }, 4000);
                 } else {
-                    showAlert(`Registration failed: ${data.detail || 'Please try again'}`, 'error');
+                    showAlert('Registration failed: ' + (data.detail || 'Please try again'), 'error');
+                    btn.disabled = false; btn.textContent = 'Complete Registration';
                 }
-            } catch (error) {
-                showAlert(`Error: ${error.message}`, 'error');
-                console.error('Registration error:', error);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Registration';
+            } catch (e) {
+                showAlert('Error: ' + e.message, 'error');
+                btn.disabled = false; btn.textContent = 'Complete Registration';
             }
         }
 
-        function togglePasswordVisibility() {
-            const passwordInput = document.getElementById('company-password');
-            const toggleIcon = document.getElementById('password-toggle-icon');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleIcon.classList.remove('bx-show');
-                toggleIcon.classList.add('bx-hide');
-            } else {
-                passwordInput.type = 'password';
-                toggleIcon.classList.remove('bx-hide');
-                toggleIcon.classList.add('bx-show');
-            }
+        function togglePwd() {
+            const inp = document.getElementById('f-password');
+            const ic = document.getElementById('pwd-icon');
+            inp.type = inp.type === 'password' ? 'text' : 'password';
+            ic.className = inp.type === 'password' ? 'bx bx-show' : 'bx bx-hide';
         }
 
-        function showAlert(message, type) {
-            const alertDiv = document.getElementById('registration-alert');
-            alertDiv.textContent = message;
-            alertDiv.className = `alert show alert-${type}`;
-            
-            if (type !== 'error') {
-                setTimeout(() => {
-                    alertDiv.classList.remove('show');
-                }, 5000);
-            }
+        function showAlert(msg, type) {
+            const el = document.getElementById('reg-alert');
+            el.textContent = msg;
+            el.className = `alert show alert-${type}`;
+            if (type !== 'error') setTimeout(() => el.classList.remove('show'), 6000);
+        }
+        function clearAlert() {
+            document.getElementById('reg-alert').className = 'alert';
         }
     </script>
 </body>

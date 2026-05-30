@@ -1055,14 +1055,35 @@
                 return;
             }
 
+            const _planBadge = {
+                free:         { color:'#6B7280', bg:'#F3F4F6',  label:'Free'         },
+                growth:       { color:'#185FA5', bg:'#E6F1FB',  label:'Growth'       },
+                professional: { color:'#C9A84C', bg:'#FEF9EC',  label:'Professional' },
+                enterprise:   { color:'#A32D2D', bg:'#FCEBEB',  label:'Enterprise'   },
+            };
+            const _contactIcons = { whatsapp:'📱', call:'📞', email:'✉️' };
+
             let html = '';
             companies.forEach(company => {
                 const createdDate = new Date(company.created_at).toLocaleDateString();
+                const plan = (company.selected_plan || 'free').toLowerCase();
+                const badge = _planBadge[plan] || _planBadge.free;
+                const billing = company.billing_preference === 'annual' ? 'Annual' : 'Monthly';
+                const phone = (company.contact_phone || '').replace(/\s/g,'');
+                const waPhone = phone.startsWith('+') ? phone : (phone.startsWith('0') ? '+2' + phone : '+20' + phone);
+                const waLink = phone ? `https://wa.me/${waPhone.replace(/\+/,'')}` : null;
+                const preferredIcon = _contactIcons[company.preferred_contact] || '📱';
+
                 html += `
                     <div class="approval-item">
-                        <div class="approval-item-left">
-                            <div class="approval-item-name">${company.company_name}</div>
+                        <div class="approval-item-left" style="flex:1;">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
+                                <div class="approval-item-name" style="margin:0;">${company.company_name}</div>
+                                <span style="display:inline-flex;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;background:${badge.bg};color:${badge.color};">${badge.label}</span>
+                                <span style="font-size:10px;color:#9CA3AF;background:#F3F4F6;padding:2px 7px;border-radius:20px;">${billing}</span>
+                            </div>
                             <div class="approval-item-email">${company.company_email}</div>
+                            ${phone ? `<div style="margin-top:3px;font-size:12px;">${waLink ? `<a href="${waLink}" target="_blank" style="color:#0F6E56;text-decoration:none;font-weight:500;">${preferredIcon} ${phone}</a>` : `${preferredIcon} ${phone}`} <span style="color:#9CA3AF;margin-left:4px;">via ${company.preferred_contact || 'whatsapp'}</span></div>` : ''}
                             <div class="approval-item-date">Registered: ${createdDate}</div>
                         </div>
                         <div class="approval-item-right">
