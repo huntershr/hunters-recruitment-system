@@ -71,117 +71,242 @@ def _check_scope(application_id: int, current_user, db: Session) -> bool:
     return bool(owner and owner.company_id == current_user.company_id)
 
 
-def _build_offer_docx(offer, company_name: str) -> bytes:
+def generate_offer_docx(offer, candidate_name, job_title, company_name, company_logo_url=None):
+    import requests
     from docx import Document
-    from docx.shared import Pt, RGBColor, Inches
+    from docx.shared import Pt, RGBColor, Inches, Cm
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
 
     doc = Document()
 
+    NAVY = RGBColor(0x1B, 0x2A, 0x4A)
+    GOLD = RGBColor(0xC9, 0xA8, 0x4C)
+    WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+
     for section in doc.sections:
-        section.top_margin    = Inches(1)
-        section.bottom_margin = Inches(1)
-        section.left_margin   = Inches(1.2)
-        section.right_margin  = Inches(1.2)
+        section.top_margin = Cm(1.5)
+        section.bottom_margin = Cm(1.5)
+        section.left_margin = Cm(2.5)
+        section.right_margin = Cm(2.5)
 
-    NAVY = RGBColor(27, 42, 74)
-    GOLD = RGBColor(201, 168, 76)
+    def set_cell_bg(cell, hex_color):
+        tc = cell._tc
+        tcPr = tc.get_or_add_tcPr()
+        shd = OxmlElement('w:shd')
+        shd.set(qn('w:val'), 'clear')
+        shd.set(qn('w:color'), 'auto')
+        shd.set(qn('w:fill'), hex_color)
+        tcPr.append(shd)
 
-    # ── Header ──────────────────────────────────────────────────────────────
-    h = doc.add_heading("HUNTERS FOR HR TRANSFORMATION & EXECUTION", level=1)
-    h.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = h.runs[0]
-    run.font.color.rgb = NAVY
-    run.font.size = Pt(14)
+    # ── HEADER TABLE (logo left, company name right) ──
+    header_table = doc.add_table(rows=1, cols=2)
+    header_table.autofit = False
+    header_table.columns[0].width = Cm(6)
+    header_table.columns[1].width = Cm(11.5)
 
-    doc.add_paragraph()
+    logo_cell = header_table.cell(0, 0)
+    set_cell_bg(logo_cell, '1B2A4A')
+    logo_para = logo_cell.paragraphs[0]
+    logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    if company_logo_url:
+        try:
+            r = requests.get(company_logo_url, timeout=5)
+            img_stream = io.BytesIO(r.content)
+            run = logo_para.add_run()
+            run.add_picture(img_stream, width=Cm(4))
+        except Exception:
+            run = logo_para.add_run(company_name or '')
+            run.font.color.rgb = WHITE
+            run.font.size = Pt(12)
+            run.font.bold = True
+    else:
+        run = logo_para.add_run(company_name or '')
+        run.font.color.rgb = WHITE
+        run.font.size = Pt(12)
+        run.font.bold = True
 
-    t = doc.add_heading("Job Offer", level=2)
-    t.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    if t.runs:
-        t.runs[0].font.color.rgb = GOLD
+    name_cell = header_table.cell(0, 1)
+    set_cell_bg(name_cell, '1B2A4A')
+    name_para = name_cell.paragraphs[0]
+    name_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    name_para.paragraph_format.space_before = Pt(8)
+    run = name_para.add_run(company_name or '')
+    run.font.color.rgb = WHITE
+    run.font.size = Pt(13)
+    run.font.bold = True
+    sub_para = name_cell.add_paragraph()
+    sub_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    sub_run = sub_para.add_run('Job Offer Letter')
+    sub_run.font.color.rgb = GOLD
+    sub_run.font.size = Pt(10)
+    sub_run.font.italic = True
 
-    doc.add_paragraph()
+    # ── GOLD DIVIDER ──
+    div_para = doc.add_paragraph()
+    div_para.paragraph_format.space_before = Pt(0)
+    div_para.paragraph_format.space_after = Pt(0)
+    pPr = div_para._p.get_or_add_pPr()
+    pBdr = OxmlElement('w:pBdr')
+    bottom = OxmlElement('w:bottom')
+    bottom.set(qn('w:val'), 'single')
+    bottom.set(qn('w:sz'), '12')
+    bottom.set(qn('w:color'), 'C9A84C')
+    pBdr.append(bottom)
+    pPr.append(pBdr)
 
-    # ── Salutation ──────────────────────────────────────────────────────────
-    doc.add_paragraph(f"Dear Ms / Mr {offer.candidate_name or 'Candidate'},")
-    doc.add_paragraph()
+    # ── DATE ──
+    date_para = doc.add_paragraph()
+    date_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    date_para.paragraph_format.space_before = Pt(8)
+    date_run = date_para.add_run(f'Date: {offer.created_at.strftime("%B %d, %Y") if offer.created_at else ""}')
+    date_run.font.size = Pt(9)
+    date_run.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
 
-    doc.add_paragraph(
-        f"It is with great pleasure that We are offering you the position of "
-        f"{offer.job_title} with {company_name}. Your experience and enthusiasm "
-        f"will be an asset to our school."
+    # ── GREETING ──
+    greet = doc.add_paragraph()
+    greet.paragraph_format.space_before = Pt(12)
+    greet.paragraph_format.space_after = Pt(6)
+    greet_run = greet.add_run(f'Dear Ms / Mr {candidate_name},')
+    greet_run.font.size = Pt(11)
+    greet_run.font.color.rgb = NAVY
+
+    # ── INTRO ──
+    intro = doc.add_paragraph()
+    intro.paragraph_format.space_after = Pt(10)
+    intro_run = intro.add_run(
+        f'It is with great pleasure that we are offering you the position of '
+        f'{job_title} with {company_name}. '
+        f'Your experience and enthusiasm will be a valuable asset to our organization.\n\n'
+        f'Please review the offer details below, sign where indicated, and return a copy.'
     )
-    doc.add_paragraph()
+    intro_run.font.size = Pt(10.5)
+    intro_run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
 
-    doc.add_paragraph(
-        "Please review offer details below outlining your salary and benefits, "
-        "and sign where indicated, then reattach the job offer."
-    )
-    doc.add_paragraph()
-
-    # ── Details table ───────────────────────────────────────────────────────
+    # ── OFFER DETAILS TABLE ──
     rows_data = [
-        ("Candidate name",                  offer.candidate_name or ""),
-        ("Job title",                       offer.job_title or ""),
-        ("Department / Division / Site",    offer.department or ""),
-        ("Proposed starting date",          offer.start_date or ""),
-        ("Working days",                    "Sunday to Thursday"),
-        ("Working hours",                   f"{offer.working_hours_from} AM to {offer.working_hours_to} PM"),
-        ("Package details / Net Salary",    f"{offer.net_salary} EGP - Net (as monthly net amount by direct transfer to payroll bank account)"),
-        ("Exceptions and Permissions",      offer.exceptions or ""),
-        ("Reporting to",                    offer.reporting_to or ""),
+        ('Candidate Name', candidate_name or ''),
+        ('Job Title', job_title or ''),
+        ('Department / Division / Site', offer.department or ''),
+        ('Proposed Starting Date', str(offer.start_date) if offer.start_date else ''),
+        ('Working Days', 'Sunday to Thursday'),
+        ('Working Hours', f'{offer.working_hours_from or ""} AM to {offer.working_hours_to or ""} PM'),
+        ('Package Details / Net Salary', f'{offer.net_salary or ""} EGP - Net (monthly by direct transfer to payroll bank account)'),
+        ('Exceptions and Permissions', offer.exceptions or 'None'),
+        ('Reporting To', offer.reporting_to or ''),
     ]
 
-    table = doc.add_table(rows=len(rows_data), cols=2)
-    table.style = "Table Grid"
+    table = doc.add_table(rows=len(rows_data) + 1, cols=2)
+    table.style = 'Table Grid'
+    table.autofit = False
+    table.columns[0].width = Cm(7)
+    table.columns[1].width = Cm(10.5)
+
+    hdr_cells = table.rows[0].cells
+    for cell in hdr_cells:
+        set_cell_bg(cell, '1B2A4A')
+    hdr_cells[0].paragraphs[0].add_run('Field').font.color.rgb = WHITE
+    hdr_cells[0].paragraphs[0].runs[0].font.bold = True
+    hdr_cells[0].paragraphs[0].runs[0].font.size = Pt(10)
+    hdr_cells[1].paragraphs[0].add_run('Details').font.color.rgb = WHITE
+    hdr_cells[1].paragraphs[0].runs[0].font.bold = True
+    hdr_cells[1].paragraphs[0].runs[0].font.size = Pt(10)
+
     for i, (label, value) in enumerate(rows_data):
-        row = table.rows[i]
+        row = table.rows[i + 1]
+        bg = 'F5F7FA' if i % 2 == 0 else 'FFFFFF'
+        set_cell_bg(row.cells[0], bg)
+        set_cell_bg(row.cells[1], bg)
         label_run = row.cells[0].paragraphs[0].add_run(label)
-        label_run.bold = True
+        label_run.font.bold = True
+        label_run.font.size = Pt(9.5)
         label_run.font.color.rgb = NAVY
-        row.cells[1].paragraphs[0].add_run(value)
+        val_run = row.cells[1].paragraphs[0].add_run(value)
+        val_run.font.size = Pt(9.5)
+        val_run.font.color.rgb = RGBColor(0x22, 0x22, 0x22)
 
+    # ── REQUIRED DOCUMENTS ──
     doc.add_paragraph()
-
-    # ── Required documents ──────────────────────────────────────────────────
-    dh = doc.add_heading("Required hiring documents (in Arabic):", level=3)
-    if dh.runs:
-        dh.runs[0].font.color.rgb = NAVY
+    docs_heading = doc.add_paragraph()
+    docs_run = docs_heading.add_run('Required Hiring Documents:')
+    docs_run.font.bold = True
+    docs_run.font.size = Pt(10.5)
+    docs_run.font.color.rgb = NAVY
 
     arabic_docs = [
-        "أصل شهادة الميلاد",
-        "أصل شهادة المؤهل الدراسي",
-        "أصل شهادة الخدمة العسكرية للذكور",
-        "كعب عمل",
-        "صورة بطاقة الرقم القومي",
-        "عدد 6 صور شخصية حديثة",
-        "صحيفة الحالة الجنائية",
-        "بيان باخر راتب / مفردات مرتب / كشف حساب",
-        "نموذج 111 خاص بالتأمين الصحي خط ساخن 19806",
+        'أصل شهادة الميلاد',
+        'أصل شهادة المؤهل الدراسي',
+        'أصل شهادة الخدمة العسكرية للذكور',
+        'كعب عمل',
+        'صورة بطاقة الرقم القومي',
+        'عدد 6 صور شخصية حديثة',
+        'صحيفة الحالة الجنائية',
+        'بيان بآخر راتب / مفردات مرتب',
+        'نموذج 111 خاص بالتأمين الصحي',
     ]
-    for item in arabic_docs:
-        p = doc.add_paragraph(style="List Bullet")
-        p.add_run(item)
+    for doc_item in arabic_docs:
+        p = doc.add_paragraph(style='List Bullet')
+        run = p.add_run(doc_item)
+        run.font.size = Pt(9.5)
+        run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
 
+    # ── OFFERED BY SECTION ──
     doc.add_paragraph()
+    offered_table = doc.add_table(rows=1, cols=2)
+    offered_table.autofit = False
+    offered_table.columns[0].width = Cm(9)
+    offered_table.columns[1].width = Cm(8.5)
 
-    # ── Signatures ──────────────────────────────────────────────────────────
-    sh = doc.add_heading("Signatures", level=3)
-    if sh.runs:
-        sh.runs[0].font.color.rgb = NAVY
+    left_cell = offered_table.cell(0, 0)
+    p = left_cell.paragraphs[0]
+    run = p.add_run('Candidate Acceptance')
+    run.font.bold = True
+    run.font.size = Pt(9.5)
+    run.font.color.rgb = NAVY
+    left_cell.add_paragraph()
+    for line in ('Name: ________________________________', 'Signature: ___________________________', 'Date: ________________________________'):
+        sig_p = left_cell.add_paragraph()
+        sig_r = sig_p.add_run(line)
+        sig_r.font.size = Pt(9)
+        sig_r.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
+        left_cell.add_paragraph()
 
-    sig = doc.add_table(rows=2, cols=2)
-    sig.style = "Table Grid"
-    sig.rows[0].cells[0].paragraphs[0].add_run("Name: ___________")
-    sig.rows[0].cells[1].paragraphs[0].add_run("Name: ___________")
-    sig.rows[1].cells[0].paragraphs[0].add_run("Signature: ___________")
-    sig.rows[1].cells[1].paragraphs[0].add_run("Signature: ___________")
+    right_cell = offered_table.cell(0, 1)
+    p2 = right_cell.paragraphs[0]
+    run2 = p2.add_run('Offered By')
+    run2.font.bold = True
+    run2.font.size = Pt(9.5)
+    run2.font.color.rgb = NAVY
+    right_cell.add_paragraph()
+    for line in ('Name: ________________________________', 'Signature: ___________________________', 'Date: ________________________________'):
+        auth_p = right_cell.add_paragraph()
+        auth_r = auth_p.add_run(line)
+        auth_r.font.size = Pt(9)
+        auth_r.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
+        right_cell.add_paragraph()
 
-    buf = io.BytesIO()
-    doc.save(buf)
-    buf.seek(0)
-    return buf.read()
+    # ── GOLD FOOTER LINE ──
+    footer_div = doc.add_paragraph()
+    footer_div.paragraph_format.space_before = Pt(12)
+    pPr2 = footer_div._p.get_or_add_pPr()
+    pBdr2 = OxmlElement('w:pBdr')
+    top2 = OxmlElement('w:top')
+    top2.set(qn('w:val'), 'single')
+    top2.set(qn('w:sz'), '6')
+    top2.set(qn('w:color'), 'C9A84C')
+    pBdr2.append(top2)
+    pPr2.append(pBdr2)
+
+    # ── POWERED BY ──
+    powered = doc.add_paragraph()
+    powered.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    pw_run = powered.add_run('Powered by Hunters HR  |  hunters-egypt.com')
+    pw_run.font.size = Pt(7.5)
+    pw_run.font.color.rgb = RGBColor(0xAA, 0xAA, 0xAA)
+    pw_run.font.italic = True
+
+    return doc
 
 
 # ── Routes ──────────────────────────────────────────────────────────────────
@@ -277,6 +402,7 @@ def download_offer(
         raise HTTPException(status_code=404, detail="Offer not found")
 
     company_name = "Hunters for HR Transformation & Execution"
+    logo_url = None
     app = (
         db.query(models.Application)
         .options(
@@ -288,14 +414,20 @@ def download_offer(
         .first()
     )
     if app and app.job and app.job.owner and app.job.owner.company:
-        company_name = app.job.owner.company.company_name
+        company = app.job.owner.company
+        company_name = company.company_name
+        logo_url = company.logo_url if company else None
 
-    docx_bytes = _build_offer_docx(offer, company_name)
+    doc = generate_offer_docx(offer, offer.candidate_name, offer.job_title, company_name, logo_url)
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
     safe_name = (offer.candidate_name or "Offer").replace(" ", "_")
     filename = f"JobOffer_{safe_name}.docx"
 
     return StreamingResponse(
-        io.BytesIO(docx_bytes),
+        buf,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
