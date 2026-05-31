@@ -71,168 +71,263 @@ def _check_scope(application_id: int, current_user, db: Session) -> bool:
     return bool(owner and owner.company_id == current_user.company_id)
 
 
+def _hex_to_rgb(h):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+
+def _set_cell_bg(cell, hex_color):
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    for shd in tcPr.findall(qn('w:shd')):
+        tcPr.remove(shd)
+    shd = OxmlElement('w:shd')
+    shd.set(qn('w:val'), 'clear')
+    shd.set(qn('w:color'), 'auto')
+    shd.set(qn('w:fill'), hex_color.lstrip('#'))
+    tcPr.append(shd)
+
+
+def _set_cell_borders(cell, color='1B2A4A', size='4'):
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    tcBorders = OxmlElement('w:tcBorders')
+    for side in ['top', 'left', 'bottom', 'right']:
+        b = OxmlElement(f'w:{side}')
+        b.set(qn('w:val'), 'single')
+        b.set(qn('w:sz'), size)
+        b.set(qn('w:color'), color)
+        tcBorders.append(b)
+    tcPr.append(tcBorders)
+
+
+def _set_no_borders(cell):
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    tcBorders = OxmlElement('w:tcBorders')
+    for side in ['top', 'left', 'bottom', 'right']:
+        b = OxmlElement(f'w:{side}')
+        b.set(qn('w:val'), 'none')
+        b.set(qn('w:sz'), '0')
+        b.set(qn('w:color'), 'FFFFFF')
+        tcBorders.append(b)
+    tcPr.append(tcBorders)
+
+
+def _add_para_border(para, side, color, size='12'):
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+    pPr = para._p.get_or_add_pPr()
+    pBdr = OxmlElement('w:pBdr')
+    b = OxmlElement(f'w:{side}')
+    b.set(qn('w:val'), 'single')
+    b.set(qn('w:sz'), size)
+    b.set(qn('w:color'), color)
+    b.set(qn('w:space'), '1')
+    pBdr.append(b)
+    pPr.append(pBdr)
+
+
+def _cell_para(cell, text, bold=False, color='000000', size=9.5, align=None):
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    para = cell.paragraphs[0]
+    para.clear()
+    if align is not None:
+        para.alignment = align
+    run = para.add_run(text)
+    run.font.bold = bold
+    run.font.size = Pt(size)
+    run.font.color.rgb = RGBColor(*_hex_to_rgb(color))
+    run.font.name = 'Calibri'
+    return para
+
+
 def generate_offer_docx(offer, candidate_name, job_title, company_name, company_logo_url=None):
-    import requests
+    import requests as req_lib
     from docx import Document
-    from docx.shared import Pt, RGBColor, Inches, Cm
+    from docx.shared import Pt, RGBColor, Cm
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml.ns import qn
     from docx.oxml import OxmlElement
 
     doc = Document()
 
-    NAVY = RGBColor(0x1B, 0x2A, 0x4A)
-    GOLD = RGBColor(0xC9, 0xA8, 0x4C)
-    WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+    NAVY = '1B2A4A'
+    GOLD = 'C9A84C'
+    WHITE = 'FFFFFF'
+    LIGHT = 'F0F4F8'
 
     for section in doc.sections:
         section.top_margin = Cm(1.5)
         section.bottom_margin = Cm(1.5)
-        section.left_margin = Cm(2.5)
-        section.right_margin = Cm(2.5)
+        section.left_margin = Cm(2.0)
+        section.right_margin = Cm(2.0)
 
-    def set_cell_bg(cell, hex_color):
-        tc = cell._tc
-        tcPr = tc.get_or_add_tcPr()
-        shd = OxmlElement('w:shd')
-        shd.set(qn('w:val'), 'clear')
-        shd.set(qn('w:color'), 'auto')
-        shd.set(qn('w:fill'), hex_color)
-        tcPr.append(shd)
+    # ── HEADER TABLE (logo left | company name right) ──
+    hdr = doc.add_table(rows=1, cols=2)
+    hdr.autofit = False
+    hdr.columns[0].width = Cm(5.5)
+    hdr.columns[1].width = Cm(12.0)
 
-    # ── HEADER TABLE (logo left, company name right) ──
-    header_table = doc.add_table(rows=1, cols=2)
-    header_table.autofit = False
-    header_table.columns[0].width = Cm(6)
-    header_table.columns[1].width = Cm(11.5)
+    logo_cell = hdr.cell(0, 0)
+    _set_cell_bg(logo_cell, NAVY)
+    _set_no_borders(logo_cell)
+    # Gold right border as divider between logo and company name
+    tcPr = logo_cell._tc.get_or_add_tcPr()
+    tcBorders = OxmlElement('w:tcBorders')
+    right_b = OxmlElement('w:right')
+    right_b.set(qn('w:val'), 'single')
+    right_b.set(qn('w:sz'), '4')
+    right_b.set(qn('w:color'), GOLD)
+    tcBorders.append(right_b)
+    tcPr.append(tcBorders)
 
-    logo_cell = header_table.cell(0, 0)
-    set_cell_bg(logo_cell, '1B2A4A')
     logo_para = logo_cell.paragraphs[0]
     logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    logo_para.paragraph_format.space_before = Pt(8)
+    logo_para.paragraph_format.space_after = Pt(8)
     if company_logo_url:
         try:
-            r = requests.get(company_logo_url, timeout=5)
+            r = req_lib.get(company_logo_url, timeout=5)
             img_stream = io.BytesIO(r.content)
-            run = logo_para.add_run()
-            run.add_picture(img_stream, width=Cm(4))
+            logo_para.add_run().add_picture(img_stream, width=Cm(3.8))
         except Exception:
             run = logo_para.add_run(company_name or '')
-            run.font.color.rgb = WHITE
-            run.font.size = Pt(12)
+            run.font.color.rgb = RGBColor(*_hex_to_rgb(WHITE))
+            run.font.size = Pt(11)
             run.font.bold = True
+            run.font.name = 'Calibri'
     else:
         run = logo_para.add_run(company_name or '')
-        run.font.color.rgb = WHITE
-        run.font.size = Pt(12)
+        run.font.color.rgb = RGBColor(*_hex_to_rgb(WHITE))
+        run.font.size = Pt(11)
         run.font.bold = True
+        run.font.name = 'Calibri'
 
-    name_cell = header_table.cell(0, 1)
-    set_cell_bg(name_cell, '1B2A4A')
-    name_para = name_cell.paragraphs[0]
-    name_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    name_para.paragraph_format.space_before = Pt(8)
-    run = name_para.add_run(company_name or '')
-    run.font.color.rgb = WHITE
-    run.font.size = Pt(13)
+    info_cell = hdr.cell(0, 1)
+    _set_cell_bg(info_cell, NAVY)
+    _set_no_borders(info_cell)
+    info_para = info_cell.paragraphs[0]
+    info_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    info_para.paragraph_format.space_before = Pt(10)
+    run = info_para.add_run(company_name or '')
+    run.font.color.rgb = RGBColor(*_hex_to_rgb(WHITE))
+    run.font.size = Pt(14)
     run.font.bold = True
-    sub_para = name_cell.add_paragraph()
+    run.font.name = 'Calibri'
+
+    sub_para = info_cell.add_paragraph()
     sub_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    sub_para.paragraph_format.space_after = Pt(10)
     sub_run = sub_para.add_run('Job Offer Letter')
-    sub_run.font.color.rgb = GOLD
+    sub_run.font.color.rgb = RGBColor(*_hex_to_rgb(GOLD))
     sub_run.font.size = Pt(10)
     sub_run.font.italic = True
+    sub_run.font.name = 'Calibri'
 
     # ── GOLD DIVIDER ──
-    div_para = doc.add_paragraph()
-    div_para.paragraph_format.space_before = Pt(0)
-    div_para.paragraph_format.space_after = Pt(0)
-    pPr = div_para._p.get_or_add_pPr()
-    pBdr = OxmlElement('w:pBdr')
-    bottom = OxmlElement('w:bottom')
-    bottom.set(qn('w:val'), 'single')
-    bottom.set(qn('w:sz'), '12')
-    bottom.set(qn('w:color'), 'C9A84C')
-    pBdr.append(bottom)
-    pPr.append(pBdr)
+    div = doc.add_paragraph()
+    div.paragraph_format.space_before = Pt(0)
+    div.paragraph_format.space_after = Pt(0)
+    _add_para_border(div, 'bottom', GOLD, '12')
 
     # ── DATE ──
-    date_para = doc.add_paragraph()
-    date_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    date_para.paragraph_format.space_before = Pt(8)
-    date_run = date_para.add_run(f'Date: {offer.created_at.strftime("%B %d, %Y") if offer.created_at else ""}')
-    date_run.font.size = Pt(9)
-    date_run.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
+    date_p = doc.add_paragraph()
+    date_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    date_p.paragraph_format.space_before = Pt(6)
+    date_p.paragraph_format.space_after = Pt(4)
+    dr = date_p.add_run(f'Date: {offer.created_at.strftime("%B %d, %Y") if offer.created_at else ""}')
+    dr.font.size = Pt(8.5)
+    dr.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
+    dr.font.name = 'Calibri'
 
     # ── GREETING ──
     greet = doc.add_paragraph()
-    greet.paragraph_format.space_before = Pt(12)
+    greet.paragraph_format.space_before = Pt(10)
     greet.paragraph_format.space_after = Pt(6)
-    greet_run = greet.add_run(f'Dear Ms / Mr {candidate_name},')
-    greet_run.font.size = Pt(11)
-    greet_run.font.color.rgb = NAVY
+    gr = greet.add_run(f'Dear Ms / Mr {candidate_name},')
+    gr.font.size = Pt(11)
+    gr.font.bold = True
+    gr.font.color.rgb = RGBColor(*_hex_to_rgb(NAVY))
+    gr.font.name = 'Calibri'
 
     # ── INTRO ──
-    intro = doc.add_paragraph()
-    intro.paragraph_format.space_after = Pt(10)
-    intro_run = intro.add_run(
+    for text in (
         f'It is with great pleasure that we are offering you the position of '
         f'{job_title} with {company_name}. '
-        f'Your experience and enthusiasm will be a valuable asset to our organization.\n\n'
-        f'Please review the offer details below, sign where indicated, and return a copy.'
-    )
-    intro_run.font.size = Pt(10.5)
-    intro_run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+        f'Your experience and enthusiasm will be a valuable asset to our organization.',
+        'Please review the offer details below, sign where indicated, and return a copy to HR.',
+    ):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(5)
+        r = p.add_run(text)
+        r.font.size = Pt(10)
+        r.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+        r.font.name = 'Calibri'
 
-    # ── OFFER DETAILS TABLE ──
+    # ── OFFER TABLE ──
     rows_data = [
         ('Candidate Name', candidate_name or ''),
         ('Job Title', job_title or ''),
         ('Department / Division / Site', offer.department or ''),
         ('Proposed Starting Date', str(offer.start_date) if offer.start_date else ''),
         ('Working Days', 'Sunday to Thursday'),
-        ('Working Hours', f'{offer.working_hours_from or ""} AM to {offer.working_hours_to or ""} PM'),
-        ('Package Details / Net Salary', f'{offer.net_salary or ""} EGP - Net (monthly by direct transfer to payroll bank account)'),
+        ('Working Hours', f'{offer.working_hours_from or ""} to {offer.working_hours_to or ""}'),
+        ('Package Details / Net Salary', f'{offer.net_salary or ""} EGP — Net (monthly by direct transfer to payroll bank account)'),
         ('Exceptions and Permissions', offer.exceptions or 'None'),
         ('Reporting To', offer.reporting_to or ''),
     ]
 
-    table = doc.add_table(rows=len(rows_data) + 1, cols=2)
-    table.style = 'Table Grid'
-    table.autofit = False
-    table.columns[0].width = Cm(7)
-    table.columns[1].width = Cm(10.5)
+    tbl = doc.add_table(rows=len(rows_data) + 1, cols=2)
+    tbl.autofit = False
+    tbl.columns[0].width = Cm(6.5)
+    tbl.columns[1].width = Cm(11.0)
 
-    hdr_cells = table.rows[0].cells
-    for cell in hdr_cells:
-        set_cell_bg(cell, '1B2A4A')
-    hdr_cells[0].paragraphs[0].add_run('Field').font.color.rgb = WHITE
-    hdr_cells[0].paragraphs[0].runs[0].font.bold = True
-    hdr_cells[0].paragraphs[0].runs[0].font.size = Pt(10)
-    hdr_cells[1].paragraphs[0].add_run('Details').font.color.rgb = WHITE
-    hdr_cells[1].paragraphs[0].runs[0].font.bold = True
-    hdr_cells[1].paragraphs[0].runs[0].font.size = Pt(10)
+    for i, hdr_text in enumerate(['Field', 'Details']):
+        c = tbl.rows[0].cells[i]
+        _set_cell_bg(c, NAVY)
+        _set_cell_borders(c, NAVY)
+        _cell_para(c, hdr_text, bold=True, color=WHITE, size=9.5,
+                   align=WD_ALIGN_PARAGRAPH.LEFT)
 
-    for i, (label, value) in enumerate(rows_data):
-        row = table.rows[i + 1]
-        bg = 'F5F7FA' if i % 2 == 0 else 'FFFFFF'
-        set_cell_bg(row.cells[0], bg)
-        set_cell_bg(row.cells[1], bg)
-        label_run = row.cells[0].paragraphs[0].add_run(label)
-        label_run.font.bold = True
-        label_run.font.size = Pt(9.5)
-        label_run.font.color.rgb = NAVY
-        val_run = row.cells[1].paragraphs[0].add_run(value)
-        val_run.font.size = Pt(9.5)
-        val_run.font.color.rgb = RGBColor(0x22, 0x22, 0x22)
+    for idx, (label, value) in enumerate(rows_data):
+        bg = LIGHT if idx % 2 == 0 else WHITE
+        row = tbl.rows[idx + 1]
+        lc, vc = row.cells[0], row.cells[1]
+        _set_cell_bg(lc, bg)
+        _set_cell_bg(vc, bg)
+        _set_cell_borders(lc, 'CCCCCC', '2')
+        _set_cell_borders(vc, 'CCCCCC', '2')
+        _cell_para(lc, label, bold=True, color=NAVY, size=9.5)
+        _cell_para(vc, value, bold=False, color='333333', size=9.5)
 
     # ── REQUIRED DOCUMENTS ──
     doc.add_paragraph()
-    docs_heading = doc.add_paragraph()
-    docs_run = docs_heading.add_run('Required Hiring Documents:')
-    docs_run.font.bold = True
-    docs_run.font.size = Pt(10.5)
-    docs_run.font.color.rgb = NAVY
+    docs_title = doc.add_paragraph()
+    docs_title.paragraph_format.space_before = Pt(8)
+    docs_title.paragraph_format.space_after = Pt(4)
+    # Gold left-border accent
+    pPr = docs_title._p.get_or_add_pPr()
+    pBdr = OxmlElement('w:pBdr')
+    left_b = OxmlElement('w:left')
+    left_b.set(qn('w:val'), 'single')
+    left_b.set(qn('w:sz'), '18')
+    left_b.set(qn('w:color'), GOLD)
+    left_b.set(qn('w:space'), '6')
+    pBdr.append(left_b)
+    pPr.append(pBdr)
+    dtr = docs_title.add_run('Required Hiring Documents:')
+    dtr.font.bold = True
+    dtr.font.size = Pt(10)
+    dtr.font.color.rgb = RGBColor(*_hex_to_rgb(NAVY))
+    dtr.font.name = 'Calibri'
 
     arabic_docs = [
         'أصل شهادة الميلاد',
@@ -245,66 +340,76 @@ def generate_offer_docx(offer, candidate_name, job_title, company_name, company_
         'بيان بآخر راتب / مفردات مرتب',
         'نموذج 111 خاص بالتأمين الصحي',
     ]
-    for doc_item in arabic_docs:
+    for item in arabic_docs:
         p = doc.add_paragraph(style='List Bullet')
-        run = p.add_run(doc_item)
-        run.font.size = Pt(9.5)
-        run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+        p.paragraph_format.space_after = Pt(2)
+        r = p.add_run(item)
+        r.font.size = Pt(9.5)
+        r.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+        r.font.name = 'Calibri'
 
-    # ── OFFERED BY SECTION ──
-    doc.add_paragraph()
-    offered_table = doc.add_table(rows=1, cols=2)
-    offered_table.autofit = False
-    offered_table.columns[0].width = Cm(9)
-    offered_table.columns[1].width = Cm(8.5)
+    # ── GOLD DIVIDER BEFORE SIGNATURES ──
+    sig_div = doc.add_paragraph()
+    sig_div.paragraph_format.space_before = Pt(14)
+    sig_div.paragraph_format.space_after = Pt(8)
+    _add_para_border(sig_div, 'top', GOLD, '8')
 
-    left_cell = offered_table.cell(0, 0)
-    p = left_cell.paragraphs[0]
-    run = p.add_run('Candidate Acceptance')
-    run.font.bold = True
-    run.font.size = Pt(9.5)
-    run.font.color.rgb = NAVY
-    left_cell.add_paragraph()
-    for line in ('Name: ________________________________', 'Signature: ___________________________', 'Date: ________________________________'):
-        sig_p = left_cell.add_paragraph()
-        sig_r = sig_p.add_run(line)
-        sig_r.font.size = Pt(9)
-        sig_r.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
-        left_cell.add_paragraph()
+    # ── SIGNATURES TABLE ──
+    sig_tbl = doc.add_table(rows=1, cols=2)
+    sig_tbl.autofit = False
+    sig_tbl.columns[0].width = Cm(8.5)
+    sig_tbl.columns[1].width = Cm(9.0)
 
-    right_cell = offered_table.cell(0, 1)
-    p2 = right_cell.paragraphs[0]
-    run2 = p2.add_run('Offered By')
-    run2.font.bold = True
-    run2.font.size = Pt(9.5)
-    run2.font.color.rgb = NAVY
-    right_cell.add_paragraph()
-    for line in ('Name: ________________________________', 'Signature: ___________________________', 'Date: ________________________________'):
-        auth_p = right_cell.add_paragraph()
-        auth_r = auth_p.add_run(line)
-        auth_r.font.size = Pt(9)
-        auth_r.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
-        right_cell.add_paragraph()
+    for col_idx, title in enumerate(['Candidate Acceptance', 'Offered By']):
+        sc = sig_tbl.cell(0, col_idx)
+        _set_no_borders(sc)
+        tp = sc.paragraphs[0]
+        tr = tp.add_run(title.upper())
+        tr.font.bold = True
+        tr.font.size = Pt(9)
+        tr.font.color.rgb = RGBColor(*_hex_to_rgb(NAVY))
+        tr.font.name = 'Calibri'
+        for line_label in ['Full Name', 'Signature', 'Date']:
+            lp = sc.add_paragraph()
+            lp.paragraph_format.space_before = Pt(10)
+            llr = lp.add_run(f'{line_label}:  ')
+            llr.font.size = Pt(8.5)
+            llr.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
+            llr.font.name = 'Calibri'
+            blank = lp.add_run('_' * 28)
+            blank.font.size = Pt(8.5)
+            blank.font.color.rgb = RGBColor(0xBB, 0xBB, 0xBB)
 
-    # ── GOLD FOOTER LINE ──
-    footer_div = doc.add_paragraph()
-    footer_div.paragraph_format.space_before = Pt(12)
-    pPr2 = footer_div._p.get_or_add_pPr()
-    pBdr2 = OxmlElement('w:pBdr')
-    top2 = OxmlElement('w:top')
-    top2.set(qn('w:val'), 'single')
-    top2.set(qn('w:sz'), '6')
-    top2.set(qn('w:color'), 'C9A84C')
-    pBdr2.append(top2)
-    pPr2.append(pBdr2)
+    # ── FOOTER TABLE (navy background) ──
+    footer_tbl = doc.add_table(rows=1, cols=2)
+    footer_tbl.autofit = False
+    footer_tbl.columns[0].width = Cm(9.5)
+    footer_tbl.columns[1].width = Cm(8.0)
 
-    # ── POWERED BY ──
-    powered = doc.add_paragraph()
-    powered.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    pw_run = powered.add_run('Powered by Hunters HR  |  hunters-egypt.com')
-    pw_run.font.size = Pt(7.5)
-    pw_run.font.color.rgb = RGBColor(0xAA, 0xAA, 0xAA)
-    pw_run.font.italic = True
+    lfc = footer_tbl.cell(0, 0)
+    rfc = footer_tbl.cell(0, 1)
+    for fc in (lfc, rfc):
+        _set_cell_bg(fc, NAVY)
+        _set_no_borders(fc)
+
+    lfp = lfc.paragraphs[0]
+    lfp.paragraph_format.space_before = Pt(6)
+    lfp.paragraph_format.space_after = Pt(6)
+    lfr = lfp.add_run('Powered by Hunters HR  |  hunters-egypt.com')
+    lfr.font.size = Pt(7.5)
+    lfr.font.color.rgb = RGBColor(0xAA, 0xAA, 0xAA)
+    lfr.font.italic = True
+    lfr.font.name = 'Calibri'
+
+    rfp = rfc.paragraphs[0]
+    rfp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    rfp.paragraph_format.space_before = Pt(6)
+    rfp.paragraph_format.space_after = Pt(6)
+    rfr = rfp.add_run('hr@hunters-egypt.com')
+    rfr.font.size = Pt(7.5)
+    rfr.font.color.rgb = RGBColor(0xAA, 0xAA, 0xAA)
+    rfr.font.italic = True
+    rfr.font.name = 'Calibri'
 
     return doc
 
