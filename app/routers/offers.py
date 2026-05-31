@@ -161,6 +161,15 @@ def generate_offer_docx(offer, candidate_name, job_title, company_name, company_
     template_path = os.path.join(os.path.dirname(__file__), '..', 'offer_master_template.docx')
     doc = Document(template_path)
 
+    # Fix header row to exact height so logo doesn't push content onto a second page
+    from docx.oxml import OxmlElement
+    header_row = doc.tables[0].rows[0]
+    trPr = header_row._tr.get_or_add_trPr()
+    trHeight = OxmlElement('w:trHeight')
+    trHeight.set(qn('w:val'), '1400')
+    trHeight.set(qn('w:hRule'), 'exact')
+    trPr.append(trHeight)
+
     created_date = offer.created_at.strftime('%B %d, %Y') if offer.created_at else ''
     hours = f'{offer.working_hours_from or ""} to {offer.working_hours_to or ""}'
     salary = f'{offer.net_salary or ""} EGP — Net (monthly by direct transfer to payroll bank account)'
@@ -227,7 +236,7 @@ def generate_offer_docx(offer, candidate_name, job_title, company_name, company_
                 para.clear()
             logo_para = logo_cell.paragraphs[0]
             logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            logo_para.add_run().add_picture(io.BytesIO(img_bytes), width=Cm(2.8))
+            logo_para.add_run().add_picture(io.BytesIO(img_bytes), width=Cm(1.8))
         except Exception:
             pass  # Keep existing logo/text on failure
 
