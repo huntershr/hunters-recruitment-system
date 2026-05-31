@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 import io
+import base64
 import logging
 
 from .. import models, database
@@ -195,9 +196,15 @@ def generate_offer_docx(offer, candidate_name, job_title, company_name, company_
     logo_para.paragraph_format.space_after = Pt(8)
     if company_logo_url:
         try:
-            r = req_lib.get(company_logo_url, timeout=5)
-            img_stream = io.BytesIO(r.content)
-            logo_para.add_run().add_picture(img_stream, width=Cm(3.8))
+            if company_logo_url.startswith('data:image'):
+                header, b64data = company_logo_url.split(',', 1)
+                img_bytes = base64.b64decode(b64data)
+            else:
+                r = req_lib.get(company_logo_url, timeout=5)
+                img_bytes = r.content
+            img_stream = io.BytesIO(img_bytes)
+            run = logo_para.add_run()
+            run.add_picture(img_stream, width=Cm(3.8))
         except Exception:
             run = logo_para.add_run(company_name or '')
             run.font.color.rgb = RGBColor(*_hex_to_rgb(WHITE))
