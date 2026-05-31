@@ -39,6 +39,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    reset_token = Column(String, nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
 
     company = relationship("Company", back_populates="users")
     jobs = relationship("Job", back_populates="owner")

@@ -315,6 +315,15 @@ def startup_populate_db():
         finally:
             db.close()
 
+    # ── Password reset columns (additive, runs every startup — safe no-ops after first run) ──
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP"))
+            conn.commit()
+    except Exception:
+        pass
+
     # ── Plan/invite columns (additive, runs every startup — safe no-ops after first run) ──
     try:
         with engine.connect() as conn:

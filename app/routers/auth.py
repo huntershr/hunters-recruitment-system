@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from jose import JWTError, jwt
-from datetime import timedelta
+from datetime import datetime, timedelta
 import os
+import secrets
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from .. import models, schemas, database
 from ..auth_utils import verify_password, get_password_hash, create_access_token, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -176,3 +180,96 @@ def reset_candidate_password(user_id: int, body: dict, current_user: models.User
     user.hashed_password = get_password_hash(new_password)
     db.commit()
     return {"detail": "Password reset"}
+
+
+def send_reset_email(to_email: str, reset_url: str):
+    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_pass = os.getenv("SMTP_PASS", "")
+    from_email = os.getenv("FROM_EMAIL", smtp_user)
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Reset Your Hunters HR Password"
+    msg["From"] = f"Hunters HR <{from_email}>"
+    msg["To"] = to_email
+
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
+      <div style="background:#1B2A4A;padding:24px;text-align:center;">
+        <h2 style="color:#C9A84C;margin:0;letter-spacing:2px;">HUNTERS HR</h2>
+        <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:12px;">FOR HR TRANSFORMATION & EXECUTION</p>
+      </div>
+      <div style="padding:32px;background:#f9f9f9;">
+        <h3 style="color:#1B2A4A;">Password Reset Request</h3>
+        <p style="color:#555;line-height:1.6;">We received a request to reset your password. Click the button below to set a new password. This link expires in <strong>2 hours</strong>.</p>
+        <div style="text-align:center;margin:32px 0;">
+          <a href="{reset_url}" style="background:#1B2A4A;color:white;padding:14px 32px;border-radius:4px;text-decoration:none;font-weight:600;font-size:15px;">Reset My Password</a>
+        </div>
+        <p style="color:#888;font-size:13px;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+        <p style="color:#888;font-size:12px;margin-top:16px;">Or copy this link:<br><a href="{reset_url}" style="color:#C9A84C;">{reset_url}</a></p>
+      </div>
+      <div style="background:#1B2A4A;padding:16px;text-align:center;">
+        <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;">Powered by Hunters HR | hunters-egypt.com</p>
+      </div>
+    </div>
+    """
+
+    msg.attach(MIMEText(html, "html"))
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.ehlo()
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(from_email, to_email, msg.as_string())
+
+
+@router.post("/forgot-password")
+def forgot_password(request: Request, data: dict, db: Session = Depends(get_db)):
+    email = data.get("email", "").strip().lower()
+    user = db.query(models.User).filter(func.lower(models.User.email) == email).first()
+
+    if not user:
+        return {"message": "If that email exists, a reset link has been sent."}
+
+    token = secrets.token_urlsafe(32)
+    user.reset_token = token
+    user.reset_token_expires = datetime.utcnow() + timedelta(hours=2)
+    db.commit()
+
+    host = request.headers.get("host", "app.hunters-egypt.com")
+    scheme = "https" if "hunters-egypt" in host else "http"
+    reset_url = f"{scheme}://{host}/reset-password.html?token={token}"
+
+    try:
+        send_reset_email(user.email, reset_url)
+    except Exception as e:
+        print(f"Email send failed: {e}")
+
+    return {"message": "If that email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+def reset_password(data: dict, db: Session = Depends(get_db)):
+    token = data.get("token", "")
+    new_password = data.get("password", "")
+
+    if not token or not new_password or len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    user = db.query(models.User).filter(models.User.reset_token == token).first()
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+
+    if user.reset_token_expires < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Reset link has expired. Please request a new one.")
+
+    from passlib.context import CryptContext
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    user.hashed_password = pwd_context.hash(new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    db.commit()
+
+    return {"message": "Password updated successfully"}
