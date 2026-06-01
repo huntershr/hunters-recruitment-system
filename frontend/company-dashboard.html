@@ -3182,11 +3182,17 @@
         // When not pre-filled, fetch any existing interview for this application
         if (!isEdit) {
             fetch('/api/admin/interviews/' + appId, {
-                headers: {'Authorization': 'Bearer ' + (localStorage.getItem('accessToken') || localStorage.getItem('token') || '')}
+                headers: {'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')}
             })
             .then(function(r) { return r.ok ? r.json() : null; })
             .then(function(data) {
                 if (!data || !data.id) return;
+                // Switch modal to edit mode to prevent duplicate creation
+                var submitBtn = document.getElementById('iv-submit-btn');
+                if (submitBtn) {
+                    submitBtn.textContent = 'Save Changes ▶';
+                    submitBtn.onclick = function() { _updateInterview(data.id, appId); };
+                }
                 if (document.getElementById('iv-date')) document.getElementById('iv-date').value = data.interview_date || '';
                 if (document.getElementById('iv-time')) document.getElementById('iv-time').value = data.interview_time || '';
                 if (document.getElementById('iv-duration')) document.getElementById('iv-duration').value = data.duration_minutes || 60;
