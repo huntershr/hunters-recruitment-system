@@ -3178,6 +3178,26 @@
             '</div>' +
             '</div>';
         document.body.appendChild(modal);
+
+        // When not pre-filled, fetch any existing interview for this application
+        if (!isEdit) {
+            fetch('/api/admin/interviews/' + appId, {
+                headers: {'Authorization': 'Bearer ' + (localStorage.getItem('accessToken') || localStorage.getItem('token') || '')}
+            })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+                if (!data || !data.id) return;
+                if (document.getElementById('iv-date')) document.getElementById('iv-date').value = data.interview_date || '';
+                if (document.getElementById('iv-time')) document.getElementById('iv-time').value = data.interview_time || '';
+                if (document.getElementById('iv-duration')) document.getElementById('iv-duration').value = data.duration_minutes || 60;
+                if (document.getElementById('iv-location-value')) document.getElementById('iv-location-value').value = data.location_value || '';
+                if (document.getElementById('iv-interviewers')) document.getElementById('iv-interviewers').value = data.interviewer_names || '';
+                if (data.location_type) {
+                    var locRadio = document.querySelector('input[name="iv-loc-type"][value="' + data.location_type + '"]');
+                    if (locRadio) { locRadio.checked = true; _ivLocTypeChange(data.location_type); }
+                }
+            }).catch(function() {});
+        }
     }
 
     function _ivLocTypeChange(type) {
@@ -4072,7 +4092,8 @@ function _jobOptions() {
   var jobs = (window.huntersAllJobs && window.huntersAllJobs.length)
       ? window.huntersAllJobs
       : (window.__allCompanyJobs || []);
-  jobs.filter(function(j){ return j.is_approved || j.status === 'Approved'; }).forEach(function(j){
+  if (!jobs.length) jobs = (typeof coJobsData !== 'undefined' ? coJobsData : []);
+  jobs.filter(function(j){ return j.is_approved || j.status === 'Approved' || j.status === 'approved' || j.status === 'active'; }).forEach(function(j){
     opts += '<option value="' + j.id + '">' + (j.job_title || j.title || '') + '</option>';
   });
   return opts;
