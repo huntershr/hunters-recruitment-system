@@ -2563,7 +2563,7 @@ function _renderCoWsJobs(jobs) {
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
                     <span style="padding:2px 8px;border-radius:8px;font-size:10px;background:${j.is_approved?'#E1F5EE':'#FAEEDA'};color:${j.is_approved?'#0F6E56':'#854F0B'};">${j.is_approved?'Live':'Pending'}</span>
-                    <button onclick="window.open('/job-view.html?job=${j.id}','_blank')" title="Preview" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Preview</button>
+                    <button onclick="window.open('/apply.html?job_id=${j.id}','_blank')" title="Preview" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Preview</button>
                     <button onclick="_coWsEditJobModal(${j.id})" title="Edit" style="background:#FBF7E8;color:#C9A84C;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Edit</button>
                     <button onclick="_coWsShareJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" title="Share" style="background:#F0FFF4;color:#0F6E56;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Share</button>
                     <button onclick="_coWsDeleteJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" title="Delete" style="background:#FEECEC;color:#DC2626;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Delete</button>
@@ -2708,7 +2708,7 @@ async function _coWsDeleteJob(jobId, jobTitle) {
 }
 
 function _coWsShareJob(jobId, jobTitle) {
-    const url = window.location.origin + '/job-view.html?job=' + jobId;
+    const url = window.location.origin + '/apply.html?job_id=' + jobId;
     const caption = encodeURIComponent(jobTitle + '\n' + url);
     createAdminModal('Share Job — ' + jobTitle,
         `<div style="display:flex;flex-direction:column;gap:10px;">
