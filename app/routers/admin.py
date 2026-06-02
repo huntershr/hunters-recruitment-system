@@ -40,6 +40,12 @@ class PlanUpdateRequest(BaseModel):
     billing_status: str = "active"
 
 
+class InviteUserRequest(BaseModel):
+    full_name: str
+    email: str
+    password: str
+
+
 def _build_stage_notifications(application, stage: str, db: Session) -> list:
     """Build notification payloads for a stage transition. Returns empty list for stages with no notifications."""
     job = application.job
@@ -435,6 +441,127 @@ def get_company_overview(
             for j in sorted(jobs, key=lambda x: x.created_at or datetime(2000, 1, 1), reverse=True)[:5]
         ],
     }
+
+
+@router.get("/companies/{company_id}/users")
+def list_company_users(
+    company_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """List all users belonging to a company."""
+    _admin(current_user)
+    users = db.query(models.User).filter(
+        models.User.company_id == company_id,
+        models.User.is_admin == False,
+    ).order_by(models.User.id).all()
+    return [
+        {
+            "id": u.id,
+            "full_name": u.full_name or "",
+            "email": u.email,
+            "is_active": u.is_active,
+            "created_at": None,
+        }
+        for u in users
+    ]
+
+
+@router.post("/companies/{company_id}/invite-user")
+def invite_company_user(
+    company_id: int,
+    payload: InviteUserRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Add a second user to a company (max 2 per company)."""
+    _admin(current_user)
+    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    existing_count = db.query(models.User).filter(
+        models.User.company_id == company_id,
+        models.User.is_admin == False,
+    ).count()
+    if existing_count >= 2:
+        raise HTTPException(status_code=400, detail="Maximum 2 users allowed per company")
+
+    email = payload.email.strip().lower()
+    if db.query(models.User).filter(func.lower(models.User.email) == email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    from ..auth_utils import get_password_hash
+    new_user = models.User(
+        email=email,
+        full_name=payload.full_name.strip(),
+        hashed_password=get_password_hash(payload.password),
+        company_id=company_id,
+        is_active=True,
+        is_admin=False,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    # Send welcome email via SendGrid if configured
+    import os
+    sg_key = os.getenv("SENDGRID_API_KEY", "")
+    if sg_key:
+        try:
+            from sendgrid import SendGridAPIClient
+            from sendgrid.helpers.mail import Mail, From, To, Subject, HtmlContent
+            html = f"""
+            <div style="font-family:'Segoe UI',Arial,sans-serif;background:#F5F6F8;padding:40px 0;margin:0">
+              <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08)">
+                <div style="background:#1B2A4A;padding:28px 32px;text-align:center">
+                  <div style="color:#C9A84C;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px">Hunters HR</div>
+                  <div style="color:#fff;font-size:22px;font-weight:600">Welcome to {company.company_name}</div>
+                </div>
+                <div style="padding:32px">
+                  <p style="color:#1B2A4A;font-size:15px;margin:0 0 16px">Hi {payload.full_name},</p>
+                  <p style="color:#555;font-size:14px;margin:0 0 16px">You have been added as a user for <strong>{company.company_name}</strong> on the Hunters HR platform.</p>
+                  <p style="color:#555;font-size:14px;margin:0 0 8px"><strong>Email:</strong> {email}</p>
+                  <p style="color:#555;font-size:14px;margin:0 0 28px"><strong>Password:</strong> {payload.password}</p>
+                  <div style="text-align:center;margin-bottom:28px">
+                    <a href="https://app.hunters-egypt.com" style="background:#C9A84C;color:#1B2A4A;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Login to Dashboard</a>
+                  </div>
+                </div>
+              </div>
+            </div>"""
+            msg = Mail(
+                from_email=From("hr@hunters-egypt.com", "Hunters HR"),
+                to_emails=To(email),
+                subject=Subject(f"Welcome to {company.company_name} on Hunters HR"),
+                html_content=HtmlContent(html)
+            )
+            SendGridAPIClient(sg_key).send(msg)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Welcome email failed for {email}: {e}")
+
+    return {"id": new_user.id, "email": new_user.email, "full_name": new_user.full_name, "is_active": True}
+
+
+@router.delete("/companies/{company_id}/users/{user_id}")
+def deactivate_company_user(
+    company_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Deactivate (not delete) a company user."""
+    _admin(current_user)
+    user = db.query(models.User).filter(
+        models.User.id == user_id,
+        models.User.company_id == company_id,
+        models.User.is_admin == False,
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_active = False
+    db.commit()
+    return {"message": f"User {user.email} deactivated"}
 
 
 @router.patch("/companies/{company_id}/plan")

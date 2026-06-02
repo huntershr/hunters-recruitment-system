@@ -1086,9 +1086,11 @@
                             ${phone ? `<div style="margin-top:3px;font-size:12px;">${waLink ? `<a href="${waLink}" target="_blank" style="color:#0F6E56;text-decoration:none;font-weight:500;">${preferredIcon} ${phone}</a>` : `${preferredIcon} ${phone}`} <span style="color:#9CA3AF;margin-left:4px;">via ${company.preferred_contact || 'whatsapp'}</span></div>` : ''}
                             <div class="approval-item-date">Registered: ${createdDate}</div>
                         </div>
-                        <div class="approval-item-right">
+                        <div class="approval-item-right" style="flex-wrap:wrap;gap:6px;">
                             <button class="btn-approve" onclick="approveCompany(${company.id})">Approve</button>
                             <button class="btn-reject"  onclick="showRejectCompanyForm(${company.id})">Reject</button>
+                            <button onclick="enterCompany(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;">👁 Enter</button>
+                            <button onclick="openUsersModal(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#F4F5FA;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;">👥 Users</button>
                         </div>
                     </div>
                 `;
@@ -1342,6 +1344,94 @@
         if (sec) sec.style.display = 'none';
         showAlert('AI filled Job Description and Skills', 'success', 'jobs-alert');
     }
+
+    // ── Enter Company (impersonation) ────────────────────────────────────
+    function enterCompany(companyId, companyName) {
+        localStorage.setItem('hunters_admin_return', 'true');
+        localStorage.setItem('hunters_impersonate_company_id', companyId);
+        localStorage.setItem('hunters_impersonate_company_name', companyName);
+        window.location.href = '/company-dashboard.html';
+    }
+
+    // ── Company Users Modal ──────────────────────────────────────────────
+    let _usersModalCompanyId = null;
+
+    async function openUsersModal(companyId, companyName) {
+        _usersModalCompanyId = companyId;
+        document.getElementById('users-modal-title').textContent = `Manage Users — ${companyName}`;
+        document.getElementById('users-modal').style.display = 'flex';
+        await loadCompanyUsers();
+    }
+
+    function closeUsersModal() {
+        document.getElementById('users-modal').style.display = 'none';
+        _usersModalCompanyId = null;
+    }
+
+    async function loadCompanyUsers() {
+        const token = localStorage.getItem('token');
+        const tbody = document.getElementById('users-table-body');
+        const countEl = document.getElementById('users-count');
+        const addForm = document.getElementById('add-user-form');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:16px;">Loading…</td></tr>';
+        try {
+            const res = await fetch(`${API_URL}/api/admin/companies/${_usersModalCompanyId}/users`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const users = res.ok ? await res.json() : [];
+            countEl.textContent = `${users.length} of 2 users`;
+            tbody.innerHTML = users.length ? '' : '<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:16px;">No users yet</td></tr>';
+            users.forEach(u => {
+                tbody.innerHTML += `<tr>
+                    <td style="padding:10px 12px;font-size:13px;color:#1B2A4A;">${u.full_name || '—'}</td>
+                    <td style="padding:10px 12px;font-size:13px;color:#6B7280;">${u.email}</td>
+                    <td style="padding:10px 12px;"><span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${u.is_active?'#E1F5EE':'#FCEBEB'};color:${u.is_active?'#0F6E56':'#A32D2D'};">${u.is_active?'Active':'Inactive'}</span></td>
+                    <td style="padding:10px 12px;">${u.is_active?`<button onclick="deactivateUser(${u.id})" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;">Deactivate</button>`:'—'}</td>
+                </tr>`;
+            });
+            addForm.style.display = users.length >= 2 ? 'none' : 'block';
+            document.getElementById('users-max-msg').style.display = users.length >= 2 ? 'block' : 'none';
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="4" style="color:#A32D2D;padding:16px;text-align:center;">Error loading users</td></tr>`;
+        }
+    }
+
+    async function deactivateUser(userId) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/api/admin/companies/${_usersModalCompanyId}/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) { showAlert('User deactivated', 'success', 'users-alert'); await loadCompanyUsers(); }
+        else { const e = await res.json().catch(()=>({})); showAlert(e.detail || 'Failed to deactivate', 'error', 'users-alert'); }
+    }
+
+    async function submitAddUser(e) {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        const name  = document.getElementById('new-user-name').value.trim();
+        const email = document.getElementById('new-user-email').value.trim();
+        const pass  = document.getElementById('new-user-pass').value;
+        if (!name || !email || !pass) { showAlert('All fields required', 'error', 'users-alert'); return; }
+        const btn = document.getElementById('add-user-btn');
+        btn.disabled = true; btn.textContent = 'Adding…';
+        try {
+            const res = await fetch(`${API_URL}/api/admin/companies/${_usersModalCompanyId}/invite-user`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ full_name: name, email, password: pass })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Failed');
+            showAlert('User added and welcome email sent', 'success', 'users-alert');
+            document.getElementById('add-user-form').reset();
+            await loadCompanyUsers();
+        } catch(err) {
+            showAlert(err.message, 'error', 'users-alert');
+        } finally {
+            btn.disabled = false; btn.textContent = 'Add User';
+        }
+    }
 </script>
 <!-- JOB MODAL -->
 <div id="hunters-job-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
@@ -1506,5 +1596,64 @@
     </div>
 </div>
 <script src="hunters-jobs.js"></script>
+
+<!-- ── COMPANY USERS MODAL ── -->
+<div id="users-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;width:580px;max-width:calc(100vw - 40px);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.2);overflow:hidden;">
+    <!-- Header -->
+    <div style="background:#1B2A4A;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div id="users-modal-title" style="color:#fff;font-size:15px;font-weight:500;">Manage Users</div>
+        <div id="users-count" style="color:#C9A84C;font-size:11px;margin-top:2px;">0 of 2 users</div>
+      </div>
+      <button onclick="closeUsersModal()" style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:22px;line-height:1;">&times;</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:24px;overflow-y:auto;flex:1;">
+      <div id="users-alert" style="margin-bottom:12px;"></div>
+      <!-- Users table -->
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <thead>
+          <tr style="background:#F4F5FA;">
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Name</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Email</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Status</th>
+            <th style="padding:10px 12px;border-bottom:1px solid #E5E7EB;"></th>
+          </tr>
+        </thead>
+        <tbody id="users-table-body"></tbody>
+      </table>
+
+      <!-- Max reached message -->
+      <div id="users-max-msg" style="display:none;background:#FEF9EC;border:1px solid #C9A84C44;border-radius:8px;padding:12px 16px;font-size:13px;color:#854F0B;margin-bottom:16px;">
+        Maximum 2 users per company reached. Upgrade plan for more users.
+      </div>
+
+      <!-- Add user form -->
+      <form id="add-user-form" onsubmit="submitAddUser(event)" style="background:#F4F5FA;border-radius:12px;padding:20px;">
+        <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:14px;">+ Add Second User</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div>
+            <label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.04em;">Full Name</label>
+            <input id="new-user-name" required type="text" placeholder="e.g. Sara Ahmed" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.04em;">Email</label>
+            <input id="new-user-email" required type="email" placeholder="user@company.com" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.04em;">Password</label>
+          <input id="new-user-pass" required type="password" placeholder="Minimum 6 characters" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">
+        </div>
+        <button id="add-user-btn" type="submit" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;">Add User &amp; Send Welcome Email</button>
+      </form>
+    </div>
+    <!-- Footer -->
+    <div style="padding:14px 24px;border-top:1px solid #F3F4F6;text-align:right;">
+      <button onclick="closeUsersModal()" style="padding:9px 20px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Close</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
