@@ -10,13 +10,20 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+import logging
 from .. import models, schemas, database
 from ..auth_utils import verify_password, get_password_hash, create_access_token, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )
+
+# Warn at import time if SMTP is unconfigured so it shows in Railway startup logs
+if not os.getenv("SMTP_USER") or not os.getenv("SMTP_PASS"):
+    logger.warning("SMTP_USER or SMTP_PASS not set — password reset emails will fail silently")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -243,8 +250,9 @@ def forgot_password(request: Request, data: dict, db: Session = Depends(get_db))
 
     try:
         send_reset_email(user.email, reset_url)
+        logger.info(f"Password reset email sent to {user.email}")
     except Exception as e:
-        print(f"Email send failed: {e}")
+        logger.error(f"Password reset email FAILED for {user.email}: {e}")
 
     return {"message": "If that email exists, a reset link has been sent."}
 
