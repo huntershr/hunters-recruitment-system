@@ -235,9 +235,13 @@ function updateDashboard() {
     if (shortTrend) shortTrend.innerText = shortlisted > 0 ? `${shortlisted} shortlisted` : "None yet";
 
     const tbody = document.querySelector("#recent-candidates-table tbody");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
-    const recent = candidates.slice(-5).reverse();
+    // Use applications array (primary data source) — fall back to legacy candidates
+    const src = (applications && applications.length) ? applications : candidates;
+    const recent = src.slice(0, 10);
+
     if (recent.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6">
             <div class="empty-state">
@@ -255,20 +259,29 @@ function updateDashboard() {
         return;
     }
 
-    recent.forEach(c => {
-        const job = jobs.find(j => j.id === c.job_applied);
-        const ev = evaluations.find(e => e.candidate_id === c.id);
-        const score = ev ? ev.score : null;
-        const decision = ev ? ev.decision : null;
+    recent.forEach(row => {
+        // Support both applications objects and legacy candidate objects
+        const name     = row.name || row.applicant_name || '—';
+        const email    = row.email || row.applicant_email || '';
+        const jobTitle = row.job_title || (jobs.find(j => j.id === (row.job_applied || row.job_id)) || {}).job_title || '—';
+        const stage    = row.stage || row.decision || null;
+        const score    = row.score != null ? row.score : null;
+        const decision = row.decision || null;
+        const viewId   = row.application_id || row.id;
+        const viewFn   = row.application_id ? `viewApplication(${row.application_id})` : `viewCandidate(${row.id})`;
+
+        const scoreColor = score == null ? '#6B7280' : score >= 75 ? '#0F6E56' : score >= 50 ? '#854F0B' : '#A32D2D';
+        const scoreBg    = score == null ? '#F0F2F8'  : score >= 75 ? '#E1F5EE'  : score >= 50 ? '#FAEEDA'  : '#FCEBEB';
+        const scoreText  = score != null ? Math.round(score) + '%' : '—';
 
         tbody.innerHTML += `
             <tr>
-                <td><strong>${c.name}</strong><br><small style="color:#9CA3AF">${c.email || ''}</small></td>
-                <td>${job ? job.job_title : '—'}</td>
-                <td>${stagePillHtml(decision)}</td>
-                <td>${scoreBadgeHtml(score)}</td>
-                <td><span class="badge ${decision ? decision.toLowerCase() : 'pending'}">${decision || 'Pending'}</span></td>
-                <td><button class="btn-action" onclick="viewCandidate(${c.id})">View Report</button></td>
+                <td><strong>${escHtml(name)}</strong><br><small style="color:#9CA3AF">${escHtml(email)}</small></td>
+                <td>${escHtml(jobTitle)}</td>
+                <td>${stagePillHtml(stage)}</td>
+                <td><span style="display:inline-flex;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${scoreBg};color:${scoreColor};">${scoreText}</span></td>
+                <td><span class="badge ${decision ? decision.toLowerCase() : 'pending'}">${escHtml(decision || 'Pending')}</span></td>
+                <td><button class="btn-action" onclick="${viewFn}">View</button></td>
             </tr>
         `;
     });
@@ -614,6 +627,8 @@ function _renderStageCard(app) {
                 ${app.cv_available?`<button onclick="downloadAppCV(${app.application_id},'${safeName}')" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">CV</button>`:''}
                 ${isReg&&app.candidate_id?`<button onclick="viewAtsProfile(${app.application_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#185FA5;cursor:pointer;min-height:44px;">Profile</button>`:''}
                 ${stg==='interview'?`<button onclick="openScheduleInterviewModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}',null)" style="padding:7px 12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">📅 Schedule</button>`:''}
+                ${app.email?`<button onclick="sendCandidateEmail('${(app.email||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}','${(app.company_name||'Hunters HR').replace(/'/g,"\\'")}')" style="padding:7px 12px;border:1px solid #1B2A4A;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#1B2A4A;cursor:pointer;min-height:44px;" title="Send Email">✉</button>`:''}
+                ${app.phone?`<button onclick="sendCandidateWhatsApp('${(app.phone||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}')" style="padding:7px 12px;border:1px solid #25D366;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#25D366;cursor:pointer;min-height:44px;" title="WhatsApp">WhatsApp</button>`:''}
             </div>
             <div onclick="event.stopPropagation()" style="min-width:160px;">
                 <select onchange="changeAppStage(${app.application_id},this.value,this)" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:11px;color:#6B7280;background:#F9FAFB;cursor:pointer;min-height:44px;">
@@ -953,6 +968,18 @@ function downloadAdminCV(id, safeName) {
 
 function downloadCandidateCV(id, safeName) {
     downloadAdminCV(id, safeName);
+}
+
+function sendCandidateEmail(email, name, jobTitle, companyName) {
+    const subject = `Regarding Your Application — ${name}`;
+    const body = `Dear ${name},\n\nThank you for applying to ${jobTitle} at ${companyName}.\n\nBest regards,\nHunters HR Team`;
+    window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+}
+
+function sendCandidateWhatsApp(phone, name, jobTitle) {
+    const cleanPhone = (phone || '').replace(/[^0-9+]/g, '');
+    const msg = `Hello ${name}, this is Hunters HR Team reaching out regarding your application for ${jobTitle}. `;
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`);
 }
 
 // Phase 3: download CV via application ID (handles both Type A and Type B)

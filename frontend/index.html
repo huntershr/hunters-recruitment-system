@@ -581,6 +581,10 @@
                     <button class="btn-secondary" style="color:#CC2B2B;border-color:#fbc9c9;width:auto;" onclick="deleteAllCandidates()">
                         <i class='bx bx-trash'></i> Delete All
                     </button>
+                    <button class="btn-secondary" style="width:auto;" onclick="openAdminBulkUpload()">
+                        <svg viewBox="0 0 16 16" fill="none" width="11" height="11" style="stroke:currentColor;fill:none;stroke-width:1.5;flex-shrink:0;"><path d="M8 2v8M5 5l3-3 3 3M2 13h12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Bulk Upload
+                    </button>
                     <button class="btn-primary" style="width:auto;" onclick="openCandidateModal()">
                         <svg viewBox="0 0 16 16" fill="none" width="11" height="11" style="stroke:currentColor;fill:none;stroke-width:2.5;flex-shrink:0;"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
                         Add Candidate
@@ -1115,6 +1119,180 @@ function confirmResetPassword(){
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- CACHE VERSION: bump ?v= number on every app.js change -->
-<script src="app.js?v=1.38"></script>
+<script src="app.js?v=1.39"></script>
+
+<!-- ── SUPERADMIN BULK UPLOAD MODAL ── -->
+<div id="admin-bulk-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;width:640px;max-width:calc(100vw - 40px);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.2);overflow:hidden;">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#1B2A4A,#2C3E6B);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="color:#fff;font-size:15px;font-weight:500;">Bulk CV Upload — All Companies</div>
+        <div style="color:#C9A84C;font-size:11px;margin-top:2px;">Powered by Hunters AI</div>
+      </div>
+      <button onclick="closeAdminBulkUpload()" style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:22px;line-height:1;">&times;</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:24px;overflow-y:auto;flex:1;">
+      <!-- Job selector -->
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Apply to Job (optional)</label>
+        <select id="admin-bulk-job-select" style="width:100%;padding:10px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;">
+          <option value="">— Screen without job match —</option>
+        </select>
+      </div>
+      <!-- Drop zone -->
+      <div id="admin-bulk-drop-zone" onclick="document.getElementById('admin-bulk-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='#C9A84C'" ondragleave="this.style.borderColor='#E5E7EB'" ondrop="adminBulkDrop(event)" style="border:2px dashed #E5E7EB;border-radius:12px;padding:32px 24px;text-align:center;cursor:pointer;background:#FAFBFC;transition:border-color 0.2s;margin-bottom:12px;">
+        <div style="font-size:13px;color:#6B7280;">Drop PDFs / DOCX here or <span style="color:#1B2A4A;font-weight:600;">click to browse</span></div>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Up to 15 files · PDF and DOCX</div>
+        <input type="file" id="admin-bulk-file-input" multiple accept=".pdf,.docx" style="display:none;" onchange="adminBulkFilesChosen(this.files)">
+      </div>
+      <!-- File list -->
+      <div id="admin-bulk-file-list" style="display:flex;flex-direction:column;gap:6px;max-height:140px;overflow-y:auto;margin-bottom:12px;"></div>
+      <div id="admin-bulk-file-count" style="font-size:11px;color:#9CA3AF;margin-bottom:12px;">0 / 15 files selected</div>
+      <!-- Progress -->
+      <div id="admin-bulk-progress" style="display:none;flex-direction:column;gap:6px;margin-bottom:12px;"></div>
+      <!-- Results -->
+      <div id="admin-bulk-results" style="display:none;">
+        <div style="font-size:12px;font-weight:600;color:#1B2A4A;margin-bottom:8px;">Results</div>
+        <div id="admin-bulk-results-list" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:14px 24px;border-top:1px solid #F3F4F6;display:flex;justify-content:flex-end;gap:10px;">
+      <button onclick="closeAdminBulkUpload()" style="padding:9px 20px;border:1px solid #E5E7EB;border-radius:8px;background:#F4F5FA;color:#1B2A4A;font-size:13px;cursor:pointer;">Cancel</button>
+      <button id="admin-bulk-start-btn" disabled onclick="startAdminBulkProcessing()" style="padding:9px 20px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;opacity:0.5;">Start Screening ▶</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var _adminBulkFiles = [];
+
+function openAdminBulkUpload() {
+  // Populate job dropdown from all companies
+  var sel = document.getElementById('admin-bulk-job-select');
+  if (sel) {
+    sel.innerHTML = '<option value="">— Screen without job match —</option>';
+    var token = localStorage.getItem('token');
+    fetch('/jobs/admin/all', { headers: { 'Authorization': 'Bearer ' + token } })
+      .then(function(r) { return r.ok ? r.json() : []; })
+      .then(function(jobList) {
+        (Array.isArray(jobList) ? jobList : []).forEach(function(j) {
+          var opt = document.createElement('option');
+          opt.value = j.id;
+          opt.textContent = (j.job_title || j.title || 'Untitled') + (j.company_name ? ' — ' + j.company_name : '');
+          sel.appendChild(opt);
+        });
+      }).catch(function() {});
+  }
+  _adminBulkFiles = [];
+  document.getElementById('admin-bulk-file-list').innerHTML = '';
+  document.getElementById('admin-bulk-file-count').textContent = '0 / 15 files selected';
+  document.getElementById('admin-bulk-progress').style.display = 'none';
+  document.getElementById('admin-bulk-results').style.display = 'none';
+  var btn = document.getElementById('admin-bulk-start-btn');
+  btn.disabled = true; btn.style.opacity = '0.5';
+  document.getElementById('admin-bulk-modal').style.display = 'flex';
+}
+
+function closeAdminBulkUpload() {
+  document.getElementById('admin-bulk-modal').style.display = 'none';
+}
+
+function adminBulkDrop(e) {
+  e.preventDefault();
+  document.getElementById('admin-bulk-drop-zone').style.borderColor = '#E5E7EB';
+  adminBulkFilesChosen(e.dataTransfer.files);
+}
+
+function adminBulkFilesChosen(files) {
+  if (!files || !files.length) return;
+  var newFiles = Array.from(files).filter(function(f) {
+    return f.name.match(/\.(pdf|docx)$/i);
+  });
+  _adminBulkFiles = _adminBulkFiles.concat(newFiles).slice(0, 15);
+  var listEl = document.getElementById('admin-bulk-file-list');
+  listEl.innerHTML = '';
+  _adminBulkFiles.forEach(function(f) {
+    var ext = f.name.split('.').pop().toUpperCase();
+    var bg  = ext === 'PDF' ? '#FCEBEB' : '#E8F5E9';
+    var col = ext === 'PDF' ? '#A32D2D' : '#2E7D32';
+    listEl.innerHTML += '<div style="display:flex;align-items:center;gap:10px;background:#F5F6F8;border-radius:8px;padding:7px 12px;">' +
+      '<span style="background:' + bg + ';color:' + col + ';border-radius:5px;padding:2px 7px;font-size:10px;font-weight:600;">' + ext + '</span>' +
+      '<span style="flex:1;font-size:12px;color:#1B2A4A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f.name + '</span>' +
+      '<span style="font-size:11px;color:#9CA3AF;">' + Math.round(f.size / 1024) + ' KB</span>' +
+      '</div>';
+  });
+  document.getElementById('admin-bulk-file-count').textContent = _adminBulkFiles.length + ' / 15 files selected';
+  var btn = document.getElementById('admin-bulk-start-btn');
+  btn.disabled = !_adminBulkFiles.length;
+  btn.style.opacity = _adminBulkFiles.length ? '1' : '0.5';
+}
+
+async function startAdminBulkProcessing() {
+  if (!_adminBulkFiles.length) return;
+  var jobId = document.getElementById('admin-bulk-job-select').value;
+  var token = localStorage.getItem('token');
+  var btn = document.getElementById('admin-bulk-start-btn');
+  btn.disabled = true; btn.textContent = 'Processing…';
+
+  var progressEl = document.getElementById('admin-bulk-progress');
+  progressEl.style.display = 'flex';
+  progressEl.innerHTML = '';
+  document.getElementById('admin-bulk-results').style.display = 'none';
+
+  var results = [];
+
+  for (var i = 0; i < _adminBulkFiles.length; i++) {
+    var f = _adminBulkFiles[i];
+    var rowId = 'abp-' + i;
+    progressEl.innerHTML += '<div id="' + rowId + '" style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:#F5F6F8;border-radius:8px;">' +
+      '<span style="flex:1;font-size:12px;color:#1B2A4A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f.name + '</span>' +
+      '<span style="font-size:11px;color:#9CA3AF;">Screening…</span>' +
+      '</div>';
+
+    try {
+      var fd = new FormData();
+      fd.append('file', f);
+      if (jobId) fd.append('job_id', jobId);
+      var res = await fetch('/candidates/screen-cv', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+        body: fd
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed');
+      var score = data.score != null ? Math.round(data.score) : null;
+      var scoreColor = score == null ? '#6B7280' : score >= 75 ? '#0F6E56' : score >= 50 ? '#854F0B' : '#A32D2D';
+      var row = document.getElementById(rowId);
+      if (row) row.innerHTML = '<span style="flex:1;font-size:12px;color:#1B2A4A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f.name + '</span>' +
+        '<span style="font-size:11px;font-weight:600;color:' + scoreColor + ';">' + (score != null ? score + '% · ' : '') + (data.decision || '—') + '</span>';
+      results.push({ name: data.name || f.name, score: score, decision: data.decision, email: data.email });
+    } catch (err) {
+      var row2 = document.getElementById(rowId);
+      if (row2) row2.innerHTML += '<span style="font-size:11px;color:#A32D2D;">Error: ' + err.message + '</span>';
+      results.push({ name: f.name, score: null, decision: 'Error', error: err.message });
+    }
+  }
+
+  // Show summary
+  var resEl = document.getElementById('admin-bulk-results');
+  var resList = document.getElementById('admin-bulk-results-list');
+  resList.innerHTML = results.map(function(r) {
+    var sc = r.score != null ? Math.round(r.score) : null;
+    var sc_col = sc == null ? '#6B7280' : sc >= 75 ? '#0F6E56' : sc >= 50 ? '#854F0B' : '#A32D2D';
+    var sc_bg  = sc == null ? '#F0F2F8'  : sc >= 75 ? '#E1F5EE'  : sc >= 50 ? '#FAEEDA'  : '#FCEBEB';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB;">' +
+      '<span style="flex:1;font-size:12px;color:#1B2A4A;">' + (r.name || '—') + '</span>' +
+      '<span style="display:inline-flex;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600;background:' + sc_bg + ';color:' + sc_col + ';">' + (sc != null ? sc + '%' : '—') + '</span>' +
+      '<span style="font-size:11px;color:#6B7280;">' + (r.decision || '—') + '</span>' +
+      '</div>';
+  }).join('');
+  resEl.style.display = 'block';
+  btn.textContent = 'Done ✓';
+  if (typeof fetchData === 'function') fetchData();
+}
+</script>
 </body>
 </html>

@@ -1288,6 +1288,60 @@
 
     // Initialize on page load
     initializeDashboard();
+
+    // ── Write with AI — SuperAdmin job modal ──────────────────────────────
+    function toggleAdminAISection() {
+        const sec = document.getElementById('admin-ai-section');
+        if (sec) sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+    }
+
+    let _adminAIResult = null;
+
+    async function generateJobFromAIAdmin() {
+        const title    = (document.getElementById('job-modal-title-input')?.value || '').trim();
+        const industry = (document.getElementById('admin-ai-industry')?.value || '').trim();
+        const context  = (document.getElementById('admin-ai-context')?.value || '').trim();
+        if (!title)    { showAlert('Please enter a Job Title in Step 1 first', 'error', 'jobs-alert'); return; }
+        if (!industry) { showAlert('Please enter the Industry / Background', 'error', 'jobs-alert'); return; }
+        const genBtn  = document.getElementById('admin-ai-generate-btn');
+        const loadEl  = document.getElementById('admin-ai-generating');
+        const prevEl  = document.getElementById('admin-ai-preview');
+        const accBtn  = document.getElementById('admin-ai-accept-btn');
+        if (genBtn) genBtn.disabled = true;
+        if (loadEl) loadEl.style.display = 'block';
+        if (prevEl) prevEl.style.display = 'none';
+        if (accBtn) accBtn.style.display = 'none';
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/ai/generate-job', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ job_title: title, industry_background: industry, additional_context: context })
+            });
+            if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Generation failed'); }
+            _adminAIResult = await res.json();
+            const prevBrief = document.getElementById('admin-ai-preview-brief');
+            if (prevBrief) prevBrief.textContent = _adminAIResult.job_brief || '';
+            if (loadEl) loadEl.style.display = 'none';
+            if (prevEl) prevEl.style.display = 'block';
+            if (accBtn) accBtn.style.display = 'flex';
+        } catch (err) {
+            if (loadEl) loadEl.style.display = 'none';
+            showAlert('AI generation failed: ' + (err.message || 'Please try again'), 'error', 'jobs-alert');
+        } finally {
+            if (genBtn) genBtn.disabled = false;
+        }
+    }
+
+    function acceptAIJobAdmin() {
+        if (!_adminAIResult) return;
+        const fill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        fill('job-modal-desc',   _adminAIResult.job_brief);
+        fill('job-modal-skills', _adminAIResult.required_skills);
+        const sec = document.getElementById('admin-ai-section');
+        if (sec) sec.style.display = 'none';
+        showAlert('AI filled Job Description and Skills', 'success', 'jobs-alert');
+    }
 </script>
 <!-- JOB MODAL -->
 <div id="hunters-job-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
@@ -1366,7 +1420,30 @@
                 <!-- STEP 2 -->
                 <div id="job-step-2" style="display:none;">
                     <div style="margin-bottom:16px;">
-                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Job Description</label>
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E;">Job Description</label>
+                            <button type="button" onclick="toggleAdminAISection()" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;">✨ Write with AI</button>
+                        </div>
+                        <!-- AI generation collapsible section -->
+                        <div id="admin-ai-section" style="display:none;background:#F4F5FA;border-radius:10px;padding:14px;margin-bottom:10px;">
+                            <div style="margin-bottom:10px;">
+                                <label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.04em;">Industry / Background *</label>
+                                <input type="text" id="admin-ai-industry" placeholder="e.g. International School, FinTech, Healthcare" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">
+                            </div>
+                            <div style="margin-bottom:10px;">
+                                <label style="font-size:11px;font-weight:500;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.04em;">Additional Context (optional)</label>
+                                <input type="text" id="admin-ai-context" placeholder="e.g. Senior level, Cairo-based, IGCSE curriculum" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">
+                            </div>
+                            <div id="admin-ai-generating" style="display:none;text-align:center;padding:8px;font-size:12px;color:#6B7280;">⏳ Generating with AI…</div>
+                            <div id="admin-ai-preview" style="display:none;background:#fff;border-radius:8px;padding:10px;margin-bottom:10px;border:1px solid #E5E7EB;">
+                                <div style="font-size:11px;font-weight:600;color:#1B2A4A;margin-bottom:4px;">PREVIEW</div>
+                                <div id="admin-ai-preview-brief" style="font-size:12px;color:#374151;white-space:pre-wrap;max-height:100px;overflow-y:auto;"></div>
+                            </div>
+                            <div style="display:flex;gap:8px;">
+                                <button type="button" id="admin-ai-generate-btn" onclick="generateJobFromAIAdmin()" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;">Generate Description</button>
+                                <button type="button" id="admin-ai-accept-btn" onclick="acceptAIJobAdmin()" style="display:none;flex:1;background:#C9A84C;color:#1B2A4A;border:none;border-radius:7px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;">✓ Use This</button>
+                            </div>
+                        </div>
                         <textarea id="job-modal-desc" rows="6" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
                     </div>
 
