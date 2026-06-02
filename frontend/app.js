@@ -2633,6 +2633,36 @@ function _coWsJobFormModal(job, companyId) {
                 <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Education Level</label>
                 <input id="cj-edu" value="${v('education_level')}" placeholder="e.g. Bachelor's Degree" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
             </div>
+
+            <!-- Job Description — moved up, with AI + Upload buttons -->
+            <div style="grid-column:span 2;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px;">
+                    <label style="font-size:11px;font-weight:500;color:#374151;">Job Description</label>
+                    <div style="display:flex;gap:6px;">
+                        <button type="button" onclick="_coWsToggleAISection()" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">✨ Write with AI</button>
+                        <button type="button" onclick="document.getElementById('cj-jd-file').click()" style="background:#F4F5FA;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;">📄 Upload JD</button>
+                        <input type="file" id="cj-jd-file" accept=".pdf,.docx" style="display:none;" onchange="_coWsUploadJD(this)">
+                    </div>
+                </div>
+                <!-- AI collapsible -->
+                <div id="cj-ai-section" style="display:none;background:#F4F5FA;border-radius:8px;padding:12px;margin-bottom:8px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                        <div>
+                            <label style="font-size:10px;font-weight:500;color:#6B7280;display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.04em;">Industry / Background *</label>
+                            <input type="text" id="cj-ai-industry" placeholder="e.g. International School, K-12" style="width:100%;padding:7px 9px;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;outline:none;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px;font-weight:500;color:#6B7280;display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.04em;">Additional Context (optional)</label>
+                            <input type="text" id="cj-ai-context" placeholder="e.g. Senior level, Cairo-based" style="width:100%;padding:7px 9px;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;outline:none;box-sizing:border-box;">
+                        </div>
+                    </div>
+                    <div id="cj-ai-loading" style="display:none;font-size:11px;color:#9CA3AF;text-align:center;padding:6px;">⏳ Generating…</div>
+                    <button type="button" id="cj-ai-btn" onclick="_coWsGenerateAI()" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:7px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;width:100%;">Generate Description + Skills</button>
+                </div>
+                <div id="cj-jd-status" style="display:none;font-size:11px;color:#9CA3AF;margin-bottom:4px;">Extracting text…</div>
+                <textarea id="cj-desc" rows="5" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;resize:vertical;">${v('job_description')}</textarea>
+            </div>
+
             <div style="grid-column:span 2;">
                 <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Required Skills</label>
                 <input id="cj-skills" value="${v('required_skills')}" placeholder="e.g. Excel, SAP, Financial Reporting" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
@@ -2648,10 +2678,6 @@ function _coWsJobFormModal(job, companyId) {
             <div style="grid-column:span 2;">
                 <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Industry Experience</label>
                 <input id="cj-industry" value="${v('industry_experience')}" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
-            </div>
-            <div style="grid-column:span 2;">
-                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Job Description</label>
-                <textarea id="cj-desc" rows="4" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;resize:vertical;">${v('job_description')}</textarea>
             </div>
         </div>`;
 
@@ -2686,6 +2712,73 @@ function _coWsJobFormModal(job, companyId) {
             showToast('Failed: ' + (err.detail || 'Unknown error'), 'error');
         }
     });
+}
+
+function _coWsToggleAISection() {
+    const sec = document.getElementById('cj-ai-section');
+    if (sec) sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+}
+
+async function _coWsGenerateAI() {
+    const title    = (document.getElementById('cj-title')?.value || '').trim();
+    const industry = (document.getElementById('cj-ai-industry')?.value || '').trim();
+    const context  = (document.getElementById('cj-ai-context')?.value || '').trim();
+    if (!title)    { showToast('Enter a Job Title first', 'warning'); return; }
+    if (!industry) { showToast('Enter Industry / Background', 'warning'); return; }
+    const btn  = document.getElementById('cj-ai-btn');
+    const load = document.getElementById('cj-ai-loading');
+    if (btn)  btn.disabled = true;
+    if (load) load.style.display = 'block';
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/ai/generate-job', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ job_title: title, industry_background: industry, additional_context: context })
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Generation failed'); }
+        const data = await res.json();
+        const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+        set('cj-desc',     data.job_brief);
+        set('cj-skills',   data.required_skills);
+        set('cj-nice',     data.nice_to_have);
+        set('cj-behav',    data.behavioral_skills);
+        const sec = document.getElementById('cj-ai-section');
+        if (sec) sec.style.display = 'none';
+        showToast('AI filled Job Description and Skills', 'success');
+    } catch (err) {
+        showToast('AI generation failed: ' + err.message, 'error');
+    } finally {
+        if (btn)  btn.disabled = false;
+        if (load) load.style.display = 'none';
+    }
+}
+
+async function _coWsUploadJD(input) {
+    const file = input?.files?.[0];
+    if (!file) return;
+    const status = document.getElementById('cj-jd-status');
+    if (status) status.style.display = 'block';
+    input.value = '';
+    try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const token = localStorage.getItem('token');
+        const res = await fetch('/candidates/extract-jd', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: fd
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Extraction failed'); }
+        const data = await res.json();
+        const desc = document.getElementById('cj-desc');
+        if (desc && data.text) desc.value = data.text;
+        showToast('Job description extracted', 'success');
+    } catch (err) {
+        showToast('Upload failed: ' + err.message, 'error');
+    } finally {
+        if (status) status.style.display = 'none';
+    }
 }
 
 async function _coWsDeleteJob(jobId, jobTitle) {
