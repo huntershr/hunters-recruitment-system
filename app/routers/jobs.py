@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import List
 from .. import models, schemas
 from ..database import get_db
@@ -186,7 +187,9 @@ def get_all_jobs(db: Session = Depends(get_db), current_user: models.User = Depe
     if not current_user or not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    all_jobs = db.query(models.Job).all()
+    all_jobs = db.query(models.Job).filter(
+        or_(models.Job.status == None, models.Job.status != 'rejected')
+    ).all()
     return all_jobs
 
 @router.get("/admin/pending")
@@ -195,7 +198,10 @@ def get_pending_jobs(db: Session = Depends(get_db), current_user: models.User = 
     if not current_user or not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    pending = db.query(models.Job).filter(models.Job.is_approved == False).all()
+    pending = db.query(models.Job).filter(
+        models.Job.is_approved == False,
+        or_(models.Job.status == None, models.Job.status != 'rejected')
+    ).all()
     return pending
 
 @router.post("/admin/approve/{job_id}")
@@ -235,9 +241,10 @@ def reject_job(
     job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    db.delete(job)
+
+    job.status = 'rejected'
+    job.is_approved = False
     db.commit()
-    
-    return {"message": f"Job rejected and deleted", "reason": rejection_data.rejection_reason}
+
+    return {"message": f"Job rejected", "reason": rejection_data.rejection_reason}
 

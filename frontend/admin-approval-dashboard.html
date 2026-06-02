@@ -1014,7 +1014,7 @@
                 let jh = '';
                 pendingJobs.forEach(job => {
                     const createdDate = job.created_at ? new Date(job.created_at).toLocaleDateString() : 'N/A';
-                    jh += `<div class="approval-item">
+                    jh += `<div class="approval-item" data-job-id="${job.id}">
                         <div class="approval-item-left">
                             <div class="approval-item-name">${job.job_title}</div>
                             <div class="approval-item-email">${job.company_name || ''}</div>
@@ -1257,11 +1257,11 @@
             });
 
             if (response.ok) {
-                showAlert('Job rejected', 'success', 'jobs-alert');
-                setTimeout(() => {
-                    loadJobsList();
-                    loadOverviewData();
-                }, 1000);
+                // Remove card from DOM immediately
+                const card = document.querySelector(`.approval-item[data-job-id="${jobId}"]`);
+                if (card) card.remove();
+                showAlert('Job rejected and removed', 'success', 'jobs-alert');
+                loadOverviewData();
             } else {
                 const error = await response.json();
                 showAlert(`Error: ${error.detail || 'Failed to reject'}`, 'error', 'jobs-alert');
