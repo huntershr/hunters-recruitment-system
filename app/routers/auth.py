@@ -6,9 +6,6 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import os
 import secrets
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 import logging
 from .. import models, schemas, database
@@ -21,9 +18,8 @@ router = APIRouter(
     tags=["Authentication"]
 )
 
-# Warn at import time if SMTP is unconfigured so it shows in Railway startup logs
-if not os.getenv("SMTP_USER") or not os.getenv("SMTP_PASS"):
-    logger.warning("SMTP_USER or SMTP_PASS not set — password reset emails will fail silently")
+if not os.getenv("SENDGRID_API_KEY"):
+    logger.warning("SENDGRID_API_KEY not set — password reset emails will not be sent")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -190,45 +186,49 @@ def reset_candidate_password(user_id: int, body: dict, current_user: models.User
 
 
 def send_reset_email(to_email: str, reset_url: str):
-    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER", "")
-    smtp_pass = os.getenv("SMTP_PASS", "")
-    from_email = os.getenv("FROM_EMAIL", smtp_user)
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, From, To, Subject, HtmlContent
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Reset Your Hunters HR Password"
-    msg["From"] = f"Hunters HR <{from_email}>"
-    msg["To"] = to_email
+    api_key = os.getenv("SENDGRID_API_KEY", "")
+    if not api_key:
+        logger.error("SENDGRID_API_KEY not set — cannot send password reset email")
+        return
 
-    html = f"""
-    <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
-      <div style="background:#1B2A4A;padding:24px;text-align:center;">
-        <h2 style="color:#C9A84C;margin:0;letter-spacing:2px;">HUNTERS HR</h2>
-        <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:12px;">FOR HR TRANSFORMATION & EXECUTION</p>
-      </div>
-      <div style="padding:32px;background:#f9f9f9;">
-        <h3 style="color:#1B2A4A;">Password Reset Request</h3>
-        <p style="color:#555;line-height:1.6;">We received a request to reset your password. Click the button below to set a new password. This link expires in <strong>2 hours</strong>.</p>
-        <div style="text-align:center;margin:32px 0;">
-          <a href="{reset_url}" style="background:#1B2A4A;color:white;padding:14px 32px;border-radius:4px;text-decoration:none;font-weight:600;font-size:15px;">Reset My Password</a>
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family:'Segoe UI',Arial,sans-serif;background:#F5F6F8;padding:40px 0;margin:0">
+      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08)">
+        <div style="background:#1B2A4A;padding:28px 32px;text-align:center">
+          <div style="color:#C9A84C;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px">Hunters for HR Transformation</div>
+          <div style="color:#fff;font-size:22px;font-weight:600">Reset Your Password</div>
         </div>
-        <p style="color:#888;font-size:13px;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
-        <p style="color:#888;font-size:12px;margin-top:16px;">Or copy this link:<br><a href="{reset_url}" style="color:#C9A84C;">{reset_url}</a></p>
+        <div style="padding:32px">
+          <p style="color:#1B2A4A;font-size:15px;margin:0 0 16px">You requested a password reset for your Hunters account.</p>
+          <p style="color:#555;font-size:14px;margin:0 0 28px">Click the button below to set a new password. This link expires in <strong>2 hours</strong>.</p>
+          <div style="text-align:center;margin-bottom:28px">
+            <a href="{reset_url}" style="background:#C9A84C;color:#1B2A4A;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Reset My Password</a>
+          </div>
+          <p style="color:#888;font-size:12px;margin:0">If you didn't request this, ignore this email — your password won't change.</p>
+        </div>
+        <div style="background:#F5F6F8;padding:16px 32px;text-align:center">
+          <p style="color:#aaa;font-size:11px;margin:0">Powered by Hunters HR · hr@hunters-egypt.com</p>
+        </div>
       </div>
-      <div style="background:#1B2A4A;padding:16px;text-align:center;">
-        <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;">Powered by Hunters HR | hunters-egypt.com</p>
-      </div>
-    </div>
+    </body>
+    </html>
     """
 
-    msg.attach(MIMEText(html, "html"))
+    message = Mail(
+        from_email=From("hr@hunters-egypt.com", "Hunters HR"),
+        to_emails=To(to_email),
+        subject=Subject("Reset Your Hunters Password"),
+        html_content=HtmlContent(html_content)
+    )
 
-    import ssl
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(smtp_host, 465, context=context) as server:
-        server.login(smtp_user, smtp_pass)
-        server.send_message(msg)
+    sg = SendGridAPIClient(api_key)
+    response = sg.send(message)
+    logger.info(f"Password reset email sent to {to_email} — status {response.status_code}")
 
 
 @router.post("/forgot-password")
