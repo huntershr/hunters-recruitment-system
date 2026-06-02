@@ -2679,6 +2679,28 @@ function _coWsJobFormModal(job, companyId) {
                 <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Industry Experience</label>
                 <input id="cj-industry" value="${v('industry_experience')}" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
             </div>
+
+            <!-- AI Screening Weights -->
+            <div style="grid-column:span 2;background:#F4F5FA;border-radius:10px;padding:14px 16px;margin-top:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.06em;">⚖ AI Screening Weights</span>
+                    <span id="cj-weights-total" style="font-size:11px;font-weight:600;background:#E1F5EE;color:#0F6E56;padding:3px 10px;border-radius:20px;">Total: 100%</span>
+                </div>
+                ${[
+                    ['cj-w-exp',  'Experience Match',  job ? Math.round((job.weight_experience||0.40)*100) : 40],
+                    ['cj-w-skl',  'Skills Match',      job ? Math.round((job.weight_skills||0.30)*100)    : 30],
+                    ['cj-w-edu',  'Education',         job ? Math.round((job.weight_education||0.20)*100)  : 20],
+                    ['cj-w-beh',  'Behavioral Fit',    job ? Math.round((job.weight_behavioral||0.10)*100) : 10],
+                ].map(([id, label, val]) => `
+                    <div style="margin-bottom:10px;">
+                        <div style="display:flex;justify-content:space-between;font-size:12px;color:#374151;margin-bottom:4px;">
+                            <span>${label}</span><span id="${id}-val" style="font-weight:600;">${val}%</span>
+                        </div>
+                        <input type="range" id="${id}" min="0" max="100" value="${val}"
+                               oninput="document.getElementById('${id}-val').textContent=this.value+'%';_cjUpdateWeightsTotal()"
+                               style="width:100%;accent-color:#1B2A4A;cursor:pointer;">
+                    </div>`).join('')}
+            </div>
         </div>`;
 
     createAdminModal(title, html, async () => {
@@ -2694,8 +2716,14 @@ function _coWsJobFormModal(job, companyId) {
             behavioral_skills: document.getElementById('cj-behav')?.value || '',
             industry_experience: document.getElementById('cj-industry')?.value || '',
             description: document.getElementById('cj-desc')?.value || '',
+            weight_experience: (parseInt(document.getElementById('cj-w-exp')?.value) || 40) / 100,
+            weight_skills:     (parseInt(document.getElementById('cj-w-skl')?.value) || 30) / 100,
+            weight_education:  (parseInt(document.getElementById('cj-w-edu')?.value) || 20) / 100,
+            weight_behavioral: (parseInt(document.getElementById('cj-w-beh')?.value) || 10) / 100,
         };
         if (!payload.title) { showToast('Job Title is required', 'error'); return; }
+        const total = Math.round((payload.weight_experience + payload.weight_skills + payload.weight_education + payload.weight_behavioral) * 100);
+        if (total !== 100) { showToast(`Weights must total 100% (currently ${total}%)`, 'error'); return; }
         const token = localStorage.getItem('token');
         const url = job ? `/api/admin/jobs/${job.id}` : '/api/admin/jobs';
         const method = job ? 'PUT' : 'POST';
@@ -2712,6 +2740,16 @@ function _coWsJobFormModal(job, companyId) {
             showToast('Failed: ' + (err.detail || 'Unknown error'), 'error');
         }
     });
+}
+
+function _cjUpdateWeightsTotal() {
+    const ids = ['cj-w-exp', 'cj-w-skl', 'cj-w-edu', 'cj-w-beh'];
+    const total = ids.reduce((s, id) => s + (parseInt(document.getElementById(id)?.value) || 0), 0);
+    const el = document.getElementById('cj-weights-total');
+    if (!el) return;
+    el.textContent = 'Total: ' + total + '%';
+    el.style.background = total === 100 ? '#E1F5EE' : '#FCEBEB';
+    el.style.color       = total === 100 ? '#0F6E56' : '#A32D2D';
 }
 
 function _coWsToggleAISection() {

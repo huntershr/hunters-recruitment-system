@@ -32,6 +32,10 @@ class AdminJobPayload(BaseModel):
     salary_range: Optional[str] = None
     hide_salary: bool = False
     industry_experience: Optional[str] = None
+    weight_experience: float = 0.40
+    weight_skills: float = 0.30
+    weight_education: float = 0.20
+    weight_behavioral: float = 0.10
 
 
 class PlanUpdateRequest(BaseModel):
@@ -1353,6 +1357,10 @@ def admin_create_job(
         salary_range=payload.salary_range or "",
         hide_salary=payload.hide_salary,
         industry_experience=payload.industry_experience,
+        weight_experience=payload.weight_experience,
+        weight_skills=payload.weight_skills,
+        weight_education=payload.weight_education,
+        weight_behavioral=payload.weight_behavioral,
         is_approved=True,
     )
     db.add(job)
@@ -1384,6 +1392,10 @@ def admin_update_job(
     job.salary_range = payload.salary_range or ""
     job.hide_salary = payload.hide_salary
     job.industry_experience = payload.industry_experience
+    job.weight_experience = payload.weight_experience
+    job.weight_skills = payload.weight_skills
+    job.weight_education = payload.weight_education
+    job.weight_behavioral = payload.weight_behavioral
     db.commit()
     db.refresh(job)
     return _job_to_dict(job)
