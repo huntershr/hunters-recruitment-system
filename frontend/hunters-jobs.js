@@ -152,7 +152,9 @@ function huntersOpenPublicCompany(job) {
 }
 
 function huntersViewJob(jobId) {
-    if (huntersIsAdmin && typeof openAdminJobPreview === 'function') {
+    const userType = (localStorage.getItem('user_type') || '').toLowerCase();
+    const isCompanyOrAdmin = huntersIsAdmin || userType === 'company' || userType === 'employer';
+    if (isCompanyOrAdmin && typeof openAdminJobPreview === 'function') {
         openAdminJobPreview(jobId);
     } else {
         window.open(`/apply.html?job_id=${jobId}`, '_blank');
@@ -339,7 +341,7 @@ function huntersJobCardInner(job, opts) {
                     <svg width="12" height="12" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
                 <button type="button" onclick="event.stopPropagation();huntersShareJob(${job.id})" title="Copy share link" style="background:#fff;color:#C9A84C;border:0.5px solid #C9A84C;border-radius:7px;padding:5px 8px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;">
                     <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
-                ${!huntersIsAdmin ? `<a href="/apply.html?job_id=${job.id}" target="_blank" onclick="event.stopPropagation()" style="background:#F0F4FF;color:#1B2A4A;border:0.5px solid #C9A84C;border-radius:7px;padding:5px 8px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:3px;text-decoration:none;" title="Preview public job page">
+                ${(!huntersIsAdmin && (localStorage.getItem('user_type')||'').toLowerCase() !== 'company') ? `<a href="/apply.html?job_id=${job.id}" target="_blank" onclick="event.stopPropagation()" style="background:#F0F4FF;color:#1B2A4A;border:0.5px solid #C9A84C;border-radius:7px;padding:5px 8px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:3px;text-decoration:none;" title="Preview public job page">
                     <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Preview</a>` : ''}
                 ${pendingBtns}
            </div>`;
