@@ -746,3 +746,22 @@ def export_evaluations_csv(db: Session = Depends(get_db), current_user: models.U
         headers={"Content-Disposition": "attachment; filename=candidate_evaluations.csv"}
     )
 
+
+@router.post("/extract-jd", tags=["Candidates"])
+async def extract_jd_text(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Extract plain text from a PDF or DOCX job description file."""
+    content = await file.read()
+    filename = (file.filename or "").lower()
+    if filename.endswith(".pdf"):
+        text = extract_text_from_pdf(content)
+    elif filename.endswith(".docx"):
+        text = extract_text_from_docx(content)
+    else:
+        raise HTTPException(status_code=400, detail="Only PDF or DOCX files are supported")
+    if not text or not text.strip():
+        raise HTTPException(status_code=422, detail="Could not extract text from file")
+    return {"text": text.strip()}
+

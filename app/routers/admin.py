@@ -236,7 +236,10 @@ def get_all_companies_full(
             u.id for u in db.query(models.User).filter(models.User.company_id == c.id).all()
         ]
         job_count = (
-            db.query(models.Job).filter(models.Job.owner_id.in_(user_ids)).count()
+            db.query(models.Job).filter(
+                models.Job.owner_id.in_(user_ids),
+                or_(models.Job.status == None, models.Job.status != 'rejected')
+            ).count()
             if user_ids else 0
         )
         candidate_count = (

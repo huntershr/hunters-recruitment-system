@@ -3661,6 +3661,33 @@
         if (prevEl) prevEl.style.display = 'none';
         generateJobFromAICD();
     }
+
+    async function uploadJDFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById('jd-upload-status');
+        const descEl   = document.getElementById('job-modal-desc');
+        if (statusEl) statusEl.style.display = 'block';
+        input.value = '';
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const token = localStorage.getItem('token');
+            const res = await fetch('/candidates/extract-jd', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token },
+                body: fd
+            });
+            if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Extraction failed'); }
+            const data = await res.json();
+            if (descEl && data.text) descEl.value = data.text;
+            showToast('Job description extracted from file', 'success');
+        } catch (err) {
+            showToast('Upload failed: ' + err.message, 'error');
+        } finally {
+            if (statusEl) statusEl.style.display = 'none';
+        }
+    }
 </script>
 <!-- Public apply (preview / Section C) -->
 <div id="hunters-public-apply-modal" onclick="if(event.target===this)huntersCloseApplyModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
@@ -3838,7 +3865,17 @@
                 <!-- STEP 2 -->
                 <div id="job-step-2" style="display:none;">
                     <div style="margin-bottom:16px;">
-                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Job Description</label>
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+                            <label style="font-size:13px; font-weight:500; color:#1A1A2E;">Job Description</label>
+                            <div style="display:flex;gap:6px;">
+                                <button type="button" onclick="gotoJobStepAI()" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                                    <svg width="11" height="11" fill="none" stroke="#C9A84C" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Write with AI
+                                </button>
+                                <button type="button" onclick="document.getElementById('jd-upload-input').click()" style="background:#F4F5FA;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:500;cursor:pointer;">📄 Upload JD</button>
+                                <input type="file" id="jd-upload-input" accept=".pdf,.docx" style="display:none;" onchange="uploadJDFile(this)">
+                            </div>
+                        </div>
+                        <div id="jd-upload-status" style="display:none;font-size:11px;color:#9CA3AF;margin-bottom:6px;">Extracting text…</div>
                         <textarea id="job-modal-desc" rows="6" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
                     </div>
 

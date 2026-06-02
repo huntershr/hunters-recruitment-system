@@ -510,6 +510,8 @@
                 padding: 8px 12px;
                 font-size: 12px;
                 white-space: nowrap;
+                flex-shrink: 0;
+                display: flex !important;
             }
             .admin-main {
                 margin-left: 0;
@@ -993,9 +995,11 @@
                             <div class="approval-item-email">${company.company_email}</div>
                             <div class="approval-item-date">Registered: ${createdDate}</div>
                         </div>
-                        <div class="approval-item-right">
+                        <div class="approval-item-right" style="flex-wrap:wrap;gap:6px;">
                             <button class="btn-approve" onclick="approveCompany(${company.id})">Approve</button>
                             <button class="btn-reject" onclick="showRejectCompanyForm(${company.id})">Reject</button>
+                            <button onclick="enterCompany(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;">👁 Enter</button>
+                            <button onclick="openUsersModal(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#F4F5FA;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;">👥 Users</button>
                         </div>
                     </div>`;
                 });
@@ -1138,6 +1142,22 @@
                 huntersInitJobs(true); // isAdmin = true
                 renderHuntersJobs(mappedJobs);
             }
+
+            // Populate company filter dropdown from company list
+            try {
+                const compRes = await fetch(`${API_URL}/companies/`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const allCompanies = compRes.ok ? await compRes.json() : [];
+                const cf = document.getElementById('job-company-filter');
+                if (cf) {
+                    cf.innerHTML = '<option value="">All Companies</option>';
+                    allCompanies.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = c.company_name || c.name || '';
+                        cf.appendChild(opt);
+                    });
+                }
+            } catch (_) {}
         } catch (error) {
             console.error('Error loading jobs:', error);
             showAlert('Error loading jobs list', 'error', 'jobs-alert');

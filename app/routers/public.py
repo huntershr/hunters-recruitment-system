@@ -87,6 +87,8 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
     job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    if job.status == 'rejected':
+        raise HTTPException(status_code=404, detail="Job not found")
 
     HUNTERS_LOGO = "/hunters-logo-blue.jpeg"
     company_name = None
