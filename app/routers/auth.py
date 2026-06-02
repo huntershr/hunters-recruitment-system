@@ -224,11 +224,11 @@ def send_reset_email(to_email: str, reset_url: str):
 
     msg.attach(MIMEText(html, "html"))
 
-    with smtplib.SMTP(smtp_host, smtp_port) as server:
-        server.ehlo()
-        server.starttls()
+    import ssl
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL(smtp_host, 465, context=context) as server:
         server.login(smtp_user, smtp_pass)
-        server.sendmail(from_email, to_email, msg.as_string())
+        server.send_message(msg)
 
 
 @router.post("/forgot-password")
