@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import Any, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel
@@ -204,8 +204,8 @@ def get_admin_stats(
         "total_companies": db.query(models.Company).count(),
         "pending_companies": db.query(models.Company).filter(models.Company.is_approved == False).count(),
         "approved_companies": db.query(models.Company).filter(models.Company.is_approved == True).count(),
-        "total_jobs": db.query(models.Job).count(),
-        "pending_jobs": db.query(models.Job).filter(models.Job.is_approved == False).count(),
+        "total_jobs": db.query(models.Job).filter(or_(models.Job.status == None, models.Job.status != 'rejected')).count(),
+        "pending_jobs": db.query(models.Job).filter(models.Job.is_approved == False, or_(models.Job.status == None, models.Job.status != 'rejected')).count(),
         "approved_jobs": db.query(models.Job).filter(models.Job.is_approved == True).count(),
         "total_candidates": db.query(models.Candidate).count(),
         "screenings_today": 0,
@@ -381,7 +381,7 @@ def get_company_overview(
     admin_user = next((u for u in users if u.is_admin), users[0] if users else None)
     user_ids = [u.id for u in users]
 
-    jobs = db.query(models.Job).filter(models.Job.owner_id.in_(user_ids)).all() if user_ids else []
+    jobs = db.query(models.Job).filter(models.Job.owner_id.in_(user_ids), or_(models.Job.status == None, models.Job.status != 'rejected')).all() if user_ids else []
     job_ids = [j.id for j in jobs]
 
     apps = (

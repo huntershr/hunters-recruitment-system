@@ -105,7 +105,10 @@ async def upload_jobs(
 
 @router.get("", response_model=List[schemas.JobResponse])
 def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return db.query(models.Job).filter(models.Job.owner_id == current_user.id).offset(skip).limit(limit).all()
+    return db.query(models.Job).filter(
+        models.Job.owner_id == current_user.id,
+        or_(models.Job.status == None, models.Job.status != 'rejected')
+    ).offset(skip).limit(limit).all()
 
 @router.get("/{job_id}", response_model=schemas.JobResponse)
 def read_job(job_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
