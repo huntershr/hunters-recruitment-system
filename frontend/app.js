@@ -2563,7 +2563,7 @@ function _renderCoWsJobs(jobs) {
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
                     <span style="padding:2px 8px;border-radius:8px;font-size:10px;background:${j.is_approved?'#E1F5EE':'#FAEEDA'};color:${j.is_approved?'#0F6E56':'#854F0B'};">${j.is_approved?'Live':'Pending'}</span>
-                    <button onclick="window.open('/apply.html?job_id=${j.id}','_blank')" title="Preview" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Preview</button>
+                    <button onclick="openAdminJobPreview(${j.id})" title="Preview" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Preview</button>
                     <button onclick="_coWsEditJobModal(${j.id})" title="Edit" style="background:#FBF7E8;color:#C9A84C;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Edit</button>
                     <button onclick="_coWsShareJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" title="Share" style="background:#F0FFF4;color:#0F6E56;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Share</button>
                     <button onclick="_coWsDeleteJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" title="Delete" style="background:#FEECEC;color:#DC2626;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Delete</button>
@@ -2705,6 +2705,100 @@ async function _coWsDeleteJob(jobId, jobTitle) {
             }
         }
     );
+}
+
+async function openAdminJobPreview(jobId) {
+    const res = await fetch(`/public/job/${jobId}`);
+    if (!res.ok) { showToast('Job not found', 'error'); return; }
+    const job = await res.json();
+
+    document.getElementById('admin-job-preview-modal')?.remove();
+
+    const skills = (job.required_skills || '').split(',').filter(s => s.trim()).map(s =>
+        `<span style="background:#E8EAF6;color:#3949AB;padding:4px 12px;border-radius:20px;font-size:13px;display:inline-block;margin:3px">${escHtml(s.trim())}</span>`
+    ).join('');
+
+    const salaryText = job.hide_salary ? '' :
+        (job.salary_min && job.salary_max
+            ? `<span style="background:#E8F5E9;color:#2E7D32;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;display:inline-block;margin-bottom:16px">💰 ${job.salary_min} – ${job.salary_max} EGP</span>`
+            : (job.salary_range ? `<span style="background:#E8F5E9;color:#2E7D32;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;display:inline-block;margin-bottom:16px">💰 ${escHtml(job.salary_range)}</span>` : ''));
+
+    const modal = document.createElement('div');
+    modal.id = 'admin-job-preview-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:920px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="background:#1B2A4A;padding:20px 28px;display:flex;align-items:center;gap:14px;flex-shrink:0;">
+        <div style="width:44px;height:44px;border-radius:10px;background:#C9A84C;display:flex;align-items:center;justify-content:center;font-weight:700;color:#1B2A4A;font-size:18px;flex-shrink:0;">${escHtml((job.company_name||'C')[0].toUpperCase())}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">${escHtml(job.company_name||'')}</div>
+          <div style="color:#fff;font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(job.job_title||'')}</div>
+        </div>
+        <button onclick="document.getElementById('admin-job-preview-modal').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;line-height:1;">×</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 280px;flex:1;overflow:hidden;min-height:0;">
+        <div style="padding:24px 28px;overflow-y:auto;border-right:1px solid #f0f2f5;">
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
+            <span style="color:#555;font-size:13px;">📍 ${escHtml(job.job_location||'—')}</span>
+            <span style="color:#555;font-size:13px;">💼 ${escHtml(job.employment_type||'Full-time')}</span>
+            <span style="color:#555;font-size:13px;">⏱ ${job.min_experience||0}+ yrs exp</span>
+          </div>
+          ${salaryText}
+          ${job.job_description ? `<div style="margin-bottom:20px;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#999;margin-bottom:10px;">ABOUT THE ROLE</div><p style="color:#333;font-size:14px;line-height:1.75;margin:0;white-space:pre-wrap;">${escHtml(job.job_description)}</p></div>` : ''}
+          ${skills ? `<div><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#999;margin-bottom:10px;">REQUIRED SKILLS</div><div>${skills}</div></div>` : ''}
+        </div>
+        <div style="padding:24px 20px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
+          <div style="font-size:15px;font-weight:600;color:#1B2A4A;">Add Candidate</div>
+          <div style="border:2px dashed #D1D5DB;border-radius:12px;padding:28px 16px;text-align:center;cursor:pointer;transition:border-color 0.2s;"
+               onmouseover="this.style.borderColor='#C9A84C'" onmouseout="this.style.borderColor='#D1D5DB'"
+               onclick="document.getElementById('admin-preview-file-${jobId}').click()">
+            <div style="font-size:28px;margin-bottom:8px;">⬆</div>
+            <div style="font-size:13px;font-weight:500;color:#333;">Drop CV here or click to browse</div>
+            <div style="font-size:11px;color:#888;margin-top:4px;">PDF or DOCX</div>
+          </div>
+          <input type="file" id="admin-preview-file-${jobId}" accept=".pdf,.docx" style="display:none;"
+                 onchange="handleAdminPreviewUpload(this.files[0],${jobId});document.getElementById('admin-job-preview-modal')?.remove();">
+          <button onclick="document.getElementById('admin-preview-file-${jobId}').click()"
+                  style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;width:100%;">
+            + Add Candidate
+          </button>
+          <div style="font-size:11px;color:#888;text-align:center;">AI screening · 5–10 seconds</div>
+          <hr style="border:none;border-top:1px solid #f0f2f5;margin:4px 0;">
+          <a href="/apply.html?job_id=${jobId}" target="_blank"
+             style="display:block;text-align:center;font-size:12px;color:#185FA5;text-decoration:none;">
+            🔗 View public apply page
+          </a>
+        </div>
+      </div>
+    </div>`;
+
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+async function handleAdminPreviewUpload(file, jobId) {
+    if (!file) return;
+    showToast('Screening CV…', 'info');
+    const token = localStorage.getItem('token');
+    try {
+        const fd = new FormData();
+        fd.append('file', file);
+        if (jobId) fd.append('job_id', jobId);
+        const res = await fetch('/candidates/screen-cv', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: fd
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Screening failed');
+        const score = data.score != null ? Math.round(data.score) : null;
+        const scoreColor = score == null ? '#6B7280' : score >= 75 ? '#0F6E56' : score >= 50 ? '#854F0B' : '#A32D2D';
+        showToast(`${data.name || 'Candidate'} screened — ${score != null ? score + '% · ' : ''}${data.decision || ''}`, 'success');
+        if (typeof fetchData === 'function') fetchData();
+        if (typeof renderCandidates === 'function') renderCandidates();
+    } catch (err) {
+        showToast('Screening failed: ' + err.message, 'error');
+    }
 }
 
 function _coWsShareJob(jobId, jobTitle) {

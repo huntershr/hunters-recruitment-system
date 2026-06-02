@@ -1317,7 +1317,9 @@ def list_admin_jobs(
 ):
     """List all jobs as admin, optionally scoped to a company."""
     _admin(current_user)
-    q = db.query(models.Job)
+    q = db.query(models.Job).filter(
+        or_(models.Job.status == None, models.Job.status != 'rejected')
+    )
     if company_id is not None:
         co_user_ids = (
             db.query(models.User.id).filter(models.User.company_id == company_id).subquery()

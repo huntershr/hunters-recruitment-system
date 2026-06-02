@@ -152,7 +152,11 @@ function huntersOpenPublicCompany(job) {
 }
 
 function huntersViewJob(jobId) {
-    window.open(`/apply.html?job_id=${jobId}`, '_blank');
+    if (huntersIsAdmin && typeof openAdminJobPreview === 'function') {
+        openAdminJobPreview(jobId);
+    } else {
+        window.open(`/apply.html?job_id=${jobId}`, '_blank');
+    }
 }
 
 async function huntersShareJob(jobId) {
