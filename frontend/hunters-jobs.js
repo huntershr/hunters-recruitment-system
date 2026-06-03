@@ -154,11 +154,68 @@ function huntersOpenPublicCompany(job) {
 function huntersViewJob(jobId) {
     const userType = (localStorage.getItem('user_type') || '').toLowerCase();
     const isCompanyOrAdmin = huntersIsAdmin || userType === 'company' || userType === 'employer';
-    if (isCompanyOrAdmin && typeof openAdminJobPreview === 'function') {
-        openAdminJobPreview(jobId);
+    if (isCompanyOrAdmin) {
+        if (typeof openAdminJobPreview === 'function') {
+            openAdminJobPreview(jobId);
+        } else {
+            showJobPreviewPopup(jobId);
+        }
     } else {
         window.open(`/apply.html?job_id=${jobId}`, '_blank');
     }
+}
+
+async function showJobPreviewPopup(jobId) {
+    function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    let job;
+    try {
+        const res = await fetch('/public/job/' + jobId);
+        if (!res.ok) { showToast('Job not found', 'error'); return; }
+        job = await res.json();
+    } catch (_) { showToast('Could not load job', 'error'); return; }
+
+    document.getElementById('hunters-job-preview-popup')?.remove();
+
+    const skills = (job.required_skills || '').split(',').filter(s => s.trim()).map(s =>
+        `<span style="background:#E8EAF6;color:#3949AB;padding:4px 12px;border-radius:20px;font-size:13px;display:inline-block;margin:3px">${_esc(s.trim())}</span>`
+    ).join('');
+
+    const salaryText = job.hide_salary ? '' :
+        (job.salary_min && job.salary_max
+            ? `<span style="background:#E8F5E9;color:#2E7D32;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;display:inline-block;margin-bottom:16px">💰 ${_esc(job.salary_min)} – ${_esc(job.salary_max)} EGP</span>`
+            : (job.salary_range ? `<span style="background:#E8F5E9;color:#2E7D32;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;display:inline-block;margin-bottom:16px">💰 ${_esc(job.salary_range)}</span>` : ''));
+
+    const overlay = document.createElement('div');
+    overlay.id = 'hunters-job-preview-popup';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:700px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="background:#1B2A4A;padding:20px 28px;display:flex;align-items:center;gap:14px;flex-shrink:0;">
+        <div style="width:44px;height:44px;border-radius:10px;background:#C9A84C;display:flex;align-items:center;justify-content:center;font-weight:700;color:#1B2A4A;font-size:18px;flex-shrink:0;">${_esc((job.company_name||'C')[0].toUpperCase())}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">${_esc(job.company_name||'')}</div>
+          <div style="color:#fff;font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(job.job_title||'')}</div>
+        </div>
+        <button onclick="document.getElementById('hunters-job-preview-popup').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;line-height:1;">×</button>
+      </div>
+      <div style="padding:24px 28px;overflow-y:auto;flex:1;">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
+          <span style="color:#555;font-size:13px;">📍 ${_esc(job.job_location||'—')}</span>
+          <span style="color:#555;font-size:13px;">💼 ${_esc(job.employment_type||'Full-time')}</span>
+          <span style="color:#555;font-size:13px;">⏱ ${job.min_experience||0}+ yrs exp</span>
+        </div>
+        ${salaryText}
+        ${job.job_description ? `<div style="margin-bottom:20px;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#999;margin-bottom:10px;">ABOUT THE ROLE</div><p style="color:#333;font-size:14px;line-height:1.75;margin:0;white-space:pre-wrap;">${_esc(job.job_description)}</p></div>` : ''}
+        ${skills ? `<div style="margin-bottom:20px;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#999;margin-bottom:10px;">REQUIRED SKILLS</div><div>${skills}</div></div>` : ''}
+        <div style="border-top:1px solid #f0f2f5;padding-top:16px;text-align:center;">
+          <a href="/apply.html?job_id=${jobId}" target="_blank" style="font-size:12px;color:#185FA5;text-decoration:none;">🔗 View public apply page</a>
+        </div>
+      </div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 async function huntersShareJob(jobId) {
