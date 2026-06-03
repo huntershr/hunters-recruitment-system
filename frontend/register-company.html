@@ -40,7 +40,7 @@
         .alert-success { background:#E1F5EE; color:#0F6E56; border:1px solid #9FE1CB; }
         .alert-info { background:#E6F1FB; color:#185FA5; border:1px solid #B5D4F4; }
         /* Plan cards */
-        .plans-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px; }
+        .plans-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px; }
         @media(max-width:600px){ .plans-grid { grid-template-columns:1fr; } }
         .plan-card { border:2px solid #E5E7EB; border-radius:14px; padding:20px; cursor:pointer; transition:all 0.2s; position:relative; background:#fff; }
         .plan-card:hover { border-color:#1B2A4A; box-shadow:0 4px 16px rgba(0,0,0,0.08); }
@@ -207,13 +207,12 @@
         const API_URL = window.location.origin;
 
         const PLANS = [
-            { id:'free',         name:'Free',         monthly:0,    jobs:1,           invites:10,            users:1, popular:false },
             { id:'growth',       name:'Growth',       monthly:500,  jobs:3,           invites:50,            users:2, popular:false },
             { id:'professional', name:'Professional', monthly:1200, jobs:8,           invites:150,           users:2, popular:true  },
             { id:'enterprise',   name:'Enterprise',   monthly:2500, jobs:'Unlimited', invites:'Unlimited',   users:3, popular:false },
         ];
 
-        let selectedPlan = 'free';
+        let selectedPlan = 'growth';
 
         function renderPlans() {
             const annual = document.getElementById('annual-toggle').checked;
@@ -273,14 +272,9 @@
         function updateInfoBox() {
             const box = document.getElementById('step3-info-box');
             if (!box) return;
-            if (selectedPlan === 'free') {
-                box.className = 'info-box free';
-                box.textContent = 'Your free account will be activated once approved by our team. No payment needed.';
-            } else {
-                const p = PLANS.find(x => x.id === selectedPlan);
-                box.className = 'info-box paid';
-                box.innerHTML = `<strong>${p ? p.name : 'Your'} plan selected.</strong> Our team will contact you within 24 hours to activate your plan. Payment via bank transfer or Paymob (coming soon).`;
-            }
+            const p = PLANS.find(x => x.id === selectedPlan);
+            box.className = 'info-box paid';
+            box.innerHTML = `<strong>${p ? p.name : 'Your'} plan selected.</strong> Our team will contact you within 24 hours to activate your plan. Payment via bank transfer or Paymob (coming soon).`;
         }
 
         function goStep(n) {
@@ -334,7 +328,7 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    showAlert('✓ Registration submitted! ' + (selectedPlan === 'free' ? 'Your free account will be activated once approved.' : 'Our team will contact you within 24 hours to activate your plan.'), 'success');
+                    showAlert('✓ Registration submitted! Our team will contact you within 24 hours to activate your plan.', 'success');
                     setTimeout(() => { window.location.href = 'index.html'; }, 4000);
                 } else {
                     showAlert('Registration failed: ' + (data.detail || 'Please try again'), 'error');
