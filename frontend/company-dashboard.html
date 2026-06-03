@@ -1462,26 +1462,26 @@
     async function loadOverviewData() {
         const token = localStorage.getItem('token');
         try {
-            // Load jobs (cached) then applications sequentially
-            const jobs = await fetchWithCache('jobs', `${API_URL}/jobs`, token);
-            await loadCompanyApplications();   // populates coAppsData with accurate stage
+            // Load jobs and applications in parallel
+            const [jobs] = await Promise.all([
+                fetchWithCache('jobs', `${API_URL}/jobs`, token),
+                loadCompanyApplications()
+            ]);
             window.__allCompanyJobs = jobs;
 
             const activeJobs = jobs.filter(j => j.is_approved).length;
             let totalApps = 0;
 
             allCandidatesData = [];
-            for (const job of jobs) {
-                const candResp = await fetch(`${API_URL}/jobs/${job.id}/candidates`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (candResp.ok) {
-                    const cands = await candResp.json();
-                    cands.forEach(c => { c.job_title = job.job_title; c.job_id = job.id; });
-                    allCandidatesData = allCandidatesData.concat(cands);
-                    totalApps += cands.length;
-                }
-            }
+            const _ovCandResults = await Promise.all(jobs.map(job =>
+                fetch(`${API_URL}/jobs/${job.id}/candidates`, { headers: { 'Authorization': `Bearer ${token}` } })
+                    .then(r => r.ok ? r.json().then(cands => { cands.forEach(c => { c.job_title = job.job_title; c.job_id = job.id; }); return cands; }) : [])
+                    .catch(() => [])
+            ));
+            _ovCandResults.forEach(cands => {
+                allCandidatesData = allCandidatesData.concat(cands);
+                totalApps += cands.length;
+            });
 
             // Enrich with accurate stage from applications table
             if (typeof coAppsData !== 'undefined' && coAppsData.length) {
@@ -1634,9 +1634,8 @@
             // Map keys
             window.__huntersCompanyContext = currentCompany || null;
 
-            // Fetch candidates per job sequentially to avoid pool exhaustion
-            const mappedJobs = [];
-            for (const j of rawJobs) {
+            // Fetch candidates for all jobs in parallel
+            const mappedJobs = await Promise.all(rawJobs.map(async j => {
                 let cands = [];
                 try {
                     const cr = await fetch(`${API_URL}/jobs/${j.id}/candidates`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -1647,7 +1646,7 @@
                     const scores = cands.map(c => c.ai_score != null ? Number(c.ai_score) : null).filter(v => v != null && !Number.isNaN(v));
                     if (scores.length) aiScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
                 }
-                mappedJobs.push({
+                return {
                     id: j.id,
                     title: j.job_title || j.title,
                     location: j.job_location || j.location,
@@ -1671,8 +1670,8 @@
                         education: Math.round((j.weight_education || 0) * 100),
                         behavioral: Math.round((j.weight_behavioral || 0) * 100)
                     }
-                });
-            }
+                };
+            }));
             
             if (typeof huntersInitJobs === 'function') {
                 huntersInitJobs(false);
@@ -1731,39 +1730,34 @@
 
             const seenIds = new Set();
 
-            for (const job of jobs) {
+            // Build job filter options (sync), then fetch all candidates in parallel
+            jobs.forEach(job => {
                 jobFilter.innerHTML += `<option value="${job.id}">${escHtml(job.job_title)}</option>`;
-                const candResp = await fetch(`${API_URL}/jobs/${job.id}/candidates`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const [_perJobCands, _allCands] = await Promise.all([
+                Promise.all(jobs.map(job =>
+                    fetch(`${API_URL}/jobs/${job.id}/candidates`, { headers: { 'Authorization': `Bearer ${token}` } })
+                        .then(r => r.ok ? r.json().then(cands => cands.map(c => ({ ...c, job_title: job.job_title, job_id: job.id }))) : [])
+                        .catch(() => [])
+                )),
+                fetch(`${API_URL}/candidates`, { headers: { 'Authorization': `Bearer ${token}` } })
+                    .then(r => r.ok ? r.json() : []).catch(() => [])
+            ]);
+            _perJobCands.forEach(cands => {
+                cands.forEach(c => {
+                    if (!seenIds.has(c.id)) { seenIds.add(c.id); allCandidatesData.push(c); }
                 });
-                if (candResp.ok) {
-                    const cands = await candResp.json();
-                    cands.forEach(c => {
-                        c.job_title = job.job_title; c.job_id = job.id;
-                        if (!seenIds.has(c.id)) { seenIds.add(c.id); allCandidatesData.push(c); }
-                    });
-                }
-            }
-
-            // Also fetch from /candidates to catch any candidates not linked to a specific job
-            try {
-                const allCandsResp = await fetch(`${API_URL}/candidates`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (allCandsResp.ok) {
-                    const allCands = await allCandsResp.json();
-                    if (Array.isArray(allCands)) {
-                        allCands.forEach(c => {
-                            if (!seenIds.has(c.id)) {
-                                const matchJob = jobs.find(j => j.id === c.job_applied);
-                                if (matchJob) { c.job_title = matchJob.job_title; c.job_id = matchJob.id; }
-                                seenIds.add(c.id);
-                                allCandidatesData.push(c);
-                            }
-                        });
+            });
+            if (Array.isArray(_allCands)) {
+                _allCands.forEach(c => {
+                    if (!seenIds.has(c.id)) {
+                        const matchJob = jobs.find(j => j.id === c.job_applied);
+                        if (matchJob) { c.job_title = matchJob.job_title; c.job_id = matchJob.id; }
+                        seenIds.add(c.id);
+                        allCandidatesData.push(c);
                     }
-                }
-            } catch (e) { /* non-critical fallback */ }
+                });
+            }
 
             if (currentFilterVal) jobFilter.value = currentFilterVal;
 
