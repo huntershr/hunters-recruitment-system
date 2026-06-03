@@ -1000,6 +1000,12 @@
                             <button class="btn-reject" onclick="showRejectCompanyForm(${company.id})">Reject</button>
                             <button onclick="enterCompany(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;">👁 Enter</button>
                             <button onclick="openUsersModal(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#F4F5FA;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;">👥 Users</button>
+                            <select onchange="setCompanyPlan(${company.id},this.value)" style="border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px;color:#1B2A4A;background:#fff;cursor:pointer;">
+                                <option value="">Set Plan…</option>
+                                <option value="growth"       ${(company.plan||company.selected_plan||'')===  'growth'       ?'selected':''}>Growth</option>
+                                <option value="professional" ${(company.plan||company.selected_plan||'')===  'professional' ?'selected':''}>Professional</option>
+                                <option value="enterprise"   ${(company.plan||company.selected_plan||'')===  'enterprise'   ?'selected':''}>Enterprise</option>
+                            </select>
                         </div>
                     </div>`;
                 });
@@ -1070,7 +1076,7 @@
             let html = '';
             companies.forEach(company => {
                 const createdDate = new Date(company.created_at).toLocaleDateString();
-                const plan = (company.selected_plan || 'free').toLowerCase();
+                const plan = (company.plan || company.selected_plan || 'free').toLowerCase();
                 const badge = _planBadge[plan] || _planBadge.free;
                 const billing = company.billing_preference === 'annual' ? 'Annual' : 'Monthly';
                 const phone = (company.contact_phone || '').replace(/\s/g,'');
@@ -1095,6 +1101,12 @@
                             <button class="btn-reject"  onclick="showRejectCompanyForm(${company.id})">Reject</button>
                             <button onclick="enterCompany(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;">👁 Enter</button>
                             <button onclick="openUsersModal(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#F4F5FA;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;">👥 Users</button>
+                            <select onchange="setCompanyPlan(${company.id},this.value)" style="border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px;color:#1B2A4A;background:#fff;cursor:pointer;">
+                                <option value="">Set Plan…</option>
+                                <option value="growth"       ${plan==='growth'       ?'selected':''}>Growth</option>
+                                <option value="professional" ${plan==='professional' ?'selected':''}>Professional</option>
+                                <option value="enterprise"   ${plan==='enterprise'   ?'selected':''}>Enterprise</option>
+                            </select>
                         </div>
                     </div>
                 `;
@@ -1363,6 +1375,28 @@
         const sec = document.getElementById('admin-ai-section');
         if (sec) sec.style.display = 'none';
         showAlert('AI filled Job Description and Skills', 'success', 'jobs-alert');
+    }
+
+    // ── Set Company Plan ──────────────────────────────────────────────────
+    async function setCompanyPlan(companyId, newPlan) {
+        if (!newPlan) return;
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_URL}/api/admin/companies/${companyId}/plan`, {
+                method: 'PATCH',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plan: newPlan, billing_status: 'active' })
+            });
+            if (res.ok) {
+                showToast(`Plan set to ${newPlan}`, 'success');
+                loadCompaniesList();
+            } else {
+                const d = await res.json().catch(() => ({}));
+                showToast(d.detail || 'Failed to update plan', 'error');
+            }
+        } catch (e) {
+            showToast('Error: ' + e.message, 'error');
+        }
     }
 
     // ── Enter Company (impersonation) ────────────────────────────────────
