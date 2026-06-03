@@ -4242,12 +4242,17 @@ async function runSingleScreening() {
 }
 
 /* ── Bulk Upload ── */
-function bulkFilesChosen(files) {
+async function bulkFilesChosen(files) {
   if (!files || !files.length) return;
   _bulkFiles = Array.from(files);
   // Reset trigger input so same files can be re-selected
   var ti = document.getElementById('bulk-trigger-input');
   if (ti) ti.value = '';
+  // Fresh fetch so dropdown is always populated regardless of tab load timing
+  try {
+    var jr = await fetch(_apiBase() + '/jobs', { headers: { 'Authorization': 'Bearer ' + _token() } });
+    if (jr.ok) window.__allCompanyJobs = await jr.json();
+  } catch (_) {}
   // Populate job dropdown
   document.getElementById('bulk-modal-job-select').innerHTML = _jobOptions().replace('Select a job','Screen without job match').replace('— Select a job (optional) —','— Screen without job match —');
   // Render file list
