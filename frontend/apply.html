@@ -304,6 +304,11 @@
         async function handleApply(event) {
             event.preventDefault();
             const btn = document.getElementById('submit-btn');
+            const cvFile = document.getElementById('cv-file');
+            if (!cvFile || !cvFile.files || !cvFile.files.length) {
+                showToast('Please attach your CV before submitting.', 'error');
+                return;
+            }
             btn.disabled = true;
             btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Submitting...";
 

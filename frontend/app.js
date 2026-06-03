@@ -978,8 +978,9 @@ function sendCandidateEmail(email, name, jobTitle, companyName) {
 
 function sendCandidateWhatsApp(phone, name, jobTitle) {
     const cleanPhone = (phone || '').replace(/[^0-9+]/g, '');
+    const normalizedPhone = !cleanPhone.startsWith('+') && cleanPhone.startsWith('01') ? '+2' + cleanPhone : cleanPhone;
     const msg = `Hello ${name}, this is Hunters HR Team reaching out regarding your application for ${jobTitle}. `;
-    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`);
+    window.open(`https://wa.me/${normalizedPhone}?text=${encodeURIComponent(msg)}`);
 }
 
 // Phase 3: download CV via application ID (handles both Type A and Type B)
