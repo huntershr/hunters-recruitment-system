@@ -1545,9 +1545,10 @@ async function renderProfile(){
   var name=pr.name||(portalUser?portalUser.full_name:'')||'';
   var email=pr.email||(portalUser?portalUser.email:'')||'';
   var photo=pr.photo_url||localStorage.getItem('hunters_profile_photo')||'';
+  var _ini=(name||'C').split(' ').map(function(w){return w[0]||'';}).filter(Boolean).slice(0,2).join('').toUpperCase()||'C';
   var avatarHtml=photo
-    ?'<img src="'+photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
-    :'<span style="color:#C9A84C;font-size:26px;font-weight:500;">'+ini(name||'?')+'</span>';
+    ?'<img src="'+photo+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">'
+    :'<div style="width:80px;height:80px;border-radius:50%;background:#1B2A4A;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#C9A84C;">'+_ini+'</div>';
   document.getElementById('profile-content').innerHTML=
     '<div style="max-width:660px;margin:0 auto;">' +
       /* No-Candidate-row banner */
@@ -1913,8 +1914,14 @@ function portalDownloadCV(id,safeName){
     .catch(function(){showToast('CV not available for this candidate.','error');});
 }
 
+function getCandidateFriendlyLabel(score){
+  var pct=score<=1?score*100:score<=10?score*10:score;
+  if(pct>=75)return{label:'🌟 Strong Match',color:'#2E7D32'};
+  if(pct>=55)return{label:'📈 Good Match',color:'#1565C0'};
+  return{label:'💡 Keep Building',color:'#E65100'};
+}
 function portalViewReport(c,ev){
-  var score=ev&&ev.score!=null?Math.round(ev.score):'N/A';
+  var score=ev&&ev.score!=null?Math.round(ev.score<=1?ev.score*100:ev.score<=10?ev.score*10:ev.score):'N/A';
   var decision=ev&&ev.decision?ev.decision:'Pending';
   var decColor={Approved:'#16A34A',Rejected:'#DC2626',Pending:'#D97706'}[decision]||'#6B7280';
   var strengths=(ev&&ev.strengths||'').split('\n').filter(Boolean).map(function(s){return'<li>'+s+'</li>';}).join('');
@@ -1923,10 +1930,8 @@ function portalViewReport(c,ev){
     +'<h2 style="margin:0 0 4px;color:#1B2A4A;font-size:18px;">'+( c.name||'Candidate')+'</h2>'
     +(c.email?'<p style="margin:0;color:#6B7280;font-size:13px;">'+c.email+'</p>':'')
     +'</div>'
-    +'<div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;">'
-    +'<div style="background:#F0F4FF;border-radius:12px;padding:10px 20px;text-align:center;">'
-    +'<div style="font-size:28px;font-weight:700;color:#1B2A4A;">'+score+'</div>'
-    +'<div style="font-size:11px;color:#6B7280;">AI Score</div></div>'
+    +'<div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">'
+    +(ev&&ev.score!=null?(function(){var fl=getCandidateFriendlyLabel(ev.score);return'<span style="display:inline-block;padding:6px 18px;border-radius:20px;background:'+fl.color+'18;color:'+fl.color+';font-size:14px;font-weight:600;">'+fl.label+'</span>';}()):'')
     +'<div style="background:'+decColor+';color:#fff;border-radius:20px;padding:6px 18px;font-size:13px;font-weight:600;">'+decision+'</div>'
     +'</div>'
     +(ev&&ev.reason?'<p style="color:#374151;font-size:13px;margin-bottom:14px;">'+ev.reason+'</p>':'')

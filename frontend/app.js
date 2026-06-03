@@ -1182,7 +1182,7 @@ function viewAtsProfile(applicationId) {
                         <tr style="border-top:0.5px solid #F3F4F6;">
                             <td style="padding:6px 8px;color:#1B2A4A;">${escHtml(a.job_title || '—')}</td>
                             <td style="padding:6px 8px;color:#6B7280;">${escHtml(a.stage || '—')}</td>
-                            <td style="padding:6px 8px;text-align:center;color:#1B2A4A;">${a.score != null ? Math.round(a.score * 100) + '%' : '—'}</td>
+                            <td style="padding:6px 8px;text-align:center;color:#1B2A4A;">${a.score != null ? Math.round(a.score<=1?a.score*100:a.score<=10?a.score*10:a.score) + '%' : '—'}</td>
                             <td style="padding:6px 8px;text-align:center;">${escHtml(a.decision || '—')}</td>
                         </tr>`).join('')}
                     </tbody></table>`
