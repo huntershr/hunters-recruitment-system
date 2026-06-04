@@ -49,7 +49,7 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
         _bd = result.get("score_breakdown") or {}
         db_eval = models.Evaluation(
             application_id=application.id,
-            candidate_id=None,
+            candidate_id=application.candidate_id,
             job_id=job.id,
             score=result.get("score", 0.0),
             score_experience=_bd.get("experience"),
@@ -197,6 +197,38 @@ async def public_apply(
     db.add(application)
     db.commit()
     db.refresh(application)
+
+    # Talent pool upsert: ensure every external applicant has a Candidate row
+    # so they appear in the pipeline even after the job closes.
+    existing_candidate = (
+        db.query(models.Candidate)
+        .filter(models.Candidate.email.ilike(email))
+        .first()
+    )
+    if existing_candidate:
+        application.candidate_id = existing_candidate.id
+        db.commit()
+    else:
+        new_candidate = models.Candidate(
+            name=name,
+            email=email,
+            phone=phone,
+            job_applied=job_id,
+            experience_years=0,
+            expected_salary=expected_salary,
+            education="",
+            skills="",
+            cv_text=cv_text,
+            cv_file_data=content,
+            cv_file_mime=cv_mime,
+            owner_id=job.owner_id,
+            user_id=None,
+        )
+        db.add(new_candidate)
+        db.commit()
+        db.refresh(new_candidate)
+        application.candidate_id = new_candidate.id
+        db.commit()
 
     from ..database import SessionLocal
     background_tasks.add_task(
