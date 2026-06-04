@@ -74,6 +74,11 @@ nav {
   font-weight:600 !important; font-size:0.8rem !important;
 }
 .nav-cta:hover { background:#e8c96d !important; }
+.nav-hamburger {
+  display:none;
+  background:none; border:none; cursor:pointer;
+  padding:6px; color:var(--gold); font-size:1.6rem; line-height:1;
+}
 .lang-toggle {
   background:transparent; border:1px solid rgba(201,168,76,0.5);
   color:var(--gold); cursor:pointer; padding:0.4rem 0.7rem;
@@ -603,7 +608,17 @@ footer { background:#0f1e35; border-top:1px solid rgba(201,168,76,0.12); padding
   .contact-grid{ grid-template-columns:1fr; gap:3rem; }
 }
 @media(max-width:768px){
-  .nav-links{ display:none; }
+  .nav-hamburger{ display:block; }
+  nav{ padding:0.75rem 1.2rem; position:fixed; top:0; left:0; right:0; width:100%; z-index:1000; }
+  .nav-links{
+    display:none; flex-direction:column; gap:0;
+    position:absolute; top:100%; left:0; right:0;
+    background:var(--navy); border-top:1px solid rgba(201,168,76,0.3);
+    padding:0.5rem 1.5rem 1rem; z-index:999;
+  }
+  .nav-links.open{ display:flex; }
+  .nav-links li{ padding:0.65rem 0; border-bottom:1px solid rgba(255,255,255,0.07); list-style:none; }
+  .nav-links li:last-child{ border-bottom:none; }
   section{ padding:3.5rem 0; }
   .container{ padding:0 1.5rem; }
   .problems-grid{ grid-template-columns:1fr; }
@@ -680,6 +695,7 @@ body.ar .philosophy-card:hover{ transform:translateX(-5px); box-shadow:3px 0 0 v
     <li><a href="https://app.hunters-egypt.com" class="nav-cta"><span class="lang-en-inline">Launch Platform</span><span class="lang-ar-inline">ابدأ الآن</span></a></li>
   </ul>
   <button class="lang-toggle" onclick="toggleLang()" id="langBtn">عربي</button>
+  <button class="nav-hamburger" id="nav-hamburger" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
 </nav>
 
 <!-- HERO — white bg, navy banner accent -->
@@ -1269,6 +1285,22 @@ const observer = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.1 });
 document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+function toggleMobileNav() {
+  document.querySelector('.nav-links').classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  if (!document.getElementById('navbar').contains(e.target)) {
+    document.querySelector('.nav-links').classList.remove('open');
+  }
+});
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.nav-links a').forEach(function(a) {
+    a.addEventListener('click', function() {
+      document.querySelector('.nav-links').classList.remove('open');
+    });
+  });
+});
 
 function toggleLang() {
   const body = document.body;
