@@ -331,6 +331,31 @@ def create_interview(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid date/time: {exc}")
 
+    # Upsert: if an active interview already exists for this application, update it
+    existing_iv = (
+        db.query(models.Interview)
+        .filter(
+            models.Interview.application_id == data.application_id,
+            models.Interview.status != "cancelled",
+        )
+        .order_by(models.Interview.created_at.desc())
+        .first()
+    )
+    if existing_iv:
+        existing_iv.interview_date = iv_date
+        existing_iv.interview_time = iv_time
+        existing_iv.duration_minutes = data.duration_minutes
+        existing_iv.location_type = data.location_type
+        existing_iv.location_value = data.location_value
+        existing_iv.interviewer_names = data.interviewer_names
+        existing_iv.notes_for_candidate = data.notes_for_candidate
+        existing_iv.internal_notes = data.internal_notes
+        existing_iv.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(existing_iv)
+        logger.info(f"Interview {existing_iv.id} upserted (prevented duplicate) for application {data.application_id}")
+        return _build_payload(existing_iv, db, mode="reschedule")
+
     iv = models.Interview(
         application_id=data.application_id,
         scheduled_by=current_user.id,
@@ -385,12 +410,20 @@ def list_interviews(
         q = q.filter(models.Interview.application_id.in_(co_app_ids))
 
     rows = q.order_by(
-        models.Interview.interview_date.asc(),
-        models.Interview.interview_time.asc(),
+        models.Interview.created_at.desc(),
     ).all()
 
-    result = []
+    # Deduplicate: keep only the most recent per application_id
+    _seen = set()
+    deduped = []
     for iv in rows:
+        if iv.application_id not in _seen:
+            _seen.add(iv.application_id)
+            deduped.append(iv)
+    deduped.sort(key=lambda x: (x.interview_date, x.interview_time))
+
+    result = []
+    for iv in deduped:
         app = _load_app(iv.application_id, db)
         if not app:
             continue
@@ -442,9 +475,18 @@ def list_all_interviews(
         q = db.query(models.Interview)
 
     rows = q.order_by(
-        models.Interview.interview_date.desc(),
-        models.Interview.interview_time.desc(),
+        models.Interview.created_at.desc(),
     ).all()
+
+    # Deduplicate: keep only the most recent per application_id
+    _seen2 = set()
+    deduped2 = []
+    for iv in rows:
+        if iv.application_id not in _seen2:
+            _seen2.add(iv.application_id)
+            deduped2.append(iv)
+    deduped2.sort(key=lambda x: (x.interview_date, x.interview_time), reverse=True)
+    rows = deduped2
 
     result = []
     for iv in rows:

@@ -626,7 +626,7 @@ function _renderStageCard(app) {
                 ${app.evaluation_id?`<button onclick="viewApplication(${app.application_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#1B2A4A;cursor:pointer;min-height:44px;">Report</button>`:''}
                 ${app.cv_available?`<button onclick="downloadAppCV(${app.application_id},'${safeName}')" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">CV</button>`:''}
                 ${isReg&&app.candidate_id?`<button onclick="viewAtsProfile(${app.application_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#185FA5;cursor:pointer;min-height:44px;">Profile</button>`:''}
-                ${stg==='interview'?`<button onclick="openScheduleInterviewModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}',null)" style="padding:7px 12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">📅 Schedule</button>`:''}
+                ${stg==='interview'?`<button onclick="openScheduleInterviewModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}',_appIv(${app.application_id}))" style="padding:7px 12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">${app.interview?'📅 Reschedule':'📅 Schedule'}</button>`:''}
                 ${app.email?`<button onclick="sendCandidateEmail('${(app.email||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}','${(app.company_name||'Hunters HR').replace(/'/g,"\\'")}')" style="padding:7px 12px;border:1px solid #1B2A4A;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#1B2A4A;cursor:pointer;min-height:44px;" title="Send Email">✉</button>`:''}
                 ${app.phone?`<button onclick="sendCandidateWhatsApp('${(app.phone||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}')" style="padding:7px 12px;border:1px solid #25D366;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#25D366;cursor:pointer;min-height:44px;" title="WhatsApp">WhatsApp</button>`:''}
             </div>
@@ -3569,6 +3569,12 @@ function _buildInterviewWhatsApp(iv, candName, jobTitle, company, phone) {
     return (intlPhone ? 'https://wa.me/' + intlPhone : 'https://wa.me/') + '?text=' + encodeURIComponent(text);
 }
 
+function _appIv(appId) {
+    const apps = typeof applications !== 'undefined' ? applications : [];
+    const a = apps.find(x => x.application_id === appId);
+    return a ? (a.interview || null) : null;
+}
+
 function openScheduleInterviewModal(appId, candName, existingIv) {
     const app = (typeof applications !== 'undefined' ? applications : []).find(a => a.application_id === appId) || {};
     const today = new Date().toISOString().split('T')[0];
@@ -3711,7 +3717,10 @@ async function _submitScheduleInterview(appId) {
         const data = await res.json();
         const apps = typeof applications !== 'undefined' ? applications : [];
         const idx = apps.findIndex(a => a.application_id === appId);
-        if (idx >= 0) apps[idx].stage = 'Interview';
+        if (idx >= 0) {
+            apps[idx].stage = 'Interview';
+            if (data.interview) apps[idx].interview = data.interview;
+        }
         document.getElementById('schedule-interview-modal')?.remove();
         if (typeof renderCandidates === 'function') renderCandidates();
         showToast('Interview scheduled', 'success');

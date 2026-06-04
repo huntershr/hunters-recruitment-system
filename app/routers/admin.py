@@ -947,6 +947,23 @@ def list_admin_applications(
 
     applications = fetch_q.offset(skip).limit(limit).all()
 
+    # Bulk-fetch most recent active interview per application for Schedule/Reschedule button state
+    _app_ids = [a.id for a in applications]
+    _iv_map = {}
+    if _app_ids:
+        _ivs = (
+            db.query(models.Interview)
+            .filter(
+                models.Interview.application_id.in_(_app_ids),
+                models.Interview.status != 'cancelled',
+            )
+            .order_by(models.Interview.application_id, models.Interview.created_at.desc())
+            .all()
+        )
+        for _iv in _ivs:
+            if _iv.application_id not in _iv_map:
+                _iv_map[_iv.application_id] = _iv
+
     result = []
     for app in applications:
         job = app.job
@@ -1024,6 +1041,18 @@ def list_admin_applications(
             "score_skills":     round(evaluation.score_skills)     if evaluation and evaluation.score_skills     is not None else None,
             "score_education":  round(evaluation.score_education)  if evaluation and evaluation.score_education  is not None else None,
             "score_behavioral": round(evaluation.score_behavioral) if evaluation and evaluation.score_behavioral is not None else None,
+            "interview": (lambda _iv: {
+                "id": _iv.id,
+                "interview_date": str(_iv.interview_date),
+                "interview_time": str(_iv.interview_time)[:5],
+                "duration_minutes": _iv.duration_minutes,
+                "location_type": _iv.location_type,
+                "location_value": _iv.location_value,
+                "interviewer_names": _iv.interviewer_names,
+                "notes_for_candidate": _iv.notes_for_candidate,
+                "internal_notes": _iv.internal_notes,
+                "status": _iv.status,
+            } if _iv else None)(_iv_map.get(app.id)),
         })
 
     return {"total_count": total_count, "applications": result}
