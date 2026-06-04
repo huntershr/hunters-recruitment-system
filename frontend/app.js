@@ -2415,7 +2415,7 @@ function _renderCoWorkspace(co, activeTab) {
                     <div>
                         <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:5px;">Plan</label>
                         <select id="ws-plan" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;">
-                            ${['free','growth','professional','enterprise'].map(p => `<option value="${p}" ${(co.plan||'free').toLowerCase()===p?'selected':''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`).join('')}
+                            ${['growth','professional','enterprise'].map(p => `<option value="${p}" ${(co.plan||'').toLowerCase()===p?'selected':''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`).join('')}
                         </select>
                     </div>
                     <div>
