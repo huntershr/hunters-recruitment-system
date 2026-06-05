@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hunters HR — AI Screening Call</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#1B2A4A;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;color:#fff;}
+  .card{background:#fff;border-radius:20px;width:100%;max-width:520px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.4);}
+  .card-header{background:#1B2A4A;border-bottom:3px solid #C9A84C;padding:20px 24px;display:flex;align-items:center;gap:14px;}
+  .logo-circle{width:44px;height:44px;border-radius:50%;background:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+  .header-text{flex:1;}
+  .header-title{color:#fff;font-size:15px;font-weight:600;line-height:1.2;}
+  .header-sub{color:#C9A84C;font-size:11px;margin-top:3px;letter-spacing:.5px;}
+  .card-body{padding:28px 24px;background:#fff;}
+  /* progress bar */
+  .progress-wrap{display:flex;gap:4px;margin-bottom:20px;}
+  .progress-seg{height:5px;border-radius:3px;flex:1;background:#E5E7EB;transition:background .3s;}
+  .progress-seg.done{background:#C9A84C;}
+  /* pulse circle */
+  .pulse-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin:20px 0;}
+  .pulse-outer{position:relative;width:80px;height:80px;}
+  .pulse-ring{position:absolute;inset:0;border-radius:50%;background:#C9A84C;opacity:.15;animation:pulse 1.4s ease-in-out infinite;}
+  .pulse-inner{position:absolute;inset:10px;border-radius:50%;background:#1B2A4A;display:flex;align-items:center;justify-content:center;font-size:26px;}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.15;}50%{transform:scale(1.55);opacity:.07;}}
+  .status-label{font-size:13px;color:#6B7280;font-weight:500;}
+  /* question text */
+  .q-label{font-size:10px;font-weight:700;color:#9CA3AF;letter-spacing:1.5px;margin-bottom:8px;text-transform:uppercase;}
+  .q-text{font-size:16px;font-weight:600;color:#1B2A4A;line-height:1.55;margin-bottom:18px;}
+  .transcript-box{min-height:52px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:12px 14px;font-size:13px;color:#374151;margin-bottom:16px;line-height:1.5;}
+  /* buttons */
+  .btn-gold{padding:13px 28px;border:none;border-radius:10px;background:#C9A84C;color:#1B2A4A;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;}
+  .btn-navy{padding:11px 20px;border:none;border-radius:10px;background:#1B2A4A;color:#C9A84C;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-top:8px;}
+  .btn-outline{padding:10px 18px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#6B7280;font-size:13px;cursor:pointer;margin-top:8px;}
+  /* states */
+  #state-error,#state-greeting,#state-progress,#state-done,#state-used{display:none;}
+  .footer-note{text-align:center;font-size:11px;color:rgba(255,255,255,0.45);margin-top:16px;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-header">
+    <div class="logo-circle">🎙️</div>
+    <div class="header-text">
+      <div class="header-title">Hunters HR — AI Screening</div>
+      <div class="header-sub" id="header-sub">Powered by Hunters AI</div>
+    </div>
+  </div>
+
+  <div class="card-body">
+
+    <!-- STATE: loading -->
+    <div id="state-loading" style="text-align:center;padding:32px 0;">
+      <div style="font-size:32px;margin-bottom:12px;">⏳</div>
+      <div style="font-size:14px;color:#6B7280;">Loading your screening session…</div>
+    </div>
+
+    <!-- STATE: invalid / error -->
+    <div id="state-error">
+      <div style="text-align:center;padding:24px 0;">
+        <div style="font-size:40px;margin-bottom:12px;">🔗</div>
+        <div style="font-size:16px;font-weight:600;color:#1B2A4A;margin-bottom:8px;">Invalid Link</div>
+        <div style="font-size:13px;color:#6B7280;line-height:1.6;" id="error-msg">This screening link is invalid or has expired. Please contact your recruiter.</div>
+      </div>
+    </div>
+
+    <!-- STATE: already used -->
+    <div id="state-used">
+      <div style="text-align:center;padding:24px 0;">
+        <div style="font-size:40px;margin-bottom:12px;">✅</div>
+        <div style="font-size:16px;font-weight:600;color:#1B2A4A;margin-bottom:8px;">Already Completed</div>
+        <div style="font-size:13px;color:#6B7280;line-height:1.6;">This screening session has already been completed. Thank you!</div>
+      </div>
+    </div>
+
+    <!-- STATE: greeting -->
+    <div id="state-greeting">
+      <div style="font-size:22px;font-weight:700;color:#1B2A4A;margin-bottom:6px;">Hello, <span id="greet-name"></span> 👋</div>
+      <div style="font-size:13px;color:#6B7280;line-height:1.65;margin-bottom:24px;">
+        You have been invited to complete a voice screening for the
+        <strong id="greet-job" style="color:#1B2A4A;"></strong> position.<br><br>
+        This takes approximately <strong>3–5 minutes</strong>. I will ask you
+        <strong>6 short questions</strong>. Please speak clearly after each question.<br><br>
+        Ensure your microphone is enabled before starting.
+      </div>
+      <button class="btn-gold" onclick="startScreening()">▶ Start Screening</button>
+    </div>
+
+    <!-- STATE: in progress -->
+    <div id="state-progress">
+      <div class="q-label" id="q-label">QUESTION 1 OF 6</div>
+      <div class="progress-wrap" id="progress-bar"></div>
+      <div class="q-text" id="q-text"></div>
+      <div class="pulse-wrap">
+        <div class="pulse-outer">
+          <div class="pulse-ring" id="pulse-ring"></div>
+          <div class="pulse-inner" id="pulse-icon">🤖</div>
+        </div>
+        <div class="status-label" id="status-label">Speaking…</div>
+      </div>
+      <div class="transcript-box" id="transcript-box" style="display:none;"></div>
+      <button class="btn-navy" id="next-btn" onclick="nextQuestion()" style="display:none;">Next Question ▶</button>
+      <button class="btn-outline" onclick="skipQuestion()" id="skip-btn" style="display:none;">Skip (no answer)</button>
+    </div>
+
+    <!-- STATE: completed -->
+    <div id="state-done" style="text-align:center;padding:24px 0;">
+      <div style="font-size:44px;margin-bottom:14px;">🎉</div>
+      <div style="font-size:20px;font-weight:700;color:#1B2A4A;margin-bottom:8px;">Thank you, <span id="done-name"></span>!</div>
+      <div style="font-size:13px;color:#6B7280;line-height:1.7;">
+        Your screening is complete. Our team will review your responses and be in touch shortly.<br><br>
+        You can now close this page.
+      </div>
+      <div style="margin-top:20px;padding:14px 18px;background:#E1F5EE;border-radius:10px;font-size:12px;color:#0F6E56;font-weight:500;">
+        ✅ Results saved successfully
+      </div>
+      <div style="margin-top:20px;font-size:12px;color:#9CA3AF;">
+        hr@hunters-egypt.com · 01111176767
+      </div>
+    </div>
+
+  </div><!-- /card-body -->
+</div>
+
+<div class="footer-note">Hunters for HR Transformation &amp; Execution · Confidential</div>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const TOKEN = params.get('token');
+
+let _sid = null;
+let _questions = [];
+let _currentQ = 0;
+let _candName = '';
+let _jobTitle = '';
+let _currentTranscript = '';
+
+// ── States ──
+function show(id) {
+  ['state-loading','state-error','state-greeting','state-progress','state-done','state-used']
+    .forEach(s => document.getElementById(s).style.display = s === id ? 'block' : 'none');
+}
+
+// ── Init ──
+window.addEventListener('DOMContentLoaded', async () => {
+  if (!TOKEN) { show('state-error'); return; }
+  try {
+    const res = await fetch(API + '/api/voice-screening/session/' + TOKEN);
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      if (data.error && data.error.toLowerCase().includes('already')) {
+        show('state-used');
+      } else {
+        document.getElementById('error-msg').textContent = data.error || data.detail || 'Invalid link.';
+        show('state-error');
+      }
+      return;
+    }
+    _sid       = data.screening_id;
+    _questions = data.questions;
+    _candName  = data.candidate_name || 'Candidate';
+    _jobTitle  = data.job_title || 'the role';
+
+    document.getElementById('greet-name').textContent = _candName;
+    document.getElementById('greet-job').textContent  = _jobTitle;
+    document.getElementById('header-sub').textContent = _jobTitle + ' · AI Screening';
+    document.getElementById('done-name').textContent  = _candName;
+
+    show('state-greeting');
+  } catch(e) {
+    document.getElementById('error-msg').textContent = 'Could not load session. Please try again.';
+    show('state-error');
+  }
+});
+
+// ── Start ──
+function startScreening() {
+  _currentQ = 0;
+  show('state-progress');
+  _buildProgress();
+  // Introduce bot before Q1
+  const intro = 'Hello ' + _candName + ', this is the Hunters HR automated screening assistant. ' +
+    'I will ask you 6 short questions about your experience and availability for the ' + _jobTitle +
+    ' role. Please answer each question clearly after the tone. Let us begin.';
+  speak(intro, () => showQuestion(_currentQ));
+}
+
+// ── Progress bar ──
+function _buildProgress() {
+  const bar = document.getElementById('progress-bar');
+  bar.innerHTML = _questions.map((_,i) => '<div class="progress-seg" id="seg-'+i+'"></div>').join('');
+}
+function _updateProgress(idx) {
+  _questions.forEach((_,i) => {
+    const el = document.getElementById('seg-'+i);
+    if (el) el.className = 'progress-seg' + (i <= idx ? ' done' : '');
+  });
+}
+
+// ── Show question ──
+function showQuestion(idx) {
+  if (idx >= _questions.length) { finishScreening(); return; }
+  _currentTranscript = '';
+  const qText = _questions[idx];
+  document.getElementById('q-label').textContent = 'QUESTION ' + (idx+1) + ' OF ' + _questions.length;
+  document.getElementById('q-text').textContent  = qText;
+  document.getElementById('transcript-box').style.display = 'none';
+  document.getElementById('transcript-box').textContent = '';
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('skip-btn').style.display = 'none';
+  document.getElementById('pulse-icon').textContent = '🤖';
+  document.getElementById('status-label').textContent = 'Speaking…';
+  document.getElementById('pulse-ring').style.animationPlayState = 'running';
+  _updateProgress(idx);
+  speak(qText, () => startListening());
+}
+
+// ── TTS ──
+function speak(text, onEnd) {
+  if (!window.speechSynthesis) { onEnd && onEnd(); return; }
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'en-US'; utt.rate = 0.88; utt.pitch = 1;
+  utt.onend = () => { onEnd && onEnd(); };
+  window.speechSynthesis.speak(utt);
+}
+
+// ── STT ──
+let _recognition = null;
+function startListening() {
+  document.getElementById('pulse-icon').textContent = '🎤';
+  document.getElementById('status-label').textContent = '🎤 Listening… (speak now)';
+  document.getElementById('transcript-box').style.display = 'block';
+  document.getElementById('skip-btn').style.display = 'block';
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById('status-label').textContent = 'Microphone not supported — click Skip to continue';
+    document.getElementById('next-btn').style.display = 'block';
+    return;
+  }
+  _recognition = new SR();
+  _recognition.lang = 'en-US'; _recognition.continuous = false; _recognition.interimResults = true;
+  let final = '';
+  let silTimer = null;
+
+  _recognition.onresult = (ev) => {
+    let interim = '';
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      if (ev.results[i].isFinal) final += ev.results[i][0].transcript + ' ';
+      else interim = ev.results[i][0].transcript;
+    }
+    document.getElementById('transcript-box').textContent = (final + interim).trim();
+    clearTimeout(silTimer);
+    silTimer = setTimeout(() => { if (_recognition) _recognition.stop(); }, 3000);
+  };
+  _recognition.onend = () => {
+    _currentTranscript = document.getElementById('transcript-box').textContent.trim();
+    document.getElementById('status-label').textContent = _currentTranscript ? '✅ Answer recorded' : '(No answer recorded)';
+    document.getElementById('pulse-ring').style.animationPlayState = 'paused';
+    document.getElementById('next-btn').style.display = 'block';
+    _recognition = null;
+  };
+  _recognition.onerror = () => {
+    document.getElementById('status-label').textContent = 'Mic error — click Next to continue';
+    document.getElementById('next-btn').style.display = 'block';
+    _recognition = null;
+  };
+  _recognition.start();
+}
+
+// ── Next ──
+async function nextQuestion() {
+  if (_recognition) { _recognition.stop(); return; } // wait for onend
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('skip-btn').style.display = 'none';
+  document.getElementById('status-label').textContent = 'Saving…';
+  await saveAnswer(_currentQ + 1, _currentTranscript);
+  _currentQ++;
+  if (_currentQ >= _questions.length) { finishScreening(); } else { showQuestion(_currentQ); }
+}
+
+function skipQuestion() {
+  if (_recognition) { _recognition.stop(); return; }
+  _currentTranscript = '';
+  document.getElementById('next-btn').click();
+}
+
+// ── API calls ──
+async function saveAnswer(qNum, transcript) {
+  try {
+    await fetch(API + '/api/voice-screening/session/' + TOKEN + '/save-answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_number: qNum, transcript: transcript || '' }),
+    });
+  } catch(_) {}
+}
+
+async function finishScreening() {
+  document.getElementById('status-label').textContent = 'Analysing with AI…';
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('skip-btn').style.display = 'none';
+  document.getElementById('pulse-icon').textContent = '⏳';
+  try {
+    await fetch(API + '/api/voice-screening/session/' + TOKEN + '/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch(_) {}
+  show('state-done');
+  speak('Thank you, ' + _candName + '! Your screening is complete. Our team will be in touch shortly. Goodbye!', null);
+}
+</script>
+</body>
+</html>

@@ -193,6 +193,8 @@ class VoiceScreening(Base):
     triggered_by     = Column(Integer, ForeignKey("users.id"), nullable=True)
     attempt_number   = Column(Integer, default=1)
     status           = Column(String, default="pending")
+    screening_token  = Column(String(64), unique=True, nullable=True)
+    token_used       = Column(Boolean, default=False)
 
     # Question answers
     experience_response   = Column(Text, nullable=True)

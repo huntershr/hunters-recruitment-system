@@ -4,6 +4,7 @@ from sqlalchemy import desc
 from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel
+import secrets
 
 from .. import models, database
 from ..routers.auth import get_current_user
@@ -55,6 +56,33 @@ def _screening_dict(vs: models.VoiceScreening) -> dict:
         "interview_date_at_time": vs.interview_date_at_time,
         "interview_time_at_time": vs.interview_time_at_time,
     }
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────
+
+def _build_questions(job_title, job_type, interview_date, interview_time):
+    q4 = (
+        f"Your interview is scheduled for {interview_date} at {interview_time} — can you confirm your attendance?"
+        if interview_date and interview_time
+        else "Would you be available for an interview this week or next week?"
+    )
+    return [
+        f"Please tell us about your experience relevant to the {job_title} role.",
+        "When are you available to start the job?",
+        f"This role is {job_type} — is that suitable for you?",
+        q4,
+        "What is your expected monthly salary?",
+        "Do you have any questions for us? If yes, please go ahead after the beep.",
+    ]
+
+
+def _lookup_by_token(token: str, db: Session) -> models.VoiceScreening:
+    vs = db.query(models.VoiceScreening).filter(
+        models.VoiceScreening.screening_token == token
+    ).first()
+    if not vs:
+        raise HTTPException(status_code=404, detail="Invalid or expired screening link")
+    return vs
 
 
 # ── Request schemas ────────────────────────────────────────────────────────
@@ -123,6 +151,8 @@ def start_screening(
     ) if data.application_id else None
     attempt = (last.attempt_number + 1) if last else 1
 
+    token = secrets.token_urlsafe(32)
+
     vs = models.VoiceScreening(
         candidate_id=candidate.id if candidate else None,
         application_id=data.application_id,
@@ -130,6 +160,8 @@ def start_screening(
         triggered_by=current_user.id,
         attempt_number=attempt,
         status="pending",
+        screening_token=token,
+        token_used=False,
         job_title_at_time=job_title,
         job_type_at_time=job_type,
         interview_date_at_time=interview_date,
@@ -139,23 +171,11 @@ def start_screening(
     db.commit()
     db.refresh(vs)
 
-    # Build dynamic questions
-    q4 = (
-        f"Your interview is scheduled for {interview_date} at {interview_time} — can you confirm your attendance?"
-        if interview_date and interview_time
-        else "Would you be available for an interview this week or next week?"
-    )
-    questions = [
-        f"Please tell us about your experience relevant to the {job_title} role.",
-        "When are you available to start the job?",
-        f"This role is {job_type} — is that suitable for you?",
-        q4,
-        "What is your expected monthly salary?",
-        "Do you have any questions for us? If yes, please go ahead after the beep.",
-    ]
+    questions = _build_questions(job_title, job_type, interview_date, interview_time)
 
     return {
         "screening_id": vs.id,
+        "token": token,
         "candidate_name": cand_name,
         "job_title": job_title,
         "job_type": job_type,
@@ -326,3 +346,98 @@ def get_all_screenings(
         result.append(d)
 
     return {"total": total, "screenings": result}
+
+
+# ── Recruiter polling ──────────────────────────────────────────────────────
+
+@router.get("/{screening_id}")
+def get_screening(
+    screening_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _require_company_or_admin(current_user)
+    vs = db.query(models.VoiceScreening).filter(models.VoiceScreening.id == screening_id).first()
+    if not vs:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    return _screening_dict(vs)
+
+
+# ── Public token-based routes (no auth — candidate uses these) ────────────
+
+@router.get("/session/{token}")
+def get_session(token: str, db: Session = Depends(get_db)):
+    vs = _lookup_by_token(token, db)
+    if vs.token_used or vs.status == "completed":
+        return {"error": "This screening session has already been completed"}
+    questions = _build_questions(
+        vs.job_title_at_time or "the role",
+        vs.job_type_at_time or "Full-time",
+        vs.interview_date_at_time,
+        vs.interview_time_at_time,
+    )
+    cand = vs.candidate
+    app  = vs.application
+    cand_name = (cand.name if cand else None) or (app.applicant_name if app else "Candidate")
+    return {
+        "screening_id": vs.id,
+        "candidate_name": cand_name,
+        "job_title": vs.job_title_at_time,
+        "job_type": vs.job_type_at_time,
+        "interview_date": vs.interview_date_at_time,
+        "interview_time": vs.interview_time_at_time,
+        "questions": questions,
+    }
+
+
+@router.post("/session/{token}/save-answer")
+def session_save_answer(token: str, data: SaveAnswerIn, db: Session = Depends(get_db)):
+    vs = _lookup_by_token(token, db)
+    if vs.token_used or vs.status == "completed":
+        raise HTTPException(status_code=410, detail="Screening already completed")
+    field_map = {
+        1: "experience_response",
+        2: "availability_response",
+        3: "job_type_suitable",
+        4: "interview_confirmed",
+        5: "expected_salary",
+        6: "candidate_questions",
+    }
+    field = field_map.get(data.question_number)
+    if not field:
+        raise HTTPException(status_code=400, detail="question_number must be 1-6")
+    setattr(vs, field, data.transcript)
+    if data.question_number == 6 and data.transcript.strip():
+        vs.has_candidate_questions = True
+    vs.status = "in_progress"
+    db.commit()
+    return {"success": True}
+
+
+@router.post("/session/{token}/complete")
+def session_complete(token: str, db: Session = Depends(get_db)):
+    vs = _lookup_by_token(token, db)
+    if vs.token_used or vs.status == "completed":
+        raise HTTPException(status_code=410, detail="Screening already completed")
+
+    parts = []
+    if vs.experience_response:   parts.append(f"Q1 (Experience): {vs.experience_response}")
+    if vs.availability_response: parts.append(f"Q2 (Availability): {vs.availability_response}")
+    if vs.job_type_suitable:     parts.append(f"Q3 (Job Type): {vs.job_type_suitable}")
+    if vs.interview_confirmed:   parts.append(f"Q4 (Interview): {vs.interview_confirmed}")
+    if vs.expected_salary:       parts.append(f"Q5 (Salary): {vs.expected_salary}")
+    if vs.candidate_questions:   parts.append(f"Q6 (Questions): {vs.candidate_questions}")
+    vs.full_transcript = "\n".join(parts)
+
+    analysis = VoiceEngine.analyze_with_gemini(vs.full_transcript, vs.job_title_at_time or "the role")
+    vs.english_level      = analysis.get("english_level")
+    vs.fluency_assessment = analysis.get("fluency_assessment")
+    vs.clarity_assessment = analysis.get("clarity_assessment")
+    vs.experience_match   = analysis.get("experience_match")
+    vs.language_notes     = analysis.get("language_notes")
+    vs.ai_summary         = analysis.get("ai_summary")
+    vs.status             = "completed"
+    vs.token_used         = True
+    vs.completed_at       = datetime.utcnow()
+    db.commit()
+    return {"success": True, "screening_id": vs.id}

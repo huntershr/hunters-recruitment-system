@@ -182,8 +182,12 @@ def startup_populate_db():
                 job_title_at_time      VARCHAR,
                 job_type_at_time       VARCHAR,
                 interview_date_at_time VARCHAR,
-                interview_time_at_time VARCHAR
+                interview_time_at_time VARCHAR,
+                screening_token        VARCHAR(64) UNIQUE,
+                token_used             BOOLEAN DEFAULT FALSE
             )""",
+            "ALTER TABLE voice_screenings ADD COLUMN IF NOT EXISTS screening_token VARCHAR(64) UNIQUE",
+            "ALTER TABLE voice_screenings ADD COLUMN IF NOT EXISTS token_used BOOLEAN DEFAULT FALSE",
         ]
 
         try:

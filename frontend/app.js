@@ -3577,204 +3577,124 @@ function _buildInterviewWhatsApp(iv, candName, jobTitle, company, phone) {
 
 // ── Voice Screening Panel ──────────────────────────────────────────────────
 
-let _vsState = null; // { screeningId, questions, currentQ, appId, candidateName, jobTitle }
+let _vsState = null; // { screeningId, token, appId, pollTimer }
 
 async function openVoiceScreeningPanel(appId) {
     const app = (typeof applications !== 'undefined' ? applications : []).find(a => a.application_id === appId) || {};
-    const token = localStorage.getItem('token');
+    const authToken = localStorage.getItem('token');
 
-    // If already completed, just show results
+    // Already completed — just show results
     if (app.voice_screening && app.voice_screening.status === 'completed') {
         _showVsResultsModal(app.voice_screening, app.name || 'Candidate');
         return;
     }
 
     document.getElementById('voice-screening-panel')?.remove();
+    if (_vsState && _vsState.pollTimer) clearInterval(_vsState.pollTimer);
+
+    // Call /start to generate token + screening record
+    let startData;
+    try {
+        const res = await fetch('/api/voice-screening/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+            body: JSON.stringify({ application_id: appId, candidate_id: app.candidate_id || null, job_id: app.job_id || null }),
+        });
+        if (!res.ok) { showToast('Could not start screening', 'error'); return; }
+        startData = await res.json();
+    } catch(e) { showToast('Screening start failed', 'error'); return; }
+
+    const screeningId = startData.screening_id;
+    const vsToken     = startData.token;
+    const screenLink  = window.location.origin + '/screen.html?token=' + vsToken;
+    const waPhone     = (app.phone || '').replace(/[^0-9+]/g, '');
+    const waNum       = waPhone.startsWith('+') ? waPhone.replace('+','') : (waPhone.startsWith('0') ? '2' + waPhone : '20' + waPhone);
+    const waMsg       = encodeURIComponent('Hello ' + (app.name||'') + '! Please complete your AI screening call for the ' + (app.job_title||'role') + ' position by clicking this link: ' + screenLink);
+    const waUrl       = 'https://wa.me/' + waNum + '?text=' + waMsg;
+
+    _vsState = { screeningId, token: vsToken, appId, pollTimer: null };
 
     const overlay = document.createElement('div');
     overlay.id = 'voice-screening-panel';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.innerHTML = `
-    <div style="background:#fff;border-radius:20px;width:560px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
-      <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+    <div style="background:#fff;border-radius:20px;width:540px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;">
+      <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">AI SCREENING CALL</div>
-          <div style="color:#fff;font-size:16px;font-weight:600;margin-top:2px;">${escHtml(app.name||'Candidate')} — ${escHtml(app.job_title||'')}</div>
+          <div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">🎙️ AI SCREENING CALL READY</div>
+          <div style="color:#fff;font-size:15px;font-weight:600;margin-top:2px;">${escHtml(app.name||'Candidate')} — ${escHtml(app.job_title||'')}</div>
         </div>
-        <button onclick="document.getElementById('voice-screening-panel').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>
+        <button onclick="_vsClose()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>
       </div>
-      <div id="vs-body" style="padding:28px 24px;overflow-y:auto;flex:1;">
-        <div style="text-align:center;">
-          <div style="font-size:14px;color:#6B7280;margin-bottom:24px;">Ready to start the AI voice screening session for this candidate.</div>
-          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-            <button id="vs-start-btn" onclick="_vsStart(${appId})" style="padding:12px 28px;border:none;border-radius:10px;background:#C9A84C;color:#1B2A4A;font-size:14px;font-weight:700;cursor:pointer;">🎙️ Start Screening</button>
-            <button onclick="_vsNoAnswer(${appId})" style="padding:12px 20px;border:1px solid #CC2B2B;border-radius:10px;background:#fff;color:#CC2B2B;font-size:13px;font-weight:500;cursor:pointer;">📵 No Answer</button>
-          </div>
-          ${app.voice_screening && app.voice_screening.status === 'no_answer' ? `<div style="margin-top:16px;padding:10px 16px;background:#FEF2F2;border-radius:8px;font-size:12px;color:#CC2B2B;">Previous attempt: No Answer (Attempt #${app.voice_screening.attempt_number||1})</div>` : ''}
+      <div style="padding:24px;">
+        <div style="font-size:13px;color:#6B7280;margin-bottom:14px;">Send this link to the candidate to start the screening on their device:</div>
+        <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:12px 16px;font-size:12px;color:#1B2A4A;word-break:break-all;margin-bottom:16px;font-family:monospace;">${escHtml(screenLink)}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+          <button onclick="_vsCopyLink('${screenLink.replace(/'/g,"\\'")}')" style="padding:10px 18px;border:1px solid #1B2A4A;border-radius:8px;background:#fff;color:#1B2A4A;font-size:13px;font-weight:500;cursor:pointer;">📋 Copy Link</button>
+          ${waNum?`<a href="${escHtml(waUrl)}" target="_blank" style="padding:10px 18px;border:none;border-radius:8px;background:#25D366;color:#fff;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;">💬 Send via WhatsApp</a>`:''}
+          <button onclick="_vsMarkNoAnswer(${appId},${screeningId})" style="padding:10px 16px;border:1px solid #CC2B2B;border-radius:8px;background:#fff;color:#CC2B2B;font-size:12px;cursor:pointer;">📵 No Answer</button>
         </div>
+        <div id="vs-poll-status" style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#F0F7FF;border-radius:8px;font-size:13px;color:#185FA5;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#185FA5;animation:vs-blink 1.4s ease-in-out infinite;"></span>
+          ⏳ Waiting for candidate to complete the screening…
+        </div>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:10px;text-align:center;">Once the candidate finishes, results will appear here automatically.</div>
       </div>
-    </div>`;
+    </div>
+    <style>@keyframes vs-blink{0%,100%{opacity:1;}50%{opacity:0.2;}}</style>`;
     document.body.appendChild(overlay);
+
+    // Poll every 10 s for completion
+    _vsState.pollTimer = setInterval(() => _vsPoll(appId, screeningId), 10000);
 }
 
-async function _vsStart(appId) {
-    const app = (typeof applications !== 'undefined' ? applications : []).find(a => a.application_id === appId) || {};
-    const token = localStorage.getItem('token');
-    const btn = document.getElementById('vs-start-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Initialising…'; }
-
+async function _vsPoll(appId, screeningId) {
+    const authToken = localStorage.getItem('token');
     try {
-        const res = await fetch('/api/voice-screening/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ application_id: appId, candidate_id: app.candidate_id || null, job_id: app.job_id || null }),
+        const res = await fetch('/api/voice-screening/' + screeningId, {
+            headers: { 'Authorization': 'Bearer ' + authToken }
         });
-        if (!res.ok) { showToast('Could not start screening', 'error'); if (btn) { btn.disabled=false; btn.textContent='🎙️ Start Screening'; } return; }
-        const data = await res.json();
-        _vsState = { screeningId: data.screening_id, questions: data.questions, currentQ: 0, appId, candidateName: data.candidate_name, jobTitle: data.job_title, answers: [] };
-        _vsShowQuestion();
-    } catch(e) {
-        showToast('Screening start failed', 'error');
-        if (btn) { btn.disabled=false; btn.textContent='🎙️ Start Screening'; }
-    }
-}
-
-function _vsShowQuestion() {
-    if (!_vsState) return;
-    const { questions, currentQ } = _vsState;
-    const total = questions.length;
-    const qText = questions[currentQ];
-    const body = document.getElementById('vs-body');
-    if (!body) return;
-    body.innerHTML = `
-      <div style="text-align:center;margin-bottom:20px;">
-        <div style="font-size:11px;color:#9CA3AF;letter-spacing:1px;margin-bottom:8px;">QUESTION ${currentQ+1} OF ${total}</div>
-        <div style="display:flex;justify-content:center;gap:4px;margin-bottom:16px;">
-          ${Array.from({length:total},(_,i)=>`<div style="height:4px;border-radius:2px;flex:1;background:${i<=currentQ?'#C9A84C':'#E5E7EB'};max-width:48px;"></div>`).join('')}
-        </div>
-        <div style="font-size:15px;font-weight:600;color:#1B2A4A;line-height:1.5;margin-bottom:24px;padding:0 8px;">${escHtml(qText)}</div>
-        <div id="vs-pulse-wrap" style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px;">
-          <div style="position:relative;width:72px;height:72px;">
-            <div id="vs-pulse" style="position:absolute;inset:0;border-radius:50%;background:#C9A84C;opacity:0.15;animation:vs-pulse 1.4s ease-in-out infinite;"></div>
-            <div style="position:absolute;inset:8px;border-radius:50%;background:#1B2A4A;display:flex;align-items:center;justify-content:center;">
-              <span id="vs-mic-icon" style="font-size:22px;">🤖</span>
-            </div>
-          </div>
-          <div id="vs-status-text" style="font-size:12px;color:#6B7280;">Speaking question…</div>
-        </div>
-        <div id="vs-transcript-box" style="min-height:48px;background:#F9FAFB;border-radius:8px;padding:12px;font-size:13px;color:#374151;text-align:left;margin-bottom:16px;display:none;"></div>
-        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-          <button id="vs-next-btn" onclick="_vsNextQuestion()" style="padding:10px 24px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;display:none;">Next ▶</button>
-          <button onclick="_vsNoAnswer(_vsState&&_vsState.appId)" style="padding:10px 16px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#6B7280;font-size:12px;cursor:pointer;">End Call</button>
-        </div>
-      </div>
-      <style>@keyframes vs-pulse{0%,100%{transform:scale(1);opacity:0.15;}50%{transform:scale(1.5);opacity:0.08;}}</style>`;
-    _vsSpeak(qText, () => _vsListen());
-}
-
-function _vsSpeak(text, onEnd) {
-    if (!window.speechSynthesis) { onEnd && onEnd(); return; }
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.lang = 'en-US'; utt.rate = 0.9;
-    utt.onend = () => { onEnd && onEnd(); };
-    window.speechSynthesis.speak(utt);
-}
-
-function _vsListen() {
-    const statusEl = document.getElementById('vs-status-text');
-    const micEl    = document.getElementById('vs-mic-icon');
-    const boxEl    = document.getElementById('vs-transcript-box');
-    const nextBtn  = document.getElementById('vs-next-btn');
-    if (statusEl) statusEl.textContent = '🎤 Listening…';
-    if (micEl)    micEl.textContent = '🎤';
-    if (boxEl)    { boxEl.style.display = 'block'; boxEl.textContent = ''; }
-
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-        if (statusEl) statusEl.textContent = 'Speech recognition not supported — type answer below';
-        if (boxEl)    boxEl.contentEditable = 'true';
-        if (nextBtn)  nextBtn.style.display = 'inline-block';
-        return;
-    }
-    const rec = new SR();
-    rec.lang = 'en-US'; rec.continuous = false; rec.interimResults = true;
-    let finalTranscript = '';
-    let silenceTimer = null;
-
-    rec.onresult = (ev) => {
-        let interim = '';
-        for (let i = ev.resultIndex; i < ev.results.length; i++) {
-            if (ev.results[i].isFinal) finalTranscript += ev.results[i][0].transcript + ' ';
-            else interim = ev.results[i][0].transcript;
-        }
-        if (boxEl) boxEl.textContent = (finalTranscript + interim).trim();
-        clearTimeout(silenceTimer);
-        silenceTimer = setTimeout(() => { rec.stop(); }, 3000);
-    };
-    rec.onend = () => {
-        const answer = boxEl ? boxEl.textContent.trim() : finalTranscript.trim();
-        if (_vsState) _vsState._currentAnswer = answer;
-        if (statusEl) statusEl.textContent = '✅ Answer recorded';
-        if (nextBtn)  nextBtn.style.display = 'inline-block';
-    };
-    rec.onerror = () => {
-        if (statusEl) statusEl.textContent = 'Mic error — click Next to continue';
-        if (nextBtn)  nextBtn.style.display = 'inline-block';
-    };
-    rec.start();
-}
-
-async function _vsNextQuestion() {
-    if (!_vsState) return;
-    const token = localStorage.getItem('token');
-    const answer = (_vsState._currentAnswer || '').trim();
-    const qNum   = _vsState.currentQ + 1;
-
-    const nextBtn = document.getElementById('vs-next-btn');
-    if (nextBtn) { nextBtn.disabled = true; nextBtn.textContent = '⏳ Saving…'; }
-
-    try {
-        await fetch(`/api/voice-screening/${_vsState.screeningId}/save-answer`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
-            body: JSON.stringify({ question_number: qNum, transcript: answer }),
-        });
-    } catch(_) {}
-
-    _vsState._currentAnswer = '';
-    _vsState.currentQ++;
-
-    if (_vsState.currentQ >= _vsState.questions.length) {
-        _vsFinish();
-    } else {
-        _vsShowQuestion();
-    }
-}
-
-async function _vsFinish() {
-    const body = document.getElementById('vs-body');
-    if (body) body.innerHTML = '<div style="text-align:center;padding:32px 0;"><div style="font-size:24px;margin-bottom:8px;">⏳</div><div style="font-size:14px;color:#6B7280;">Analysing responses with AI…</div></div>';
-    const token = localStorage.getItem('token');
-    try {
-        const res = await fetch(`/api/voice-screening/${_vsState.screeningId}/complete`, {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token },
-        });
-        if (res.ok) {
-            const data = await res.json();
-            // Update applications array
-            const idx = (typeof applications !== 'undefined' ? applications : []).findIndex(a => a.application_id === _vsState.appId);
-            if (idx >= 0) applications[idx].voice_screening = data;
-            _showVsResultsModal(data, _vsState.candidateName);
+        if (!res.ok) return;
+        const vs = await res.json();
+        if (vs.status === 'completed') {
+            if (_vsState && _vsState.pollTimer) clearInterval(_vsState.pollTimer);
+            const idx = (typeof applications !== 'undefined' ? applications : []).findIndex(a => a.application_id === appId);
+            const candName = idx >= 0 ? (applications[idx].name || 'Candidate') : 'Candidate';
+            if (idx >= 0) applications[idx].voice_screening = vs;
             document.getElementById('voice-screening-panel')?.remove();
             if (typeof renderCandidates === 'function') renderCandidates();
-        } else {
-            showToast('AI analysis failed — results saved', 'warning');
+            _showVsResultsModal(vs, candName);
         }
-    } catch(e) {
-        showToast('Could not complete screening', 'error');
-    }
+    } catch(_) {}
+}
+
+function _vsClose() {
+    if (_vsState && _vsState.pollTimer) clearInterval(_vsState.pollTimer);
+    document.getElementById('voice-screening-panel')?.remove();
+}
+
+function _vsCopyLink(link) {
+    navigator.clipboard.writeText(link).catch(() => {
+        const ta = document.createElement('textarea'); ta.value = link;
+        ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    });
+    showToast('Link copied to clipboard', 'success');
+}
+
+async function _vsMarkNoAnswer(appId, screeningId) {
+    const authToken = localStorage.getItem('token');
+    if (_vsState && _vsState.pollTimer) clearInterval(_vsState.pollTimer);
+    try {
+        await fetch('/api/voice-screening/' + screeningId + '/no-answer', {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }
+        });
+        const idx = (typeof applications !== 'undefined' ? applications : []).findIndex(a => a.application_id === appId);
+        if (idx >= 0) applications[idx].voice_screening = { status: 'no_answer', attempt_number: 1 };
+        if (typeof renderCandidates === 'function') renderCandidates();
+    } catch(_) {}
+    document.getElementById('voice-screening-panel')?.remove();
+    showToast('Marked as no answer', 'info');
 }
 
 function _showVsResultsModal(vs, candName) {
@@ -3822,25 +3742,6 @@ function _showVsResultsModal(vs, candName) {
     </div>`;
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-}
-
-async function _vsNoAnswer(appId) {
-    if (!_vsState || !_vsState.screeningId) {
-        // No active screening — just close
-        document.getElementById('voice-screening-panel')?.remove();
-        return;
-    }
-    const token = localStorage.getItem('token');
-    try {
-        await fetch(`/api/voice-screening/${_vsState.screeningId}/no-answer`, {
-            method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
-        });
-        const idx = (typeof applications !== 'undefined' ? applications : []).findIndex(a => a.application_id === appId);
-        if (idx >= 0) applications[idx].voice_screening = { status: 'no_answer', attempt_number: _vsState.attemptNumber || 1 };
-        if (typeof renderCandidates === 'function') renderCandidates();
-    } catch(_) {}
-    document.getElementById('voice-screening-panel')?.remove();
-    showToast('Marked as no answer', 'info');
 }
 
 // ── End Voice Screening Panel ──────────────────────────────────────────────
