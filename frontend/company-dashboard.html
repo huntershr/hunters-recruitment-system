@@ -832,7 +832,7 @@
                     <select id="cand-stage-filter" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background:#FFFFFF; cursor:pointer; appearance:none; -webkit-appearance:none;">
                         <option value="">All Stages</option>
                         <option value="applied">Applied</option>
-                        <option value="screening">Screening</option>
+                        <option value="screening">AI Screening Call</option>
                         <option value="shortlisted">Shortlisted</option>
                         <option value="interview">Interview</option>
                         <option value="offered">Offered</option>
@@ -875,7 +875,7 @@
                         <select id="bulk-stage-select" onchange="bulkUpdateStage(this.value)" style="padding:6px 10px; border:1px solid #E5E7EB; border-radius:6px; font-size:12px; outline:none; appearance:none; -webkit-appearance:none; background:#fff;">
                             <option value="">Select...</option>
                             <option value="applied">Applied</option>
-                            <option value="screening">Screening</option>
+                            <option value="screening">AI Screening Call</option>
                             <option value="shortlisted">Shortlisted</option>
                             <option value="interview">Interview</option>
                             <option value="offered">Offered</option>
@@ -1531,7 +1531,7 @@
         if (!wrap) return;
         const stages = [
             ['Applied', '#1B2A4A'],
-            ['Screening', '#2D4A7A'],
+            ['AI Screening Call', '#2D4A7A'],
             ['Shortlisted', '#C9A84C'],
             ['Interview', '#9B6F00'],
             ['Offered', '#0F6E56'],
@@ -1911,7 +1911,7 @@
 
             let stageBadge = `<div style="position:relative; display:inline-block;">
                 <select onchange="updateCandidateStage(${cand.id}, this.value)" style="appearance:none; -webkit-appearance:none; background:${stageBg}; color:${stageColor}; border:1px solid ${stageColor}40; border-radius:12px; padding:4px 20px 4px 10px; font-size:11px; font-weight:500; cursor:pointer; outline:none;">
-                    ${['Applied','Screening','Shortlisted','Interview','Offered','Hired','Rejected'].map(s=>`<option value="${s}"${stageLC===s.toLowerCase()?' selected':''}>${s}</option>`).join('')}
+                    ${['Applied','Screening','Shortlisted','Interview','Offered','Hired','Rejected'].map(s=>`<option value="${s}"${stageLC===s.toLowerCase()?' selected':''}>${s==='Screening'?'AI Screening Call':s}</option>`).join('')}
                 </select>
                 <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); pointer-events:none; color:${stageColor};"><polyline points="6 9 12 15 18 9"/></svg>
             </div>`;
@@ -2878,7 +2878,7 @@
 
     const _CO_STAGE_TABS = [
         { id: 'applied',     label: 'Applied',     stages: ['applied','new','',null] },
-        { id: 'screening',   label: 'Screening',   stages: ['screening'] },
+        { id: 'screening',   label: 'AI Screening Call', stages: ['screening'] },
         { id: 'shortlisted', label: 'Shortlisted', stages: ['shortlisted'] },
         { id: 'interview',   label: 'Interview',   stages: ['interview'] },
         { id: 'offered',     label: 'Offered',     stages: ['offer','offered'] },
@@ -2976,9 +2976,10 @@
         const [stgColor,stgBg] = _CO_STAGE_BADGE[stg]||['#6B7280','#F3F4F6'];
         const stgLabel   = stg.charAt(0).toUpperCase()+stg.slice(1);
         const safeName   = (app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_');
+        const _coStageLabels = {'screening':'AI Screening Call'};
         const stageOpts  = ['applied','screening','shortlisted','interview','offered','hired','rejected']
             .filter(s=>s!==stg&&!(stg==='new'&&s==='applied'))
-            .map(s=>`<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
+            .map(s=>`<option value="${s}">${_coStageLabels[s]||s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
         return `<div id="co-stage-card-${app.application_id}" style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
             <div style="display:flex;align-items:flex-start;gap:12px;">
                 <div style="width:44px;height:44px;min-width:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${escHtml(initials)}</div>
