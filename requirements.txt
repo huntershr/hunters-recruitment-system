@@ -22,4 +22,3 @@ psycopg2-binary==2.9.9
 fpdf2==2.8.1
 sendgrid==6.11.0
 edge-tts==6.1.9
-openai-whisper==20231117
