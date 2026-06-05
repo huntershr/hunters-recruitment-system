@@ -950,6 +950,7 @@ def list_admin_applications(
     # Bulk-fetch most recent active interview per application for Schedule/Reschedule button state
     _app_ids = [a.id for a in applications]
     _iv_map = {}
+    _vs_map = {}
     if _app_ids:
         _ivs = (
             db.query(models.Interview)
@@ -963,6 +964,17 @@ def list_admin_applications(
         for _iv in _ivs:
             if _iv.application_id not in _iv_map:
                 _iv_map[_iv.application_id] = _iv
+
+        # Bulk-fetch most recent voice screening per application
+        _vss = (
+            db.query(models.VoiceScreening)
+            .filter(models.VoiceScreening.application_id.in_(_app_ids))
+            .order_by(models.VoiceScreening.application_id, models.VoiceScreening.attempt_number.desc())
+            .all()
+        )
+        for _vs in _vss:
+            if _vs.application_id not in _vs_map:
+                _vs_map[_vs.application_id] = _vs
 
     result = []
     for app in applications:
@@ -1053,6 +1065,24 @@ def list_admin_applications(
                 "internal_notes": _iv.internal_notes,
                 "status": _iv.status,
             } if _iv else None)(_iv_map.get(app.id)),
+            "voice_screening": (lambda _vs: {
+                "id": _vs.id,
+                "status": _vs.status,
+                "attempt_number": _vs.attempt_number,
+                "english_level": _vs.english_level,
+                "ai_summary": _vs.ai_summary,
+                "completed_at": _vs.completed_at.isoformat() if _vs.completed_at else None,
+                "fluency_assessment": _vs.fluency_assessment,
+                "clarity_assessment": _vs.clarity_assessment,
+                "experience_match": _vs.experience_match,
+                "language_notes": _vs.language_notes,
+                "availability_response": _vs.availability_response,
+                "job_type_suitable": _vs.job_type_suitable,
+                "interview_confirmed": _vs.interview_confirmed,
+                "expected_salary": _vs.expected_salary,
+                "has_candidate_questions": _vs.has_candidate_questions,
+                "full_transcript": _vs.full_transcript,
+            } if _vs else None)(_vs_map.get(app.id)),
         })
 
     return {"total_count": total_count, "applications": result}

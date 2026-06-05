@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from .database import engine, Base, SessionLocal, get_db
 from sqlalchemy.orm import Session
-from .routers import jobs, candidates, evaluations, sheets, auth, public, companies, admin, profile, interviews, offers
+from .routers import jobs, candidates, evaluations, sheets, auth, public, companies, admin, profile, interviews, offers, voice_screening
 from .routers.auth import get_current_user
 from . import models, auth_utils
 from .services.ai_evaluator import generate_job_details
@@ -154,6 +154,36 @@ def startup_populate_db():
             "ALTER TABLE candidates   ADD COLUMN IF NOT EXISTS cv_file_mime TEXT",
             "ALTER TABLE applications ADD COLUMN IF NOT EXISTS cv_file_data BYTEA",
             "ALTER TABLE applications ADD COLUMN IF NOT EXISTS cv_file_mime TEXT",
+            # Voice Screening
+            """CREATE TABLE IF NOT EXISTS voice_screenings (
+                id                     SERIAL PRIMARY KEY,
+                candidate_id           INTEGER REFERENCES candidates(id),
+                application_id         INTEGER REFERENCES applications(id),
+                job_id                 INTEGER REFERENCES jobs(id),
+                triggered_by           INTEGER REFERENCES users(id),
+                attempt_number         INTEGER DEFAULT 1,
+                status                 VARCHAR DEFAULT 'pending',
+                experience_response    TEXT,
+                availability_response  TEXT,
+                job_type_suitable      VARCHAR,
+                interview_confirmed    VARCHAR,
+                expected_salary        TEXT,
+                candidate_questions    TEXT,
+                has_candidate_questions BOOLEAN DEFAULT FALSE,
+                english_level          VARCHAR,
+                fluency_assessment     VARCHAR,
+                clarity_assessment     VARCHAR,
+                experience_match       VARCHAR,
+                language_notes         TEXT,
+                ai_summary             TEXT,
+                full_transcript        TEXT,
+                created_at             TIMESTAMP DEFAULT NOW(),
+                completed_at           TIMESTAMP,
+                job_title_at_time      VARCHAR,
+                job_type_at_time       VARCHAR,
+                interview_date_at_time VARCHAR,
+                interview_time_at_time VARCHAR
+            )""",
         ]
 
         try:
@@ -409,6 +439,7 @@ app.include_router(sheets.router)
 app.include_router(interviews.admin_router)
 app.include_router(interviews.candidate_router)
 app.include_router(offers.router)
+app.include_router(voice_screening.router)
 
 class GenerateJobRequest(BaseModel):
     job_title: str

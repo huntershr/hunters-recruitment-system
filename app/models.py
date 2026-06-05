@@ -183,6 +183,49 @@ class Interview(Base):
     scheduler = relationship("User", foreign_keys=[scheduled_by])
 
 
+class VoiceScreening(Base):
+    __tablename__ = "voice_screenings"
+
+    id               = Column(Integer, primary_key=True, index=True)
+    candidate_id     = Column(Integer, ForeignKey("candidates.id"), nullable=True)
+    application_id   = Column(Integer, ForeignKey("applications.id"), nullable=True)
+    job_id           = Column(Integer, ForeignKey("jobs.id"), nullable=True)
+    triggered_by     = Column(Integer, ForeignKey("users.id"), nullable=True)
+    attempt_number   = Column(Integer, default=1)
+    status           = Column(String, default="pending")
+
+    # Question answers
+    experience_response   = Column(Text, nullable=True)
+    availability_response = Column(Text, nullable=True)
+    job_type_suitable     = Column(String, nullable=True)
+    interview_confirmed   = Column(String, nullable=True)
+    expected_salary       = Column(Text, nullable=True)
+    candidate_questions   = Column(Text, nullable=True)
+    has_candidate_questions = Column(Boolean, default=False)
+
+    # AI analysis
+    english_level       = Column(String, nullable=True)
+    fluency_assessment  = Column(String, nullable=True)
+    clarity_assessment  = Column(String, nullable=True)
+    experience_match    = Column(String, nullable=True)
+    language_notes      = Column(Text, nullable=True)
+    ai_summary          = Column(Text, nullable=True)
+    full_transcript     = Column(Text, nullable=True)
+
+    # Meta
+    created_at           = Column(DateTime, default=datetime.utcnow)
+    completed_at         = Column(DateTime, nullable=True)
+    job_title_at_time    = Column(String, nullable=True)
+    job_type_at_time     = Column(String, nullable=True)
+    interview_date_at_time = Column(String, nullable=True)
+    interview_time_at_time = Column(String, nullable=True)
+
+    candidate  = relationship("Candidate", foreign_keys=[candidate_id])
+    application = relationship("Application", foreign_keys=[application_id])
+    job        = relationship("Job", foreign_keys=[job_id])
+    triggered  = relationship("User", foreign_keys=[triggered_by])
+
+
 class Offer(Base):
     __tablename__ = "offers"
 

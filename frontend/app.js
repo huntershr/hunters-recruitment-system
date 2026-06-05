@@ -511,7 +511,7 @@ let activeStageTab = 'applied';
 
 const _STAGE_TABS = [
     { id: 'applied',     label: 'Applied',     accent: '#378ADD', stages: ['applied','new','',null] },
-    { id: 'screening',   label: 'Screening',   accent: '#EF9F27', stages: ['screening'] },
+    { id: 'screening',   label: 'AI Screening Call', accent: '#EF9F27', stages: ['screening'] },
     { id: 'shortlisted', label: 'Shortlisted', accent: '#6366F1', stages: ['shortlisted'] },
     { id: 'interview',   label: 'Interview',   accent: '#1D9E75', stages: ['interview'] },
     { id: 'offered',     label: 'Offered',     accent: '#C9A84C', stages: ['offer','offered'] },
@@ -599,12 +599,14 @@ function _renderStageCard(app) {
         : `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#FEF9EC;color:#854F0B;border:0.5px solid #F6D97A;">External</span>`;
     const stg = (app.stage||'applied').toLowerCase();
     const [stgColor,stgBg] = _STAGE_BADGE_MAP[stg]||['#6B7280','#F3F4F6'];
-    const stgLabel = stg.charAt(0).toUpperCase()+stg.slice(1);
+    const _stageLabelMap = {applied:'Applied',screening:'AI Screening Call',shortlisted:'Shortlisted',interview:'Interview',offered:'Offered',hired:'Hired',rejected:'Rejected'};
+    const stgLabel = _stageLabelMap[stg] || stg.charAt(0).toUpperCase()+stg.slice(1);
     const expLine = [app.last_title, app.experience_years!=null?app.experience_years+' yrs':null].filter(Boolean).join(' · ');
     const safeName = (app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_');
+    const _stageLabels = {applied:'Applied',screening:'AI Screening Call',shortlisted:'Shortlisted',interview:'Interview',offered:'Offered',hired:'Hired',rejected:'Rejected'};
     const stageOpts = ['applied','screening','shortlisted','interview','offered','hired','rejected']
         .filter(s=>s!==stg&&!(stg==='new'&&s==='applied'))
-        .map(s=>`<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
+        .map(s=>`<option value="${s}">${_stageLabels[s]||s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
     return `<div id="stage-card-${app.application_id}" style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
         <div style="display:flex;align-items:flex-start;gap:12px;">
             <div style="width:44px;height:44px;min-width:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${escHtml(initials)}</div>
@@ -627,6 +629,7 @@ function _renderStageCard(app) {
                 ${app.cv_available?`<button onclick="downloadAppCV(${app.application_id},'${safeName}')" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">CV</button>`:''}
                 ${isReg&&app.candidate_id?`<button onclick="viewAtsProfile(${app.application_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#185FA5;cursor:pointer;min-height:44px;">Profile</button>`:''}
                 ${stg==='interview'?`<button onclick="openScheduleInterviewModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}',_appIv(${app.application_id}))" style="padding:7px 12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">${app.interview?'📅 Reschedule':'📅 Schedule'}</button>`:''}
+                ${stg==='screening'?`<button onclick="openVoiceScreeningPanel(${app.application_id})" style="padding:7px 12px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">🎙️ ${app.voice_screening&&app.voice_screening.status==='completed'?'View Screening':app.voice_screening&&app.voice_screening.status==='no_answer'?'Re-Call':'Start Screening'}</button>`:''}
                 ${app.email?`<button onclick="sendCandidateEmail('${(app.email||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}','${(app.company_name||'Hunters HR').replace(/'/g,"\\'")}')" style="padding:7px 12px;border:1px solid #1B2A4A;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#1B2A4A;cursor:pointer;min-height:44px;" title="Send Email">✉</button>`:''}
                 ${app.phone?`<button onclick="sendCandidateWhatsApp('${(app.phone||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}')" style="padding:7px 12px;border:1px solid #25D366;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#25D366;cursor:pointer;min-height:44px;" title="WhatsApp">WhatsApp</button>`:''}
             </div>
@@ -854,7 +857,7 @@ function filterPipelineCompany(val) {
     renderCandidateList(pipelineFilter);
 }
 
-const _CONFIRM_STAGES = new Set(['interview', 'offered', 'hired']);
+const _CONFIRM_STAGES = new Set(['screening', 'interview', 'offered', 'hired']);
 
 function changeAppStage(appId, newStage, selectEl) {
     if (!newStage) return;
@@ -923,6 +926,9 @@ async function _doStageChange(appId, newStage) {
         }, 300);
         if (newStage.toLowerCase() === 'interview') {
             setTimeout(() => openScheduleInterviewModal(appId, candName, null), 500);
+        }
+        if (newStage.toLowerCase() === 'screening') {
+            setTimeout(() => openVoiceScreeningPanel(appId), 500);
         }
     } catch (e) {
         showToast('Stage update failed', 'error');
@@ -3568,6 +3574,276 @@ function _buildInterviewWhatsApp(iv, candName, jobTitle, company, phone) {
     const intlPhone = cleanPhone.startsWith('0') ? '2' + cleanPhone : cleanPhone;
     return (intlPhone ? 'https://wa.me/' + intlPhone : 'https://wa.me/') + '?text=' + encodeURIComponent(text);
 }
+
+// ── Voice Screening Panel ──────────────────────────────────────────────────
+
+let _vsState = null; // { screeningId, questions, currentQ, appId, candidateName, jobTitle }
+
+async function openVoiceScreeningPanel(appId) {
+    const app = (typeof applications !== 'undefined' ? applications : []).find(a => a.application_id === appId) || {};
+    const token = localStorage.getItem('token');
+
+    // If already completed, just show results
+    if (app.voice_screening && app.voice_screening.status === 'completed') {
+        _showVsResultsModal(app.voice_screening, app.name || 'Candidate');
+        return;
+    }
+
+    document.getElementById('voice-screening-panel')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'voice-screening-panel';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;width:560px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
+      <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+        <div>
+          <div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">AI SCREENING CALL</div>
+          <div style="color:#fff;font-size:16px;font-weight:600;margin-top:2px;">${escHtml(app.name||'Candidate')} — ${escHtml(app.job_title||'')}</div>
+        </div>
+        <button onclick="document.getElementById('voice-screening-panel').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>
+      </div>
+      <div id="vs-body" style="padding:28px 24px;overflow-y:auto;flex:1;">
+        <div style="text-align:center;">
+          <div style="font-size:14px;color:#6B7280;margin-bottom:24px;">Ready to start the AI voice screening session for this candidate.</div>
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+            <button id="vs-start-btn" onclick="_vsStart(${appId})" style="padding:12px 28px;border:none;border-radius:10px;background:#C9A84C;color:#1B2A4A;font-size:14px;font-weight:700;cursor:pointer;">🎙️ Start Screening</button>
+            <button onclick="_vsNoAnswer(${appId})" style="padding:12px 20px;border:1px solid #CC2B2B;border-radius:10px;background:#fff;color:#CC2B2B;font-size:13px;font-weight:500;cursor:pointer;">📵 No Answer</button>
+          </div>
+          ${app.voice_screening && app.voice_screening.status === 'no_answer' ? `<div style="margin-top:16px;padding:10px 16px;background:#FEF2F2;border-radius:8px;font-size:12px;color:#CC2B2B;">Previous attempt: No Answer (Attempt #${app.voice_screening.attempt_number||1})</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+}
+
+async function _vsStart(appId) {
+    const app = (typeof applications !== 'undefined' ? applications : []).find(a => a.application_id === appId) || {};
+    const token = localStorage.getItem('token');
+    const btn = document.getElementById('vs-start-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Initialising…'; }
+
+    try {
+        const res = await fetch('/api/voice-screening/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ application_id: appId, candidate_id: app.candidate_id || null, job_id: app.job_id || null }),
+        });
+        if (!res.ok) { showToast('Could not start screening', 'error'); if (btn) { btn.disabled=false; btn.textContent='🎙️ Start Screening'; } return; }
+        const data = await res.json();
+        _vsState = { screeningId: data.screening_id, questions: data.questions, currentQ: 0, appId, candidateName: data.candidate_name, jobTitle: data.job_title, answers: [] };
+        _vsShowQuestion();
+    } catch(e) {
+        showToast('Screening start failed', 'error');
+        if (btn) { btn.disabled=false; btn.textContent='🎙️ Start Screening'; }
+    }
+}
+
+function _vsShowQuestion() {
+    if (!_vsState) return;
+    const { questions, currentQ } = _vsState;
+    const total = questions.length;
+    const qText = questions[currentQ];
+    const body = document.getElementById('vs-body');
+    if (!body) return;
+    body.innerHTML = `
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="font-size:11px;color:#9CA3AF;letter-spacing:1px;margin-bottom:8px;">QUESTION ${currentQ+1} OF ${total}</div>
+        <div style="display:flex;justify-content:center;gap:4px;margin-bottom:16px;">
+          ${Array.from({length:total},(_,i)=>`<div style="height:4px;border-radius:2px;flex:1;background:${i<=currentQ?'#C9A84C':'#E5E7EB'};max-width:48px;"></div>`).join('')}
+        </div>
+        <div style="font-size:15px;font-weight:600;color:#1B2A4A;line-height:1.5;margin-bottom:24px;padding:0 8px;">${escHtml(qText)}</div>
+        <div id="vs-pulse-wrap" style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px;">
+          <div style="position:relative;width:72px;height:72px;">
+            <div id="vs-pulse" style="position:absolute;inset:0;border-radius:50%;background:#C9A84C;opacity:0.15;animation:vs-pulse 1.4s ease-in-out infinite;"></div>
+            <div style="position:absolute;inset:8px;border-radius:50%;background:#1B2A4A;display:flex;align-items:center;justify-content:center;">
+              <span id="vs-mic-icon" style="font-size:22px;">🤖</span>
+            </div>
+          </div>
+          <div id="vs-status-text" style="font-size:12px;color:#6B7280;">Speaking question…</div>
+        </div>
+        <div id="vs-transcript-box" style="min-height:48px;background:#F9FAFB;border-radius:8px;padding:12px;font-size:13px;color:#374151;text-align:left;margin-bottom:16px;display:none;"></div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button id="vs-next-btn" onclick="_vsNextQuestion()" style="padding:10px 24px;border:none;border-radius:8px;background:#1B2A4A;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;display:none;">Next ▶</button>
+          <button onclick="_vsNoAnswer(_vsState&&_vsState.appId)" style="padding:10px 16px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#6B7280;font-size:12px;cursor:pointer;">End Call</button>
+        </div>
+      </div>
+      <style>@keyframes vs-pulse{0%,100%{transform:scale(1);opacity:0.15;}50%{transform:scale(1.5);opacity:0.08;}}</style>`;
+    _vsSpeak(qText, () => _vsListen());
+}
+
+function _vsSpeak(text, onEnd) {
+    if (!window.speechSynthesis) { onEnd && onEnd(); return; }
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'en-US'; utt.rate = 0.9;
+    utt.onend = () => { onEnd && onEnd(); };
+    window.speechSynthesis.speak(utt);
+}
+
+function _vsListen() {
+    const statusEl = document.getElementById('vs-status-text');
+    const micEl    = document.getElementById('vs-mic-icon');
+    const boxEl    = document.getElementById('vs-transcript-box');
+    const nextBtn  = document.getElementById('vs-next-btn');
+    if (statusEl) statusEl.textContent = '🎤 Listening…';
+    if (micEl)    micEl.textContent = '🎤';
+    if (boxEl)    { boxEl.style.display = 'block'; boxEl.textContent = ''; }
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+        if (statusEl) statusEl.textContent = 'Speech recognition not supported — type answer below';
+        if (boxEl)    boxEl.contentEditable = 'true';
+        if (nextBtn)  nextBtn.style.display = 'inline-block';
+        return;
+    }
+    const rec = new SR();
+    rec.lang = 'en-US'; rec.continuous = false; rec.interimResults = true;
+    let finalTranscript = '';
+    let silenceTimer = null;
+
+    rec.onresult = (ev) => {
+        let interim = '';
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            if (ev.results[i].isFinal) finalTranscript += ev.results[i][0].transcript + ' ';
+            else interim = ev.results[i][0].transcript;
+        }
+        if (boxEl) boxEl.textContent = (finalTranscript + interim).trim();
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => { rec.stop(); }, 3000);
+    };
+    rec.onend = () => {
+        const answer = boxEl ? boxEl.textContent.trim() : finalTranscript.trim();
+        if (_vsState) _vsState._currentAnswer = answer;
+        if (statusEl) statusEl.textContent = '✅ Answer recorded';
+        if (nextBtn)  nextBtn.style.display = 'inline-block';
+    };
+    rec.onerror = () => {
+        if (statusEl) statusEl.textContent = 'Mic error — click Next to continue';
+        if (nextBtn)  nextBtn.style.display = 'inline-block';
+    };
+    rec.start();
+}
+
+async function _vsNextQuestion() {
+    if (!_vsState) return;
+    const token = localStorage.getItem('token');
+    const answer = (_vsState._currentAnswer || '').trim();
+    const qNum   = _vsState.currentQ + 1;
+
+    const nextBtn = document.getElementById('vs-next-btn');
+    if (nextBtn) { nextBtn.disabled = true; nextBtn.textContent = '⏳ Saving…'; }
+
+    try {
+        await fetch(`/api/voice-screening/${_vsState.screeningId}/save-answer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+            body: JSON.stringify({ question_number: qNum, transcript: answer }),
+        });
+    } catch(_) {}
+
+    _vsState._currentAnswer = '';
+    _vsState.currentQ++;
+
+    if (_vsState.currentQ >= _vsState.questions.length) {
+        _vsFinish();
+    } else {
+        _vsShowQuestion();
+    }
+}
+
+async function _vsFinish() {
+    const body = document.getElementById('vs-body');
+    if (body) body.innerHTML = '<div style="text-align:center;padding:32px 0;"><div style="font-size:24px;margin-bottom:8px;">⏳</div><div style="font-size:14px;color:#6B7280;">Analysing responses with AI…</div></div>';
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`/api/voice-screening/${_vsState.screeningId}/complete`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (res.ok) {
+            const data = await res.json();
+            // Update applications array
+            const idx = (typeof applications !== 'undefined' ? applications : []).findIndex(a => a.application_id === _vsState.appId);
+            if (idx >= 0) applications[idx].voice_screening = data;
+            _showVsResultsModal(data, _vsState.candidateName);
+            document.getElementById('voice-screening-panel')?.remove();
+            if (typeof renderCandidates === 'function') renderCandidates();
+        } else {
+            showToast('AI analysis failed — results saved', 'warning');
+        }
+    } catch(e) {
+        showToast('Could not complete screening', 'error');
+    }
+}
+
+function _showVsResultsModal(vs, candName) {
+    document.getElementById('vs-results-modal')?.remove();
+    const summary = (vs.ai_summary || '').split('\n').filter(Boolean);
+    const modal = document.createElement('div');
+    modal.id = 'vs-results-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10011;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+    modal.innerHTML = `
+    <div style="background:#fff;border-radius:20px;width:580px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;margin:auto;">
+      <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">🎙️ AI SCREENING — COMPLETED ✅</div>
+          <div style="color:#fff;font-size:14px;margin-top:2px;">Attempt #${vs.attempt_number||1} · ${vs.completed_at?new Date(vs.completed_at).toLocaleDateString():''}</div>
+        </div>
+        <button onclick="document.getElementById('vs-results-modal').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>
+      </div>
+      <div style="padding:20px 24px;overflow-y:auto;max-height:70vh;">
+        <div style="border-radius:10px;border:1px solid #E5E7EB;margin-bottom:14px;overflow:hidden;">
+          <div style="background:#F9FAFB;padding:8px 14px;font-size:10px;font-weight:700;color:#6B7280;letter-spacing:1px;border-bottom:1px solid #E5E7EB;">EXPERIENCE & LANGUAGE</div>
+          <div style="padding:12px 14px;display:grid;gap:6px;">
+            <div style="font-size:13px;"><strong>English Level:</strong> ${escHtml(vs.english_level||'—')}</div>
+            <div style="font-size:13px;"><strong>Fluency:</strong> ${escHtml(vs.fluency_assessment||'—')}</div>
+            <div style="font-size:13px;"><strong>Clarity:</strong> ${escHtml(vs.clarity_assessment||'—')}</div>
+            <div style="font-size:13px;"><strong>Experience Match:</strong> ${escHtml(vs.experience_match||'—')}</div>
+            ${vs.language_notes?`<div style="font-size:12px;color:#6B7280;">${escHtml(vs.language_notes)}</div>`:''}
+          </div>
+        </div>
+        <div style="border-radius:10px;border:1px solid #E5E7EB;margin-bottom:14px;overflow:hidden;">
+          <div style="background:#F9FAFB;padding:8px 14px;font-size:10px;font-weight:700;color:#6B7280;letter-spacing:1px;border-bottom:1px solid #E5E7EB;">SCREENING ANSWERS</div>
+          <div style="padding:12px 14px;display:grid;gap:6px;">
+            ${vs.availability_response?`<div style="font-size:13px;"><strong>Available to start:</strong> ${escHtml(vs.availability_response)}</div>`:''}
+            ${vs.job_type_suitable?`<div style="font-size:13px;"><strong>Job type suitable:</strong> ${vs.job_type_suitable.toLowerCase().includes('yes')?'✅ ':''}${escHtml(vs.job_type_suitable)}</div>`:''}
+            ${vs.interview_confirmed?`<div style="font-size:13px;"><strong>Interview confirmed:</strong> ${vs.interview_confirmed.toLowerCase().includes('yes')?'✅ ':''}${escHtml(vs.interview_confirmed)}</div>`:''}
+            ${vs.expected_salary?`<div style="font-size:13px;"><strong>Expected salary:</strong> ${escHtml(vs.expected_salary)}</div>`:''}
+            <div style="font-size:13px;"><strong>Has questions:</strong> ${vs.has_candidate_questions?'❓ Yes (recorded)':'No'}</div>
+          </div>
+        </div>
+        ${summary.length?`<div style="border-radius:10px;border:1px solid #E5E7EB;margin-bottom:14px;overflow:hidden;">
+          <div style="background:#F9FAFB;padding:8px 14px;font-size:10px;font-weight:700;color:#6B7280;letter-spacing:1px;border-bottom:1px solid #E5E7EB;">AI SUMMARY</div>
+          <div style="padding:12px 14px;display:grid;gap:6px;">${summary.map(b=>`<div style="font-size:13px;color:#374151;">${escHtml(b)}</div>`).join('')}</div>
+        </div>`:''}
+        ${vs.full_transcript?`<details style="margin-top:4px;"><summary style="font-size:12px;color:#185FA5;cursor:pointer;padding:4px 0;">View Full Transcript ▼</summary><pre style="font-size:11px;color:#374151;background:#F9FAFB;border-radius:8px;padding:12px;white-space:pre-wrap;margin-top:8px;">${escHtml(vs.full_transcript)}</pre></details>`:''}
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+async function _vsNoAnswer(appId) {
+    if (!_vsState || !_vsState.screeningId) {
+        // No active screening — just close
+        document.getElementById('voice-screening-panel')?.remove();
+        return;
+    }
+    const token = localStorage.getItem('token');
+    try {
+        await fetch(`/api/voice-screening/${_vsState.screeningId}/no-answer`, {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const idx = (typeof applications !== 'undefined' ? applications : []).findIndex(a => a.application_id === appId);
+        if (idx >= 0) applications[idx].voice_screening = { status: 'no_answer', attempt_number: _vsState.attemptNumber || 1 };
+        if (typeof renderCandidates === 'function') renderCandidates();
+    } catch(_) {}
+    document.getElementById('voice-screening-panel')?.remove();
+    showToast('Marked as no answer', 'info');
+}
+
+// ── End Voice Screening Panel ──────────────────────────────────────────────
 
 function _appIv(appId) {
     const apps = typeof applications !== 'undefined' ? applications : [];
