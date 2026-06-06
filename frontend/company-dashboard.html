@@ -822,80 +822,98 @@
             </div>
         </div>
 
-        <div style="background:#FFFFFF; border-radius:16px; border:1px solid #E5E7EB; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
-            <div style="padding:16px 20px; border-bottom:1px solid #E5E7EB; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                    <input type="text" id="cand-search" placeholder="Search by name or email..." oninput="filterCandidates()" style="padding:10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; min-width:240px; outline:none; color:#1B2A4A;">
-                    <select id="cand-job-filter" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background:#FFFFFF; cursor:pointer; appearance:none; -webkit-appearance:none;">
-                        <option value="">All Jobs</option>
-                    </select>
-                    <select id="cand-stage-filter" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background:#FFFFFF; cursor:pointer; appearance:none; -webkit-appearance:none;">
-                        <option value="">All Stages</option>
-                        <option value="applied">Applied</option>
-                        <option value="screening">AI Screening Call</option>
-                        <option value="shortlisted">Shortlisted</option>
-                        <option value="interview">Interview</option>
-                        <option value="offered">Offered</option>
-                        <option value="hired">Hired</option>
-                        <option value="rejected">Rejected</option>
-                    </select>
-                    <select id="cand-sort" onchange="filterCandidates()" style="padding:10px 32px 10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; color:#1B2A4A; outline:none; background:#FFFFFF; cursor:pointer; appearance:none; -webkit-appearance:none;">
-                        <option value="score-desc">Score: High → Low</option>
-                        <option value="score-asc">Score: Low → High</option>
-                        <option value="name-asc">Name: A → Z</option>
-                    </select>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <button id="co-card-btn" onclick="setCompanyView('tabs')" style="padding:9px 14px;font-size:12px;font-weight:500;border:1px solid #E5E7EB;border-radius:8px;cursor:pointer;background:#1B2A4A;color:#fff;display:flex;align-items:center;gap:6px;">
-                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
-                        Card View
-                    </button>
-                    <button id="co-list-btn" onclick="setCompanyView('list')" style="padding:9px 14px;font-size:12px;font-weight:500;border:1px solid #E5E7EB;border-radius:8px;cursor:pointer;background:#fff;color:#1B2A4A;display:flex;align-items:center;gap:6px;">
-                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="14" y2="4" stroke-linecap="round"/><line x1="2" y1="8" x2="14" y2="8" stroke-linecap="round"/><line x1="2" y1="12" x2="14" y2="12" stroke-linecap="round"/></svg>
-                        Table View
-                    </button>
-                    <button onclick="document.getElementById('bulk-trigger-input').click()" style="background:#F4F5FA; color:#1B2A4A; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        Bulk Upload
-                    </button>
-                    <button onclick="exportCandidatesCSV()" style="background:#FFFFFF; color:#1B2A4A; border:1px solid #E5E7EB; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.background='#F4F5FA'" onmouseout="this.style.background='#FFFFFF'">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        Export
-                    </button>
-                </div>
-            </div>
-            
-            <div id="bulk-actions-bar" style="display:none; padding:12px 20px; background:#F8F9FF; border-bottom:1px solid #E5E7EB; align-items:center; justify-content:space-between;">
-                <div style="font-size:13px; font-weight:500; color:#1B2A4A;">
-                    <span id="selected-count">0</span> selected
-                </div>
-                <div style="display:flex; gap:12px; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:12px; color:#6B7280;">Move to Stage:</span>
-                        <select id="bulk-stage-select" onchange="bulkUpdateStage(this.value)" style="padding:6px 10px; border:1px solid #E5E7EB; border-radius:6px; font-size:12px; outline:none; appearance:none; -webkit-appearance:none; background:#fff;">
-                            <option value="">Select...</option>
-                            <option value="applied">Applied</option>
-                            <option value="screening">AI Screening Call</option>
-                            <option value="shortlisted">Shortlisted</option>
-                            <option value="interview">Interview</option>
-                            <option value="offered">Offered</option>
-                            <option value="hired">Hired</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-                    </div>
-                    <span style="color:#D1D5DB;">|</span>
-                    <button onclick="exportSelectedCSV()" style="background:none; border:none; color:#1B2A4A; font-size:13px; font-weight:500; cursor:pointer; padding:0;">Export Selected</button>
-                    <span style="color:#D1D5DB;">|</span>
-                    <button onclick="deleteSelectedCandidates()" style="background:none; border:none; color:#CC2B2B; font-size:13px; font-weight:500; cursor:pointer; padding:0;">Delete Selected</button>
-                </div>
-            </div>
+        <!-- Hidden filter elements kept for backward compat with existing JS -->
+        <div style="display:none;">
+            <select id="cand-job-filter"><option value="">All Jobs</option></select>
+            <select id="cand-stage-filter"><option value="">All Stages</option></select>
+            <select id="cand-sort"><option value="score-desc">Score: High → Low</option></select>
+        </div>
 
-            <div id="co-stage-tabs-view" style="padding:16px;">
-                <div id="co-stage-tabs-bar" style="display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:4px;margin-bottom:16px;gap:2px;"></div>
-                <div id="co-stage-candidates-list"></div>
+        <!-- ═══ VIEW 1: JOB CARDS ═══ -->
+        <div id="cand-jobs-view">
+            <!-- Search + Export bar -->
+            <div style="background:#fff;border-radius:16px;border:1px solid #E2E8F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);padding:14px 20px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;">
+                <input type="text" id="job-card-search" placeholder="Search by job title..." oninput="_filterJobCards()" style="padding:9px 14px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;color:#1B2A4A;flex:1;max-width:360px;">
+                <button onclick="exportJobsCSV()" style="background:#fff;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export
+                </button>
             </div>
-            <div id="co-list-wrapper" style="overflow-x:auto; display:none;">
-                <div id="candidates-list-container"></div>
+            <!-- Status tabs -->
+            <div style="background:#fff;border-radius:12px;border:1px solid #E2E8F0;padding:4px;display:flex;gap:2px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;">
+                <button id="jt-btn-active"  onclick="setJobStatusTab('active')"  style="flex:1;padding:8px 14px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:#0D1B3E;color:#fff;border-bottom:2px solid #C9A84C;white-space:nowrap;min-height:40px;display:flex;align-items:center;justify-content:center;gap:6px;">Active  <span id="jt-count-active"  style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:rgba(201,168,76,0.25);color:#C9A84C;font-size:10px;font-weight:600;">0</span></button>
+                <button id="jt-btn-pending" onclick="setJobStatusTab('pending')" style="flex:1;padding:8px 14px;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;background:transparent;color:#6B7280;border-bottom:2px solid transparent;white-space:nowrap;min-height:40px;display:flex;align-items:center;justify-content:center;gap:6px;">Pending <span id="jt-count-pending" style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#F3F4F6;color:#6B7280;font-size:10px;font-weight:600;">0</span></button>
+                <button id="jt-btn-expired" onclick="setJobStatusTab('expired')" style="flex:1;padding:8px 14px;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;background:transparent;color:#6B7280;border-bottom:2px solid transparent;white-space:nowrap;min-height:40px;display:flex;align-items:center;justify-content:center;gap:6px;">Expired <span id="jt-count-expired" style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#F3F4F6;color:#6B7280;font-size:10px;font-weight:600;">0</span></button>
+            </div>
+            <!-- Job cards grid -->
+            <div id="cand-jobs-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;"></div>
+            <style>@media(max-width:900px){#cand-jobs-grid{grid-template-columns:repeat(2,1fr);}}@media(max-width:560px){#cand-jobs-grid{grid-template-columns:1fr;}}</style>
+        </div>
+
+        <!-- ═══ VIEW 2: CANDIDATE PIPELINE (per job) ═══ -->
+        <div id="cand-pipeline-view" style="display:none;">
+            <!-- Back navigation -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:0 2px;flex-wrap:wrap;">
+                <a href="#" onclick="backToJobsView();return false;" style="color:#1B2A4A;text-decoration:none;font-size:13px;font-weight:600;">← Back to Jobs</a>
+                <span style="color:#D1D5DB;">|</span>
+                <span id="pipeline-job-title" style="font-size:13px;font-weight:700;color:#1B2A4A;"></span>
+            </div>
+            <!-- Pipeline card -->
+            <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;">
+                <div style="padding:16px 20px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                    <input type="text" id="cand-search" placeholder="Search by name or email..." oninput="filterCandidates()" style="padding:10px 14px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;min-width:200px;outline:none;color:#1B2A4A;flex:1;max-width:300px;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <button id="co-card-btn" onclick="setCompanyView('tabs')" style="padding:9px 14px;font-size:12px;font-weight:500;border:1px solid #E5E7EB;border-radius:8px;cursor:pointer;background:#1B2A4A;color:#fff;display:flex;align-items:center;gap:6px;">
+                            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+                            Card View
+                        </button>
+                        <button id="co-list-btn" onclick="setCompanyView('list')" style="padding:9px 14px;font-size:12px;font-weight:500;border:1px solid #E5E7EB;border-radius:8px;cursor:pointer;background:#fff;color:#1B2A4A;display:flex;align-items:center;gap:6px;">
+                            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="14" y2="4" stroke-linecap="round"/><line x1="2" y1="8" x2="14" y2="8" stroke-linecap="round"/><line x1="2" y1="12" x2="14" y2="12" stroke-linecap="round"/></svg>
+                            Table View
+                        </button>
+                        <button onclick="document.getElementById('bulk-trigger-input').click()" style="background:#F4F5FA;color:#1B2A4A;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Bulk Upload
+                        </button>
+                        <button onclick="exportCandidatesCSV()" style="background:#FFFFFF;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;" onmouseover="this.style.background='#F4F5FA'" onmouseout="this.style.background='#FFFFFF'">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Export
+                        </button>
+                    </div>
+                </div>
+
+                <div id="bulk-actions-bar" style="display:none; padding:12px 20px; background:#F8F9FF; border-bottom:1px solid #E5E7EB; align-items:center; justify-content:space-between;">
+                    <div style="font-size:13px; font-weight:500; color:#1B2A4A;">
+                        <span id="selected-count">0</span> selected
+                    </div>
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:12px; color:#6B7280;">Move to Stage:</span>
+                            <select id="bulk-stage-select" onchange="bulkUpdateStage(this.value)" style="padding:6px 10px; border:1px solid #E5E7EB; border-radius:6px; font-size:12px; outline:none; appearance:none; -webkit-appearance:none; background:#fff;">
+                                <option value="">Select...</option>
+                                <option value="applied">Applied</option>
+                                <option value="screening">AI Screening Call</option>
+                                <option value="shortlisted">Shortlisted</option>
+                                <option value="interview">Interview</option>
+                                <option value="offered">Offered</option>
+                                <option value="hired">Hired</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <span style="color:#D1D5DB;">|</span>
+                        <button onclick="exportSelectedCSV()" style="background:none; border:none; color:#1B2A4A; font-size:13px; font-weight:500; cursor:pointer; padding:0;">Export Selected</button>
+                        <span style="color:#D1D5DB;">|</span>
+                        <button onclick="deleteSelectedCandidates()" style="background:none; border:none; color:#CC2B2B; font-size:13px; font-weight:500; cursor:pointer; padding:0;">Delete Selected</button>
+                    </div>
+                </div>
+
+                <div id="co-stage-tabs-view" style="padding:16px;">
+                    <div id="co-stage-tabs-bar" style="display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:4px;margin-bottom:16px;gap:2px;"></div>
+                    <div id="co-stage-candidates-list"></div>
+                </div>
+                <div id="co-list-wrapper" style="overflow-x:auto; display:none;">
+                    <div id="candidates-list-container"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1443,7 +1461,7 @@
         }
         if (page === 'overview')      loadOverviewData();
         if (page === 'jobs')          loadJobsList();
-        if (page === 'candidates')    { loadCompanyApplications().then(() => loadCandidatesList()); }
+        if (page === 'candidates')    { loadJobsView(); }
         if (page === 'talent-pool')   loadTalentPool();
         if (page === 'profile')       loadProfileData();
         if (page === 'interviews-co') loadCoInterviews();
@@ -1788,10 +1806,10 @@
     }
 
     function filterCandidates() {
-        const search = document.getElementById('cand-search').value.toLowerCase();
-        const jobId  = document.getElementById('cand-job-filter').value;
-        const stageF = ((document.getElementById('cand-stage-filter') || {}).value || '').toLowerCase();
-        const sort   = document.getElementById('cand-sort').value;
+        const search = (document.getElementById('cand-search')?.value || '').toLowerCase();
+        const jobId  = document.getElementById('cand-job-filter')?.value || '';
+        const stageF = (document.getElementById('cand-stage-filter')?.value || '').toLowerCase();
+        const sort   = document.getElementById('cand-sort')?.value || 'score-desc';
 
         let filtered = allCandidatesData.filter(c => {
             const displayName = c.full_name || c.name || '';
@@ -2875,6 +2893,146 @@
     let coCompanyView = 'tabs';
     let coAppsData = [];
     let coActiveStageTab = 'applied';
+
+    /* ── Job-first navigation (View 1 / View 2) ── */
+    let _coRawJobs = [];
+    let _coJobStatusTab = 'active';
+
+    async function loadJobsView() {
+        // Always show View 1 on entry
+        const v1 = document.getElementById('cand-jobs-view');
+        const v2 = document.getElementById('cand-pipeline-view');
+        if (v1) v1.style.display = 'block';
+        if (v2) v2.style.display = 'none';
+        // Reset hidden job filter
+        const jf = document.getElementById('cand-job-filter');
+        if (jf) jf.value = '';
+
+        // Show loading state
+        const grid = document.getElementById('cand-jobs-grid');
+        if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#9CA3AF;font-size:13px;">Loading jobs…</div>';
+
+        const token = localStorage.getItem('token');
+        // Fetch jobs and applications in parallel
+        try {
+            const [jobsRes] = await Promise.all([
+                fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                loadCompanyApplications()
+            ]);
+            if (jobsRes.ok) _coRawJobs = await jobsRes.json();
+        } catch(e) { console.warn('loadJobsView:', e); }
+
+        _renderJobCards();
+    }
+
+    function _filterJobCards() { _renderJobCards(); }
+
+    function _renderJobCards() {
+        const grid = document.getElementById('cand-jobs-grid');
+        if (!grid) return;
+        const search = (document.getElementById('job-card-search')?.value || '').toLowerCase();
+
+        // Count tabs
+        const active  = _coRawJobs.filter(j => j.is_approved === true).length;
+        const expired = _coRawJobs.filter(j => j.status === 'rejected').length;
+        const pending = _coRawJobs.filter(j => !j.is_approved && j.status !== 'rejected').length;
+        const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+        el('jt-count-active', active); el('jt-count-pending', pending); el('jt-count-expired', expired);
+
+        // Filter by tab
+        const filtered = _coRawJobs.filter(j => {
+            const isActive  = j.is_approved === true;
+            const isExpired = j.status === 'rejected';
+            const isPending = !isActive && !isExpired;
+            if (_coJobStatusTab === 'active'  && !isActive)  return false;
+            if (_coJobStatusTab === 'pending' && !isPending) return false;
+            if (_coJobStatusTab === 'expired' && !isExpired) return false;
+            if (search && !(j.job_title || '').toLowerCase().includes(search)) return false;
+            return true;
+        });
+
+        if (!filtered.length) {
+            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;background:#fff;border-radius:12px;border:1px solid #E5E7EB;color:#9CA3AF;font-size:13px;">No jobs found in this category</div>';
+            return;
+        }
+
+        grid.innerHTML = filtered.map(j => {
+            const count = coAppsData.filter(a => String(a.job_id) === String(j.id)).length;
+            const title = escHtml(j.job_title || 'Untitled');
+            const safeTitle = (j.job_title || '').replace(/'/g, "\\'");
+            return `<div style="background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:10px;">
+                <div style="font-size:15px;font-weight:700;color:#1B2A4A;line-height:1.35;">${title}</div>
+                <div><span style="font-size:24px;font-weight:700;color:#C9A84C;">${count}</span><span style="font-size:13px;color:#6B7280;margin-left:5px;">Candidate${count!==1?'s':''}</span></div>
+                <button onclick="showCandidatesForJob(${j.id},'${safeTitle}')" style="width:100%;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#fff;font-size:13px;font-weight:500;cursor:pointer;margin-top:auto;">Show Candidates</button>
+            </div>`;
+        }).join('');
+    }
+
+    function setJobStatusTab(tab) {
+        _coJobStatusTab = tab;
+        ['active','pending','expired'].forEach(t => {
+            const btn = document.getElementById('jt-btn-' + t);
+            if (!btn) return;
+            const on = t === tab;
+            btn.style.background    = on ? '#0D1B3E' : 'transparent';
+            btn.style.color         = on ? '#fff'    : '#6B7280';
+            btn.style.borderBottom  = on ? '2px solid #C9A84C' : '2px solid transparent';
+            btn.style.fontWeight    = on ? '600'     : '500';
+            const cnt = document.getElementById('jt-count-' + t);
+            if (cnt) { cnt.style.background = on ? 'rgba(201,168,76,0.25)' : '#F3F4F6'; cnt.style.color = on ? '#C9A84C' : '#6B7280'; }
+        });
+        _renderJobCards();
+    }
+
+    function showCandidatesForJob(jobId, jobTitle) {
+        // Scope hidden job filter for renderCoStageTabs
+        const jf = document.getElementById('cand-job-filter');
+        if (jf) jf.value = String(jobId);
+
+        // Update allCandidatesData to this job's candidates only (for table view)
+        allCandidatesData = coAppsData.filter(a => String(a.job_id) === String(jobId));
+
+        // Set pipeline header
+        const titleEl = document.getElementById('pipeline-job-title');
+        if (titleEl) titleEl.textContent = jobTitle;
+
+        // Reset to applied tab
+        coActiveStageTab = 'applied';
+
+        // Switch views
+        const v1 = document.getElementById('cand-jobs-view');
+        const v2 = document.getElementById('cand-pipeline-view');
+        if (v1) v1.style.display = 'none';
+        if (v2) v2.style.display = 'block';
+
+        // Reset card/table to card view
+        setCompanyView('tabs');
+    }
+
+    function backToJobsView() {
+        const jf = document.getElementById('cand-job-filter');
+        if (jf) jf.value = '';
+        const v1 = document.getElementById('cand-jobs-view');
+        const v2 = document.getElementById('cand-pipeline-view');
+        if (v1) v1.style.display = 'block';
+        if (v2) v2.style.display = 'none';
+    }
+
+    function exportJobsCSV() {
+        if (!_coRawJobs.length) { showToast('No jobs to export', 'info'); return; }
+        const headers = ['Job Title','Status','Approved','Candidates'];
+        const rows = _coRawJobs.map(j => {
+            const count = coAppsData.filter(a => String(a.job_id) === String(j.id)).length;
+            const status = j.is_approved ? 'Active' : (j.status === 'rejected' ? 'Expired' : 'Pending');
+            return [j.job_title||'',status,j.is_approved?'Yes':'No',count]
+                .map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',');
+        });
+        const csv = [headers.join(','), ...rows].join('\n');
+        const a = document.createElement('a');
+        a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+        a.download = 'jobs-' + new Date().toISOString().split('T')[0] + '.csv';
+        a.click();
+    }
 
     const _CO_STAGE_TABS = [
         { id: 'applied',     label: 'Applied',     stages: ['applied','new','',null] },
