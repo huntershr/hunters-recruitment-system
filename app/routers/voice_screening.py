@@ -126,7 +126,7 @@ def start_screening(
 
         cand_name  = (candidate.name if candidate else None) or (application.applicant_name if application else "Candidate")
         job_title  = job.job_title if job else "the role"
-        job_type   = job.education_level or "Full-time"   # reuse field; update if job_type column added
+        job_type   = (job.education_level if job else None) or "Full-time"
 
         # Interview date/time for Q4
         interview_date = interview_time = None

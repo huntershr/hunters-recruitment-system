@@ -355,6 +355,26 @@ def startup_populate_db():
         finally:
             db.close()
 
+    # ── voice_screenings columns — always run so they apply even after startup_schema_complete ──
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SAVEPOINT _vs1"))
+            try:
+                conn.execute(text("ALTER TABLE voice_screenings ADD COLUMN IF NOT EXISTS screening_token VARCHAR(64)"))
+                conn.execute(text("RELEASE SAVEPOINT _vs1"))
+            except Exception:
+                conn.execute(text("ROLLBACK TO SAVEPOINT _vs1"))
+            conn.execute(text("SAVEPOINT _vs2"))
+            try:
+                conn.execute(text("ALTER TABLE voice_screenings ADD COLUMN IF NOT EXISTS token_used BOOLEAN DEFAULT FALSE"))
+                conn.execute(text("RELEASE SAVEPOINT _vs2"))
+            except Exception:
+                conn.execute(text("ROLLBACK TO SAVEPOINT _vs2"))
+            conn.commit()
+            logging.info("voice_screenings column migrations ensured")
+    except Exception as _e:
+        logging.error(f"voice_screenings column migrations failed: {_e}")
+
     # ── Password reset columns (additive, runs every startup — safe no-ops after first run) ──
     try:
         with engine.connect() as conn:
