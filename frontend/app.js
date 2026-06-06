@@ -2271,6 +2271,7 @@ function renderAdminCompaniesTable(companies) {
             <div style="font-size:11px;color:#9CA3AF;">Last activity: ${escHtml(lastAct)}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 ${currentUser && currentUser.is_admin ? `<button onclick="enterCompanyWorkspace(${c.id})" style="flex:1;padding:8px 6px;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;min-width:90px;">Enter Company</button>` : ''}
+                ${currentUser && currentUser.is_admin ? `<button onclick="openCompanyUsersModal(${c.id},'${escHtml(c.name).replace(/'/g,"\\'")}')" style="padding:8px 10px;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Invite</button>` : ''}
                 <button onclick="editCompanyAdmin('${c.id}')" style="padding:8px 10px;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:8px;font-size:12px;cursor:pointer;">Edit</button>
                 <button onclick="toggleCompanyStatus('${c.id}','${c.status}')" style="padding:8px 10px;background:${c.status==='approved'?'#FAEEDA':'#E1F5EE'};color:${c.status==='approved'?'#854F0B':'#0F6E56'};border:none;border-radius:8px;font-size:12px;cursor:pointer;">${c.status==='approved'?'Suspend':'Approve'}</button>
                 <button onclick="deleteCompanyAdmin('${c.id}','${escHtml(c.name)}')" style="padding:8px 10px;background:#FCEBEB;color:#A32D2D;border:none;border-radius:8px;font-size:12px;cursor:pointer;">Delete</button>
@@ -3107,6 +3108,98 @@ async function deleteCompanyAdmin(id, name) {
             if (res.ok) { showToast('Company deleted','success'); closeAdminModal(); loadAdminCompanies(); loadAdminStats(); }
             else showToast('Delete failed','error');
         });
+}
+
+// ── Company Users / Invite Modal ──────────────────────────────────────────
+async function openCompanyUsersModal(companyId, companyName) {
+    const token = localStorage.getItem('token');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'co-users-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+    const renderModal = async () => {
+        let users = [];
+        try {
+            const res = await fetch(`/api/admin/companies/${companyId}/users`, { headers: { 'Authorization': 'Bearer ' + token } });
+            users = res.ok ? await res.json() : [];
+        } catch(_) {}
+
+        const canAdd = users.length < 2;
+        const rows = users.length
+            ? users.map(u => `<tr>
+                <td style="padding:10px 12px;font-size:13px;color:#1B2A4A;">${escHtml(u.full_name||'—')}</td>
+                <td style="padding:10px 12px;font-size:13px;color:#6B7280;">${escHtml(u.email)}</td>
+                <td style="padding:10px 12px;"><span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${u.is_active?'#E1F5EE':'#FCEBEB'};color:${u.is_active?'#0F6E56':'#A32D2D'};">${u.is_active?'Active':'Inactive'}</span></td>
+                <td style="padding:10px 12px;">${u.is_active?`<button onclick="_coDeactivateUser(${companyId},${u.id})" style="background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Deactivate</button>`:'—'}</td>
+            </tr>`).join('')
+            : '<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:16px;">No users yet</td></tr>';
+
+        overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;width:540px;max-width:calc(100vw-40px);box-shadow:0 24px 64px rgba(0,0,0,0.25);overflow:hidden;">
+          <div style="background:#1B2A4A;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#fff;font-size:15px;font-weight:600;">Manage Users — ${escHtml(companyName)}</span>
+            <button onclick="document.getElementById('co-users-overlay').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px;">×</button>
+          </div>
+          <div style="padding:20px;">
+            <div id="co-users-alert" style="display:none;margin-bottom:12px;"></div>
+            <div style="font-size:12px;color:#9CA3AF;margin-bottom:10px;">${users.length} of 2 users</div>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+              <thead><tr style="border-bottom:1px solid #E5E7EB;">
+                <th style="text-align:left;padding:8px 12px;font-size:11px;color:#9CA3AF;font-weight:500;">Name</th>
+                <th style="text-align:left;padding:8px 12px;font-size:11px;color:#9CA3AF;font-weight:500;">Email</th>
+                <th style="text-align:left;padding:8px 12px;font-size:11px;color:#9CA3AF;font-weight:500;">Status</th>
+                <th></th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+            ${canAdd ? `
+            <div style="border-top:1px solid #E5E7EB;padding-top:16px;">
+              <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:12px;">Add New User</div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <input id="co-new-name"  placeholder="Full name"  style="padding:9px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
+                <input id="co-new-email" placeholder="Email"      style="padding:9px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
+                <input id="co-new-pass"  placeholder="Password" type="password" style="padding:9px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
+                <button onclick="_coAddUser(${companyId})" style="padding:10px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Add User</button>
+              </div>
+            </div>` : `<div style="text-align:center;font-size:12px;color:#9CA3AF;padding:8px 0;">Maximum 2 users reached</div>`}
+          </div>
+        </div>`;
+    };
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    await renderModal();
+
+    window._coRefreshUsersModal = async () => { await renderModal(); };
+}
+
+async function _coDeactivateUser(companyId, userId) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/admin/companies/${companyId}/users/${userId}`, {
+        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.ok) { showToast('User deactivated', 'success'); await window._coRefreshUsersModal?.(); }
+    else showToast('Failed to deactivate', 'error');
+}
+
+async function _coAddUser(companyId) {
+    const token = localStorage.getItem('token');
+    const name  = (document.getElementById('co-new-name')?.value  || '').trim();
+    const email = (document.getElementById('co-new-email')?.value || '').trim();
+    const pass  = (document.getElementById('co-new-pass')?.value  || '');
+    if (!name || !email || !pass) { showToast('All fields required', 'error'); return; }
+    try {
+        const res = await fetch(`/api/admin/companies/${companyId}/invite-user`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ full_name: name, email, password: pass }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed');
+        showToast('User added', 'success');
+        await window._coRefreshUsersModal?.();
+    } catch(err) { showToast(err.message, 'error'); }
 }
 
 function viewCompanyAdmin(companyId) {
