@@ -3759,16 +3759,28 @@
         document.getElementById('co-vs-panel')?.remove();
         if (_coVsState && _coVsState.pollTimer) clearInterval(_coVsState.pollTimer);
 
+        const screeningPayload = {
+            application_id: appId,
+            candidate_id: app.candidate_id || null,
+            job_id: app.job_id || null,
+        };
+        console.log('[coStartScreening] appId:', appId, 'payload:', screeningPayload, 'token present:', !!token, 'url:', `${API_URL}/api/voice-screening/start`);
+
         let startData;
         try {
             const res = await fetch(`${API_URL}/api/voice-screening/start`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ application_id: appId, candidate_id: app.candidate_id || null, job_id: app.job_id || null }),
+                body: JSON.stringify(screeningPayload),
             });
-            if (!res.ok) { showToast('Could not start screening', 'error'); return; }
+            if (!res.ok) {
+                const errText = await res.text().catch(() => '');
+                console.error('[coStartScreening] HTTP', res.status, errText);
+                showToast('Could not start screening', 'error');
+                return;
+            }
             startData = await res.json();
-        } catch(e) { showToast('Screening start failed', 'error'); return; }
+        } catch(e) { console.error('[coStartScreening] fetch error:', e); showToast('Screening start failed', 'error'); return; }
 
         const screeningId = startData.screening_id;
         const vsToken     = startData.token;
