@@ -1006,14 +1006,7 @@
                         <div class="approval-item-right" style="flex-wrap:wrap;gap:6px;">
                             <button class="btn-approve" onclick="approveCompany(${company.id})">Approve</button>
                             <button class="btn-reject" onclick="showRejectCompanyForm(${company.id})">Reject</button>
-                            <button onclick="enterCompany(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;">👁 Enter</button>
-                            <button onclick="openUsersModal(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#F4F5FA;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;">👥 Users</button>
-                            <select onchange="setCompanyPlan(${company.id},this.value)" style="border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px;color:#1B2A4A;background:#fff;cursor:pointer;">
-                                <option value="">Set Plan…</option>
-                                <option value="growth"       ${(company.plan||company.selected_plan||'')===  'growth'       ?'selected':''}>Growth</option>
-                                <option value="professional" ${(company.plan||company.selected_plan||'')===  'professional' ?'selected':''}>Professional</option>
-                                <option value="enterprise"   ${(company.plan||company.selected_plan||'')===  'enterprise'   ?'selected':''}>Enterprise</option>
-                            </select>
+                            <button onclick="enterCompany(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;margin-right:4px">Enter</button><button onclick="openUsersModal(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Invite</button>
                         </div>
                     </div>`;
                 });
@@ -1107,14 +1100,7 @@
                         <div class="approval-item-right" style="flex-wrap:wrap;gap:6px;">
                             <button class="btn-approve" onclick="approveCompany(${company.id})">Approve</button>
                             <button class="btn-reject"  onclick="showRejectCompanyForm(${company.id})">Reject</button>
-                            <button onclick="enterCompany(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;">👁 Enter</button>
-                            <button onclick="openUsersModal(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#F4F5FA;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;">👥 Users</button>
-                            <select onchange="setCompanyPlan(${company.id},this.value)" style="border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px;color:#1B2A4A;background:#fff;cursor:pointer;">
-                                <option value="">Set Plan…</option>
-                                <option value="growth"       ${plan==='growth'       ?'selected':''}>Growth</option>
-                                <option value="professional" ${plan==='professional' ?'selected':''}>Professional</option>
-                                <option value="enterprise"   ${plan==='enterprise'   ?'selected':''}>Enterprise</option>
-                            </select>
+                            <button onclick="enterCompany(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;margin-right:4px">Enter</button><button onclick="openUsersModal(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Invite</button>
                         </div>
                     </div>
                 `;
