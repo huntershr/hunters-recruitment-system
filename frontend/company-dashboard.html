@@ -2895,6 +2895,7 @@
     let coActiveStageTab = 'applied';
 
     /* ── Job-first navigation (View 1 / View 2) ── */
+    let _coActiveJobId = ''; // tracks the job selected via showCandidatesForJob; '' = all
     let _coRawJobs = [];
     let _coJobStatusTab = 'active';
 
@@ -2993,9 +2994,11 @@
     }
 
     async function showCandidatesForJob(jobId, jobTitle) {
-        // Set filter FIRST so loadCompanyApplications renders with the correct scope
+        // Track the active job; jf.value is unreliable here because the <select>
+        // options are only populated by the old Candidates-tab init path.
+        _coActiveJobId = String(jobId);
         const jf = document.getElementById('cand-job-filter');
-        if (jf) jf.value = String(jobId);
+        if (jf) jf.value = String(jobId); // best-effort; may be no-op if option absent
 
         // Switch to View 2
         const titleEl = document.getElementById('pipeline-job-title');
@@ -3023,6 +3026,7 @@
     }
 
     function backToJobsView() {
+        _coActiveJobId = '';
         const jf = document.getElementById('cand-job-filter');
         if (jf) jf.value = '';
         const v1 = document.getElementById('cand-jobs-view');
@@ -3102,7 +3106,9 @@
 
         const lf = (document.getElementById('cand-search') ? document.getElementById('cand-search').value : '').toLowerCase();
         const jobFilterEl = document.getElementById('cand-job-filter');
-        const selectedJobId = jobFilterEl ? jobFilterEl.value : '';
+        // _coActiveJobId is set by showCandidatesForJob and is authoritative; fall back
+        // to jf.value only when using the old Candidates-tab dropdown filter.
+        const selectedJobId = _coActiveJobId || (jobFilterEl ? jobFilterEl.value : '');
         const visibleApps = selectedJobId ? coAppsData.filter(app => String(app.job_id) === selectedJobId) : coAppsData;
 
         const counts = {};
