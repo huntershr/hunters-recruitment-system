@@ -966,15 +966,18 @@ def list_admin_applications(
                 _iv_map[_iv.application_id] = _iv
 
         # Bulk-fetch most recent voice screening per application
-        _vss = (
-            db.query(models.VoiceScreening)
-            .filter(models.VoiceScreening.application_id.in_(_app_ids))
-            .order_by(models.VoiceScreening.application_id, models.VoiceScreening.attempt_number.desc())
-            .all()
-        )
-        for _vs in _vss:
-            if _vs.application_id not in _vs_map:
-                _vs_map[_vs.application_id] = _vs
+        try:
+            _vss = (
+                db.query(models.VoiceScreening)
+                .filter(models.VoiceScreening.application_id.in_(_app_ids))
+                .order_by(models.VoiceScreening.application_id, models.VoiceScreening.attempt_number.desc())
+                .all()
+            )
+            for _vs in _vss:
+                if _vs.application_id not in _vs_map:
+                    _vs_map[_vs.application_id] = _vs
+        except Exception:
+            pass
 
     result = []
     for app in applications:

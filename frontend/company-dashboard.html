@@ -2914,22 +2914,20 @@
 
         const token = localStorage.getItem('token');
 
-        // Step 1: fetch jobs only (fast)
+        // Step 1: fetch jobs
         try {
             const jobsRes = await fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (jobsRes.ok) _coRawJobs = await jobsRes.json();
         } catch(e) { console.warn('loadJobsView jobs:', e); }
 
-        // Step 2: render cards immediately with "—" counts (fast initial paint)
-        _coAppsReady = false;
-        _renderJobCards();
-
-        // Step 3: load applications in background, then re-render with real counts
+        // Step 2: load applications so coAppsData is fully populated
         try {
             await loadCompanyApplications();
             _coAppsReady = true;
-            _renderJobCards();
         } catch(e) { console.warn('loadJobsView apps:', e); }
+
+        // Step 3: render cards with real counts
+        _renderJobCards();
     }
 
     function _filterJobCards() { _renderJobCards(); }
@@ -2995,7 +2993,11 @@
     }
 
     async function showCandidatesForJob(jobId, jobTitle) {
-        // Switch to View 2 immediately so the user sees the transition
+        // Set filter FIRST so loadCompanyApplications renders with the correct scope
+        const jf = document.getElementById('cand-job-filter');
+        if (jf) jf.value = String(jobId);
+
+        // Switch to View 2
         const titleEl = document.getElementById('pipeline-job-title');
         if (titleEl) titleEl.textContent = jobTitle;
         coActiveStageTab = 'applied';
@@ -3012,10 +3014,6 @@
         try {
             await loadCompanyApplications();
         } catch(e) { console.warn('showCandidatesForJob apps:', e); }
-
-        // Scope hidden job filter so renderCoStageTabs filters to this job
-        const jf = document.getElementById('cand-job-filter');
-        if (jf) jf.value = String(jobId);
 
         // Set allCandidatesData for table view (scoped to this job)
         allCandidatesData = coAppsData.filter(a => String(a.job_id) === String(jobId));
