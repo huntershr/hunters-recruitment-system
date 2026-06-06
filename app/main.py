@@ -188,6 +188,12 @@ def startup_populate_db():
             )""",
             "ALTER TABLE voice_screenings ADD COLUMN IF NOT EXISTS screening_token VARCHAR(64) UNIQUE",
             "ALTER TABLE voice_screenings ADD COLUMN IF NOT EXISTS token_used BOOLEAN DEFAULT FALSE",
+            # Performance indexes
+            "CREATE INDEX IF NOT EXISTS idx_applications_job_id ON applications(job_id)",
+            "CREATE INDEX IF NOT EXISTS idx_applications_company_owner ON applications(owner_id)",
+            "CREATE INDEX IF NOT EXISTS idx_applications_stage ON applications(stage)",
+            "CREATE INDEX IF NOT EXISTS idx_candidates_owner ON candidates(owner_id)",
+            "CREATE INDEX IF NOT EXISTS idx_candidates_email ON candidates(email)",
         ]
 
         try:
