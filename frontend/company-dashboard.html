@@ -3180,6 +3180,7 @@
                     ${app.cv_available?`<button onclick="coDownloadCV(${app.application_id},'${safeName}')" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">CV</button>`:''}
                     ${isReg&&app.candidate_id?`<button onclick="coViewProfile(${app.candidate_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#185FA5;cursor:pointer;min-height:44px;">Profile</button>`:''}
                     ${app.email?`<button onclick="coInvite(${app.candidate_id||'null'},'${escHtml(app.name||'')}','${escHtml(app.email||'')}')" style="padding:7px 12px;border:1px solid #9FE1CB;border-radius:8px;background:#E1F5EE;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">Invite</button>`:''}
+                    ${stg==='screening'?`<button onclick="coStartScreening(${app.application_id})" style="padding:7px 12px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">🎙️ ${app.voice_screening&&app.voice_screening.status==='completed'?'View Screening':app.voice_screening&&app.voice_screening.status==='no_answer'?'Re-Call':'Start Screening'}</button>`:''}
                     ${stg==='interview'?`<button onclick="openScheduleInterviewModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}',null)" style="padding:7px 12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">📅 Schedule</button>`:''}
                     ${stg==='offered'?`<button onclick="openOfferModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}')\" style="padding:7px 12px;border:none;border-radius:8px;background:#C9A84C;color:#fff;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">Send Offer</button>`:''}
                 </div>
@@ -3740,6 +3741,127 @@
         showToast('Email client opened', 'success');
         document.querySelectorAll('div[style*="z-index:10000"]').forEach(el => el.remove());
         _refreshInviteCounter();
+    }
+
+    /* ── AI Screening Panel (company-dashboard self-contained version) ── */
+    let _coVsState = null;
+
+    async function coStartScreening(appId) {
+        const app = coAppsData.find(a => a.application_id === appId);
+        if (!app) { showToast('Application not found', 'error'); return; }
+        const token = localStorage.getItem('token');
+
+        if (app.voice_screening && app.voice_screening.status === 'completed') {
+            _coShowVsResults(app.voice_screening, app.name || 'Candidate');
+            return;
+        }
+
+        document.getElementById('co-vs-panel')?.remove();
+        if (_coVsState && _coVsState.pollTimer) clearInterval(_coVsState.pollTimer);
+
+        let startData;
+        try {
+            const res = await fetch(`${API_URL}/api/voice-screening/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ application_id: appId, candidate_id: app.candidate_id || null, job_id: app.job_id || null }),
+            });
+            if (!res.ok) { showToast('Could not start screening', 'error'); return; }
+            startData = await res.json();
+        } catch(e) { showToast('Screening start failed', 'error'); return; }
+
+        const screeningId = startData.screening_id;
+        const vsToken     = startData.token;
+        const screenLink  = window.location.origin + '/screen.html?token=' + vsToken;
+        const waPhone     = (app.phone || '').replace(/[^0-9+]/g, '');
+        const waNum       = waPhone.startsWith('+') ? waPhone.replace('+','') : (waPhone.startsWith('0') ? '2' + waPhone : '20' + waPhone);
+        const waMsg       = encodeURIComponent('Hello ' + (app.name||'') + '! Please complete your AI screening call for the ' + (app.job_title||'role') + ' position by clicking this link: ' + screenLink);
+        const waUrl       = 'https://wa.me/' + waNum + '?text=' + waMsg;
+
+        _coVsState = { screeningId, token: vsToken, appId, pollTimer: null };
+
+        const overlay = document.createElement('div');
+        overlay.id = 'co-vs-panel';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
+        overlay.innerHTML = `
+        <div style="background:#fff;border-radius:20px;width:540px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;">
+          <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">🎙️ AI SCREENING CALL READY</div>
+              <div style="color:#fff;font-size:15px;font-weight:600;margin-top:2px;">${escHtml(app.name||'Candidate')} — ${escHtml(app.job_title||'')}</div>
+            </div>
+            <button onclick="_coVsClose()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>
+          </div>
+          <div style="padding:24px;">
+            <div style="font-size:13px;color:#6B7280;margin-bottom:14px;">Send this link to the candidate to start the screening on their device:</div>
+            <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:12px 16px;font-size:12px;color:#1B2A4A;word-break:break-all;margin-bottom:16px;font-family:monospace;">${escHtml(screenLink)}</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+              <button onclick="navigator.clipboard.writeText('${screenLink.replace(/'/g,"\\'")}').then(()=>showToast('Link copied','success'))" style="padding:10px 18px;border:1px solid #1B2A4A;border-radius:8px;background:#fff;color:#1B2A4A;font-size:13px;font-weight:500;cursor:pointer;">📋 Copy Link</button>
+              ${waNum?`<a href="${escHtml(waUrl)}" target="_blank" style="padding:10px 18px;border:none;border-radius:8px;background:#25D366;color:#fff;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;">💬 Send via WhatsApp</a>`:''}
+              <button onclick="_coVsNoAnswer(${appId},${screeningId})" style="padding:10px 16px;border:1px solid #CC2B2B;border-radius:8px;background:#fff;color:#CC2B2B;font-size:12px;cursor:pointer;">📵 No Answer</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#F0F7FF;border-radius:8px;font-size:13px;color:#185FA5;">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#185FA5;animation:co-vs-blink 1.4s ease-in-out infinite;"></span>
+              ⏳ Waiting for candidate to complete the screening…
+            </div>
+            <div style="font-size:11px;color:#9CA3AF;margin-top:10px;text-align:center;">Once the candidate finishes, results will appear here automatically.</div>
+          </div>
+        </div>
+        <style>@keyframes co-vs-blink{0%,100%{opacity:1;}50%{opacity:0.2;}}</style>`;
+        document.body.appendChild(overlay);
+        _coVsState.pollTimer = setInterval(() => _coVsPoll(appId, screeningId), 10000);
+    }
+
+    async function _coVsPoll(appId, screeningId) {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_URL}/api/voice-screening/${screeningId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) return;
+            const vs = await res.json();
+            if (vs.status === 'completed') {
+                if (_coVsState && _coVsState.pollTimer) clearInterval(_coVsState.pollTimer);
+                const idx = coAppsData.findIndex(a => a.application_id === appId);
+                if (idx >= 0) coAppsData[idx].voice_screening = vs;
+                document.getElementById('co-vs-panel')?.remove();
+                renderCoStageTabs();
+                _coShowVsResults(vs, (coAppsData[idx] || {}).name || 'Candidate');
+            }
+        } catch(_) {}
+    }
+
+    function _coVsClose() {
+        if (_coVsState && _coVsState.pollTimer) clearInterval(_coVsState.pollTimer);
+        document.getElementById('co-vs-panel')?.remove();
+    }
+
+    async function _coVsNoAnswer(appId, screeningId) {
+        const token = localStorage.getItem('token');
+        if (_coVsState && _coVsState.pollTimer) clearInterval(_coVsState.pollTimer);
+        document.getElementById('co-vs-panel')?.remove();
+        try {
+            await fetch(`${API_URL}/api/voice-screening/${screeningId}/no-answer`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+        } catch(_) {}
+        showToast('Marked as no answer', 'info');
+    }
+
+    function _coShowVsResults(vs, candName) {
+        const m = document.createElement('div');
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
+        m.innerHTML = `<div style="background:#fff;border-radius:20px;width:560px;max-width:calc(100vw-40px);box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;">
+          <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">
+            <div><div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">🎙️ AI SCREENING — COMPLETED ✅</div>
+            <div style="color:#fff;font-size:15px;font-weight:600;margin-top:2px;">${escHtml(candName)}</div></div>
+            <button onclick="this.closest('div[style*=fixed]').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>
+          </div>
+          <div style="padding:24px;max-height:70vh;overflow-y:auto;">
+            ${vs.ai_summary?`<div style="background:#F0F7FF;border-radius:10px;padding:16px;margin-bottom:16px;font-size:13px;color:#1B2A4A;line-height:1.6;">${escHtml(vs.ai_summary)}</div>`:''}
+            ${vs.experience_response?`<div style="margin-bottom:10px;"><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;margin-bottom:4px;">Experience</div><div style="font-size:13px;color:#374151;">${escHtml(vs.experience_response)}</div></div>`:''}
+            ${vs.expected_salary?`<div style="margin-bottom:10px;"><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;margin-bottom:4px;">Expected Salary</div><div style="font-size:13px;color:#374151;">${escHtml(vs.expected_salary)}</div></div>`:''}
+            ${vs.english_level?`<div style="margin-bottom:10px;"><div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;margin-bottom:4px;">English Level</div><div style="font-size:13px;color:#374151;">${escHtml(vs.english_level)}</div></div>`:''}
+          </div>
+        </div>`;
+        document.body.appendChild(m);
+        m.addEventListener('click', e => { if (e.target === m) m.remove(); });
     }
 
     /* ── Boot ── */
