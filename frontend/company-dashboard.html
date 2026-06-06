@@ -2898,31 +2898,38 @@
     let _coRawJobs = [];
     let _coJobStatusTab = 'active';
 
+    let _coAppsReady = false; // true once coAppsData has been loaded for cards
+
     async function loadJobsView() {
-        // Always show View 1 on entry
+        // Show View 1
         const v1 = document.getElementById('cand-jobs-view');
         const v2 = document.getElementById('cand-pipeline-view');
         if (v1) v1.style.display = 'block';
         if (v2) v2.style.display = 'none';
-        // Reset hidden job filter
         const jf = document.getElementById('cand-job-filter');
         if (jf) jf.value = '';
 
-        // Show loading state
         const grid = document.getElementById('cand-jobs-grid');
         if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#9CA3AF;font-size:13px;">Loading jobs…</div>';
 
         const token = localStorage.getItem('token');
-        // Fetch jobs and applications in parallel
-        try {
-            const [jobsRes] = await Promise.all([
-                fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                loadCompanyApplications()
-            ]);
-            if (jobsRes.ok) _coRawJobs = await jobsRes.json();
-        } catch(e) { console.warn('loadJobsView:', e); }
 
+        // Step 1: fetch jobs only (fast)
+        try {
+            const jobsRes = await fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (jobsRes.ok) _coRawJobs = await jobsRes.json();
+        } catch(e) { console.warn('loadJobsView jobs:', e); }
+
+        // Step 2: render cards immediately with "—" counts (fast initial paint)
+        _coAppsReady = false;
         _renderJobCards();
+
+        // Step 3: load applications in background, then re-render with real counts
+        try {
+            await loadCompanyApplications();
+            _coAppsReady = true;
+            _renderJobCards();
+        } catch(e) { console.warn('loadJobsView apps:', e); }
     }
 
     function _filterJobCards() { _renderJobCards(); }
@@ -2957,12 +2964,15 @@
         }
 
         grid.innerHTML = filtered.map(j => {
-            const count = coAppsData.filter(a => String(a.job_id) === String(j.id)).length;
+            const count = _coAppsReady ? coAppsData.filter(a => String(a.job_id) === String(j.id)).length : null;
+            const countHtml = count === null
+                ? `<span style="font-size:20px;font-weight:600;color:#D1D5DB;">—</span><span style="font-size:13px;color:#9CA3AF;margin-left:5px;">loading…</span>`
+                : `<span style="font-size:24px;font-weight:700;color:#C9A84C;">${count}</span><span style="font-size:13px;color:#6B7280;margin-left:5px;">Candidate${count!==1?'s':''}</span>`;
             const title = escHtml(j.job_title || 'Untitled');
             const safeTitle = (j.job_title || '').replace(/'/g, "\\'");
             return `<div style="background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:10px;">
                 <div style="font-size:15px;font-weight:700;color:#1B2A4A;line-height:1.35;">${title}</div>
-                <div><span style="font-size:24px;font-weight:700;color:#C9A84C;">${count}</span><span style="font-size:13px;color:#6B7280;margin-left:5px;">Candidate${count!==1?'s':''}</span></div>
+                <div>${countHtml}</div>
                 <button onclick="showCandidatesForJob(${j.id},'${safeTitle}')" style="width:100%;padding:10px;border:none;border-radius:8px;background:#1B2A4A;color:#fff;font-size:13px;font-weight:500;cursor:pointer;margin-top:auto;">Show Candidates</button>
             </div>`;
         }).join('');
@@ -2984,28 +2994,33 @@
         _renderJobCards();
     }
 
-    function showCandidatesForJob(jobId, jobTitle) {
-        // Scope hidden job filter for renderCoStageTabs
-        const jf = document.getElementById('cand-job-filter');
-        if (jf) jf.value = String(jobId);
-
-        // Update allCandidatesData to this job's candidates only (for table view)
-        allCandidatesData = coAppsData.filter(a => String(a.job_id) === String(jobId));
-
-        // Set pipeline header
+    async function showCandidatesForJob(jobId, jobTitle) {
+        // Switch to View 2 immediately so the user sees the transition
         const titleEl = document.getElementById('pipeline-job-title');
         if (titleEl) titleEl.textContent = jobTitle;
-
-        // Reset to applied tab
         coActiveStageTab = 'applied';
-
-        // Switch views
         const v1 = document.getElementById('cand-jobs-view');
         const v2 = document.getElementById('cand-pipeline-view');
         if (v1) v1.style.display = 'none';
         if (v2) v2.style.display = 'block';
 
-        // Reset card/table to card view
+        // Show loading state in the pipeline
+        const cardsList = document.getElementById('co-stage-candidates-list');
+        if (cardsList) cardsList.innerHTML = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading candidates…</div>';
+
+        // Lazy-load applications now (only fetched when recruiter opens a job)
+        try {
+            await loadCompanyApplications();
+        } catch(e) { console.warn('showCandidatesForJob apps:', e); }
+
+        // Scope hidden job filter so renderCoStageTabs filters to this job
+        const jf = document.getElementById('cand-job-filter');
+        if (jf) jf.value = String(jobId);
+
+        // Set allCandidatesData for table view (scoped to this job)
+        allCandidatesData = coAppsData.filter(a => String(a.job_id) === String(jobId));
+
+        // Render pipeline
         setCompanyView('tabs');
     }
 
