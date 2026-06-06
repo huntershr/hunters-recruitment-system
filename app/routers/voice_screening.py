@@ -106,84 +106,93 @@ def start_screening(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    _require_company_or_admin(current_user)
+    import traceback
+    try:
+        _require_company_or_admin(current_user)
 
-    # Resolve candidate and job
-    candidate = None
-    if data.candidate_id:
-        candidate = db.query(models.Candidate).filter(models.Candidate.id == data.candidate_id).first()
+        # Resolve candidate and job
+        candidate = None
+        if data.candidate_id:
+            candidate = db.query(models.Candidate).filter(models.Candidate.id == data.candidate_id).first()
 
-    application = None
-    if data.application_id:
-        application = db.query(models.Application).filter(models.Application.id == data.application_id).first()
-        if application and not candidate and application.candidate_id:
-            candidate = db.query(models.Candidate).filter(models.Candidate.id == application.candidate_id).first()
+        application = None
+        if data.application_id:
+            application = db.query(models.Application).filter(models.Application.id == data.application_id).first()
+            if application and not candidate and application.candidate_id:
+                candidate = db.query(models.Candidate).filter(models.Candidate.id == application.candidate_id).first()
 
-    job_id = data.job_id or (application.job_id if application else None) or (candidate.job_applied if candidate else None)
-    job = db.query(models.Job).filter(models.Job.id == job_id).first() if job_id else None
+        job_id = data.job_id or (application.job_id if application else None) or (candidate.job_applied if candidate else None)
+        job = db.query(models.Job).filter(models.Job.id == job_id).first() if job_id else None
 
-    cand_name  = (candidate.name if candidate else None) or (application.applicant_name if application else "Candidate")
-    job_title  = job.job_title if job else "the role"
-    job_type   = job.education_level or "Full-time"   # reuse field; update if job_type column added
+        cand_name  = (candidate.name if candidate else None) or (application.applicant_name if application else "Candidate")
+        job_title  = job.job_title if job else "the role"
+        job_type   = job.education_level or "Full-time"   # reuse field; update if job_type column added
 
-    # Interview date/time for Q4
-    interview_date = interview_time = None
-    if application:
-        iv = (
-            db.query(models.Interview)
-            .filter(
-                models.Interview.application_id == application.id,
-                models.Interview.status != "cancelled",
+        # Interview date/time for Q4
+        interview_date = interview_time = None
+        if application:
+            iv = (
+                db.query(models.Interview)
+                .filter(
+                    models.Interview.application_id == application.id,
+                    models.Interview.status != "cancelled",
+                )
+                .order_by(models.Interview.created_at.desc())
+                .first()
             )
-            .order_by(models.Interview.created_at.desc())
+            if iv:
+                interview_date = str(iv.interview_date)
+                interview_time = str(iv.interview_time)[:5]
+
+        # Increment attempt number
+        last = (
+            db.query(models.VoiceScreening)
+            .filter(models.VoiceScreening.application_id == data.application_id)
+            .order_by(desc(models.VoiceScreening.attempt_number))
             .first()
+        ) if data.application_id else None
+        attempt = (last.attempt_number + 1) if last else 1
+
+        token = secrets.token_urlsafe(32)
+
+        vs = models.VoiceScreening(
+            candidate_id=candidate.id if candidate else None,
+            application_id=data.application_id,
+            job_id=job_id,
+            triggered_by=current_user.id,
+            attempt_number=attempt,
+            status="pending",
+            screening_token=token,
+            token_used=False,
+            job_title_at_time=job_title,
+            job_type_at_time=job_type,
+            interview_date_at_time=interview_date,
+            interview_time_at_time=interview_time,
         )
-        if iv:
-            interview_date = str(iv.interview_date)
-            interview_time = str(iv.interview_time)[:5]
+        db.add(vs)
+        db.commit()
+        db.refresh(vs)
 
-    # Increment attempt number
-    last = (
-        db.query(models.VoiceScreening)
-        .filter(models.VoiceScreening.application_id == data.application_id)
-        .order_by(desc(models.VoiceScreening.attempt_number))
-        .first()
-    ) if data.application_id else None
-    attempt = (last.attempt_number + 1) if last else 1
+        questions = _build_questions(job_title, job_type, interview_date, interview_time)
 
-    token = secrets.token_urlsafe(32)
-
-    vs = models.VoiceScreening(
-        candidate_id=candidate.id if candidate else None,
-        application_id=data.application_id,
-        job_id=job_id,
-        triggered_by=current_user.id,
-        attempt_number=attempt,
-        status="pending",
-        screening_token=token,
-        token_used=False,
-        job_title_at_time=job_title,
-        job_type_at_time=job_type,
-        interview_date_at_time=interview_date,
-        interview_time_at_time=interview_time,
-    )
-    db.add(vs)
-    db.commit()
-    db.refresh(vs)
-
-    questions = _build_questions(job_title, job_type, interview_date, interview_time)
-
-    return {
-        "screening_id": vs.id,
-        "token": token,
-        "candidate_name": cand_name,
-        "job_title": job_title,
-        "job_type": job_type,
-        "interview_date": interview_date,
-        "interview_time": interview_time,
-        "attempt_number": attempt,
-        "questions": questions,
-    }
+        return {
+            "screening_id": vs.id,
+            "token": token,
+            "candidate_name": cand_name,
+            "job_title": job_title,
+            "job_type": job_type,
+            "interview_date": interview_date,
+            "interview_time": interview_time,
+            "attempt_number": attempt,
+            "questions": questions,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Screening start failed: {str(e)} | {traceback.format_exc()}",
+        )
 
 
 @router.post("/{screening_id}/save-answer")
