@@ -138,6 +138,7 @@ let _questions = [];
 let _currentQ = 0;
 let _candName = '';
 let _jobTitle = '';
+let _questionsTTS = [];
 let _currentTranscript = '';
 
 // ── States ──
@@ -161,10 +162,11 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
       return;
     }
-    _sid       = data.screening_id;
-    _questions = data.questions;
-    _candName  = data.candidate_name || 'Candidate';
-    _jobTitle  = data.job_title || 'the role';
+    _sid          = data.screening_id;
+    _questions    = data.questions;
+    _candName     = data.candidate_name || 'Candidate';
+    _jobTitle     = data.job_title || 'the role';
+    _questionsTTS = _questions.map(q => _expandAcronyms(q));
 
     document.getElementById('greet-name').textContent = _candName;
     document.getElementById('greet-job').textContent  = _jobTitle;
@@ -213,7 +215,7 @@ function showQuestion(idx) {
   document.getElementById('status-label').textContent = 'Speaking…';
   document.getElementById('pulse-ring').style.animationPlayState = 'running';
   _updateProgress(idx);
-  speak(_questions[idx], () => startListening());
+  speak(_questionsTTS[idx] || _questions[idx], () => startListening());
 }
 
 // ── TTS ──
@@ -242,8 +244,7 @@ function _expandAcronyms(text) {
 function speak(text, onEnd) {
   if (!window.speechSynthesis) { onEnd && onEnd(); return; }
   window.speechSynthesis.cancel();
-  const expanded = _expandAcronyms(text);
-  const chunks   = (expanded.match(/[^.!?]+[.!?]*/g) || [expanded]).map(s => s.trim()).filter(Boolean);
+  const chunks = (text.match(/[^.!?]+[.!?]*/g) || [text]).map(s => s.trim()).filter(Boolean);
   const voice    = _pickVoice();
   let i = 0;
   function next() {
@@ -362,7 +363,7 @@ function repeatQuestion() {
   document.getElementById('pulse-icon').textContent   = '🎙️';
   document.getElementById('status-label').textContent = 'Speaking…';
   document.getElementById('pulse-ring').style.animationPlayState = 'running';
-  speak(_questions[_currentQ], () => startListening());
+  speak(_questionsTTS[_currentQ] || _questions[_currentQ], () => startListening());
 }
 
 // ── Previous question ──
