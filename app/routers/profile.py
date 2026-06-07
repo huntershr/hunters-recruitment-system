@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File, Form
 from sqlalchemy.orm import Session, joinedload
+from typing import Optional
 import ast
 
 from .. import models, schemas, database
 from ..routers.auth import get_current_user
+from ..services.file_processor import extract_text_from_file
 
 router = APIRouter(tags=["Profile"])
 
@@ -38,6 +40,7 @@ def _build_profile(candidate: models.Candidate) -> dict:
         "education": candidate.education,
         "last_title": candidate.last_title,
         "last_employer": candidate.last_employer,
+        "has_cv": bool(candidate.cv_file_data),
     }
 
 
@@ -345,3 +348,104 @@ def get_candidate_applications(
         })
 
     return result
+
+
+def _resolve_mime(filename: str, content_type: str) -> str:
+    ct = content_type or ""
+    fname = (filename or "").lower()
+    if ct and ct not in ("application/octet-stream", "binary/octet-stream"):
+        return ct
+    if fname.endswith(".pdf"):
+        return "application/pdf"
+    if fname.endswith(".docx"):
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    return "application/octet-stream"
+
+
+# ── POST /api/candidate/cv ────────────────────────────────────────────────────
+
+@router.post("/api/candidate/cv")
+async def update_candidate_cv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    candidate = db.query(models.Candidate).filter(models.Candidate.user_id == current_user.id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="No profile found.")
+    content = await file.read()
+    cv_text = extract_text_from_file(file.filename, content)
+    candidate.cv_file_data = content
+    candidate.cv_file_mime = _resolve_mime(file.filename, file.content_type)
+    candidate.cv_text = cv_text
+    db.commit()
+    return {"message": "CV updated", "has_cv": True}
+
+
+# ── POST /api/candidate/apply/{job_id} ────────────────────────────────────────
+
+@router.post("/api/candidate/apply/{job_id}")
+async def candidate_apply(
+    job_id: int,
+    background_tasks: BackgroundTasks,
+    expected_salary: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    candidate = db.query(models.Candidate).filter(models.Candidate.user_id == current_user.id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="No profile found. Please build your profile first.")
+
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    existing_app = db.query(models.Application).filter(
+        models.Application.candidate_id == candidate.id,
+        models.Application.job_id == job_id,
+    ).first()
+    if existing_app:
+        raise HTTPException(status_code=409, detail="You have already applied to this job.")
+
+    if file and file.filename:
+        content = await file.read()
+        cv_text = extract_text_from_file(file.filename, content)
+        candidate.cv_file_data = content
+        candidate.cv_file_mime = _resolve_mime(file.filename, file.content_type)
+        candidate.cv_text = cv_text
+    else:
+        if not candidate.cv_file_data:
+            raise HTTPException(status_code=400, detail="No CV on file. Please upload your CV first.")
+        content = candidate.cv_file_data
+        cv_text = candidate.cv_text or ""
+
+    application = models.Application(
+        job_id=job_id,
+        candidate_id=candidate.id,
+        applicant_name=candidate.name,
+        applicant_email=candidate.email,
+        applicant_phone=candidate.phone,
+        expected_salary=expected_salary,
+        stage="Applied",
+        cv_text=cv_text,
+        cv_file_data=content,
+        cv_file_mime=candidate.cv_file_mime or "application/octet-stream",
+    )
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+
+    from .public import run_evaluation_task_for_application
+    from ..database import SessionLocal
+    background_tasks.add_task(
+        run_evaluation_task_for_application,
+        application.id, cv_text, SessionLocal()
+    )
+
+    return {
+        "message": "Application submitted",
+        "application_id": application.id,
+        "candidate_id": candidate.id,
+        "job_id": job_id,
+    }

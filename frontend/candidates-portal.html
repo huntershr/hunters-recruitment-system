@@ -1559,6 +1559,11 @@ async function renderProfile(){
         '<div style="flex:1;min-width:160px;"><div style="font-size:13px;font-weight:500;color:#1B2A4A;">Have an existing CV?</div><div style="font-size:11px;color:#6B7280;margin-top:2px;">Upload it and AI will auto-fill your profile fields instantly</div></div>' +
         '<label style="background:#4F46E5;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;">📄 Upload CV to Auto-Fill<input type="file" accept=".pdf,.docx" style="display:none;" onchange="extractCVForProfile(this.files[0])"></label>' +
       '</div>' +
+      /* Saved CV status card */
+      '<div style="background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,0.06);padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">' +
+        '<div style="flex:1;min-width:160px;"><div style="font-size:13px;font-weight:500;color:#1B2A4A;">Your Saved CV</div><div style="font-size:11px;color:#6B7280;margin-top:2px;">'+(pr.has_cv?'&#10003; CV on file — used automatically when you apply':'No CV saved yet — upload one so you don\'t have to re-attach every time')+'</div></div>'+
+        '<label style="background:'+(pr.has_cv?'#C9A84C':'#1B2A4A')+';color:'+(pr.has_cv?'#1B2A4A':'#fff')+';border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;">'+(pr.has_cv?'&#128260; Replace CV':'&#128228; Upload CV')+'<input type="file" accept=".pdf,.docx" style="display:none;" onchange="updateCandidateCV(this.files[0])"></label>'+
+      '</div>' +
       /* Card */
       '<div style="background:#fff;border-radius:16px;border:0.5px solid rgba(0,0,0,0.06);box-shadow:0 2px 12px rgba(0,0,0,0.06);padding:28px;">' +
         /* Photo + name */
@@ -1653,6 +1658,20 @@ function addSkill(){var el=document.getElementById('new-skill');if(!el||!el.valu
 function removeSkill(i){_profileSkills.splice(i,1);document.getElementById('skill-tags').innerHTML=renderSkillTags();}
 function addExp(){var t=prompt('Job Title:');if(!t)return;var c=prompt('Company/Employer:')||'';var d=prompt('Duration (e.g. 2 years):')||'';_profileExps.push({title:t,company:c,duration:d});document.getElementById('exp-list').innerHTML=renderExpList();}
 function removeExp(i){_profileExps.splice(i,1);document.getElementById('exp-list').innerHTML=renderExpList();}
+
+async function updateCandidateCV(file){
+  if(!file)return;
+  var ext=file.name.split('.').pop().toLowerCase();
+  if(ext!=='pdf'&&ext!=='docx'){showToast('Only PDF or DOCX accepted','error');return;}
+  showToast('Uploading CV…','info');
+  var fd=new FormData();fd.append('file',file);
+  try{
+    var r=await fetch(API_BASE+'/api/candidate/cv',{method:'POST',headers:hdrs(),body:fd});
+    if(!r.ok){var e=await r.json().catch(function(){return{};});showToast('Upload failed: '+(e.detail||r.status),'error');return;}
+    showToast('CV saved! It will be used automatically when you apply.','success');
+    renderProfile();
+  }catch(e){showToast('Upload error: '+e.message,'error');}
+}
 
 async function saveProfile(){
   var payload={

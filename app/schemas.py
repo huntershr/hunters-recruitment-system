@@ -234,6 +234,7 @@ class ProfileResponse(BaseModel):
     education: Optional[str] = None
     last_title: Optional[str] = None
     last_employer: Optional[str] = None
+    has_cv: bool = False
 
     class Config:
         from_attributes = True

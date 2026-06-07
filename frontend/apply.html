@@ -193,9 +193,12 @@
                 <label>Expected Salary (Monthly/Yearly)</label>
                 <input type="text" id="expected_salary" placeholder="e.g. $5,000 / month" required>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="cv-upload-group">
                 <label>Upload CV (PDF or Word)</label>
-                <input type="file" id="cv-file" accept=".pdf,.doc,.docx" required>
+                <input type="file" id="cv-file" accept=".pdf,.doc,.docx">
+            </div>
+            <div id="cv-saved-notice" style="display:none;background:#E1F5EE;border:0.5px solid #9FE1CB;border-radius:8px;padding:12px 14px;margin-bottom:20px;font-size:13px;color:#0F6E56;">
+                &#10003; Applying with your saved CV &nbsp;&middot;&nbsp; <a href="#" onclick="showCVUpload();return false;" style="color:#1B2A4A;font-weight:500;text-decoration:underline;">Use a different CV</a>
             </div>
             <button type="submit" class="btn-submit" id="submit-btn">
                 Submit Application
@@ -284,6 +287,8 @@
         const API_URL = "";
         const urlParams = new URLSearchParams(window.location.search);
         const jobId = urlParams.get('job_id');
+        let _authToken = null;
+        let _useNewCV = false;
 
         if (!jobId) {
             document.getElementById('form-container').innerHTML = "<h1 style='font-weight:500'>Error: Invalid Job Link</h1>";
@@ -301,11 +306,37 @@
         }
         fetchJob();
 
+        async function initApplyPage() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            try {
+                const r = await fetch(API_URL + '/api/candidate/profile', {headers: {Authorization: 'Bearer ' + token}});
+                if (!r.ok) return;
+                const profile = await r.json();
+                _authToken = token;
+                if (profile.name) document.getElementById('name').value = profile.name;
+                if (profile.email) document.getElementById('email').value = profile.email;
+                if (profile.phone) document.getElementById('phone').value = profile.phone;
+                if (profile.has_cv) {
+                    document.getElementById('cv-upload-group').style.display = 'none';
+                    document.getElementById('cv-saved-notice').style.display = 'block';
+                }
+            } catch(e) {}
+        }
+        initApplyPage();
+
+        function showCVUpload() {
+            _useNewCV = true;
+            document.getElementById('cv-saved-notice').style.display = 'none';
+            document.getElementById('cv-upload-group').style.display = 'block';
+        }
+
         async function handleApply(event) {
             event.preventDefault();
             const btn = document.getElementById('submit-btn');
             const cvFile = document.getElementById('cv-file');
-            if (!cvFile || !cvFile.files || !cvFile.files.length) {
+            const usingSavedCV = _authToken && !_useNewCV;
+            if (!usingSavedCV && (!cvFile || !cvFile.files || !cvFile.files.length)) {
                 showToast('Please attach your CV before submitting.', 'error');
                 return;
             }
@@ -317,11 +348,24 @@
             formData.append("email", document.getElementById('email').value);
             formData.append("phone", document.getElementById('phone').value);
             formData.append("expected_salary", document.getElementById('expected_salary').value);
-            formData.append("file", document.getElementById('cv-file').files[0]);
+
+            let applyUrl, applyHeaders;
+            if (_authToken) {
+                if (!usingSavedCV && cvFile && cvFile.files && cvFile.files.length) {
+                    formData.append("file", cvFile.files[0]);
+                }
+                applyUrl = API_URL + '/api/candidate/apply/' + jobId;
+                applyHeaders = {Authorization: 'Bearer ' + _authToken};
+            } else {
+                formData.append("file", cvFile.files[0]);
+                applyUrl = API_URL + '/public/apply/' + jobId;
+                applyHeaders = {};
+            }
 
             try {
-                const response = await fetch(API_URL + '/public/apply/' + jobId, {
+                const response = await fetch(applyUrl, {
                     method: "POST",
+                    headers: applyHeaders,
                     body: formData
                 });
 
