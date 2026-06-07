@@ -89,44 +89,57 @@ def run_evaluation_task(candidate_id: int, db: Session):
 
 @router.post("/screen-cv")
 async def screen_cv(
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
     job_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     """Screen a single PDF CV against a job using real AI. Returns immediate results."""
-    content = await file.read()
-    filename = (file.filename or "").lower()
-
-    # Resolve MIME — browser content_type can be missing or generic
-    _ct = file.content_type or ""
-    if _ct and _ct not in ("application/octet-stream", "binary/octet-stream"):
-        cv_mime = _ct
-    elif filename.endswith(".pdf"):
-        cv_mime = "application/pdf"
-    elif filename.endswith(".docx"):
-        cv_mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    if file is None:
+        # No file uploaded — fall back to saved CV (portal candidates only)
+        if current_user.is_admin or current_user.company_id:
+            raise HTTPException(status_code=400, detail="Please upload a CV file.")
+        saved = db.query(models.Candidate).filter(models.Candidate.user_id == current_user.id).first()
+        if not saved or not saved.cv_file_data:
+            raise HTTPException(status_code=400, detail="No CV on file. Please upload your CV first.")
+        if not (saved.cv_text or "").strip():
+            raise HTTPException(status_code=422, detail="Saved CV could not be read. Please upload a new CV file.")
+        content = saved.cv_file_data
+        cv_text = saved.cv_text
+        cv_mime = saved.cv_file_mime or "application/octet-stream"
     else:
-        cv_mime = "application/octet-stream"
+        content = await file.read()
+        filename = (file.filename or "").lower()
 
-    if filename.endswith(".pdf"):
-        cv_text = extract_text_from_pdf(content)
-    elif filename.endswith(".docx"):
-        cv_text = extract_text_from_docx(content)
-    else:
-        raise HTTPException(status_code=400, detail="Only PDF or DOCX files are supported")
+        # Resolve MIME — browser content_type can be missing or generic
+        _ct = file.content_type or ""
+        if _ct and _ct not in ("application/octet-stream", "binary/octet-stream"):
+            cv_mime = _ct
+        elif filename.endswith(".pdf"):
+            cv_mime = "application/pdf"
+        elif filename.endswith(".docx"):
+            cv_mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        else:
+            cv_mime = "application/octet-stream"
 
-    if not cv_text or not cv_text.strip():
-        raise HTTPException(
-            status_code=422,
-            detail="Your CV appears to be a scanned image — AI cannot read image-based PDFs. Please save your CV as a text-based PDF or upload a DOCX file instead."
-        )
+        if filename.endswith(".pdf"):
+            cv_text = extract_text_from_pdf(content)
+        elif filename.endswith(".docx"):
+            cv_text = extract_text_from_docx(content)
+        else:
+            raise HTTPException(status_code=400, detail="Only PDF or DOCX files are supported")
+
+        if not cv_text or not cv_text.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="Your CV appears to be a scanned image — AI cannot read image-based PDFs. Please save your CV as a text-based PDF or upload a DOCX file instead."
+            )
 
     # AI: extract candidate info from CV
     info = extract_candidate_info(cv_text)
 
-    name  = info.get("name")  or file.filename.rsplit(".", 1)[0].replace("_", " ").title()
-    email = info.get("email") or f"bulk_{file.filename}@noemail.hunters"
+    name  = info.get("name")  or (file.filename.rsplit(".", 1)[0].replace("_", " ").title() if file else "Candidate")
+    email = info.get("email") or (f"bulk_{file.filename}@noemail.hunters" if file else f"user_{current_user.id}@noemail.hunters")
     phone = str(info.get("phone") or "")
 
     # Portal candidates (non-admin, non-company): always use their account email

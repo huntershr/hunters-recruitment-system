@@ -562,7 +562,7 @@ function tok(){return localStorage.getItem('token')||'';}
 function hdrs(){return{'Authorization':'Bearer '+tok()};}
 
 /* ─── Auth ─── */
-var portalUser=null,allJobs=[],_applyFile=null,currentJob=null,_cvData=null;
+var portalUser=null,allJobs=[],_applyFile=null,currentJob=null,_cvData=null,_useSavedCv=false;
 var _profileSkills=[],_profileExps=[];
 
 function showAuthScreen(){
@@ -1233,6 +1233,30 @@ function alreadyAppliedPanelHtml(){
   '</div>';
 }
 
+function savedCvPanelHtml(){
+  return '<div style="font-size:15px;font-weight:500;color:#1B2A4A;margin-bottom:16px;">Apply for this Position</div>'+
+    '<div id="apply-form">'+
+      '<div style="background:#E1F5EE;border:0.5px solid #9FE1CB;border-radius:12px;padding:16px;margin-bottom:16px;">'+
+        '<div style="font-size:13px;font-weight:500;color:#0F6E56;margin-bottom:4px;">&#10003; Applying with your saved CV</div>'+
+        '<div style="font-size:11px;color:#6B7280;">Your profile CV will be used for this application.</div>'+
+      '</div>'+
+      '<button onclick="_useSavedCv=true;submitApply();" '+
+        'style="width:100%;background:#1B2A4A;color:#fff;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:500;cursor:pointer;margin-bottom:10px;">'+
+        '&#128640; Screen with AI'+
+      '</button>'+
+      '<button onclick="showApplyDropzone()" style="width:100%;background:#fff;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:10px;padding:10px;font-size:12px;font-weight:500;cursor:pointer;">'+
+        'Use a different CV'+
+      '</button>'+
+      '<div style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:8px;">Instant AI scoring · 5-10 seconds</div>'+
+    '</div>';
+}
+
+function showApplyDropzone(){
+  _useSavedCv=false;_applyFile=null;
+  var panel=document.getElementById('apply-panel');
+  if(panel)panel.innerHTML=applyPanelHtml();
+}
+
 async function openJob(id){
   currentJob=allJobs.find(function(j){return j.id===id;});if(!currentJob)return;
   _applyFile=null;
@@ -1263,12 +1287,17 @@ async function openJob(id){
       '<div id="apply-panel" style="padding:24px;overflow-y:auto;max-height:72vh;">'+applyPanelHtml()+'</div>' +
     '</div>';
   document.getElementById('job-overlay').classList.add('active');
-  // A.4: replace Apply panel for portal candidates who already applied to this job
+  // A.4: replace Apply panel — check already-applied and saved-CV in parallel
   var isPortal=portalUser&&!portalUser.is_admin&&!portalUser.company_id;
   if(isPortal){
     try{
-      var hr=await fetch('/api/candidate/has-applied/'+id,{headers:hdrs()});
-      if(hr.ok){var hd=await hr.json();if(hd.has_applied){var panel=document.getElementById('apply-panel');if(panel)panel.innerHTML=alreadyAppliedPanelHtml();}}
+      var _results=await Promise.all([
+        fetch('/api/candidate/has-applied/'+id,{headers:hdrs()}),
+        fetch('/api/candidate/profile',{headers:hdrs()})
+      ]);
+      var panel=document.getElementById('apply-panel');
+      if(_results[0].ok){var hd=await _results[0].json();if(hd.has_applied){if(panel)panel.innerHTML=alreadyAppliedPanelHtml();return;}}
+      if(_results[1].ok){var prof=await _results[1].json();if(prof.has_cv&&panel)panel.innerHTML=savedCvPanelHtml();}
     }catch(e){}
   }
 }
@@ -1307,16 +1336,16 @@ function onFileChosen(files){
 }
 
 async function submitApply(){
-  if(!_applyFile||!currentJob)return;
+  if((!_applyFile&&!_useSavedCv)||!currentJob)return;
   var form=document.getElementById('apply-form');
   form.innerHTML='<div style="text-align:center;padding:24px;">' +
-    '<div id="p-step" style="font-size:13px;color:#6B7280;margin-bottom:14px;">Uploading CV…</div>' +
+    '<div id="p-step" style="font-size:13px;color:#6B7280;margin-bottom:14px;">'+(_useSavedCv?'Preparing CV…':'Uploading CV…')+'</div>' +
     '<div style="height:4px;background:#F0F1F5;border-radius:2px;overflow:hidden;"><div id="p-bar" style="height:100%;width:8%;background:#C9A84C;border-radius:2px;transition:width 0.5s;"></div></div>' +
   '</div>';
-  var steps=['Uploading CV…','AI is screening your profile…','Generating results…'],si=0;
+  var steps=_useSavedCv?['Preparing CV…','AI is screening your profile…','Generating results…']:['Uploading CV…','AI is screening your profile…','Generating results…'],si=0;
   var iv=setInterval(function(){si=Math.min(si+1,steps.length-1);var s=document.getElementById('p-step'),b=document.getElementById('p-bar');if(s)s.textContent=steps[si];if(b)b.style.width=((si+1)/steps.length*80)+'%';},1600);
   try{
-    var fd=new FormData();fd.append('file',_applyFile);fd.append('job_id',String(currentJob.id));
+    var fd=new FormData();if(_applyFile)fd.append('file',_applyFile);fd.append('job_id',String(currentJob.id));
     var _ac=new AbortController();var _at=setTimeout(function(){_ac.abort();},120000);
     var res=await fetch('/candidates/screen-cv',{method:'POST',headers:hdrs(),body:fd,signal:_ac.signal});
     clearTimeout(_at);
@@ -1366,7 +1395,7 @@ async function submitApply(){
   }
 }
 
-function closeOverlay(){document.getElementById('job-overlay').classList.remove('active');_applyFile=null;currentJob=null;}
+function closeOverlay(){document.getElementById('job-overlay').classList.remove('active');_applyFile=null;currentJob=null;_useSavedCv=false;}
 
 /* ─── My Applications ─── */
 function cpDownloadIcs(base64Content, filename) {
