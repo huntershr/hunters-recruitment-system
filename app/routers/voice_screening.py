@@ -238,15 +238,26 @@ def complete_screening(
     if not vs:
         raise HTTPException(status_code=404, detail="Screening not found")
 
-    # Assemble full transcript
+    # Assemble full transcript with question text
+    questions = _build_questions(
+        vs.job_title_at_time or "the role",
+        vs.job_type_at_time or "Full-time",
+        vs.interview_date_at_time,
+        vs.interview_time_at_time,
+    )
+    qa_pairs = [
+        (vs.experience_response,   questions[0]),
+        (vs.availability_response, questions[1]),
+        (vs.job_type_suitable,     questions[2]),
+        (vs.interview_confirmed,   questions[3]),
+        (vs.expected_salary,       questions[4]),
+        (vs.candidate_questions,   questions[5]),
+    ]
     parts = []
-    if vs.experience_response:   parts.append(f"Q1 (Experience): {vs.experience_response}")
-    if vs.availability_response: parts.append(f"Q2 (Availability): {vs.availability_response}")
-    if vs.job_type_suitable:     parts.append(f"Q3 (Job Type): {vs.job_type_suitable}")
-    if vs.interview_confirmed:   parts.append(f"Q4 (Interview): {vs.interview_confirmed}")
-    if vs.expected_salary:       parts.append(f"Q5 (Salary): {vs.expected_salary}")
-    if vs.candidate_questions:   parts.append(f"Q6 (Questions): {vs.candidate_questions}")
-    full_transcript = "\n".join(parts)
+    for i, (answer, question) in enumerate(qa_pairs, start=1):
+        if answer is not None:
+            parts.append(f"Q{i}: {question}\nA: {answer}")
+    full_transcript = "\n\n".join(parts)
     vs.full_transcript = full_transcript
 
     analysis = VoiceEngine.analyze_with_gemini(full_transcript, vs.job_title_at_time or "the role")
@@ -429,14 +440,25 @@ def session_complete(token: str, db: Session = Depends(get_db)):
     if vs.token_used or vs.status == "completed":
         raise HTTPException(status_code=410, detail="Screening already completed")
 
+    _qs = _build_questions(
+        vs.job_title_at_time or "the role",
+        vs.job_type_at_time or "Full-time",
+        vs.interview_date_at_time,
+        vs.interview_time_at_time,
+    )
+    _qa = [
+        (vs.experience_response,   _qs[0]),
+        (vs.availability_response, _qs[1]),
+        (vs.job_type_suitable,     _qs[2]),
+        (vs.interview_confirmed,   _qs[3]),
+        (vs.expected_salary,       _qs[4]),
+        (vs.candidate_questions,   _qs[5]),
+    ]
     parts = []
-    if vs.experience_response:   parts.append(f"Q1 (Experience): {vs.experience_response}")
-    if vs.availability_response: parts.append(f"Q2 (Availability): {vs.availability_response}")
-    if vs.job_type_suitable:     parts.append(f"Q3 (Job Type): {vs.job_type_suitable}")
-    if vs.interview_confirmed:   parts.append(f"Q4 (Interview): {vs.interview_confirmed}")
-    if vs.expected_salary:       parts.append(f"Q5 (Salary): {vs.expected_salary}")
-    if vs.candidate_questions:   parts.append(f"Q6 (Questions): {vs.candidate_questions}")
-    vs.full_transcript = "\n".join(parts)
+    for i, (ans, q) in enumerate(_qa, start=1):
+        if ans is not None:
+            parts.append(f"Q{i}: {q}\nA: {ans}")
+    vs.full_transcript = "\n\n".join(parts)
 
     analysis = VoiceEngine.analyze_with_gemini(vs.full_transcript, vs.job_title_at_time or "the role")
     vs.english_level      = analysis.get("english_level")

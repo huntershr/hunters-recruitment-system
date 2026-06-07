@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hunters HR — AI Screening Call</title>
+<title>Hunters HR - Screening</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Segoe UI',Arial,sans-serif;background:#1B2A4A;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;color:#fff;}
@@ -33,6 +33,9 @@
   .btn-gold{padding:13px 28px;border:none;border-radius:10px;background:#C9A84C;color:#1B2A4A;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;}
   .btn-navy{padding:11px 20px;border:none;border-radius:10px;background:#1B2A4A;color:#C9A84C;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-top:8px;}
   .btn-outline{padding:10px 18px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#6B7280;font-size:13px;cursor:pointer;margin-top:8px;}
+  /* language toggle */
+  .lang-btn{padding:7px 18px;border:1.5px solid #E5E7EB;border-radius:20px;background:#fff;color:#6B7280;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;}
+  .lang-btn.lang-active{border-color:#1B2A4A;background:#1B2A4A;color:#fff;}
   /* states */
   #state-error,#state-greeting,#state-progress,#state-done,#state-used{display:none;}
   .footer-note{text-align:center;font-size:11px;color:rgba(255,255,255,0.45);margin-top:16px;}
@@ -44,7 +47,7 @@
   <div class="card-header">
     <div class="logo-circle">🎙️</div>
     <div class="header-text">
-      <div class="header-title">Hunters HR — AI Screening</div>
+      <div class="header-title">Hunters HR — Voice Screening</div>
       <div class="header-sub" id="header-sub">Powered by Hunters AI</div>
     </div>
   </div>
@@ -77,6 +80,10 @@
 
     <!-- STATE: greeting -->
     <div id="state-greeting">
+      <div style="display:flex;justify-content:center;gap:8px;margin-bottom:18px;">
+        <button id="lang-en-btn" class="lang-btn lang-active" onclick="setLang('en')">EN English</button>
+        <button id="lang-ar-btn" class="lang-btn" onclick="setLang('ar')">عر Arabic</button>
+      </div>
       <div style="font-size:22px;font-weight:700;color:#1B2A4A;margin-bottom:6px;">Hello, <span id="greet-name"></span> 👋</div>
       <div style="font-size:13px;color:#6B7280;line-height:1.65;margin-bottom:24px;">
         You have been invited to complete a voice screening for the
@@ -103,6 +110,8 @@
       <div class="transcript-box" id="transcript-box" style="display:none;"></div>
       <button class="btn-navy" id="next-btn" onclick="nextQuestion()" style="display:none;">Next Question ▶</button>
       <button class="btn-outline" onclick="skipQuestion()" id="skip-btn" style="display:none;">Skip (no answer)</button>
+      <button class="btn-outline" id="repeat-btn" onclick="repeatQuestion()" style="display:none;margin-top:6px;">🔄 Repeat question</button>
+      <button class="btn-outline" id="prev-btn" onclick="prevQuestion()" style="display:none;margin-top:4px;">← Previous question</button>
     </div>
 
     <!-- STATE: completed -->
@@ -136,7 +145,11 @@ let _questions = [];
 let _currentQ = 0;
 let _candName = '';
 let _jobTitle = '';
+let _jobType = '';
+let _interviewDate = '';
+let _interviewTime = '';
 let _currentTranscript = '';
+let _lang = 'en';
 
 // ── States ──
 function show(id) {
@@ -159,14 +172,17 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
       return;
     }
-    _sid       = data.screening_id;
-    _questions = data.questions;
-    _candName  = data.candidate_name || 'Candidate';
-    _jobTitle  = data.job_title || 'the role';
+    _sid          = data.screening_id;
+    _questions    = data.questions;
+    _candName     = data.candidate_name || 'Candidate';
+    _jobTitle     = data.job_title || 'the role';
+    _jobType      = data.job_type || 'Full-time';
+    _interviewDate = data.interview_date || '';
+    _interviewTime = data.interview_time || '';
 
     document.getElementById('greet-name').textContent = _candName;
     document.getElementById('greet-job').textContent  = _jobTitle;
-    document.getElementById('header-sub').textContent = _jobTitle + ' · AI Screening';
+    document.getElementById('header-sub').textContent = _jobTitle + ' · Voice Screening';
     document.getElementById('done-name').textContent  = _candName;
 
     show('state-greeting');
@@ -223,7 +239,7 @@ function speak(text, onEnd) {
   if (!window.speechSynthesis) { onEnd && onEnd(); return; }
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = 'en-US'; utt.rate = 0.88; utt.pitch = 1;
+  utt.lang = _lang === 'ar' ? 'ar-EG' : 'en-US'; utt.rate = 0.88; utt.pitch = 1;
   utt.onend = () => { onEnd && onEnd(); };
   window.speechSynthesis.speak(utt);
 }
@@ -235,6 +251,8 @@ function startListening() {
   document.getElementById('status-label').textContent = '🎤 Listening… (speak now)';
   document.getElementById('transcript-box').style.display = 'block';
   document.getElementById('skip-btn').style.display = 'block';
+  document.getElementById('repeat-btn').style.display = 'block';
+  if (_currentQ > 0) document.getElementById('prev-btn').style.display = 'block';
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
@@ -243,7 +261,7 @@ function startListening() {
     return;
   }
   _recognition = new SR();
-  _recognition.lang = 'en-US'; _recognition.continuous = false; _recognition.interimResults = true;
+  _recognition.lang = _lang === 'ar' ? 'ar-SA' : 'en-US'; _recognition.continuous = false; _recognition.interimResults = true;
   let final = '';
   let silTimer = null;
 
@@ -277,6 +295,8 @@ async function nextQuestion() {
   if (_recognition) { _recognition.stop(); return; } // wait for onend
   document.getElementById('next-btn').style.display = 'none';
   document.getElementById('skip-btn').style.display = 'none';
+  document.getElementById('repeat-btn').style.display = 'none';
+  document.getElementById('prev-btn').style.display = 'none';
   document.getElementById('status-label').textContent = 'Saving…';
   await saveAnswer(_currentQ + 1, _currentTranscript);
   _currentQ++;
@@ -313,6 +333,36 @@ async function finishScreening() {
   } catch(_) {}
   show('state-done');
   speak('Thank you, ' + _candName + '! Your screening is complete. Our team will be in touch shortly. Goodbye!', null);
+}
+
+// ── Language toggle ──
+function setLang(lang) {
+  _lang = lang;
+  document.getElementById('lang-en-btn').classList.toggle('lang-active', lang === 'en');
+  document.getElementById('lang-ar-btn').classList.toggle('lang-active', lang === 'ar');
+}
+
+// ── Repeat current question ──
+function repeatQuestion() {
+  if (_recognition) { _recognition.stop(); _recognition = null; }
+  _currentTranscript = '';
+  document.getElementById('transcript-box').textContent = '';
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('skip-btn').style.display = 'none';
+  document.getElementById('repeat-btn').style.display = 'none';
+  document.getElementById('prev-btn').style.display = 'none';
+  document.getElementById('pulse-icon').textContent = '🤖';
+  document.getElementById('status-label').textContent = 'Speaking…';
+  document.getElementById('pulse-ring').style.animationPlayState = 'running';
+  speak(_questions[_currentQ], () => startListening());
+}
+
+// ── Previous question ──
+function prevQuestion() {
+  if (_recognition) { _recognition.stop(); _recognition = null; }
+  if (_currentQ <= 0) return;
+  _currentQ--;
+  showQuestion(_currentQ);
 }
 </script>
 </body>

@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-_ANALYSIS_PROMPT = """You are an HR screening assistant. Analyze this candidate screening call transcript and return a JSON object with exactly these keys:
-- english_level: one of "Basic" / "Intermediate" / "Advanced" / "Native-like"
+_ANALYSIS_PROMPT = """You are an HR screening assistant. The candidate may have answered in Arabic, English, or a mix of both. Analyze this screening transcript and return a JSON object with exactly these keys:
+- english_level: the candidate's language proficiency level, one of "Basic" / "Intermediate" / "Advanced" / "Native-like" — assess whichever language (Arabic or English) the candidate primarily used
 - fluency_assessment: one sentence describing speech fluency
 - clarity_assessment: one sentence describing answer clarity
 - experience_match: one sentence on relevance of experience to the role
-- language_notes: any specific observations about language use
+- language_notes: note which language the candidate used (Arabic, English, or mixed) and any specific observations about language use
 - ai_summary: exactly 3 bullet points (plain text, each starting with "• ") covering (1) experience, (2) availability/salary, (3) interview confirmation
 
 Job Title: {job_title}
