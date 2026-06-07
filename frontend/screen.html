@@ -237,8 +237,8 @@ function _pickVoice() {
 }
 
 function _expandAcronyms(text) {
-  // Spell out uppercase abbreviations so TTS reads them as letters: HOD → H. O. D.
-  return text.replace(/\b([A-Z]{2,5})\b/g, m => m.split('').join('. ') + '.');
+  // Spell out uppercase abbreviations so TTS reads them as letters: HOD → H, O, D
+  return text.replace(/\b([A-Z]{2,5})\b/g, m => m.split('').join(', '));
 }
 
 function speak(text, onEnd) {
