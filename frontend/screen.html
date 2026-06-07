@@ -235,12 +235,46 @@ function showQuestion(idx) {
 }
 
 // ── TTS ──
+let _voices = [];
+function _loadVoices() { _voices = window.speechSynthesis.getVoices(); }
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = _loadVoices;
+  _loadVoices();
+}
+
+function _pickVoice(lang) {
+  if (!_voices.length) _voices = window.speechSynthesis.getVoices();
+  if (lang === 'ar') {
+    const preferred = ['Hala Online', 'Hada Online', 'Hala', 'Hada'];
+    for (const name of preferred) {
+      const v = _voices.find(v => v.name.includes(name));
+      if (v) return v;
+    }
+    return _voices.find(v => v.lang.startsWith('ar')) || null;
+  } else {
+    const preferred = ['Aria Online', 'Jenny Online', 'Aria', 'Jenny', 'Zira'];
+    for (const name of preferred) {
+      const v = _voices.find(v => v.name.includes(name));
+      if (v) return v;
+    }
+    return _voices.find(v => v.lang.startsWith('en')) || null;
+  }
+}
+
 function speak(text, onEnd) {
   if (!window.speechSynthesis) { onEnd && onEnd(); return; }
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
+  const voice = _pickVoice(_lang);
+  if (voice) utt.voice = voice;
   utt.lang = _lang === 'ar' ? 'ar-EG' : 'en-US'; utt.rate = 0.88; utt.pitch = 1;
-  utt.onend = () => { onEnd && onEnd(); };
+  // Chrome keepalive — prevents cut-off after ~14s
+  const keepAlive = setInterval(() => {
+    if (window.speechSynthesis.speaking) { window.speechSynthesis.pause(); window.speechSynthesis.resume(); }
+    else clearInterval(keepAlive);
+  }, 10000);
+  utt.onend  = () => { clearInterval(keepAlive); onEnd && onEnd(); };
+  utt.onerror = () => { clearInterval(keepAlive); onEnd && onEnd(); };
   window.speechSynthesis.speak(utt);
 }
 
