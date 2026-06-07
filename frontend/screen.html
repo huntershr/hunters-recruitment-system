@@ -151,6 +151,48 @@ let _interviewTime = '';
 let _currentTranscript = '';
 let _lang = 'en';
 
+// ── i18n strings ──
+const _strings = {
+  en: {
+    speaking:  'Speaking…',
+    listening: '🎤 Listening… (speak now)',
+    recorded:  '✅ Answer recorded',
+    noAnswer:  '(No answer recorded)',
+    micNone:   'Microphone not supported — click Skip to continue',
+    micError:  'Mic error — click Next to continue',
+    saving:    'Saving…',
+    analysing: 'Analysing with AI…',
+    qLabel:    (i, n) => `QUESTION ${i} OF ${n}`,
+  },
+  ar: {
+    speaking:  'يتحدث…',
+    listening: '🎤 يستمع… (تحدث الآن)',
+    recorded:  '✅ تم تسجيل الإجابة',
+    noAnswer:  '(لم تُسجَّل إجابة)',
+    micNone:   'الميكروفون غير مدعوم — انقر على تخطي للمتابعة',
+    micError:  'خطأ في الميكروفون — انقر على التالي للمتابعة',
+    saving:    'جاري الحفظ…',
+    analysing: 'جاري التحليل بالذكاء الاصطناعي…',
+    qLabel:    (i, n) => `السؤال ${i} من ${n}`,
+  },
+};
+function _t(key, ...a) { const s = _strings[_lang] || _strings.en; const v = s[key]; return typeof v === 'function' ? v(...a) : v; }
+
+function _buildLocalizedQuestions() {
+  if (_lang !== 'ar') return _questions;
+  const q4 = (_interviewDate && _interviewTime)
+    ? `تم جدولة مقابلتك في ${_interviewDate} الساعة ${_interviewTime} — هل تستطيع تأكيد حضورك؟`
+    : 'هل ستكون متاحاً لمقابلة هذا الأسبوع أو الأسبوع القادم؟';
+  return [
+    `حدثنا عن تجربتك ذات الصلة بوظيفة ${_jobTitle}.`,
+    'متى تكون متاحاً لبدء العمل؟',
+    `هذا المنصب ${_jobType} — هل هذا مناسب لك؟`,
+    q4,
+    'ما هو راتبك الشهري المتوقع؟',
+    'هل لديك أي أسئلة لنا؟ إذا كان الأمر كذلك، تفضل بعد الإشارة الصوتية.',
+  ];
+}
+
 // ── States ──
 function show(id) {
   ['state-loading','state-error','state-greeting','state-progress','state-done','state-used']
@@ -197,10 +239,9 @@ function startScreening() {
   _currentQ = 0;
   show('state-progress');
   _buildProgress();
-  // Introduce bot before Q1
-  const intro = 'Hello ' + _candName + ', this is the Hunters HR automated screening assistant. ' +
-    'I will ask you 6 short questions about your experience and availability for the ' + _jobTitle +
-    ' role. Please answer each question clearly after the tone. Let us begin.';
+  const intro = _lang === 'ar'
+    ? `مرحباً ${_candName}. هذا هو المساعد الآلي لهانترز للموارد البشرية. سأطرح عليك 6 أسئلة قصيرة حول تجربتك وتوافرك لوظيفة ${_jobTitle}. يرجى الإجابة بوضوح بعد كل سؤال. لنبدأ.`
+    : `Hello ${_candName}. This is the Hunters HR automated screening assistant. I will ask you 6 short questions about your experience and availability for the ${_jobTitle} role. Please answer each question clearly. Let us begin.`;
   speak(intro, () => showQuestion(_currentQ));
 }
 
@@ -220,15 +261,17 @@ function _updateProgress(idx) {
 function showQuestion(idx) {
   if (idx >= _questions.length) { finishScreening(); return; }
   _currentTranscript = '';
-  const qText = _questions[idx];
-  document.getElementById('q-label').textContent = 'QUESTION ' + (idx+1) + ' OF ' + _questions.length;
-  document.getElementById('q-text').textContent  = qText;
+  const localQ = _buildLocalizedQuestions();
+  const qText  = localQ[idx];
+  document.getElementById('q-label').textContent = _t('qLabel', idx+1, _questions.length);
+  const qEl = document.getElementById('q-text');
+  qEl.textContent = qText; qEl.dir = _lang === 'ar' ? 'rtl' : 'ltr';
   document.getElementById('transcript-box').style.display = 'none';
   document.getElementById('transcript-box').textContent = '';
   document.getElementById('next-btn').style.display = 'none';
   document.getElementById('skip-btn').style.display = 'none';
   document.getElementById('pulse-icon').textContent = '🤖';
-  document.getElementById('status-label').textContent = 'Speaking…';
+  document.getElementById('status-label').textContent = _t('speaking');
   document.getElementById('pulse-ring').style.animationPlayState = 'running';
   _updateProgress(idx);
   speak(qText, () => startListening());
@@ -264,33 +307,37 @@ function _pickVoice(lang) {
 function speak(text, onEnd) {
   if (!window.speechSynthesis) { onEnd && onEnd(); return; }
   window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  const voice = _pickVoice(_lang);
-  if (voice) utt.voice = voice;
-  utt.lang = _lang === 'ar' ? 'ar-EG' : 'en-US'; utt.rate = 0.88; utt.pitch = 1;
-  // Chrome keepalive — prevents cut-off after ~14s
-  const keepAlive = setInterval(() => {
-    if (window.speechSynthesis.speaking) { window.speechSynthesis.pause(); window.speechSynthesis.resume(); }
-    else clearInterval(keepAlive);
-  }, 10000);
-  utt.onend  = () => { clearInterval(keepAlive); onEnd && onEnd(); };
-  utt.onerror = () => { clearInterval(keepAlive); onEnd && onEnd(); };
-  window.speechSynthesis.speak(utt);
+  // Split into short sentences — Chrome cuts utterances over ~14s
+  const chunks = (text.match(/[^.!?،؟]+[.!?،؟]*/g) || [text]).map(s => s.trim()).filter(Boolean);
+  const voice  = _pickVoice(_lang);
+  const lang   = _lang === 'ar' ? 'ar-EG' : 'en-US';
+  let i = 0;
+  function next() {
+    if (i >= chunks.length) { onEnd && onEnd(); return; }
+    const utt = new SpeechSynthesisUtterance(chunks[i++]);
+    if (voice) utt.voice = voice;
+    utt.lang = lang; utt.rate = 0.88; utt.pitch = 1;
+    utt.onend  = next;
+    utt.onerror = next;
+    window.speechSynthesis.speak(utt);
+  }
+  next();
 }
 
 // ── STT ──
 let _recognition = null;
 function startListening() {
   document.getElementById('pulse-icon').textContent = '🎤';
-  document.getElementById('status-label').textContent = '🎤 Listening… (speak now)';
+  document.getElementById('status-label').textContent = _t('listening');
   document.getElementById('transcript-box').style.display = 'block';
+  document.getElementById('transcript-box').dir = _lang === 'ar' ? 'rtl' : 'ltr';
   document.getElementById('skip-btn').style.display = 'block';
   document.getElementById('repeat-btn').style.display = 'block';
   if (_currentQ > 0) document.getElementById('prev-btn').style.display = 'block';
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    document.getElementById('status-label').textContent = 'Microphone not supported — click Skip to continue';
+    document.getElementById('status-label').textContent = _t('micNone');
     document.getElementById('next-btn').style.display = 'block';
     return;
   }
@@ -311,13 +358,13 @@ function startListening() {
   };
   _recognition.onend = () => {
     _currentTranscript = document.getElementById('transcript-box').textContent.trim();
-    document.getElementById('status-label').textContent = _currentTranscript ? '✅ Answer recorded' : '(No answer recorded)';
+    document.getElementById('status-label').textContent = _currentTranscript ? _t('recorded') : _t('noAnswer');
     document.getElementById('pulse-ring').style.animationPlayState = 'paused';
     document.getElementById('next-btn').style.display = 'block';
     _recognition = null;
   };
   _recognition.onerror = () => {
-    document.getElementById('status-label').textContent = 'Mic error — click Next to continue';
+    document.getElementById('status-label').textContent = _t('micError');
     document.getElementById('next-btn').style.display = 'block';
     _recognition = null;
   };
@@ -331,7 +378,7 @@ async function nextQuestion() {
   document.getElementById('skip-btn').style.display = 'none';
   document.getElementById('repeat-btn').style.display = 'none';
   document.getElementById('prev-btn').style.display = 'none';
-  document.getElementById('status-label').textContent = 'Saving…';
+  document.getElementById('status-label').textContent = _t('saving');
   await saveAnswer(_currentQ + 1, _currentTranscript);
   _currentQ++;
   if (_currentQ >= _questions.length) { finishScreening(); } else { showQuestion(_currentQ); }
@@ -355,7 +402,7 @@ async function saveAnswer(qNum, transcript) {
 }
 
 async function finishScreening() {
-  document.getElementById('status-label').textContent = 'Analysing with AI…';
+  document.getElementById('status-label').textContent = _t('analysing');
   document.getElementById('next-btn').style.display = 'none';
   document.getElementById('skip-btn').style.display = 'none';
   document.getElementById('pulse-icon').textContent = '⏳';
@@ -366,7 +413,10 @@ async function finishScreening() {
     });
   } catch(_) {}
   show('state-done');
-  speak('Thank you, ' + _candName + '! Your screening is complete. Our team will be in touch shortly. Goodbye!', null);
+  const goodbye = _lang === 'ar'
+    ? `شكراً لك ${_candName}. اكتمل الفحص. سيتواصل فريقنا معك قريباً. إلى اللقاء.`
+    : `Thank you, ${_candName}. Your screening is complete. Our team will be in touch shortly. Goodbye.`;
+  speak(goodbye, null);
 }
 
 // ── Language toggle ──
@@ -386,9 +436,9 @@ function repeatQuestion() {
   document.getElementById('repeat-btn').style.display = 'none';
   document.getElementById('prev-btn').style.display = 'none';
   document.getElementById('pulse-icon').textContent = '🤖';
-  document.getElementById('status-label').textContent = 'Speaking…';
+  document.getElementById('status-label').textContent = _t('speaking');
   document.getElementById('pulse-ring').style.animationPlayState = 'running';
-  speak(_questions[_currentQ], () => startListening());
+  speak(_buildLocalizedQuestions()[_currentQ], () => startListening());
 }
 
 // ── Previous question ──
