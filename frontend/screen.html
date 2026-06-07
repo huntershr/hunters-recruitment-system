@@ -33,9 +33,6 @@
   .btn-gold{padding:13px 28px;border:none;border-radius:10px;background:#C9A84C;color:#1B2A4A;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;}
   .btn-navy{padding:11px 20px;border:none;border-radius:10px;background:#1B2A4A;color:#C9A84C;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-top:8px;}
   .btn-outline{padding:10px 18px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#6B7280;font-size:13px;cursor:pointer;margin-top:8px;}
-  /* language toggle */
-  .lang-btn{padding:7px 18px;border:1.5px solid #E5E7EB;border-radius:20px;background:#fff;color:#6B7280;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;}
-  .lang-btn.lang-active{border-color:#1B2A4A;background:#1B2A4A;color:#fff;}
   /* states */
   #state-error,#state-greeting,#state-progress,#state-done,#state-used{display:none;}
   .footer-note{text-align:center;font-size:11px;color:rgba(255,255,255,0.45);margin-top:16px;}
@@ -80,10 +77,6 @@
 
     <!-- STATE: greeting -->
     <div id="state-greeting">
-      <div style="display:flex;justify-content:center;gap:8px;margin-bottom:18px;">
-        <button id="lang-en-btn" class="lang-btn lang-active" onclick="setLang('en')">EN English</button>
-        <button id="lang-ar-btn" class="lang-btn" onclick="setLang('ar')">عر Arabic</button>
-      </div>
       <div style="font-size:22px;font-weight:700;color:#1B2A4A;margin-bottom:6px;">Hello, <span id="greet-name"></span> 👋</div>
       <div style="font-size:13px;color:#6B7280;line-height:1.65;margin-bottom:24px;">
         You have been invited to complete a voice screening for the
@@ -103,7 +96,7 @@
       <div class="pulse-wrap">
         <div class="pulse-outer">
           <div class="pulse-ring" id="pulse-ring"></div>
-          <div class="pulse-inner" id="pulse-icon">🤖</div>
+          <div class="pulse-inner" id="pulse-icon">🎙️</div>
         </div>
         <div class="status-label" id="status-label">Speaking…</div>
       </div>
@@ -145,53 +138,7 @@ let _questions = [];
 let _currentQ = 0;
 let _candName = '';
 let _jobTitle = '';
-let _jobType = '';
-let _interviewDate = '';
-let _interviewTime = '';
 let _currentTranscript = '';
-let _lang = 'en';
-
-// ── i18n strings ──
-const _strings = {
-  en: {
-    speaking:  'Speaking…',
-    listening: '🎤 Listening… (speak now)',
-    recorded:  '✅ Answer recorded',
-    noAnswer:  '(No answer recorded)',
-    micNone:   'Microphone not supported — click Skip to continue',
-    micError:  'Mic error — click Next to continue',
-    saving:    'Saving…',
-    analysing: 'Analysing with AI…',
-    qLabel:    (i, n) => `QUESTION ${i} OF ${n}`,
-  },
-  ar: {
-    speaking:  'يتحدث…',
-    listening: '🎤 يستمع… (تحدث الآن)',
-    recorded:  '✅ تم تسجيل الإجابة',
-    noAnswer:  '(لم تُسجَّل إجابة)',
-    micNone:   'الميكروفون غير مدعوم — انقر على تخطي للمتابعة',
-    micError:  'خطأ في الميكروفون — انقر على التالي للمتابعة',
-    saving:    'جاري الحفظ…',
-    analysing: 'جاري التحليل بالذكاء الاصطناعي…',
-    qLabel:    (i, n) => `السؤال ${i} من ${n}`,
-  },
-};
-function _t(key, ...a) { const s = _strings[_lang] || _strings.en; const v = s[key]; return typeof v === 'function' ? v(...a) : v; }
-
-function _buildLocalizedQuestions() {
-  if (_lang !== 'ar') return _questions;
-  const q4 = (_interviewDate && _interviewTime)
-    ? `تم جدولة مقابلتك في ${_interviewDate} الساعة ${_interviewTime} — هل تستطيع تأكيد حضورك؟`
-    : 'هل ستكون متاحاً لمقابلة هذا الأسبوع أو الأسبوع القادم؟';
-  return [
-    `حدثنا عن تجربتك ذات الصلة بوظيفة ${_jobTitle}.`,
-    'متى تكون متاحاً لبدء العمل؟',
-    `هذا المنصب ${_jobType} — هل هذا مناسب لك؟`,
-    q4,
-    'ما هو راتبك الشهري المتوقع؟',
-    'هل لديك أي أسئلة لنا؟ إذا كان الأمر كذلك، تفضل بعد الإشارة الصوتية.',
-  ];
-}
 
 // ── States ──
 function show(id) {
@@ -214,13 +161,10 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
       return;
     }
-    _sid          = data.screening_id;
-    _questions    = data.questions;
-    _candName     = data.candidate_name || 'Candidate';
-    _jobTitle     = data.job_title || 'the role';
-    _jobType      = data.job_type || 'Full-time';
-    _interviewDate = data.interview_date || '';
-    _interviewTime = data.interview_time || '';
+    _sid       = data.screening_id;
+    _questions = data.questions;
+    _candName  = data.candidate_name || 'Candidate';
+    _jobTitle  = data.job_title || 'the role';
 
     document.getElementById('greet-name').textContent = _candName;
     document.getElementById('greet-job').textContent  = _jobTitle;
@@ -239,9 +183,7 @@ function startScreening() {
   _currentQ = 0;
   show('state-progress');
   _buildProgress();
-  const intro = _lang === 'ar'
-    ? `مرحباً ${_candName}. هذا هو المساعد الآلي لهانترز للموارد البشرية. سأطرح عليك 6 أسئلة قصيرة حول تجربتك وتوافرك لوظيفة ${_jobTitle}. يرجى الإجابة بوضوح بعد كل سؤال. لنبدأ.`
-    : `Hello ${_candName}. This is the Hunters HR automated screening assistant. I will ask you 6 short questions about your experience and availability for the ${_jobTitle} role. Please answer each question clearly. Let us begin.`;
+  const intro = `Hello ${_candName}. This is the Hunters HR automated screening assistant. I will ask you 6 short questions about your experience and availability for the ${_expandAcronyms(_jobTitle)} role. Please answer each question clearly. Let us begin.`;
   speak(intro, () => showQuestion(_currentQ));
 }
 
@@ -261,20 +203,17 @@ function _updateProgress(idx) {
 function showQuestion(idx) {
   if (idx >= _questions.length) { finishScreening(); return; }
   _currentTranscript = '';
-  const localQ = _buildLocalizedQuestions();
-  const qText  = localQ[idx];
-  document.getElementById('q-label').textContent = _t('qLabel', idx+1, _questions.length);
-  const qEl = document.getElementById('q-text');
-  qEl.textContent = qText; qEl.dir = _lang === 'ar' ? 'rtl' : 'ltr';
+  document.getElementById('q-label').textContent = 'QUESTION ' + (idx+1) + ' OF ' + _questions.length;
+  document.getElementById('q-text').textContent  = _questions[idx];
   document.getElementById('transcript-box').style.display = 'none';
-  document.getElementById('transcript-box').textContent = '';
-  document.getElementById('next-btn').style.display = 'none';
-  document.getElementById('skip-btn').style.display = 'none';
-  document.getElementById('pulse-icon').textContent = '🤖';
-  document.getElementById('status-label').textContent = _t('speaking');
+  document.getElementById('transcript-box').textContent   = '';
+  document.getElementById('next-btn').style.display   = 'none';
+  document.getElementById('skip-btn').style.display   = 'none';
+  document.getElementById('pulse-icon').textContent   = '🎙️';
+  document.getElementById('status-label').textContent = 'Speaking…';
   document.getElementById('pulse-ring').style.animationPlayState = 'running';
   _updateProgress(idx);
-  speak(qText, () => startListening());
+  speak(_questions[idx], () => startListening());
 }
 
 // ── TTS ──
@@ -285,38 +224,33 @@ if (window.speechSynthesis) {
   _loadVoices();
 }
 
-function _pickVoice(lang) {
+function _pickVoice() {
   if (!_voices.length) _voices = window.speechSynthesis.getVoices();
-  if (lang === 'ar') {
-    const preferred = ['Hala Online', 'Hada Online', 'Hala', 'Hada'];
-    for (const name of preferred) {
-      const v = _voices.find(v => v.name.includes(name));
-      if (v) return v;
-    }
-    return _voices.find(v => v.lang.startsWith('ar')) || null;
-  } else {
-    const preferred = ['Aria Online', 'Jenny Online', 'Aria', 'Jenny', 'Zira'];
-    for (const name of preferred) {
-      const v = _voices.find(v => v.name.includes(name));
-      if (v) return v;
-    }
-    return _voices.find(v => v.lang.startsWith('en')) || null;
+  const preferred = ['Aria Online', 'Jenny Online', 'Aria', 'Jenny', 'Zira'];
+  for (const name of preferred) {
+    const v = _voices.find(v => v.name.includes(name));
+    if (v) return v;
   }
+  return _voices.find(v => v.lang.startsWith('en')) || null;
+}
+
+function _expandAcronyms(text) {
+  // Spell out uppercase abbreviations so TTS reads them as letters: HOD → H. O. D.
+  return text.replace(/\b([A-Z]{2,5})\b/g, m => m.split('').join('. ') + '.');
 }
 
 function speak(text, onEnd) {
   if (!window.speechSynthesis) { onEnd && onEnd(); return; }
   window.speechSynthesis.cancel();
-  // Split into short sentences — Chrome cuts utterances over ~14s
-  const chunks = (text.match(/[^.!?،؟]+[.!?،؟]*/g) || [text]).map(s => s.trim()).filter(Boolean);
-  const voice  = _pickVoice(_lang);
-  const lang   = _lang === 'ar' ? 'ar-EG' : 'en-US';
+  const expanded = _expandAcronyms(text);
+  const chunks   = (expanded.match(/[^.!?]+[.!?]*/g) || [expanded]).map(s => s.trim()).filter(Boolean);
+  const voice    = _pickVoice();
   let i = 0;
   function next() {
     if (i >= chunks.length) { onEnd && onEnd(); return; }
     const utt = new SpeechSynthesisUtterance(chunks[i++]);
     if (voice) utt.voice = voice;
-    utt.lang = lang; utt.rate = 0.88; utt.pitch = 1;
+    utt.lang = 'en-US'; utt.rate = 0.88; utt.pitch = 1;
     utt.onend  = next;
     utt.onerror = next;
     window.speechSynthesis.speak(utt);
@@ -327,22 +261,22 @@ function speak(text, onEnd) {
 // ── STT ──
 let _recognition = null;
 function startListening() {
-  document.getElementById('pulse-icon').textContent = '🎤';
-  document.getElementById('status-label').textContent = _t('listening');
+  document.getElementById('pulse-icon').textContent   = '🎤';
+  document.getElementById('status-label').textContent = '🎤 Listening… (speak now)';
   document.getElementById('transcript-box').style.display = 'block';
-  document.getElementById('transcript-box').dir = _lang === 'ar' ? 'rtl' : 'ltr';
-  document.getElementById('skip-btn').style.display = 'block';
+  document.getElementById('transcript-box').dir        = 'auto';
+  document.getElementById('skip-btn').style.display   = 'block';
   document.getElementById('repeat-btn').style.display = 'block';
   if (_currentQ > 0) document.getElementById('prev-btn').style.display = 'block';
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    document.getElementById('status-label').textContent = _t('micNone');
+    document.getElementById('status-label').textContent = 'Microphone not supported — click Skip to continue';
     document.getElementById('next-btn').style.display = 'block';
     return;
   }
   _recognition = new SR();
-  _recognition.lang = _lang === 'ar' ? 'ar-SA' : 'en-US'; _recognition.continuous = false; _recognition.interimResults = true;
+  _recognition.lang = 'ar-SA'; _recognition.continuous = false; _recognition.interimResults = true;
   let final = '';
   let silTimer = null;
 
@@ -358,13 +292,13 @@ function startListening() {
   };
   _recognition.onend = () => {
     _currentTranscript = document.getElementById('transcript-box').textContent.trim();
-    document.getElementById('status-label').textContent = _currentTranscript ? _t('recorded') : _t('noAnswer');
+    document.getElementById('status-label').textContent = _currentTranscript ? '✅ Answer recorded' : '(No answer recorded)';
     document.getElementById('pulse-ring').style.animationPlayState = 'paused';
     document.getElementById('next-btn').style.display = 'block';
     _recognition = null;
   };
   _recognition.onerror = () => {
-    document.getElementById('status-label').textContent = _t('micError');
+    document.getElementById('status-label').textContent = 'Mic error — click Next to continue';
     document.getElementById('next-btn').style.display = 'block';
     _recognition = null;
   };
@@ -373,12 +307,12 @@ function startListening() {
 
 // ── Next ──
 async function nextQuestion() {
-  if (_recognition) { _recognition.stop(); return; } // wait for onend
-  document.getElementById('next-btn').style.display = 'none';
-  document.getElementById('skip-btn').style.display = 'none';
+  if (_recognition) { _recognition.stop(); return; }
+  document.getElementById('next-btn').style.display   = 'none';
+  document.getElementById('skip-btn').style.display   = 'none';
   document.getElementById('repeat-btn').style.display = 'none';
-  document.getElementById('prev-btn').style.display = 'none';
-  document.getElementById('status-label').textContent = _t('saving');
+  document.getElementById('prev-btn').style.display   = 'none';
+  document.getElementById('status-label').textContent = 'Saving…';
   await saveAnswer(_currentQ + 1, _currentTranscript);
   _currentQ++;
   if (_currentQ >= _questions.length) { finishScreening(); } else { showQuestion(_currentQ); }
@@ -402,10 +336,10 @@ async function saveAnswer(qNum, transcript) {
 }
 
 async function finishScreening() {
-  document.getElementById('status-label').textContent = _t('analysing');
-  document.getElementById('next-btn').style.display = 'none';
-  document.getElementById('skip-btn').style.display = 'none';
-  document.getElementById('pulse-icon').textContent = '⏳';
+  document.getElementById('status-label').textContent = 'Analysing with AI…';
+  document.getElementById('next-btn').style.display   = 'none';
+  document.getElementById('skip-btn').style.display   = 'none';
+  document.getElementById('pulse-icon').textContent   = '⏳';
   try {
     await fetch(API + '/api/voice-screening/session/' + TOKEN + '/complete', {
       method: 'POST',
@@ -413,38 +347,35 @@ async function finishScreening() {
     });
   } catch(_) {}
   show('state-done');
-  const goodbye = _lang === 'ar'
-    ? `شكراً لك ${_candName}. اكتمل الفحص. سيتواصل فريقنا معك قريباً. إلى اللقاء.`
-    : `Thank you, ${_candName}. Your screening is complete. Our team will be in touch shortly. Goodbye.`;
-  speak(goodbye, null);
-}
-
-// ── Language toggle ──
-function setLang(lang) {
-  _lang = lang;
-  document.getElementById('lang-en-btn').classList.toggle('lang-active', lang === 'en');
-  document.getElementById('lang-ar-btn').classList.toggle('lang-active', lang === 'ar');
+  speak(`Thank you, ${_candName}. Your screening is complete. Our team will be in touch shortly. Goodbye.`, null);
 }
 
 // ── Repeat current question ──
 function repeatQuestion() {
   if (_recognition) { _recognition.stop(); _recognition = null; }
   _currentTranscript = '';
-  document.getElementById('transcript-box').textContent = '';
-  document.getElementById('next-btn').style.display = 'none';
-  document.getElementById('skip-btn').style.display = 'none';
+  document.getElementById('transcript-box').textContent   = '';
+  document.getElementById('next-btn').style.display   = 'none';
+  document.getElementById('skip-btn').style.display   = 'none';
   document.getElementById('repeat-btn').style.display = 'none';
-  document.getElementById('prev-btn').style.display = 'none';
-  document.getElementById('pulse-icon').textContent = '🤖';
-  document.getElementById('status-label').textContent = _t('speaking');
+  document.getElementById('prev-btn').style.display   = 'none';
+  document.getElementById('pulse-icon').textContent   = '🎙️';
+  document.getElementById('status-label').textContent = 'Speaking…';
   document.getElementById('pulse-ring').style.animationPlayState = 'running';
-  speak(_buildLocalizedQuestions()[_currentQ], () => startListening());
+  speak(_questions[_currentQ], () => startListening());
 }
 
 // ── Previous question ──
 function prevQuestion() {
   if (_recognition) { _recognition.stop(); _recognition = null; }
   if (_currentQ <= 0) return;
+  window.speechSynthesis.cancel();
+  document.getElementById('next-btn').style.display   = 'none';
+  document.getElementById('skip-btn').style.display   = 'none';
+  document.getElementById('repeat-btn').style.display = 'none';
+  document.getElementById('prev-btn').style.display   = 'none';
+  document.getElementById('transcript-box').textContent   = '';
+  document.getElementById('transcript-box').style.display = 'none';
   _currentQ--;
   showQuestion(_currentQ);
 }

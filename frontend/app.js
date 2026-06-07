@@ -3672,13 +3672,13 @@ function _buildInterviewWhatsApp(iv, candName, jobTitle, company, phone) {
 
 let _vsState = null; // { screeningId, token, appId, pollTimer }
 
-async function openVoiceScreeningPanel(appId) {
+async function openVoiceScreeningPanel(appId, forceNew = false) {
     const app = (typeof applications !== 'undefined' ? applications : []).find(a => a.application_id === appId) || {};
     const authToken = localStorage.getItem('token');
 
-    // Already completed — just show results
-    if (app.voice_screening && app.voice_screening.status === 'completed') {
-        _showVsResultsModal(app.voice_screening, app.name || 'Candidate');
+    // Already completed — show results unless recruiter forces a new attempt
+    if (!forceNew && app.voice_screening && app.voice_screening.status === 'completed') {
+        _showVsResultsModal(app.voice_screening, app.name || 'Candidate', appId);
         return;
     }
 
@@ -3756,7 +3756,7 @@ async function _vsPoll(appId, screeningId) {
             if (idx >= 0) applications[idx].voice_screening = vs;
             document.getElementById('voice-screening-panel')?.remove();
             if (typeof renderCandidates === 'function') renderCandidates();
-            _showVsResultsModal(vs, candName);
+            _showVsResultsModal(vs, candName, appId);
         }
     } catch(_) {}
 }
@@ -3790,7 +3790,7 @@ async function _vsMarkNoAnswer(appId, screeningId) {
     showToast('Marked as no answer', 'info');
 }
 
-function _showVsResultsModal(vs, candName) {
+function _showVsResultsModal(vs, candName, appId) {
     document.getElementById('vs-results-modal')?.remove();
     const summary = (vs.ai_summary || '').split('\n').filter(Boolean);
     const modal = document.createElement('div');
@@ -3831,6 +3831,9 @@ function _showVsResultsModal(vs, candName) {
           <div style="padding:12px 14px;display:grid;gap:6px;">${summary.map(b=>`<div style="font-size:13px;color:#374151;">${escHtml(b)}</div>`).join('')}</div>
         </div>`:''}
         ${vs.full_transcript?`<details style="margin-top:4px;"><summary style="font-size:12px;color:#185FA5;cursor:pointer;padding:4px 0;">View Full Transcript ▼</summary><pre style="font-size:11px;color:#374151;background:#F9FAFB;border-radius:8px;padding:12px;white-space:pre-wrap;margin-top:8px;">${escHtml(vs.full_transcript)}</pre></details>`:''}
+        ${appId?`<div style="margin-top:16px;padding-top:14px;border-top:1px solid #E5E7EB;text-align:right;">
+          <button onclick="document.getElementById('vs-results-modal').remove();openVoiceScreeningPanel(${appId},true)" style="padding:9px 18px;border:1px solid #C9A84C;border-radius:8px;background:#fff;color:#1B2A4A;font-size:13px;font-weight:600;cursor:pointer;">🔄 Re-Screen</button>
+        </div>`:''}
       </div>
     </div>`;
     document.body.appendChild(modal);
