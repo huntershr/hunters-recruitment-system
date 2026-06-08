@@ -110,7 +110,6 @@
       </div>
       <div class="transcript-box" id="transcript-box" style="display:none;"></div>
       <button class="btn-navy" id="next-btn" onclick="nextQuestion()" style="display:none;">Next Question ▶</button>
-      <button class="btn-outline" onclick="skipQuestion()" id="skip-btn" style="display:none;">Skip (no answer)</button>
       <button class="btn-outline" id="repeat-btn" onclick="repeatQuestion()" style="display:none;margin-top:6px;">🔄 Repeat question</button>
       <button class="btn-outline" id="prev-btn" onclick="prevQuestion()" style="display:none;margin-top:4px;">← Previous question</button>
     </div>
@@ -224,7 +223,7 @@ function showQuestion(idx) {
   document.getElementById('stt-ar-btn').classList.add('stt-active');
   document.getElementById('stt-en-btn').classList.remove('stt-active');
   document.getElementById('next-btn').style.display   = 'none';
-  document.getElementById('skip-btn').style.display   = 'none';
+
   document.getElementById('pulse-icon').textContent   = '🎙️';
   document.getElementById('status-label').textContent = 'Speaking…';
   document.getElementById('pulse-ring').style.animationPlayState = 'running';
@@ -281,7 +280,6 @@ function startListening() {
   document.getElementById('transcript-box').style.display  = 'block';
   document.getElementById('transcript-box').dir             = 'auto';
   document.getElementById('stt-lang-toggle').style.display = 'flex';
-  document.getElementById('skip-btn').style.display   = 'block';
   document.getElementById('repeat-btn').style.display = 'block';
   if (_currentQ > 0) document.getElementById('prev-btn').style.display = 'block';
 
@@ -293,7 +291,7 @@ function startListening() {
   }
   _recognition = new SR();
   _recognition.lang = _sttLang === 'en' ? 'en-US' : 'ar-SA';
-  _recognition.continuous = false; _recognition.interimResults = true;
+  _recognition.continuous = _currentQ === 0; _recognition.interimResults = true;
   let final = '';
   let silTimer = null;
 
@@ -305,7 +303,7 @@ function startListening() {
     }
     document.getElementById('transcript-box').textContent = (final + interim).trim();
     clearTimeout(silTimer);
-    silTimer = setTimeout(() => { if (_recognition) _recognition.stop(); }, _currentQ === 0 ? 30000 : 3000);
+    silTimer = setTimeout(() => { if (_recognition) _recognition.stop(); }, _currentQ === 0 ? 15000 : 3000);
   };
   _recognition.onend = () => {
     if (_langSwitch) { _langSwitch = false; startListening(); return; }
@@ -338,11 +336,6 @@ async function nextQuestion() {
   if (_currentQ >= _questions.length) { finishScreening(); } else { showQuestion(_currentQ); }
 }
 
-function skipQuestion() {
-  if (_recognition) { _recognition.stop(); return; }
-  _currentTranscript = '';
-  document.getElementById('next-btn').click();
-}
 
 // ── API calls ──
 async function saveAnswer(qNum, transcript) {
@@ -358,7 +351,7 @@ async function saveAnswer(qNum, transcript) {
 async function finishScreening() {
   document.getElementById('status-label').textContent = 'Analysing with AI…';
   document.getElementById('next-btn').style.display   = 'none';
-  document.getElementById('skip-btn').style.display   = 'none';
+
   document.getElementById('pulse-icon').textContent   = '⏳';
   try {
     await fetch(API + '/api/voice-screening/session/' + TOKEN + '/complete', {
@@ -385,7 +378,7 @@ function repeatQuestion() {
   _currentTranscript = '';
   document.getElementById('transcript-box').textContent   = '';
   document.getElementById('next-btn').style.display   = 'none';
-  document.getElementById('skip-btn').style.display   = 'none';
+
   document.getElementById('repeat-btn').style.display = 'none';
   document.getElementById('prev-btn').style.display   = 'none';
   document.getElementById('pulse-icon').textContent   = '🎙️';
@@ -400,7 +393,7 @@ function prevQuestion() {
   if (_currentQ <= 0) return;
   window.speechSynthesis.cancel();
   document.getElementById('next-btn').style.display   = 'none';
-  document.getElementById('skip-btn').style.display   = 'none';
+
   document.getElementById('repeat-btn').style.display = 'none';
   document.getElementById('prev-btn').style.display   = 'none';
   document.getElementById('transcript-box').textContent   = '';
