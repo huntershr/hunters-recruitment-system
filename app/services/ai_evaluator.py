@@ -8,7 +8,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+
+_MODEL_NAME = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+_gemini_model = genai.GenerativeModel(_MODEL_NAME)
+_gemini_eval_model = genai.GenerativeModel(
+    _MODEL_NAME,
+    system_instruction="You are a senior HR recruitment assistant. You must output only valid JSON without any markdown blocks or explanations."
+)
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +114,7 @@ Return ONLY a valid JSON object (no markdown, no code blocks) with exactly these
 
     for attempt in range(max_retries):
         try:
-            model = genai.GenerativeModel(model_name)
+            model = _gemini_model
             response = model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
@@ -165,7 +172,7 @@ Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678",
 
     for attempt in range(max_retries):
         try:
-            model = genai.GenerativeModel(model_name)
+            model = _gemini_model
             response = model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
@@ -261,9 +268,7 @@ def evaluate_candidate(job, candidate):
 
     for attempt in range(max_retries):
         try:
-            model = genai.GenerativeModel(model_name,
-                system_instruction="You are a senior HR recruitment assistant. You must output only valid JSON without any markdown blocks or explanations."
-            )
+            model = _gemini_eval_model
             response = model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(

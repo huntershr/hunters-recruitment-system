@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+import google.generativeai as genai
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
@@ -55,6 +56,8 @@ app = FastAPI(
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+_gemini_model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash"))
 
 # Add CORS middleware to allow the frontend to communicate with the API
 app.add_middleware(
@@ -519,10 +522,7 @@ async def generate_cv_ai(
     if not os.getenv("GEMINI_API_KEY", ""):
         raise HTTPException(status_code=503, detail="AI service not configured")
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
-        model = genai.GenerativeModel(model_name)
+        model = _gemini_model
         prompt = f"""You are a professional CV writer at Hunters for HR Transformation & Execution.
 
 Create a polished, professional CV. Return ONLY valid JSON with no markdown fences:
@@ -583,10 +583,7 @@ async def extract_cv_ai(
             text = contents.decode("utf-8", errors="ignore")
         if not text.strip():
             raise HTTPException(status_code=400, detail="Could not extract text from file")
-        import google.generativeai as genai
-        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
-        model = genai.GenerativeModel(model_name)
+        model = _gemini_model
         prompt = f"""Extract structured profile data from this CV/resume text.
 Return ONLY valid JSON with no markdown fences:
 {{
