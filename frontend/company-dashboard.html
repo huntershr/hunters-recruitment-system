@@ -1483,16 +1483,22 @@
             const activeJobs = jobs.filter(j => j.is_approved).length;
             let totalApps = 0;
 
-            allCandidatesData = [];
-            const _ovCandResults = await Promise.all(jobs.map(job =>
-                fetch(`${API_URL}/jobs/${job.id}/candidates`, { headers: { 'Authorization': `Bearer ${token}` } })
-                    .then(r => r.ok ? r.json().then(cands => { cands.forEach(c => { c.job_title = job.job_title; c.job_id = job.id; }); return cands; }) : [])
-                    .catch(() => [])
-            ));
-            _ovCandResults.forEach(cands => {
-                allCandidatesData = allCandidatesData.concat(cands);
-                totalApps += cands.length;
-            });
+            // coAppsData already populated by loadCompanyApplications() above — no extra fetch needed
+            allCandidatesData = coAppsData.map(app => ({
+                id: app.candidate_id || app.application_id,
+                name: app.name,
+                email: app.email,
+                phone: app.phone,
+                score: app.score,
+                decision: app.decision,
+                stage: app.stage,
+                job_title: app.job_title,
+                job_id: app.job_id,
+                cv_available: app.cv_available,
+                application_id: app.application_id,
+                ...app
+            }));
+            totalApps = coAppsData.length;
 
             // Enrich with accurate stage from applications table
             if (typeof coAppsData !== 'undefined' && coAppsData.length) {
@@ -1739,36 +1745,31 @@
             const stageFilterEl = document.getElementById('cand-stage-filter');
             if (stageFilterEl) stageFilterEl.value = '';
 
-            const seenIds = new Set();
-
-            // Build job filter options (sync), then fetch all candidates in parallel
+            // Build job filter options
             jobs.forEach(job => {
                 jobFilter.innerHTML += `<option value="${job.id}">${escHtml(job.job_title)}</option>`;
             });
-            const [_perJobCands, _allCands] = await Promise.all([
-                Promise.all(jobs.map(job =>
-                    fetch(`${API_URL}/jobs/${job.id}/candidates`, { headers: { 'Authorization': `Bearer ${token}` } })
-                        .then(r => r.ok ? r.json().then(cands => cands.map(c => ({ ...c, job_title: job.job_title, job_id: job.id }))) : [])
-                        .catch(() => [])
-                )),
-                fetch(`${API_URL}/candidates`, { headers: { 'Authorization': `Bearer ${token}` } })
-                    .then(r => r.ok ? r.json() : []).catch(() => [])
-            ]);
-            _perJobCands.forEach(cands => {
-                cands.forEach(c => {
-                    if (!seenIds.has(c.id)) { seenIds.add(c.id); allCandidatesData.push(c); }
-                });
-            });
-            if (Array.isArray(_allCands)) {
-                _allCands.forEach(c => {
-                    if (!seenIds.has(c.id)) {
-                        const matchJob = jobs.find(j => j.id === c.job_applied);
-                        if (matchJob) { c.job_title = matchJob.job_title; c.job_id = matchJob.id; }
-                        seenIds.add(c.id);
-                        allCandidatesData.push(c);
-                    }
-                });
-            }
+
+            // Single call replaces N+1 per-job fetches + separate candidates call
+            const _appsRaw = await fetch(
+                `${API_URL}/api/admin/applications?limit=200`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            ).then(r => r.ok ? r.json().then(d => Array.isArray(d.applications) ? d.applications : []) : []).catch(() => []);
+
+            allCandidatesData = _appsRaw.map(app => ({
+                id: app.candidate_id || app.application_id,
+                name: app.name,
+                email: app.email,
+                phone: app.phone,
+                score: app.score,
+                decision: app.decision,
+                stage: app.stage,
+                job_title: app.job_title,
+                job_id: app.job_id,
+                cv_available: app.cv_available,
+                application_id: app.application_id,
+                ...app
+            }));
 
             if (currentFilterVal) jobFilter.value = currentFilterVal;
 
