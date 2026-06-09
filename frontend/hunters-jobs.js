@@ -180,6 +180,12 @@ async function showJobPreviewPopup(jobId) {
     const skills = (job.required_skills || '').split(',').filter(s => s.trim()).map(s =>
         `<span style="background:#E8EAF6;color:#3949AB;padding:4px 12px;border-radius:20px;font-size:13px;display:inline-block;margin:3px">${_esc(s.trim())}</span>`
     ).join('');
+    const niceSkills = (job.nice_to_have_skills || '').split(',').filter(s => s.trim()).map(s =>
+        `<span style="background:#E1F5EE;color:#0F6E56;padding:4px 12px;border-radius:20px;font-size:13px;display:inline-block;margin:3px">${_esc(s.trim())}</span>`
+    ).join('');
+    const behavSkills = (job.behavioral_skills || '').split(',').filter(s => s.trim()).map(s =>
+        `<span style="background:#FFF8E7;color:#854F0B;padding:4px 12px;border-radius:20px;font-size:13px;display:inline-block;margin:3px">${_esc(s.trim())}</span>`
+    ).join('');
 
     const salaryText = job.hide_salary ? '' :
         (job.salary_min && job.salary_max
@@ -208,6 +214,8 @@ async function showJobPreviewPopup(jobId) {
         ${salaryText}
         ${job.job_description ? `<div style="margin-bottom:20px;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#999;margin-bottom:10px;">ABOUT THE ROLE</div><p style="color:#333;font-size:14px;line-height:1.75;margin:0;white-space:pre-wrap;">${_esc(job.job_description)}</p></div>` : ''}
         ${skills ? `<div style="margin-bottom:20px;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#999;margin-bottom:10px;">REQUIRED SKILLS</div><div>${skills}</div></div>` : ''}
+        ${niceSkills ? `<div style="margin-bottom:20px;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#999;margin-bottom:10px;">NICE TO HAVE</div><div>${niceSkills}</div></div>` : ''}
+        ${behavSkills ? `<div style="margin-bottom:20px;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#999;margin-bottom:10px;">BEHAVIORAL SKILLS</div><div>${behavSkills}</div></div>` : ''}
         <div style="border-top:1px solid #f0f2f5;padding-top:16px;text-align:center;">
           <a href="/apply.html?job_id=${jobId}" target="_blank" style="font-size:12px;color:#185FA5;text-decoration:none;">🔗 View public apply page</a>
         </div>
@@ -417,7 +425,6 @@ function huntersJobCardInner(job, opts) {
             <span>${expY != null ? huntersEsc(String(expY)) + ' yrs' : '—'}</span>
         </div>
         <div style="margin-top:6px;">${huntersSalaryDisplay(job)}</div>
-        ${huntersWeightPills(job)}
         <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:#6B7280;">
             <svg width="12" height="12" fill="none" stroke="#C9A84C" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
             <span>${apps} application${apps === 1 ? '' : 's'}</span>
