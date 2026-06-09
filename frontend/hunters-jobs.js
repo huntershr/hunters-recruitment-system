@@ -198,18 +198,18 @@ async function showJobPreviewPopup(jobId) {
     overlay.innerHTML = `
     <div style="background:#fff;border-radius:16px;max-width:700px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
       <div style="background:#1B2A4A;padding:20px 28px;display:flex;align-items:center;gap:14px;flex-shrink:0;">
-        <div style="width:44px;height:44px;border-radius:10px;background:#C9A84C;display:flex;align-items:center;justify-content:center;font-weight:700;color:#1B2A4A;font-size:18px;flex-shrink:0;">${_esc((job.company_name||'C')[0].toUpperCase())}</div>
+        <div style="width:44px;height:44px;border-radius:10px;background:#EAECEF;display:flex;align-items:center;justify-content:center;font-weight:700;color:#5C6470;font-size:18px;flex-shrink:0;">${_esc((job.company_name||'C')[0].toUpperCase())}</div>
         <div style="flex:1;min-width:0;">
-          <div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">${_esc(job.company_name||'')}</div>
+          <div style="color:#8C95A6;font-size:11px;font-weight:600;letter-spacing:1px;">${_esc(job.company_name||'')}</div>
           <div style="color:#fff;font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(job.job_title||'')}</div>
         </div>
         <button onclick="document.getElementById('hunters-job-preview-popup').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:20px;cursor:pointer;flex-shrink:0;line-height:1;">×</button>
       </div>
       <div style="padding:24px 28px;overflow-y:auto;flex:1;">
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
-          <span style="color:#555;font-size:13px;">📍 ${_esc(job.job_location||'—')}</span>
-          <span style="color:#555;font-size:13px;">💼 ${_esc(job.employment_type||'Full-time')}</span>
-          <span style="color:#555;font-size:13px;">⏱ ${job.min_experience||0}+ yrs exp</span>
+          <span style="color:#6B7280;font-size:13px;">${_esc(job.job_location||'—')}</span>
+          <span style="color:#6B7280;font-size:13px;">${_esc(job.employment_type||'Full-time')}</span>
+          <span style="color:#6B7280;font-size:13px;">${job.min_experience||0}+ yrs exp</span>
         </div>
         ${salaryText}
         ${job.job_description ? `<div style="margin-bottom:20px;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#999;margin-bottom:10px;">ABOUT THE ROLE</div><p style="color:#333;font-size:14px;line-height:1.75;margin:0;white-space:pre-wrap;">${_esc(job.job_description)}</p></div>` : ''}
