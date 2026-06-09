@@ -405,9 +405,7 @@ function huntersJobCardInner(job, opts) {
                     <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Edit</button>
                 <button type="button" onclick="event.stopPropagation();huntersViewJob(${job.id})" style="background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
                     <svg width="12" height="12" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
-                <button type="button" onclick="event.stopPropagation();huntersShareJob(${job.id})" title="Copy share link" style="background:#fff;color:#C9A84C;border:0.5px solid #C9A84C;border-radius:7px;padding:5px 8px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
-                ${(!huntersIsAdmin && (localStorage.getItem('user_type')||'').toLowerCase() !== 'company') ? `<a href="/apply.html?job_id=${job.id}" target="_blank" onclick="event.stopPropagation()" style="background:#F0F4FF;color:#1B2A4A;border:0.5px solid #C9A84C;border-radius:7px;padding:5px 8px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:3px;text-decoration:none;" title="Preview public job page">
+                ${(!huntersIsAdmin && (localStorage.getItem('user_type')||'').toLowerCase() !== 'company') ? `<a href="/apply.html?job_id=${job.id}" target="_blank" onclick="event.stopPropagation()" style="background:#F0F4FF;color:#1B2A4A;border:0.5px solid #E5E7EB;border-radius:7px;padding:5px 8px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:3px;text-decoration:none;" title="Preview public job page">
                     <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Preview</a>` : ''}
                 ${pendingBtns}
            </div>`;
@@ -418,7 +416,7 @@ function huntersJobCardInner(job, opts) {
             <div style="flex-shrink:0;">${statusPill}</div>
         </div>
         <div style="font-size:15px;font-weight:500;color:#1B2A4A;margin-top:12px;line-height:1.35;max-height:2.7em;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${huntersEsc(title)}</div>
-        <div ${companyClick} style="font-size:12px;color:#C9A84C;margin-top:2px;cursor:${cid ? 'pointer' : 'default'};font-weight:500;${cid ? '' : 'opacity:0.7;'}" title="${huntersEsc(cname)}">${huntersEsc(cname)}</div>
+        <div ${companyClick} style="font-size:12px;color:#8C95A6;margin-top:2px;cursor:${cid ? 'pointer' : 'default'};font-weight:500;${cid ? '' : 'opacity:0.7;'}" title="${huntersEsc(cname)}">${huntersEsc(cname)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:12px;color:#6B7280;">
             <span>${huntersEsc(loc) || '—'}</span>
             <span>${huntersEsc(job.employment_type || 'Full-time')}</span>
@@ -426,7 +424,7 @@ function huntersJobCardInner(job, opts) {
         </div>
         <div style="margin-top:6px;">${huntersSalaryDisplay(job)}</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:#6B7280;">
-            <svg width="12" height="12" fill="none" stroke="#C9A84C" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            <svg width="12" height="12" fill="none" stroke="#9CA3AF" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
             <span>${apps} application${apps === 1 ? '' : 's'}</span>
         </div>
         ${huntersShareSectionHtml(job.id)}
