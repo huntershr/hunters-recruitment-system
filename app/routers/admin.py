@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import func, or_
 from typing import Any, Dict, Optional
 from datetime import datetime
@@ -728,7 +728,9 @@ def get_all_users(
         db.query(models.User)
         .options(
             joinedload(models.User.company),
-            joinedload(models.User.candidate_profile),
+            joinedload(models.User.candidate_profile).options(
+                defer(models.Candidate.cv_file_data)
+            ),
         )
         .limit(200)
         .all()
@@ -748,7 +750,7 @@ def get_all_users(
             "company_id": u.company_id,
             "company_name": company.company_name if company else "",
             "candidate_id": candidate.id if candidate else None,
-            "has_cv": bool(candidate and ((candidate.cv_file_data) or (candidate.cv_text and candidate.cv_text.strip()))) if candidate else False,
+            "has_cv": bool(candidate and (candidate.cv_file_mime or candidate.cv_text)) if candidate else False,
             "password_hash_preview": (u.hashed_password or "")[:30] + "...",
         })
     return result
@@ -958,7 +960,10 @@ def list_admin_applications(
     fetch_q = (
         db.query(models.Application)
         .options(
-            joinedload(models.Application.candidate),
+            defer(models.Application.cv_file_data),
+            joinedload(models.Application.candidate).options(
+                defer(models.Candidate.cv_file_data)
+            ),
             joinedload(models.Application.evaluation),
             joinedload(models.Application.job)
             .joinedload(models.Job.owner)
@@ -1058,10 +1063,8 @@ def list_admin_applications(
             "experience_years": candidate.experience_years if candidate else None,
             "last_title": candidate.last_title if candidate else None,
             "cv_available": bool(
-                (candidate and candidate.cv_file_data) or
-                app.cv_file_data or
-                (candidate and candidate.cv_text and candidate.cv_text.strip()) or
-                (app.cv_text and app.cv_text.strip())
+                (candidate and (candidate.cv_file_mime or candidate.cv_text)) or
+                (app.cv_file_mime or app.cv_text)
             ),
             "score": score,
             "decision": evaluation.decision if evaluation else None,

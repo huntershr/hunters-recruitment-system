@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, File, UploadFile, Form, Response
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 from typing import List, Optional
 import asyncio
 import logging
@@ -493,7 +493,7 @@ def get_talent_pool(
     """Registered candidates (user_id IS NOT NULL) visible to company users for talent browsing."""
     if not current_user.is_admin and not current_user.company_id:
         raise HTTPException(status_code=403, detail="Access denied")
-    q = db.query(models.Candidate).filter(models.Candidate.user_id.isnot(None))
+    q = db.query(models.Candidate).options(defer(models.Candidate.cv_file_data)).filter(models.Candidate.user_id.isnot(None))
     if search.strip():
         s = f"%{search.strip()}%"
         q = q.filter(
@@ -514,7 +514,7 @@ def get_talent_pool(
             "location": c.location,
             "skills": c.skills,
             "photo_url": c.photo_url,
-            "cv_available": bool(c.cv_file_data or (c.cv_text and c.cv_text.strip())),
+            "cv_available": bool(c.cv_file_mime or c.cv_text),
         }
         for c in candidates
     ]
