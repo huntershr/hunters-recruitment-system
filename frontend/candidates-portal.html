@@ -1325,6 +1325,22 @@ function onFileChosen(files){
   if(!files||!files.length)return;
   var f=files[0],ext=f.name.split('.').pop().toLowerCase();
   if(ext!=='pdf'&&ext!=='docx'){showToast('Only PDF or DOCX files','error');return;}
+  var sizeErr=document.getElementById('cv-size-error');
+  if(f.size>3*1024*1024){
+    _applyFile=null;
+    var n=document.getElementById('file-chosen');if(n){n.textContent='';n.style.display='none';}
+    var b=document.getElementById('apply-btn');if(b){b.disabled=true;b.style.opacity='0.5';b.style.cursor='not-allowed';}
+    if(!sizeErr){
+      sizeErr=document.createElement('div');
+      sizeErr.id='cv-size-error';
+      sizeErr.style.cssText='color:#A32D2D;font-size:12px;margin-top:8px;padding:8px 12px;background:#FCEBEB;border-radius:8px;line-height:1.5;';
+      var dz=document.getElementById('apply-dropzone');if(dz&&dz.parentNode)dz.parentNode.insertBefore(sizeErr,dz.nextSibling);
+    }
+    sizeErr.textContent='File size exceeds 3MB. Please compress your CV or save it as a smaller PDF before uploading.';
+    sizeErr.style.display='block';
+    return;
+  }
+  if(sizeErr)sizeErr.style.display='none';
   _applyFile=f;
   var n=document.getElementById('file-chosen');if(n){n.textContent='✓ '+f.name;n.style.display='block';}
   var b=document.getElementById('apply-btn');if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}
