@@ -2545,7 +2545,7 @@ function _renderCoWsCandidates(apps, activeStage) {
 async function _loadCoWsCandidates(co) {
     const body = document.getElementById('co-ws-body');
     try {
-        const res = await fetch('/api/admin/applications?company_id=' + co.id + '&limit=50', {
+        const res = await fetch('/api/admin/applications?company_id=' + co.id + '&limit=200', {
             headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
