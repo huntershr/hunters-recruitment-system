@@ -209,18 +209,31 @@ def get_admin_stats(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    from sqlalchemy import text
     _admin(current_user)
+    row = db.execute(text("""
+        SELECT
+            (SELECT COUNT(*) FROM companies) AS total_companies,
+            (SELECT COUNT(*) FROM companies WHERE is_approved = false OR is_approved IS NULL) AS pending_companies,
+            (SELECT COUNT(*) FROM companies WHERE is_approved = true) AS approved_companies,
+            (SELECT COUNT(*) FROM jobs WHERE (status IS NULL OR status != 'rejected')) AS total_jobs,
+            (SELECT COUNT(*) FROM jobs WHERE is_approved = false AND (status IS NULL OR status != 'rejected')) AS pending_jobs,
+            (SELECT COUNT(*) FROM jobs WHERE is_approved = true AND (status IS NULL OR status != 'rejected')) AS approved_jobs,
+            (SELECT COUNT(*) FROM candidates) AS total_candidates,
+            (SELECT COUNT(*) FROM users) AS total_users,
+            (SELECT COUNT(*) FROM users WHERE is_active = true) AS active_users
+    """)).fetchone()
     return {
-        "total_companies": db.query(models.Company).count(),
-        "pending_companies": db.query(models.Company).filter(models.Company.is_approved == False).count(),
-        "approved_companies": db.query(models.Company).filter(models.Company.is_approved == True).count(),
-        "total_jobs": db.query(models.Job).filter(or_(models.Job.status == None, models.Job.status != 'rejected')).count(),
-        "pending_jobs": db.query(models.Job).filter(models.Job.is_approved == False, or_(models.Job.status == None, models.Job.status != 'rejected')).count(),
-        "approved_jobs": db.query(models.Job).filter(models.Job.is_approved == True).count(),
-        "total_candidates": db.query(models.Candidate).count(),
-        "screenings_today": 0,
-        "total_users": db.query(models.User).count(),
-        "active_users": db.query(models.User).filter(models.User.is_active == True).count(),
+        "total_companies":   row.total_companies,
+        "pending_companies": row.pending_companies,
+        "approved_companies": row.approved_companies,
+        "total_jobs":        row.total_jobs,
+        "pending_jobs":      row.pending_jobs,
+        "approved_jobs":     row.approved_jobs,
+        "total_candidates":  row.total_candidates,
+        "screenings_today":  0,
+        "total_users":       row.total_users,
+        "active_users":      row.active_users,
     }
 
 
@@ -231,68 +244,68 @@ def get_all_companies_full(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    from sqlalchemy import text
     _admin(current_user)
-    companies = db.query(models.Company).all()
-    result = []
-    for c in companies:
-        user = db.query(models.User).filter(models.User.company_id == c.id).first()
-        user_ids = [
-            u.id for u in db.query(models.User).filter(models.User.company_id == c.id).all()
-        ]
-        job_count = (
-            db.query(models.Job).filter(
-                models.Job.owner_id.in_(user_ids),
-                or_(models.Job.status == None, models.Job.status != 'rejected')
-            ).count()
-            if user_ids else 0
-        )
-        candidate_count = (
-            db.query(models.Candidate).filter(models.Candidate.owner_id.in_(user_ids)).count()
-            if user_ids else 0
-        )
-        # Applications count via job_ids
-        job_ids = [
-            j.id for j in db.query(models.Job).filter(models.Job.owner_id.in_(user_ids)).all()
-        ] if user_ids else []
-        applications_count = (
-            db.query(models.Application).filter(models.Application.job_id.in_(job_ids)).count()
-            if job_ids else 0
-        )
-        # Last activity: most recent application created_at
-        last_app = (
-            db.query(models.Application.created_at)
-            .filter(models.Application.job_id.in_(job_ids))
-            .order_by(models.Application.created_at.desc())
-            .first()
-            if job_ids else None
-        )
-        last_activity = last_app[0].isoformat() if last_app and last_app[0] else None
-        result.append({
-            "id": c.id,
-            "name": c.company_name or "",
-            "email": c.company_email or "",
-            "website": c.company_website or "",
-            "registration_number": c.registration_number or "",
+    rows = db.execute(text("""
+        SELECT
+            c.id,
+            c.company_name,
+            c.company_email,
+            c.company_website,
+            c.registration_number,
+            c.is_approved,
+            c.created_at,
+            c.plan,
+            c.selected_plan,
+            c.billing_status,
+            c.plan_expires_at,
+            c.logo_url,
+            MIN(u.id)         AS admin_user_id,
+            MIN(u.email)      AS admin_email,
+            MIN(u.full_name)  AS admin_name,
+            COALESCE(BOOL_OR(u.is_active), false) AS admin_is_active,
+            COUNT(DISTINCT j.id) FILTER (WHERE j.status IS NULL OR j.status != 'rejected') AS job_count,
+            COUNT(DISTINCT ca.id)  AS candidate_count,
+            COUNT(DISTINCT ap.id)  AS application_count,
+            MAX(ap.created_at)     AS last_activity
+        FROM companies c
+        LEFT JOIN users u  ON u.company_id = c.id
+        LEFT JOIN jobs j   ON j.owner_id   = u.id
+        LEFT JOIN candidates ca ON ca.owner_id = u.id
+        LEFT JOIN applications ap ON ap.job_id = j.id
+        GROUP BY c.id, c.company_name, c.company_email, c.company_website,
+                 c.registration_number, c.is_approved, c.created_at,
+                 c.plan, c.selected_plan, c.billing_status, c.plan_expires_at, c.logo_url
+        ORDER BY c.created_at DESC
+    """)).fetchall()
+    return [
+        {
+            "id": r.id,
+            "name": r.company_name or "",
+            "email": r.company_email or "",
+            "website": r.company_website or "",
+            "registration_number": r.registration_number or "",
             "industry": "",
             "phone": "",
             "country": "",
-            "status": _status(c),
-            "is_approved": c.is_approved,
-            "created_at": c.created_at.isoformat() if c.created_at else "",
-            "admin_user_id": user.id if user else None,
-            "admin_email": user.email if user else "",
-            "admin_name": user.full_name if user else "",
-            "admin_is_active": user.is_active if user else False,
-            "job_count": job_count,
-            "candidate_count": candidate_count,
-            "applications_count": applications_count,
-            "last_activity_at": last_activity,
-            "plan": getattr(c, "plan", None) or "free",
-            "plan_expires_at": c.plan_expires_at.isoformat() if getattr(c, "plan_expires_at", None) else None,
-            "billing_status": getattr(c, "billing_status", None) or "active",
-            "logo_url": getattr(c, "logo_url", None) or None,
-        })
-    return result
+            "status": "approved" if r.is_approved else "pending",
+            "is_approved": r.is_approved,
+            "created_at": r.created_at.isoformat() if r.created_at else "",
+            "admin_user_id": r.admin_user_id,
+            "admin_email": r.admin_email or "",
+            "admin_name": r.admin_name or "",
+            "admin_is_active": r.admin_is_active,
+            "job_count": r.job_count or 0,
+            "candidate_count": r.candidate_count or 0,
+            "applications_count": r.application_count or 0,
+            "last_activity_at": r.last_activity.isoformat() if r.last_activity else None,
+            "plan": r.plan or "free",
+            "plan_expires_at": r.plan_expires_at.isoformat() if r.plan_expires_at else None,
+            "billing_status": r.billing_status or "active",
+            "logo_url": r.logo_url or None,
+        }
+        for r in rows
+    ]
 
 
 @router.patch("/companies/{company_id}")
@@ -611,19 +624,28 @@ def get_all_candidates_full(
     current_user: models.User = Depends(get_current_user),
 ):
     _admin(current_user)
-    candidates = db.query(models.Candidate).all()
+    candidates = (
+        db.query(models.Candidate)
+        .options(
+            joinedload(models.Candidate.owner).joinedload(models.User.company),
+            joinedload(models.Candidate.job),
+        )
+        .limit(200)
+        .all()
+    )
+    candidate_ids = [c.id for c in candidates]
+    eval_map = {
+        e.candidate_id: e
+        for e in db.query(models.Evaluation)
+        .filter(models.Evaluation.candidate_id.in_(candidate_ids))
+        .all()
+    }
     result = []
     for c in candidates:
-        owner = db.query(models.User).filter(models.User.id == c.owner_id).first()
-        company = (
-            db.query(models.Company).filter(models.Company.id == owner.company_id).first()
-            if owner and owner.company_id else None
-        )
-        job = (
-            db.query(models.Job).filter(models.Job.id == c.job_applied).first()
-            if c.job_applied else None
-        )
-        ev = db.query(models.Evaluation).filter(models.Evaluation.candidate_id == c.id).first()
+        owner   = c.owner
+        company = owner.company if owner else None
+        job     = c.job
+        ev      = eval_map.get(c.id)
         result.append({
             "id": c.id,
             "name": c.name or "",
@@ -702,18 +724,20 @@ def get_all_users(
     current_user: models.User = Depends(get_current_user),
 ):
     _admin(current_user)
-    users = db.query(models.User).all()
+    users = (
+        db.query(models.User)
+        .options(
+            joinedload(models.User.company),
+            joinedload(models.User.candidate_profile),
+        )
+        .limit(200)
+        .all()
+    )
     result = []
     for u in users:
-        company = (
-            db.query(models.Company).filter(models.Company.id == u.company_id).first()
-            if u.company_id else None
-        )
+        company   = u.company
         user_type = "admin" if u.is_admin else ("company" if u.company_id else "candidate")
-        candidate = (
-            db.query(models.Candidate).filter(models.Candidate.user_id == u.id).first()
-            if user_type == "candidate" else None
-        )
+        candidate = u.candidate_profile if user_type == "candidate" else None
         result.append({
             "id": u.id,
             "email": u.email,
@@ -881,7 +905,7 @@ def get_talent_pool(
 @router.get("/applications")
 def list_admin_applications(
     skip: int = 0,
-    limit: int = 500,
+    limit: int = 50,
     company_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),

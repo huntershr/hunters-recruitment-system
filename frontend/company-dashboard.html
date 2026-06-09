@@ -3083,7 +3083,7 @@
     async function loadCompanyApplications() {
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`${API_URL}/api/admin/applications?limit=500`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const res = await fetch(`${API_URL}/api/admin/applications?limit=50`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (!res.ok) return;
             const data = await res.json();
             coAppsData = Array.isArray(data.applications) ? data.applications : [];
