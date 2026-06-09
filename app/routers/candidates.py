@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, File, Up
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import asyncio
 import logging
 import io
 import csv
@@ -136,7 +137,7 @@ async def screen_cv(
             )
 
     # AI: extract candidate info from CV
-    info = extract_candidate_info(cv_text)
+    info = await asyncio.get_event_loop().run_in_executor(None, extract_candidate_info, cv_text)
 
     name  = info.get("name")  or (file.filename.rsplit(".", 1)[0].replace("_", " ").title() if file else "Candidate")
     email = info.get("email") or (f"bulk_{file.filename}@noemail.hunters" if file else f"user_{current_user.id}@noemail.hunters")
@@ -293,7 +294,7 @@ async def screen_cv(
     db.refresh(application)
 
     # Synchronous AI evaluation — gives immediate result
-    raw = evaluate_candidate(job, candidate)
+    raw = await asyncio.get_event_loop().run_in_executor(None, evaluate_candidate, job, candidate)
     result = finalize_evaluation(raw)
 
     # Phase 2: always create a new Evaluation linked to the new Application.
