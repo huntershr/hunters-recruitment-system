@@ -539,12 +539,13 @@
             }
         }
         /* Job Share Section */
-        .share-icon-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
-        .share-icon-btn{width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:opacity 0.2s;}
-        .share-icon-btn:hover{opacity:0.82;}
-        .share-copy-btn{height:28px;border-radius:14px;border:1px solid #D1D5DB;background:#F9FAFB;color:#374151;font-size:11px;font-weight:500;cursor:pointer;padding:0 12px;transition:all 0.15s;}
+        .share-icon-row{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap;}
+        .share-label{font-size:11px;color:#9CA3AF;font-weight:500;white-space:nowrap;margin-right:2px;}
+        .share-icon-btn{background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease,opacity 0.15s ease;border-radius:4px;line-height:0;}
+        .share-icon-btn:hover{transform:scale(1.1);opacity:0.8;}
+        .share-copy-btn{background:#fff;border:1px solid #E5E7EB;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:500;color:#374151;cursor:pointer;transition:background 0.15s ease;}
         .share-copy-btn:hover{background:#F3F4F6;}
-        .share-copy-btn.copied{border-color:#C9A84C;color:#C9A84C;background:#C9A84C10;}
+        .share-copy-btn.copied{border-color:#C9A84C;color:#C9A84C;}
         /* Company Kanban */
         #co-stage-tabs-bar::-webkit-scrollbar{display:none;}
         .co-kanban{display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;align-items:flex-start;}
@@ -555,7 +556,7 @@
         .co-kanban-col-body{padding:8px;display:flex;flex-direction:column;gap:8px;min-height:80px;}
         .co-kanban-card{background:#fff;border-radius:10px;padding:10px 12px;border:0.5px solid #E5E7EB;box-shadow:0 1px 4px rgba(0,0,0,0.05);cursor:pointer;transition:box-shadow 0.15s;}
         .co-kanban-card:hover{box-shadow:0 4px 12px rgba(0,0,0,0.10);}
-        @media(max-width:640px){.share-icon-btn{width:40px;height:40px;}}
+        @media(max-width:640px){.share-icon-btn{transform:scale(0.95);}}
     </style>
 </head>
 <body>
