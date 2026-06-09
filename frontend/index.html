@@ -1468,7 +1468,7 @@ async function startAdminBulkProcessing() {
     };
 
     /* ── Show candidates for a specific job (View 2) ──────── */
-    window.showSACandidatesForJob = function(jobId, jobTitle, companyName) {
+    window.showSACandidatesForJob = async function(jobId, jobTitle, companyName) {
         _saActiveJobId = String(jobId);
 
         var label = jobTitle + (companyName ? ' — ' + companyName : '');
@@ -1478,10 +1478,21 @@ async function startAdminBulkProcessing() {
         document.getElementById('sa-jobs-view').style.display    = 'none';
         document.getElementById('sa-pipeline-view').style.display = 'block';
 
-        /* Backup and filter the global applications array */
+        /* Backup current global for back-navigation restore */
         var appsArr = (typeof applications !== 'undefined') ? applications : [];
         _saAllApps = appsArr.slice();
-        if (typeof applications !== 'undefined') {
+
+        /* Fetch ALL applications for this specific job — no pagination limit */
+        try {
+            var token = localStorage.getItem('token') || '';
+            var r = await fetch('/api/admin/applications?job_id=' + jobId + '&limit=1000', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            var d = await r.json();
+            applications = Array.isArray(d.applications) ? d.applications :
+                           Array.isArray(d) ? d :
+                           appsArr.filter(function(a) { return String(a.job_id) === String(jobId); });
+        } catch(e) {
             applications = appsArr.filter(function(a) { return String(a.job_id) === String(jobId); });
         }
 

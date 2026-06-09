@@ -165,7 +165,7 @@ async function fetchData() {
     // Applications call — individually wrapped, failure leaves applications = []
     console.log('[fetchData] Fetching /api/admin/applications…');
     try {
-        const appRes = await authFetch('/api/admin/applications');
+        const appRes = await authFetch('/api/admin/applications?limit=500');
         console.log('[fetchData] /api/admin/applications status:', appRes.status);
         if (appRes.ok) {
             const appData = await appRes.json();
