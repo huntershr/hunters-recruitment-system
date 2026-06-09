@@ -1332,6 +1332,20 @@ function onFileChosen(files){
 
 async function submitApply(){
   if((!_applyFile&&!_useSavedCv)||!currentJob)return;
+  if(_useSavedCv){
+    try{
+      var chk=await fetch('/api/candidate/profile',{headers:hdrs()});
+      if(chk.ok){var cp=await chk.json();if(!cp.has_cv){
+        var warnEl=document.getElementById('apply-form');
+        if(warnEl)warnEl.innerHTML=
+          '<div style="background:#FEF3C7;border:0.5px solid #FCD34D;border-radius:12px;padding:16px;font-size:13px;color:#92400E;line-height:1.6;margin-bottom:14px;">'+
+            'Please upload your CV before applying.<br><strong>Go to My Profile → Upload CV.</strong>'+
+          '</div>'+
+          '<button onclick="showPortalSection(\'profile\');closeOverlay();" style="width:100%;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:500;cursor:pointer;">Go to My Profile →</button>';
+        return;
+      }}
+    }catch(e){}
+  }
   var form=document.getElementById('apply-form');
   form.innerHTML='<div style="text-align:center;padding:24px;">' +
     '<div id="p-step" style="font-size:13px;color:#6B7280;margin-bottom:14px;">'+(_useSavedCv?'Preparing CV…':'Uploading CV…')+'</div>' +

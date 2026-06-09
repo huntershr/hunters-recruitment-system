@@ -284,6 +284,9 @@ async def screen_cv(
         job_id=job_id,
         candidate_id=candidate.id,
         stage="Applied",
+        cv_file_data=candidate.cv_file_data,
+        cv_file_mime=candidate.cv_file_mime,
+        cv_text=candidate.cv_text,
     )
     db.add(application)
     db.commit()
