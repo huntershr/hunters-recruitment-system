@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
@@ -52,6 +53,8 @@ app = FastAPI(
     description="An AI-powered recruitment system using FastAPI and Google Gemini API.",
     version="1.0.0"
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Add CORS middleware to allow the frontend to communicate with the API
 app.add_middleware(
