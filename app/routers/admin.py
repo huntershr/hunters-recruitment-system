@@ -909,6 +909,7 @@ def list_admin_applications(
     skip: int = 0,
     limit: int = 50,
     company_id: Optional[int] = None,
+    job_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -949,6 +950,11 @@ def list_admin_applications(
             .subquery()
         )
         job_id_filter = models.Application.job_id.in_(co_job_ids)
+
+    # Narrow to a specific job when requested
+    if job_id is not None:
+        specific = models.Application.job_id == job_id
+        job_id_filter = specific if job_id_filter is None else (job_id_filter & specific)
 
     # Total count (separate query — no joinedload inflation)
     count_q = db.query(func.count(models.Application.id))

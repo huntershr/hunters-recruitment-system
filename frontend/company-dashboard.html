@@ -3007,13 +3007,26 @@
         const cardsList = document.getElementById('co-stage-candidates-list');
         if (cardsList) cardsList.innerHTML = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">Loading candidates…</div>';
 
-        // Lazy-load applications now (only fetched when recruiter opens a job)
+        // Fetch ALL applications for this specific job — no pagination limit
         try {
-            await loadCompanyApplications();
-        } catch(e) { console.warn('showCandidatesForJob apps:', e); }
+            const _jToken = localStorage.getItem('token');
+            const _jRes = await fetch(
+                `${API_URL}/api/admin/applications?job_id=${jobId}&limit=1000`,
+                { headers: { 'Authorization': `Bearer ${_jToken}` } }
+            );
+            if (_jRes.ok) {
+                const _jData = await _jRes.json();
+                window._coJobAppsData = Array.isArray(_jData.applications) ? _jData.applications : [];
+            } else {
+                window._coJobAppsData = coAppsData.filter(a => String(a.job_id) === String(jobId));
+            }
+        } catch(e) {
+            console.warn('showCandidatesForJob job fetch:', e);
+            window._coJobAppsData = coAppsData.filter(a => String(a.job_id) === String(jobId));
+        }
 
         // Set allCandidatesData for table view (scoped to this job)
-        allCandidatesData = coAppsData.filter(a => String(a.job_id) === String(jobId));
+        allCandidatesData = window._coJobAppsData;
 
         // Render pipeline
         setCompanyView('tabs');
@@ -3021,6 +3034,7 @@
 
     function backToJobsView() {
         _coActiveJobId = '';
+        window._coJobAppsData = null;
         const jf = document.getElementById('cand-job-filter');
         if (jf) jf.value = '';
         const v1 = document.getElementById('cand-jobs-view');
@@ -3103,7 +3117,9 @@
         // _coActiveJobId is set by showCandidatesForJob and is authoritative; fall back
         // to jf.value only when using the old Candidates-tab dropdown filter.
         const selectedJobId = _coActiveJobId || (jobFilterEl ? jobFilterEl.value : '');
-        const visibleApps = selectedJobId ? coAppsData.filter(app => String(app.job_id) === selectedJobId) : coAppsData;
+        const visibleApps = selectedJobId
+            ? (window._coJobAppsData || coAppsData.filter(app => String(app.job_id) === selectedJobId))
+            : coAppsData;
 
         const counts = {};
         _CO_STAGE_TABS.forEach(tab => {
