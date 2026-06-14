@@ -76,6 +76,16 @@ try:
 except Exception as _me2:
     print(f"Warning: Jobs department column migration: {_me2}")
 
+# Supabase Storage cv_url columns (safe — ADD COLUMN IF NOT EXISTS)
+try:
+    with engine.connect() as _mc3:
+        _mc3.execute(text("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS cv_url TEXT"))
+        _mc3.execute(text("ALTER TABLE applications ADD COLUMN IF NOT EXISTS cv_url TEXT"))
+        _mc3.commit()
+    print("cv_url columns: OK")
+except Exception as _me3:
+    print(f"Warning: cv_url column migration: {_me3}")
+
 app = FastAPI(
     title="AI Recruitment System",
     description="An AI-powered recruitment system using FastAPI and Google Gemini API.",

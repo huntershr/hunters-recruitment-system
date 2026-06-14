@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import func, or_
 from typing import Any, Dict, Optional
@@ -1242,7 +1242,7 @@ def update_application_stage(
 
 
 @router.get("/applications/{application_id}/cv")
-def download_application_cv(
+async def download_application_cv(
     application_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -1286,10 +1286,17 @@ def download_application_cv(
     )
     safe_name = "".join(c for c in display_name if c.isalnum() or c in " _-").strip().replace(" ", "_")
 
-    from .candidates import _build_cv_pdf, _mime_to_ext, _NO_CACHE
+    from .candidates import _build_cv_pdf, _mime_to_ext, _NO_CACHE, get_cv_signed_url
     from fastapi import Response as _Response
 
-    # Serve original uploaded file if available (BYTEA)
+    # Storage-first: new uploads have cv_url pointing to Supabase Storage
+    cv_url = (candidate.cv_url if candidate else None) or application.cv_url
+    if cv_url:
+        signed_url = await get_cv_signed_url(cv_url)
+        if signed_url:
+            return RedirectResponse(url=signed_url)
+
+    # Fallback: serve original uploaded file (BYTEA — existing candidates before Storage migration)
     cv_file_data = (candidate.cv_file_data if candidate else None) or application.cv_file_data
     cv_file_mime_str = (candidate.cv_file_mime if candidate else None) or application.cv_file_mime
     if cv_file_data:

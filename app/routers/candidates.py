@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, File, UploadFile, Form, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy.orm import Session, defer
 from typing import List, Optional
 import asyncio
@@ -7,6 +7,9 @@ import logging
 import io
 import csv
 import json
+import os
+import httpx
+import uuid as uuid_lib
 
 from .. import models, schemas
 from ..database import get_db, SessionLocal
@@ -15,6 +18,64 @@ from ..services.file_processor import extract_text_from_pdf, extract_text_from_d
 from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
+SUPABASE_BUCKET = "cvs"
+
+
+async def upload_cv_to_storage(file_bytes: bytes, filename: str, mime_type: str) -> "str | None":
+    """Upload CV to Supabase Storage. Returns storage path (filename) or None if failed."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        return None
+    try:
+        ext = filename.rsplit(".", 1)[-1] if "." in filename else "pdf"
+        unique_name = f"{uuid_lib.uuid4().hex}.{ext}"
+        upload_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{unique_name}"
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                upload_url,
+                content=file_bytes,
+                headers={
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                    "Content-Type": mime_type,
+                    "x-upsert": "false",
+                },
+                timeout=30.0,
+            )
+        if response.status_code in (200, 201):
+            return unique_name
+        logger.error(f"Supabase Storage upload failed: {response.status_code} {response.text}")
+        return None
+    except Exception as e:
+        logger.error(f"Supabase Storage upload error: {e}")
+        return None
+
+
+async def get_cv_signed_url(storage_path: str, expires_in: int = 3600) -> "str | None":
+    """Generate a signed URL for CV download from Supabase Storage."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY or not storage_path:
+        return None
+    try:
+        sign_url = f"{SUPABASE_URL}/storage/v1/object/sign/{SUPABASE_BUCKET}/{storage_path}"
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                sign_url,
+                json={"expiresIn": expires_in},
+                headers={
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                    "Content-Type": "application/json",
+                },
+                timeout=10.0,
+            )
+        if response.status_code == 200:
+            data = response.json()
+            return f"{SUPABASE_URL}/storage/v1{data.get('signedURL', '')}"
+        return None
+    except Exception as e:
+        logger.error(f"Signed URL generation error: {e}")
+        return None
+
 
 router = APIRouter(
     prefix="/candidates",
@@ -170,6 +231,11 @@ async def screen_cv(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    # Try uploading the new file to Supabase Storage (no-op if env vars missing or no new file)
+    storage_path = None
+    if file is not None:
+        storage_path = await upload_cv_to_storage(content, file.filename or "upload.pdf", cv_mime)
+
     # ── Phase 2: Candidate + Application creation ─────────────────────────────
     #
     # Portal (Type A): one Candidate per User (profile container), keyed by
@@ -189,6 +255,8 @@ async def screen_cv(
             candidate.cv_text = cv_text
             candidate.cv_file_data = content
             candidate.cv_file_mime = cv_mime
+            if storage_path:
+                candidate.cv_url = storage_path
             candidate.name = name
             candidate.phone = phone or candidate.phone
             candidate.job_applied = job_id
@@ -212,6 +280,7 @@ async def screen_cv(
                 cv_text=cv_text,
                 cv_file_data=content,
                 cv_file_mime=cv_mime,
+                cv_url=storage_path,
                 last_title=str(info.get("last_title") or ""),
                 last_employer=str(info.get("last_employer") or ""),
                 owner_id=job.owner_id,
@@ -231,6 +300,8 @@ async def screen_cv(
             existing.cv_text = cv_text
             existing.cv_file_data = content
             existing.cv_file_mime = cv_mime
+            if storage_path:
+                existing.cv_url = storage_path
             existing.name = name
             existing.phone = phone or existing.phone
             existing.experience_years = int(info.get("experience_years") or 0) or existing.experience_years
@@ -254,6 +325,7 @@ async def screen_cv(
                 cv_text=cv_text,
                 cv_file_data=content,
                 cv_file_mime=cv_mime,
+                cv_url=storage_path,
                 last_title=str(info.get("last_title") or ""),
                 last_employer=str(info.get("last_employer") or ""),
                 owner_id=job.owner_id,
@@ -288,6 +360,7 @@ async def screen_cv(
         cv_file_data=candidate.cv_file_data,
         cv_file_mime=candidate.cv_file_mime,
         cv_text=candidate.cv_text,
+        cv_url=storage_path or candidate.cv_url,
     )
     db.add(application)
     db.commit()
@@ -531,7 +604,7 @@ def get_talent_pool(
 
 
 @router.get("/{candidate_id}/cv")
-def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+async def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """Download the candidate's CV as a PDF file."""
     candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
     if not candidate:
@@ -560,7 +633,13 @@ def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), curr
 
     safe_name = "".join(c for c in (candidate.name or "Candidate") if c.isalnum() or c in " _-").strip().replace(" ", "_")
 
-    # Serve original file if stored
+    # Storage-first: new uploads have cv_url pointing to Supabase Storage
+    if candidate.cv_url:
+        signed_url = await get_cv_signed_url(candidate.cv_url)
+        if signed_url:
+            return RedirectResponse(url=signed_url)
+
+    # Fallback: serve from BYTEA (existing candidates before Storage migration)
     if candidate.cv_file_data:
         mime = candidate.cv_file_mime or "application/pdf"
         ext = _mime_to_ext(mime)
@@ -570,7 +649,7 @@ def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db), curr
             headers={"Content-Disposition": f'attachment; filename="{safe_name}_CV{ext}"', **_NO_CACHE},
         )
 
-    # Fallback: regenerate PDF from stored cv_text (historical records)
+    # Last fallback: regenerate PDF from stored cv_text (historical records)
     if not candidate.cv_text or not candidate.cv_text.strip():
         raise HTTPException(status_code=404, detail="No CV available for this candidate")
 

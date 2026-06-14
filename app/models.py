@@ -107,6 +107,7 @@ class Candidate(Base):
     languages = Column(JSON, nullable=True)         # [{language, level}]
     cv_file_data = Column(LargeBinary, nullable=True)  # original uploaded CV file bytes
     cv_file_mime = Column(Text, nullable=True)          # MIME type of the original file
+    cv_url = Column(Text, nullable=True)                # Supabase Storage path (new uploads)
 
     owner = relationship("User", back_populates="candidates", foreign_keys=[owner_id])
     user = relationship("User", back_populates="candidate_profile", foreign_keys=[user_id])
@@ -128,6 +129,7 @@ class Application(Base):
     cv_text = Column(Text, nullable=True)
     cv_file_data = Column(LargeBinary, nullable=True)  # original uploaded CV file bytes
     cv_file_mime = Column(Text, nullable=True)          # MIME type of the original file
+    cv_url = Column(Text, nullable=True)                # Supabase Storage path (new uploads)
     expected_salary = Column(Text, nullable=True)
     stage = Column(Text, default='New')
     stage_updated_at = Column(DateTime, nullable=True)
