@@ -66,6 +66,15 @@ def finalize_evaluation(parsed: dict) -> dict:
             "strengths": "",
             "weaknesses": "",
             "suggested_interview_questions": [],
+            "summary_en": "",
+            "summary_ar": "",
+            "strengths_en": [],
+            "strengths_ar": [],
+            "gaps_en": [],
+            "gaps_ar": [],
+            "interview_questions_en": [],
+            "interview_questions_ar": [],
+            "quick_facts": {},
         }
 
     out = dict(parsed)
@@ -217,53 +226,74 @@ Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678",
 
 def evaluate_candidate(job, candidate):
     """
-    Evaluates a candidate based on job requirements using Google's Gemini API.
+    Evaluates a candidate against a job using Gemini, returning bilingual structured JSON.
     """
-    prompt = f"""
-    You are a Senior Executive Recruiter. Your task is to perform a deep screening of the candidate against the specific Job Description provided.
-    
-    JOB TITLE: {job.job_title}
-    JOB DESCRIPTION: 
-    {job.job_description}
+    prompt = f"""You are a senior executive recruiter and HR analyst at a professional recruitment firm.
+Perform a deep screening of the candidate below against the job requirements and output ONLY a valid JSON object — no markdown, no explanation.
 
-    REQUIREMENTS:
-    - Required Skills: {job.required_skills}
-    - Behavioral Skills: {getattr(job, 'behavioral_skills', 'Not specified')}
-    - Industry Experience Preference: {getattr(job, 'industry_experience', 'Not specified')}
-    - Min Experience: {job.min_experience} years
-    - Education Level: {job.education_level}
-    - Salary Range: {job.salary_range}
+JOB TITLE: {job.job_title}
+JOB DESCRIPTION:
+{job.job_description}
 
-    CANDIDATE DATA:
-    - Name: {candidate.name}
-    - Total Experience: {candidate.experience_years} years
-    - Stated Skills: {candidate.skills}
-    - Education: {candidate.education}
-    - CV TEXT EXTRACT:
-    {(candidate.cv_text or '')[:3000]}
+REQUIREMENTS:
+- Required Skills: {job.required_skills}
+- Behavioral Skills: {getattr(job, 'behavioral_skills', 'Not specified')}
+- Industry Experience: {getattr(job, 'industry_experience', 'Not specified')}
+- Min Experience: {job.min_experience} years
+- Education Level: {job.education_level}
+- Salary Range: {job.salary_range}
 
-    SCORING CRITERIA (Weights):
-    - Experience Relevance: {job.weight_experience}x
-    - Technical Skills match: {job.weight_skills}x
-    - Education alignment: {job.weight_education}x
-    - Behavioral & Industry alignment: {getattr(job, 'weight_behavioral', 0.2)}x
+CANDIDATE DATA:
+- Name: {candidate.name}
+- Total Experience: {candidate.experience_years} years
+- Stated Skills: {candidate.skills}
+- Education: {candidate.education}
+- CV TEXT EXTRACT:
+{(candidate.cv_text or '')[:3000]}
 
-    INSTRUCTIONS:
-    1. Analyze if the candidate's experience is relevant to the Job Description and the specified Industry Preference.
-    2. Check for technical "Required Skills" AND "Behavioral Skills" in the CV text.
-    3. Produce an overall_score as an INTEGER from 0 to 100 (weighted match). Do not use fractional overall scores except through rounding at the very end if needed — the field must serialize as an integer.
-    4. Provide score_breakdown with integer sub-scores 0–100 each: "experience", "skills", "education", "behavioral" reflecting how strongly the CV matches those dimensions relative to job weights.
-    5. Make a decision: "Shortlist" only if overall_score ≥ 65; use "Maybe" for borderline profiles; otherwise "Reject". Never return "Shortlist" if overall_score is below 30.
-    6. Provide a professional reasoning paragraph.
+SCORING WEIGHTS:
+- Experience Relevance: {job.weight_experience}x
+- Technical Skills Match: {job.weight_skills}x
+- Education Alignment: {job.weight_education}x
+- Behavioral & Industry Fit: {getattr(job, 'weight_behavioral', 0.2)}x
 
-    Return ONLY a valid JSON object with keys:
-    - "overall_score" (integer 0–100)
-    - "score_breakdown" (object with keys experience, skills, education, behavioral — each integer 0–100)
-    - "decision", "reason", "strengths", "weaknesses", "suggested_interview_questions" (last as array of strings)
-    Optionally include deprecated "score" as a duplicate of overall_score divided by 10 for backward parsers (not required).
-    """
+INSTRUCTIONS:
+1. Produce "score" as an INTEGER 0-100 (weighted overall match score).
+2. Produce "score_breakdown" with integer sub-scores 0-100 for: experience, skills, education, behavioral.
+3. Decision: "Shortlist" only if score >= 65; "Maybe" for 40-64; "Reject" for below 40. NEVER Shortlist below 30.
+4. summary_en: 2-3 professional English sentences summarizing candidate fit for this specific role.
+5. summary_ar: IDENTICAL content in Modern Standard Arabic.
+6. strengths_en: EXACTLY 3 strings in English — specific strengths this candidate brings to the role.
+7. strengths_ar: same 3 strengths translated to Arabic.
+8. gaps_en: EXACTLY 2 strings in English — most significant gaps vs. role requirements.
+9. gaps_ar: same 2 gaps in Arabic.
+10. quick_facts: extract from CV — years_experience (int), current_title (str or null), current_employer (str or null), education_level (str or null), key_skills_found (array of up to 5 skill strings found in CV), languages (array of spoken languages mentioned in CV).
+11. interview_questions_en: EXACTLY 3 specific, role-tailored English interview questions for this candidate.
+12. interview_questions_ar: same 3 questions in Arabic.
 
-    model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+Return ONLY this JSON structure:
+{{
+  "score": <integer 0-100>,
+  "score_breakdown": {{"experience": <int>, "skills": <int>, "education": <int>, "behavioral": <int>}},
+  "decision": "<Shortlist|Maybe|Reject>",
+  "summary_en": "<2-3 sentence English summary>",
+  "summary_ar": "<2-3 جملة ملخص عربي>",
+  "strengths_en": ["<strength 1>", "<strength 2>", "<strength 3>"],
+  "strengths_ar": ["<قوة 1>", "<قوة 2>", "<قوة 3>"],
+  "gaps_en": ["<gap 1>", "<gap 2>"],
+  "gaps_ar": ["<فجوة 1>", "<فجوة 2>"],
+  "quick_facts": {{
+    "years_experience": <int>,
+    "current_title": "<str or null>",
+    "current_employer": "<str or null>",
+    "education_level": "<str or null>",
+    "key_skills_found": ["<skill1>", "<skill2>"],
+    "languages": ["<language1>"]
+  }},
+  "interview_questions_en": ["<Q1>", "<Q2>", "<Q3>"],
+  "interview_questions_ar": ["<س1>", "<س2>", "<س3>"]
+}}"""
+
     max_retries = 3
 
     for attempt in range(max_retries):
@@ -276,35 +306,38 @@ def evaluate_candidate(job, candidate):
                     response_mime_type="application/json",
                 )
             )
-            
-            result_content = response.text
-            # Clean up in case Gemini wraps in ```json
-            result_content = result_content.strip()
+
+            result_content = response.text.strip()
             if result_content.startswith("```json"):
                 result_content = result_content[7:]
             if result_content.startswith("```"):
                 result_content = result_content[3:]
             if result_content.endswith("```"):
                 result_content = result_content[:-3]
-            
+
             result_json = json.loads(result_content.strip())
             return finalize_evaluation(result_json)
         except Exception as e:
             if "429" in str(e) and attempt < max_retries - 1:
-                wait_time = (2 ** attempt) * 5 + random.random() # Longer wait for evaluation
+                wait_time = (2 ** attempt) * 5 + random.random()
                 print(f"Rate limit hit during evaluation. Retrying in {wait_time:.2f}s...")
                 time.sleep(wait_time)
                 continue
-            
+
             print(f"Error during evaluation (Attempt {attempt+1}): {e}")
             if attempt == max_retries - 1:
                 return finalize_evaluation({
-                    "overall_score": 0,
+                    "score": 0,
                     "score_breakdown": {"experience": 0, "skills": 0, "education": 0, "behavioral": 0},
                     "decision": "Reject",
-                    "reason": f"Evaluation failed after retries: {str(e)}",
-                    "strengths": "",
-                    "weaknesses": "",
-                    "suggested_interview_questions": [],
+                    "summary_en": f"Evaluation failed after retries: {str(e)}",
+                    "summary_ar": "فشل التقييم بعد عدة محاولات.",
+                    "strengths_en": [],
+                    "strengths_ar": [],
+                    "gaps_en": [],
+                    "gaps_ar": [],
+                    "interview_questions_en": [],
+                    "interview_questions_ar": [],
+                    "quick_facts": {},
                 })
     return finalize_evaluation({})

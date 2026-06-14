@@ -153,9 +153,17 @@ class Evaluation(Base):
     score_behavioral = Column(Float, nullable=True)
     decision = Column(String) # Accept / Maybe / Reject
     reason = Column(Text)
-    strengths = Column(Text, nullable=True) # Bonus feature
-    weaknesses = Column(Text, nullable=True) # Bonus feature
+    strengths = Column(Text, nullable=True)
+    weaknesses = Column(Text, nullable=True)
     suggested_interview_questions = Column(JSON, nullable=True)
+    # Bilingual fields (added via migration — nullable for backward compat)
+    summary_en = Column(Text, nullable=True)
+    summary_ar = Column(Text, nullable=True)
+    strengths_ar = Column(Text, nullable=True)
+    gaps_en = Column(Text, nullable=True)
+    gaps_ar = Column(Text, nullable=True)
+    interview_questions_ar = Column(JSON, nullable=True)
+    quick_facts = Column(JSON, nullable=True)
 
     candidate = relationship("Candidate", back_populates="evaluations")
     application = relationship("Application", back_populates="evaluation")

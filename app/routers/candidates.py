@@ -301,6 +301,7 @@ async def screen_cv(
     # Dual-write: candidate_id also set so existing admin UI reads (via
     # candidate_id) keep working during the transition to Phase 3-4.
     _bd3 = result.get("score_breakdown") or {}
+    _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
     db_eval = models.Evaluation(
         application_id=application.id,
         candidate_id=candidate.id,
@@ -311,10 +312,19 @@ async def screen_cv(
         score_education=_bd3.get("education"),
         score_behavioral=_bd3.get("behavioral"),
         decision=result.get("decision", "Reject"),
-        reason=result.get("reason", ""),
-        strengths=str(result.get("strengths", "") or ""),
-        weaknesses=str(result.get("weaknesses", "") or ""),
-        suggested_interview_questions=json.dumps(result.get("suggested_interview_questions", [])),
+        # legacy columns — populated from new bilingual fields for backward compat
+        reason=result.get("summary_en") or result.get("reason", ""),
+        strengths=_lstr(result.get("strengths_en") or result.get("strengths") or []),
+        weaknesses=_lstr(result.get("gaps_en") or result.get("weaknesses") or []),
+        suggested_interview_questions=result.get("interview_questions_en") or result.get("suggested_interview_questions") or [],
+        # new bilingual columns
+        summary_en=result.get("summary_en"),
+        summary_ar=result.get("summary_ar"),
+        strengths_ar=_lstr(result.get("strengths_ar") or []),
+        gaps_en=_lstr(result.get("gaps_en") or []),
+        gaps_ar=_lstr(result.get("gaps_ar") or []),
+        interview_questions_ar=result.get("interview_questions_ar"),
+        quick_facts=result.get("quick_facts"),
     )
     db.add(db_eval)
     db.commit()

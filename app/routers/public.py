@@ -41,10 +41,7 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
         raw = evaluate_candidate(job, applicant)
         result = finalize_evaluation(raw)
 
-        def _list_to_str(val):
-            if isinstance(val, list):
-                return "\n".join(f"- {i}" for i in val)
-            return str(val)
+        _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
 
         _bd = result.get("score_breakdown") or {}
         db_eval = models.Evaluation(
@@ -57,10 +54,19 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
             score_education=_bd.get("education"),
             score_behavioral=_bd.get("behavioral"),
             decision=result.get("decision", "Reject"),
-            reason=result.get("reason", "Failed to evaluate"),
-            strengths=_list_to_str(result.get("strengths", "")),
-            weaknesses=_list_to_str(result.get("weaknesses", "")),
-            suggested_interview_questions=json.dumps(result.get("suggested_interview_questions", [])),
+            # legacy columns — populated from bilingual fields for backward compat
+            reason=result.get("summary_en") or result.get("reason", "Failed to evaluate"),
+            strengths=_lstr(result.get("strengths_en") or result.get("strengths") or []),
+            weaknesses=_lstr(result.get("gaps_en") or result.get("weaknesses") or []),
+            suggested_interview_questions=result.get("interview_questions_en") or result.get("suggested_interview_questions") or [],
+            # new bilingual columns
+            summary_en=result.get("summary_en"),
+            summary_ar=result.get("summary_ar"),
+            strengths_ar=_lstr(result.get("strengths_ar") or []),
+            gaps_en=_lstr(result.get("gaps_en") or []),
+            gaps_ar=_lstr(result.get("gaps_ar") or []),
+            interview_questions_ar=result.get("interview_questions_ar"),
+            quick_facts=result.get("quick_facts"),
         )
         db.add(db_eval)
         db.commit()

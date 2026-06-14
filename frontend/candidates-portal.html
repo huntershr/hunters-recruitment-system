@@ -1968,42 +1968,74 @@ function portalDownloadCV(id,safeName){
     .catch(function(){showToast('CV not available for this candidate.','error');});
 }
 
-function getCandidateFriendlyLabel(score){
-  var pct=score<=1?score*100:score<=10?score*10:score;
-  if(pct>=75)return{label:'🌟 Strong Match',color:'#2E7D32'};
-  if(pct>=55)return{label:'📈 Good Match',color:'#1565C0'};
-  return{label:'💡 Keep Building',color:'#E65100'};
-}
 function portalViewReport(c,ev){
-  var score=ev&&ev.score!=null?Math.round(ev.score<=1?ev.score*100:ev.score<=10?ev.score*10:ev.score):'N/A';
-  var decision=ev&&ev.decision?ev.decision:'Pending';
-  var decColor={Approved:'#16A34A',Rejected:'#DC2626',Pending:'#D97706'}[decision]||'#6B7280';
-  var strengths=(ev&&ev.strengths||'').split('\n').filter(Boolean).map(function(s){return'<li>'+s+'</li>';}).join('');
-  var weaknesses=(ev&&ev.weaknesses||'').split('\n').filter(Boolean).map(function(s){return'<li>'+s+'</li>';}).join('');
-  var html='<div style="margin-bottom:16px;">'
-    +'<h2 style="margin:0 0 4px;color:#1B2A4A;font-size:18px;">'+( c.name||'Candidate')+'</h2>'
-    +(c.email?'<p style="margin:0;color:#6B7280;font-size:13px;">'+c.email+'</p>':'')
-    +'</div>'
-    +'<div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">'
-    +(ev&&ev.score!=null?(function(){var fl=getCandidateFriendlyLabel(ev.score);return'<span style="display:inline-block;padding:6px 18px;border-radius:20px;background:'+fl.color+'18;color:'+fl.color+';font-size:14px;font-weight:600;">'+fl.label+'</span>';}()):'')
-    +'<div style="background:'+decColor+';color:#fff;border-radius:20px;padding:6px 18px;font-size:13px;font-weight:600;">'+decision+'</div>'
-    +'</div>'
-    +(ev&&ev.reason?'<p style="color:#374151;font-size:13px;margin-bottom:14px;">'+ev.reason+'</p>':'')
-    +(strengths?'<div style="margin-bottom:10px;"><strong style="color:#16A34A;font-size:12px;">Strengths</strong><ul style="margin:4px 0 0 16px;font-size:12px;color:#374151;">'+strengths+'</ul></div>':'')
-    +(weaknesses?'<div style="margin-bottom:10px;"><strong style="color:#DC2626;font-size:12px;">Areas to Improve</strong><ul style="margin:4px 0 0 16px;font-size:12px;color:#374151;">'+weaknesses+'</ul></div>':'');
-  var modal=document.createElement('div');
-  modal.id='portal-report-modal';
-  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;';
-  modal.innerHTML='<div style="background:#fff;border-radius:20px;max-width:520px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+  ev = ev || {};
+  var _pl = function(raw){
+    if(!raw) return [];
+    if(Array.isArray(raw)) return raw.map(String).filter(function(s){return s.trim();});
+    return raw.replace(/^\[|\]$/g,'').split(/[\n•]+/).map(function(s){return s.trim().replace(/^[-•*]\s*/,'');}).filter(function(s){return s.length>0;});
+  };
+  var _esc = function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+
+  var summaryEn = ev.summary_en || ev.reason || '';
+  var summaryAr = ev.summary_ar || '';
+  var strsEn = _pl(ev.strengths);
+  var strsAr = _pl(ev.strengths_ar);
+  var gpsEn = _pl(ev.gaps_en || ev.weaknesses);
+  var gpsAr = _pl(ev.gaps_ar);
+  var iqEn = _pl(ev.suggested_interview_questions);
+  var iqAr = _pl(ev.interview_questions_ar);
+  var hasAr = summaryAr || strsAr.length || gpsAr.length || iqAr.length;
+
+  var langToggle = '<div style="display:flex;gap:6px;margin-bottom:16px;">'
+    +'<button id="prpt-lang-en" onclick="portalSwitchLang(\'en\')" style="background:#1B2A4A;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>'
+    +(hasAr?'<button id="prpt-lang-ar" onclick="portalSwitchLang(\'ar\')" style="background:#F0F2F8;color:#6B7280;border:none;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;">AR</button>':'')
+    +'</div>';
+
+  var bul = function(items){ return items.length?'<ul style="margin:4px 0 0;padding-left:18px;font-size:13px;color:#374151;line-height:1.9;">'+items.map(function(s){return'<li>'+_esc(s)+'</li>';}).join('')+'</ul>':'<span style="font-size:12px;color:#9CA3AF;">—</span>'; };
+  var ord = function(items){ return items.length?'<ol style="margin:4px 0 0;padding-left:18px;font-size:13px;color:#374151;line-height:1.9;">'+items.map(function(q){return'<li>'+_esc(q)+'</li>';}).join('')+'</ol>':''; };
+  var sHd = function(lbl,col){ return '<div style="font-size:11px;font-weight:700;color:'+col+';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">'+lbl+'</div>'; };
+
+  var enBlock = ''
+    +(summaryEn?'<div style="margin-bottom:16px;">'+sHd('Overview','#1B2A4A')+'<div style="background:#F8F9FF;border-radius:10px;padding:14px 16px;font-size:13px;color:#374151;line-height:1.7;">'+_esc(summaryEn)+'</div></div>':'')
+    +(strsEn.length?'<div style="margin-bottom:14px;">'+sHd('Your Strengths','#0F6E56')+bul(strsEn)+'</div>':'')
+    +(gpsEn.length?'<div style="margin-bottom:14px;">'+sHd('Areas to Develop','#854F0B')+bul(gpsEn)+'</div>':'')
+    +(iqEn.length?'<div>'+sHd('You May Be Asked...','#1B2A4A')+ord(iqEn)+'</div>':'');
+
+  var arBlock = hasAr?(''
+    +(summaryAr?'<div style="margin-bottom:16px;">'+sHd('نظرة عامة','#1B2A4A')+'<div style="background:#F8F9FF;border-radius:10px;padding:14px 16px;font-size:13px;color:#374151;line-height:1.9;">'+_esc(summaryAr)+'</div></div>':'')
+    +(strsAr.length?'<div style="margin-bottom:14px;">'+sHd('نقاط قوتك','#0F6E56')+bul(strsAr)+'</div>':'')
+    +(gpsAr.length?'<div style="margin-bottom:14px;">'+sHd('مجالات التطوير','#854F0B')+bul(gpsAr)+'</div>':'')
+    +(iqAr.length?'<div>'+sHd('قد يُسأل عنك...','#1B2A4A')+ord(iqAr)+'</div>':''))
+    :'<div style="color:#9CA3AF;font-size:13px;text-align:center;padding:16px 0;">Arabic content not yet available.</div>';
+
+  var html = langToggle
+    +'<div id="prpt-en">'+enBlock+'</div>'
+    +'<div id="prpt-ar" style="display:none;" dir="rtl">'+arBlock+'</div>';
+
+  var modal = document.createElement('div');
+  modal.id = 'portal-report-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  modal.innerHTML = '<div style="background:#fff;border-radius:20px;max-width:540px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.28);">'
     +'<div style="background:#1B2A4A;color:#fff;padding:16px 20px;border-radius:20px 20px 0 0;display:flex;justify-content:space-between;align-items:center;">'
-    +'<span style="font-weight:600;">AI Evaluation Report</span>'
-    +'<button onclick="document.getElementById(\'portal-report-modal\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px;">×</button>'
+    +'<div><div style="font-weight:600;font-size:15px;">'+_esc(c.name||'Candidate')+'</div><div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px;">Application Overview</div></div>'
+    +'<button onclick="document.getElementById(\'portal-report-modal\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:18px;line-height:1;">×</button>'
     +'</div>'
     +'<div style="padding:20px;">'+html+'</div>'
     +'</div>';
-  document.getElementById('portal-report-modal')&&document.getElementById('portal-report-modal').remove();
+
+  document.getElementById('portal-report-modal') && document.getElementById('portal-report-modal').remove();
   document.body.appendChild(modal);
-  modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+}
+
+function portalSwitchLang(lang){
+  var en=document.getElementById('prpt-en'), ar=document.getElementById('prpt-ar');
+  var btnEn=document.getElementById('prpt-lang-en'), btnAr=document.getElementById('prpt-lang-ar');
+  if(!en||!ar) return;
+  en.style.display=lang==='en'?'':'none'; ar.style.display=lang==='ar'?'':'none';
+  if(btnEn){btnEn.style.background=lang==='en'?'#1B2A4A':'#F0F2F8';btnEn.style.color=lang==='en'?'#fff':'#6B7280';}
+  if(btnAr){btnAr.style.background=lang==='ar'?'#1B2A4A':'#F0F2F8';btnAr.style.color=lang==='ar'?'#fff':'#6B7280';}
 }
 
 /* ─── Init ─── */

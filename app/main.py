@@ -49,6 +49,24 @@ except Exception as e:
     print(f"Warning: Could not create tables at startup: {e}")
     print("App will start anyway and retry on first request")
 
+# Bilingual evaluation columns migration (safe — ADD COLUMN IF NOT EXISTS)
+try:
+    with engine.connect() as _mc:
+        for _col_sql in [
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS summary_en TEXT",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS summary_ar TEXT",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS strengths_ar TEXT",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS gaps_en TEXT",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS gaps_ar TEXT",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS interview_questions_ar JSONB",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS quick_facts JSONB",
+        ]:
+            _mc.execute(text(_col_sql))
+        _mc.commit()
+    print("Evaluation bilingual columns: OK")
+except Exception as _me:
+    print(f"Warning: Evaluation column migration: {_me}")
+
 app = FastAPI(
     title="AI Recruitment System",
     description="An AI-powered recruitment system using FastAPI and Google Gemini API.",

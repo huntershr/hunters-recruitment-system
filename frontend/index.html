@@ -711,35 +711,18 @@
             <span class="modal-title" id="modal-candidate-name">Candidate Details</span>
             <span class="close-btn" onclick="closeModals()">&times;</span>
         </div>
-        <div class="modal-body-area">
-            <div class="eval-card">
-                <div class="eval-header">
-                    <div class="score-circle" id="modal-candidate-score">0%</div>
-                    <div class="decision-badge badge" id="modal-candidate-decision">Pending</div>
-                </div>
-                <div class="candidate-info-summary">
-                    <div><i class='bx bx-phone'></i>&nbsp;<strong>Phone:</strong>&nbsp;<span id="modal-candidate-phone">-</span></div>
-                    <div><i class='bx bx-money'></i>&nbsp;<strong>Expected:</strong>&nbsp;<span id="modal-candidate-expected-salary">-</span></div>
-                </div>
-                <div class="eval-reason">
-                    <h3><i class='bx bx-brain'></i> AI Reasoning</h3>
-                    <p id="modal-candidate-reason">Loading...</p>
-                </div>
-                <div class="eval-strengths-weaknesses">
-                    <div class="strengths">
-                        <h3><i class='bx bx-up-arrow-circle'></i> Strengths</h3>
-                        <p id="modal-candidate-strengths">-</p>
-                    </div>
-                    <div class="weaknesses">
-                        <h3><i class='bx bx-down-arrow-circle'></i> Weaknesses</h3>
-                        <p id="modal-candidate-weaknesses">-</p>
-                    </div>
-                </div>
-                <div class="eval-questions">
-                    <h3><i class='bx bx-question-mark'></i> Interview Questions</h3>
-                    <ul id="modal-candidate-questions"></ul>
-                </div>
-            </div>
+        <div class="modal-body-area" style="padding:0;overflow-y:auto;">
+            <!-- Hidden legacy elements kept for edit-mode form compatibility -->
+            <span id="modal-candidate-phone" style="display:none;"></span>
+            <span id="modal-candidate-expected-salary" style="display:none;"></span>
+            <span id="modal-candidate-score" style="display:none;"></span>
+            <span id="modal-candidate-decision" style="display:none;"></span>
+            <p id="modal-candidate-reason" style="display:none;"></p>
+            <p id="modal-candidate-strengths" style="display:none;"></p>
+            <p id="modal-candidate-weaknesses" style="display:none;"></p>
+            <ul id="modal-candidate-questions" style="display:none;"></ul>
+            <!-- Bilingual report card injected by viewApplication() -->
+            <div id="candidate-report-body" style="padding:20px 24px;"></div>
         </div>
         <div class="modal-footer-bar">
             <button class="btn-secondary" style="width:auto;" onclick="closeModals()">Close</button>
@@ -1158,7 +1141,7 @@ function confirmResetPassword(){
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- CACHE VERSION: bump ?v= number on every app.js change -->
-<script src="app.js?v=1.45"></script>
+<script src="app.js?v=1.46"></script>
 
 <!-- ── SUPERADMIN BULK UPLOAD MODAL ── -->
 <div id="admin-bulk-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">

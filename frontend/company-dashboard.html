@@ -2759,46 +2759,107 @@
     /* ──────────────────────────────
        AI Report Modal
     ────────────────────────────── */
+    function switchReportLang(lang) {
+        const enEl = document.getElementById('rpt-en');
+        const arEl = document.getElementById('rpt-ar');
+        const btnEn = document.getElementById('rpt-lang-en');
+        const btnAr = document.getElementById('rpt-lang-ar');
+        if (!enEl || !arEl) return;
+        enEl.style.display = lang === 'en' ? '' : 'none';
+        arEl.style.display = lang === 'ar' ? '' : 'none';
+        if (btnEn) { btnEn.style.background = lang === 'en' ? '#1B2A4A' : '#F0F2F8'; btnEn.style.color = lang === 'en' ? '#fff' : '#6B7280'; }
+        if (btnAr) { btnAr.style.background = lang === 'ar' ? '#1B2A4A' : '#F0F2F8'; btnAr.style.color = lang === 'ar' ? '#fff' : '#6B7280'; }
+    }
+
     function viewApplicantReport(cand) {
         const ev = cand.evaluation || {};
         const rawScore = ev.score != null ? ev.score : (cand.evaluation_score ?? cand.score);
-        const score = formatScore(rawScore);
+        const pct = formatScore(rawScore) ?? 0;
         const decision = ev.decision || cand.decision || 'Pending';
-        const decColor = decision === 'Accept' || decision === 'Shortlist' ? '#0F6E56' : decision === 'Reject' ? '#A32D2D' : '#854F0B';
-        const decBg = decision === 'Accept' || decision === 'Shortlist' ? '#E1F5EE' : decision === 'Reject' ? '#FCEBEB' : '#FAEEDA';
-        const scorePct = score != null ? score + '%' : 'N/A';
+        const scoreColor = pct >= 65 ? '#0F6E56' : pct >= 40 ? '#854F0B' : '#A32D2D';
+        const decBg = decision === 'Shortlist' || decision === 'Accept' ? '#E1F5EE' : decision === 'Reject' ? '#FCEBEB' : '#FAEEDA';
+        const decCol = decision === 'Shortlist' || decision === 'Accept' ? '#0F6E56' : decision === 'Reject' ? '#A32D2D' : '#854F0B';
         const name = cand.full_name || cand.name || 'Candidate';
+        const initials = name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || '?';
         const cvSafe = name.replace(/[^a-zA-Z0-9_-]/g, '_');
 
-        const strengths = parseListField(ev.strengths);
-        const weaknesses = parseListField(ev.weaknesses);
-
-        // store for coExportScreeningCard(); don't overwrite if coViewReport already set it with the full app object
+        // store for coExportScreeningCard()
         if (!window._lastCoApp || !window._lastCoApp.application_id) {
-            window._lastCoApp = { name: name, email: cand.email||'', job_title: cand.job_title||'', phone: cand.phone||'', experience_years: cand.experience_years, suggested_interview_questions: cand.suggested_interview_questions, score: ev.score, decision: decision, reason: ev.reason||'', strengths: ev.strengths, weaknesses: ev.weaknesses };
+            window._lastCoApp = { name, email: cand.email||'', job_title: cand.job_title||'', phone: cand.phone||'', experience_years: cand.experience_years, suggested_interview_questions: cand.suggested_interview_questions, score: ev.score, decision, reason: ev.reason||ev.summary_en||'', strengths: ev.strengths, weaknesses: ev.weaknesses };
         }
+
+        // Quick facts
+        const qf = (typeof ev.quick_facts === 'object' && ev.quick_facts) ? ev.quick_facts : {};
+        const yrsExp = qf.years_experience != null ? qf.years_experience : cand.experience_years;
+        const curTitle = qf.current_title || cand.last_title || null;
+        const curEmp = qf.current_employer || null;
+        const eduLvl = qf.education_level || null;
+        const skills = Array.isArray(qf.key_skills_found) ? qf.key_skills_found : parseListField(cand.skills||'').slice(0,5);
+        const langs = Array.isArray(qf.languages) ? qf.languages : [];
+
+        const factCard = (lbl, val) => val != null
+            ? `<div style="background:#F8F9FA;border-radius:10px;padding:10px 12px;"><div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">${lbl}</div><div style="font-size:13px;font-weight:500;color:#1B2A4A;">${escHtml(String(val))}</div></div>` : '';
+        const qfHtml = [factCard('Experience', yrsExp!=null?`${yrsExp} yr${yrsExp!==1?'s':''}`:''),factCard('Current Title',curTitle),factCard('Employer',curEmp),factCard('Education',eduLvl)].filter(Boolean).join('');
+        const skillTagsHtml = skills.length ? `<div style="margin-bottom:16px;"><div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Key Skills</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${skills.map(s=>`<span style="background:#EEF2FF;color:#4338CA;border-radius:20px;padding:3px 10px;font-size:11px;">${escHtml(s)}</span>`).join('')}</div></div>` : '';
+        const langTagsHtml = langs.length ? `<div style="display:inline-flex;gap:4px;margin-left:8px;">${langs.map(l=>`<span style="background:#F0FDF4;color:#0F6E56;border-radius:20px;padding:2px 8px;font-size:10px;">${escHtml(l)}</span>`).join('')}</div>` : '';
+
+        // Bilingual content
+        const summaryEn = ev.summary_en || ev.reason || '';
+        const summaryAr = ev.summary_ar || '';
+        const strsEn = parseListField(ev.strengths || '');
+        const strsAr = parseListField(ev.strengths_ar || '');
+        const gpsEn = parseListField(ev.gaps_en || ev.weaknesses || '');
+        const gpsAr = parseListField(ev.gaps_ar || '');
+        const iqEn = parseListField(ev.suggested_interview_questions || cand.suggested_interview_questions || '');
+        const iqAr = parseListField(ev.interview_questions_ar || '');
+
+        const sHd = (lbl,col) => `<div style="font-size:10px;font-weight:600;color:${col};text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">${lbl}</div>`;
+        const bul = items => items.length ? `<ul style="margin:0;padding-left:16px;font-size:13px;color:#374151;line-height:1.9;">${items.map(s=>`<li>${escHtml(s)}</li>`).join('')}</ul>` : '<span style="font-size:12px;color:#9CA3AF;">—</span>';
+        const ord = items => items.length ? `<ol style="margin:0;padding-left:18px;font-size:13px;color:#374151;line-height:1.9;">${items.map(q=>`<li>${escHtml(q)}</li>`).join('')}</ol>` : '';
+
+        const enContent = `
+            ${summaryEn ? `<div style="margin-bottom:16px;">${sHd('Summary','#1B2A4A')}<div style="background:#F8F9FF;border-radius:10px;padding:14px 16px;font-size:13px;color:#374151;line-height:1.7;">${escHtml(summaryEn)}</div></div>` : ''}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                <div>${sHd('Strengths','#0F6E56')}${bul(strsEn)}</div>
+                <div>${sHd('Gaps','#A32D2D')}${bul(gpsEn)}</div>
+            </div>
+            ${iqEn.length ? `<div>${sHd('Interview Questions','#1B2A4A')}<ol style="margin:0;padding-left:18px;font-size:13px;color:#374151;line-height:1.9;">${iqEn.map(q=>`<li>${escHtml(q)}</li>`).join('')}</ol></div>` : ''}`;
+
+        const arContent = summaryAr || strsAr.length || gpsAr.length || iqAr.length ? `
+            ${summaryAr ? `<div style="margin-bottom:16px;">${sHd('الملخص','#1B2A4A')}<div style="background:#F8F9FF;border-radius:10px;padding:14px 16px;font-size:13px;color:#374151;line-height:1.9;">${escHtml(summaryAr)}</div></div>` : ''}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                <div>${sHd('نقاط القوة','#0F6E56')}${bul(strsAr)}</div>
+                <div>${sHd('الثغرات','#A32D2D')}${bul(gpsAr)}</div>
+            </div>
+            ${iqAr.length ? `<div>${sHd('أسئلة المقابلة','#1B2A4A')}${ord(iqAr)}</div>` : ''}` : '<div style="color:#9CA3AF;font-size:13px;text-align:center;padding:20px 0;">Arabic content not yet available for this evaluation.</div>';
 
         document.getElementById('ai-report-modal').style.display = 'flex';
         document.getElementById('ai-report-body').innerHTML = `
-            <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
-                <div style="width:48px;height:48px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:500;flex-shrink:0;">${escHtml(name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?')}</div>
-                <div>
-                    <div style="font-size:17px;font-weight:500;color:#1B2A4A;">${escHtml(name)}</div>
-                    <div style="font-size:12px;color:#9CA3AF;">${escHtml(cand.email || '')} ${cand.job_title ? '· Applied for: ' + escHtml(cand.job_title) : ''}</div>
+            <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;">
+                <div style="width:44px;height:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;">${escHtml(initials)}</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:16px;font-weight:600;color:#1B2A4A;">${escHtml(name)}</div>
+                    <div style="font-size:11px;color:#9CA3AF;margin-top:2px;">${escHtml(cand.email||'')}${cand.job_title?' · Applied for: '+escHtml(cand.job_title):''}</div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                        <span style="display:inline-block;padding:3px 12px;border-radius:12px;background:${decBg};color:${decCol};font-size:11px;font-weight:600;">${escHtml(decision)}</span>
+                        ${langTagsHtml}
+                        <div style="display:flex;gap:4px;margin-left:auto;">
+                            <button id="rpt-lang-en" onclick="switchReportLang('en')" style="background:#1B2A4A;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">EN</button>
+                            <button id="rpt-lang-ar" onclick="switchReportLang('ar')" style="background:#F0F2F8;color:#6B7280;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">AR</button>
+                        </div>
+                    </div>
                 </div>
-                <div style="margin-left:auto;text-align:right;">
-                    <div style="font-size:28px;font-weight:500;color:${decColor};">${scorePct}</div>
-                    <span style="display:inline-block;padding:3px 10px;border-radius:12px;background:${decBg};color:${decColor};font-size:11px;font-weight:500;">${escHtml(decision)}</span>
+                <div style="text-align:right;flex-shrink:0;">
+                    <div style="font-size:30px;font-weight:700;color:${scoreColor};">${pct}%</div>
                 </div>
             </div>
-            ${ev.reason ? `<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">AI Summary</div><div style="background:#F8F9FF;border-radius:10px;padding:14px 16px;font-size:13px;color:#374151;line-height:1.7;">${escHtml(ev.reason)}</div></div>` : ''}
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
-                ${strengths.length ? `<div><div style="font-size:11px;font-weight:600;color:#0F6E56;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Strengths</div><ul style="margin:0;padding-left:16px;font-size:13px;color:#374151;line-height:1.9;">${strengths.map(s=>`<li>${escHtml(s)}</li>`).join('')}</ul></div>` : ''}
-                ${weaknesses.length ? `<div><div style="font-size:11px;font-weight:600;color:#A32D2D;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Areas to Improve</div><ul style="margin:0;padding-left:16px;font-size:13px;color:#374151;line-height:1.9;">${weaknesses.map(w=>`<li>${escHtml(w)}</li>`).join('')}</ul></div>` : ''}
-            </div>
-            <div style="display:flex;gap:10px;padding-top:16px;border-top:0.5px solid #E5E7EB;">
-                ${cand.has_cv ? `<button onclick="downloadCandidateCV(${cand.id},'${cvSafe}')" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:500;cursor:pointer;">↓ Download CV PDF</button>` : ''}
-                <button onclick="coExportScreeningCard()" style="flex:1;background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">📄 Download / Print PDF</button>
+            ${qfHtml ? `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;">${qfHtml}</div>` : ''}
+            ${skillTagsHtml}
+            <div id="rpt-en">${enContent}</div>
+            <div id="rpt-ar" style="display:none;" dir="rtl">${arContent}</div>
+            <div style="display:flex;gap:10px;padding-top:16px;margin-top:16px;border-top:0.5px solid #E5E7EB;">
+                ${cand.has_cv ? `<button onclick="downloadCandidateCV(${cand.id},'${cvSafe}')" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:500;cursor:pointer;">↓ Download CV</button>` : ''}
+                <button onclick="coExportScreeningCard()" style="flex:1;background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">Download / Print PDF</button>
                 <button onclick="closeApplicantModal()" style="flex:1;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:500;cursor:pointer;">Close</button>
             </div>`;
         document.getElementById('ai-report-cand-id') && (document.getElementById('ai-report-cand-id').value = cand.id);
@@ -3656,9 +3717,18 @@
         const cand = {
             full_name: app.name, name: app.name, email: app.email,
             job_title: app.job_title, phone: app.phone || '',
-            experience_years: app.experience_years,
+            experience_years: app.experience_years, last_title: app.last_title,
+            skills: app.skills,
             suggested_interview_questions: app.suggested_interview_questions,
-            evaluation: { score: app.score, decision: app.decision, reason: app.reason, strengths: app.strengths, weaknesses: app.weaknesses },
+            evaluation: {
+                score: app.score, decision: app.decision,
+                reason: app.reason, summary_en: app.summary_en, summary_ar: app.summary_ar,
+                strengths: app.strengths, strengths_ar: app.strengths_ar,
+                weaknesses: app.weaknesses, gaps_en: app.gaps_en, gaps_ar: app.gaps_ar,
+                suggested_interview_questions: app.suggested_interview_questions,
+                interview_questions_ar: app.interview_questions_ar,
+                quick_facts: app.quick_facts,
+            },
             has_cv: app.cv_available, id: app.application_id
         };
         viewApplicantReport(cand);

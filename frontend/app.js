@@ -1016,74 +1016,138 @@ function downloadAppCV(applicationId, safeName) {
         .catch(err => showToast(err.message || 'CV not available for this application.', 'error'));
 }
 
+function switchReportLang(lang) {
+    const enEl = document.getElementById('rpt-en');
+    const arEl = document.getElementById('rpt-ar');
+    const btnEn = document.getElementById('rpt-lang-en');
+    const btnAr = document.getElementById('rpt-lang-ar');
+    if (!enEl || !arEl) return;
+    enEl.style.display = lang === 'en' ? '' : 'none';
+    arEl.style.display = lang === 'ar' ? '' : 'none';
+    if (btnEn) { btnEn.style.background = lang === 'en' ? '#1B2A4A' : '#F0F2F8'; btnEn.style.color = lang === 'en' ? '#fff' : '#6B7280'; }
+    if (btnAr) { btnAr.style.background = lang === 'ar' ? '#1B2A4A' : '#F0F2F8'; btnAr.style.color = lang === 'ar' ? '#fff' : '#6B7280'; }
+}
+
+function buildAdminReportCard(app) {
+    const pct = evalScorePercent(app.score) ?? 0;
+    const decision = app.decision || 'Pending';
+    const scoreColor = pct >= 65 ? '#0F6E56' : pct >= 40 ? '#854F0B' : '#A32D2D';
+    const decBg = decision === 'Shortlist' || decision === 'Accept' ? '#E1F5EE' : decision === 'Reject' ? '#FCEBEB' : '#FAEEDA';
+    const decCol = decision === 'Shortlist' || decision === 'Accept' ? '#0F6E56' : decision === 'Reject' ? '#A32D2D' : '#854F0B';
+    const name = app.name || 'Candidate';
+    const initials = name.split(' ').slice(0, 2).map(w => (w[0] || '')).join('').toUpperCase() || '?';
+    const safeName = name.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    // Quick facts
+    const qf = (typeof app.quick_facts === 'object' && app.quick_facts) ? app.quick_facts : {};
+    const yrsExp = qf.years_experience != null ? qf.years_experience : app.experience_years;
+    const curTitle = qf.current_title || app.last_title || null;
+    const curEmp = qf.current_employer || null;
+    const eduLvl = qf.education_level || null;
+    const skills = Array.isArray(qf.key_skills_found) ? qf.key_skills_found : parseListField(app.skills).slice(0, 5);
+    const langs = Array.isArray(qf.languages) ? qf.languages : [];
+
+    const factCard = (label, val) => val != null
+        ? `<div style="background:#F8F9FA;border-radius:10px;padding:10px 12px;"><div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">${label}</div><div style="font-size:13px;font-weight:500;color:#1B2A4A;">${escHtml(String(val))}</div></div>`
+        : '';
+
+    const quickFactsHtml = [
+        factCard('Experience', yrsExp != null ? `${yrsExp} yr${yrsExp !== 1 ? 's' : ''}` : null),
+        factCard('Current Title', curTitle),
+        factCard('Employer', curEmp),
+        factCard('Education', eduLvl),
+    ].filter(Boolean).join('');
+
+    const skillTagsHtml = skills.length
+        ? `<div style="margin-bottom:16px;"><div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Key Skills</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${skills.map(s => `<span style="background:#EEF2FF;color:#4338CA;border-radius:20px;padding:3px 10px;font-size:11px;">${escHtml(s)}</span>`).join('')}</div></div>`
+        : '';
+    const langTagsHtml = langs.length
+        ? `<div style="display:inline-flex;gap:4px;margin-left:8px;">${langs.map(l => `<span style="background:#F0FDF4;color:#0F6E56;border-radius:20px;padding:2px 8px;font-size:10px;">${escHtml(l)}</span>`).join('')}</div>`
+        : '';
+
+    // Bilingual content helpers
+    const summaryEn = app.summary_en || app.reason || '';
+    const summaryAr = app.summary_ar || '';
+    const strsEn = parseListField(app.summary_en ? (app.strengths || '') : (app.strengths || ''));
+    // For new evals strengths field has "- item" format from new prompt; parse it
+    const strengthsEn = parseListField(app.strengths);
+    const strengthsAr = parseListField(app.strengths_ar);
+    const gapsEn = parseListField(app.gaps_en || app.weaknesses || '');
+    const gapsAr = parseListField(app.gaps_ar || '');
+    const iqEn = parseListField(app.suggested_interview_questions);
+    const iqAr = parseListField(app.interview_questions_ar || '');
+
+    const sectionTitle = (label, color) => `<div style="font-size:10px;font-weight:600;color:${color};text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">${label}</div>`;
+    const bulletList = (items) => items.length
+        ? `<ul style="margin:0;padding-left:16px;font-size:13px;color:#374151;line-height:1.9;">${items.map(s => `<li>${escHtml(s)}</li>`).join('')}</ul>`
+        : '<span style="font-size:12px;color:#9CA3AF;">—</span>';
+    const orderedList = (items) => items.length
+        ? `<ol style="margin:0;padding-left:18px;font-size:13px;color:#374151;line-height:1.9;">${items.map(q => `<li>${escHtml(q)}</li>`).join('')}</ol>`
+        : '<span style="font-size:12px;color:#9CA3AF;">—</span>';
+
+    const enContent = `
+        ${summaryEn ? `<div style="margin-bottom:16px;">${sectionTitle('Summary', '#1B2A4A')}<div style="background:#F8F9FF;border-radius:10px;padding:14px 16px;font-size:13px;color:#374151;line-height:1.7;">${escHtml(summaryEn)}</div></div>` : ''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+            <div>${sectionTitle('Strengths', '#0F6E56')}${bulletList(strengthsEn)}</div>
+            <div>${sectionTitle('Gaps', '#A32D2D')}${bulletList(gapsEn)}</div>
+        </div>
+        ${iqEn.length ? `<div>${sectionTitle('Interview Questions', '#1B2A4A')}${orderedList(iqEn)}</div>` : ''}`;
+
+    const arContent = summaryAr || strengthsAr.length || gapsAr.length || iqAr.length ? `
+        ${summaryAr ? `<div style="margin-bottom:16px;">${sectionTitle('الملخص', '#1B2A4A')}<div style="background:#F8F9FF;border-radius:10px;padding:14px 16px;font-size:13px;color:#374151;line-height:1.9;">${escHtml(summaryAr)}</div></div>` : ''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+            <div>${sectionTitle('نقاط القوة', '#0F6E56')}${bulletList(strengthsAr)}</div>
+            <div>${sectionTitle('الثغرات', '#A32D2D')}${bulletList(gapsAr)}</div>
+        </div>
+        ${iqAr.length ? `<div>${sectionTitle('أسئلة المقابلة', '#1B2A4A')}${orderedList(iqAr)}</div>` : ''}` : '<div style="color:#9CA3AF;font-size:13px;text-align:center;padding:20px 0;">Arabic content not yet available for this evaluation.</div>';
+
+    const cvBtnHtml = app.cv_available
+        ? `<button onclick="downloadAppCV(${app.application_id},'${safeName}')" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:500;cursor:pointer;">↓ Download CV</button>`
+        : '';
+
+    return `
+        <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;">
+            <div style="width:44px;height:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;">${escHtml(initials)}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:16px;font-weight:600;color:#1B2A4A;">${escHtml(name)}</div>
+                <div style="font-size:11px;color:#9CA3AF;margin-top:2px;">${escHtml(app.email || '')}${app.job_title ? ' · ' + escHtml(app.job_title) : ''}${app.phone ? ' · ' + escHtml(app.phone) : ''}</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                    <span style="display:inline-block;padding:3px 12px;border-radius:12px;background:${decBg};color:${decCol};font-size:11px;font-weight:600;">${escHtml(decision)}</span>
+                    ${langTagsHtml}
+                    <div style="display:flex;gap:4px;margin-left:auto;">
+                        <button id="rpt-lang-en" onclick="switchReportLang('en')" style="background:#1B2A4A;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">EN</button>
+                        <button id="rpt-lang-ar" onclick="switchReportLang('ar')" style="background:#F0F2F8;color:#6B7280;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">AR</button>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+                <div style="font-size:30px;font-weight:700;color:${scoreColor};">${pct}%</div>
+            </div>
+        </div>
+        ${quickFactsHtml ? `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;">${quickFactsHtml}</div>` : ''}
+        ${skillTagsHtml}
+        <div id="rpt-en">${enContent}</div>
+        <div id="rpt-ar" style="display:none;" dir="rtl">${arContent}</div>`;
+}
+
 // Phase 3: open the candidate detail modal for a specific application
 function viewApplication(applicationId) {
     const app = applications.find(a => a.application_id === applicationId);
     if (!app) { showToast('Application not found.', 'error'); return; }
     currentApplicationId = applicationId;
     currentCandidateId = app.candidate_id || null;
+    currentEvaluationId = app.evaluation_id || null;
 
-    const safeName = (app.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
+    document.getElementById('modal-candidate-name').innerText = `${app.name || 'Candidate'}'s Report`;
+    // Populate hidden legacy elements so edit mode can read them
+    document.getElementById('modal-candidate-score').innerText = `${evalScorePercent(app.score) ?? 0}%`;
+    document.getElementById('modal-candidate-decision').innerText = app.decision || 'Pending';
+    document.getElementById('modal-candidate-reason').innerText = app.summary_en || app.reason || '';
+    document.getElementById('modal-candidate-strengths').innerText = parseListField(app.strengths).join('\n');
+    document.getElementById('modal-candidate-weaknesses').innerText = parseListField(app.gaps_en || app.weaknesses || '').join('\n');
 
-    document.getElementById("modal-candidate-name").innerText = `${app.name}'s Report`;
-    document.getElementById("modal-candidate-phone").innerText = app.phone || '—';
-    document.getElementById("modal-candidate-expected-salary").innerText = '—';
-
-    // CV button
-    const modalContent = document.getElementById("candidate-detail-modal");
-    let cvBtn = document.getElementById("modal-cv-download-btn");
-    if (!cvBtn) {
-        cvBtn = document.createElement("button");
-        cvBtn.id = "modal-cv-download-btn";
-        cvBtn.style.cssText = "margin:12px 0 0;width:100%;padding:10px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;";
-        const footer = modalContent.querySelector(".modal-footer") || modalContent.querySelector(".modal-content");
-        if (footer) footer.appendChild(cvBtn);
-    }
-    if (app.cv_available) {
-        cvBtn.style.display = 'block';
-        cvBtn.textContent = '↓ Download CV PDF';
-        cvBtn.onclick = () => downloadAppCV(applicationId, safeName);
-    } else {
-        cvBtn.style.display = 'none';
-    }
-
-    if (app.evaluation_id) {
-        currentEvaluationId = app.evaluation_id;
-        const pct = evalScorePercent(app.score) ?? 0;
-        document.getElementById("modal-candidate-score").innerText = `${pct}%`;
-        document.getElementById("modal-candidate-score").style.background = `conic-gradient(var(--primary) ${pct}%, var(--bg-dark) 0)`;
-        document.getElementById("modal-candidate-decision").innerText = app.decision || 'Pending';
-        document.getElementById("modal-candidate-decision").className = `decision-badge badge ${(app.decision || 'pending').toLowerCase()}`;
-        document.getElementById("modal-candidate-reason").innerText = app.reason || 'No evaluation reason available.';
-
-        const strList = parseListField(app.strengths);
-        document.getElementById("modal-candidate-strengths").innerHTML = strList.length
-            ? `<ul style="margin:4px 0 0;padding-left:18px;line-height:1.8;">${strList.map(s => `<li>${escHtml(s)}</li>`).join('')}</ul>`
-            : '<span style="color:#9CA3AF;">None noted.</span>';
-        const wkList = parseListField(app.weaknesses);
-        document.getElementById("modal-candidate-weaknesses").innerHTML = wkList.length
-            ? `<ul style="margin:4px 0 0;padding-left:18px;line-height:1.8;">${wkList.map(s => `<li>${escHtml(s)}</li>`).join('')}</ul>`
-            : '<span style="color:#9CA3AF;">None noted.</span>';
-        const qList = document.getElementById("modal-candidate-questions");
-        qList.innerHTML = "";
-        const qs = parseListField(app.suggested_interview_questions);
-        if (qs.length > 0) {
-            qs.forEach(q => { qList.innerHTML += `<li>${escHtml(q)}</li>`; });
-        } else {
-            qList.innerHTML = "<li>No specific questions generated.</li>";
-        }
-    } else {
-        currentEvaluationId = null;
-        document.getElementById("modal-candidate-score").innerText = "0%";
-        document.getElementById("modal-candidate-score").style.background = `conic-gradient(var(--primary) 0%, var(--bg-dark) 0)`;
-        document.getElementById("modal-candidate-decision").innerText = "Pending";
-        document.getElementById("modal-candidate-reason").innerText = "No evaluation available for this application.";
-        document.getElementById("modal-candidate-strengths").innerText = "—";
-        document.getElementById("modal-candidate-weaknesses").innerText = "—";
-        document.getElementById("modal-candidate-questions").innerHTML = "";
-    }
-
-    document.getElementById("candidate-detail-modal").classList.add("active");
+    document.getElementById('candidate-report-body').innerHTML = buildAdminReportCard(app);
+    document.getElementById('candidate-detail-modal').classList.add('active');
 }
 
 function viewBasicProfile(applicationId) { viewAtsProfile(applicationId); }
@@ -2028,35 +2092,41 @@ function filterCompany(val) {
 let isEditMode = false;
 function toggleEditEvaluation() {
     isEditMode = !isEditMode;
-    const scoreEl = document.getElementById("modal-candidate-score");
-    const decisionEl = document.getElementById("modal-candidate-decision");
-    const reasonEl = document.getElementById("modal-candidate-reason");
-    const strengthsEl = document.getElementById("modal-candidate-strengths");
-    const weaknessesEl = document.getElementById("modal-candidate-weaknesses");
-    
-    const editBtn = document.getElementById("edit-eval-btn");
-    const saveBtn = document.getElementById("save-eval-btn");
+    const editBtn = document.getElementById('edit-eval-btn');
+    const saveBtn = document.getElementById('save-eval-btn');
+    const body = document.getElementById('candidate-report-body');
 
     if (isEditMode) {
-        const rawVal = scoreEl.innerText.trim().replace(/%/g, "");
-        scoreEl.innerHTML = `<input type="number" min="0" max="100" step="1" id="edit-score" value="${rawVal}" style="width: 72px; font-size: 20px; text-align: center; border-radius: 50%;">`;
-        decisionEl.innerHTML = `
-            <select id="edit-decision" style="padding: 4px; border-radius: 8px;">
-                <option value="Shortlist" ${decisionEl.innerText === 'Shortlist' ? 'selected' : ''}>Shortlist</option>
-                <option value="Maybe" ${decisionEl.innerText === 'Maybe' ? 'selected' : ''}>Maybe</option>
-                <option value="Reject" ${decisionEl.innerText === 'Reject' ? 'selected' : ''}>Reject</option>
-            </select>
-        `;
-        reasonEl.innerHTML = `<textarea id="edit-reason" style="width: 100%; height: 100px; padding: 10px; border-radius: 10px; border: 1px solid var(--border);">${reasonEl.innerText}</textarea>`;
-        strengthsEl.innerHTML = `<textarea id="edit-strengths" style="width: 100%; height: 80px; padding: 10px; border-radius: 10px; border: 1px solid var(--border);">${strengthsEl.innerText}</textarea>`;
-        weaknessesEl.innerHTML = `<textarea id="edit-weaknesses" style="width: 100%; height: 80px; padding: 10px; border-radius: 10px; border: 1px solid var(--border);">${weaknessesEl.innerText}</textarea>`;
-        
+        const app = applications.find(a => a.application_id === currentApplicationId) || {};
+        const curScore = evalScorePercent(app.score) ?? 0;
+        const curDec = app.decision || 'Pending';
+        const curReason = app.summary_en || app.reason || '';
+        const curStrengths = parseListField(app.strengths).join('\n');
+        const curWeaknesses = parseListField(app.gaps_en || app.weaknesses || '').join('\n');
+
+        body.innerHTML = `
+            <div style="display:flex;flex-direction:column;gap:14px;">
+                <div><label style="font-size:11px;font-weight:600;color:#1B2A4A;display:block;margin-bottom:6px;">Score (0–100)</label>
+                    <input type="number" id="edit-score" min="0" max="100" step="1" value="${curScore}" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #E5E7EB;font-size:14px;"></div>
+                <div><label style="font-size:11px;font-weight:600;color:#1B2A4A;display:block;margin-bottom:6px;">Decision</label>
+                    <select id="edit-decision" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #E5E7EB;font-size:14px;">
+                        <option value="Shortlist" ${curDec === 'Shortlist' ? 'selected' : ''}>Shortlist</option>
+                        <option value="Maybe" ${curDec === 'Maybe' ? 'selected' : ''}>Maybe</option>
+                        <option value="Reject" ${curDec === 'Reject' ? 'selected' : ''}>Reject</option>
+                    </select></div>
+                <div><label style="font-size:11px;font-weight:600;color:#1B2A4A;display:block;margin-bottom:6px;">Summary</label>
+                    <textarea id="edit-reason" style="width:100%;height:90px;padding:10px;border-radius:8px;border:1px solid #E5E7EB;font-size:13px;resize:vertical;">${escHtml(curReason)}</textarea></div>
+                <div><label style="font-size:11px;font-weight:600;color:#1B2A4A;display:block;margin-bottom:6px;">Strengths (one per line)</label>
+                    <textarea id="edit-strengths" style="width:100%;height:70px;padding:10px;border-radius:8px;border:1px solid #E5E7EB;font-size:13px;resize:vertical;">${escHtml(curStrengths)}</textarea></div>
+                <div><label style="font-size:11px;font-weight:600;color:#1B2A4A;display:block;margin-bottom:6px;">Gaps (one per line)</label>
+                    <textarea id="edit-weaknesses" style="width:100%;height:70px;padding:10px;border-radius:8px;border:1px solid #E5E7EB;font-size:13px;resize:vertical;">${escHtml(curWeaknesses)}</textarea></div>
+            </div>`;
+
         editBtn.innerHTML = "<i class='bx bx-x'></i> Cancel";
-        saveBtn.style.display = "block";
+        saveBtn.style.display = 'block';
     } else {
-        // Cancel: restore view mode from cached data — no page reload needed
         editBtn.innerHTML = "<i class='bx bx-edit'></i> Edit Report";
-        saveBtn.style.display = "none";
+        saveBtn.style.display = 'none';
         viewApplication(currentApplicationId);
     }
 }
