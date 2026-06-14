@@ -1069,6 +1069,7 @@ def list_admin_applications(
             "skills": candidate.skills if candidate else None,
             "experience_years": candidate.experience_years if candidate else None,
             "last_title": candidate.last_title if candidate else None,
+            "photo_url": candidate.photo_url if candidate else None,
             "cv_available": bool(
                 (candidate and (candidate.cv_file_mime or candidate.cv_text)) or
                 (app.cv_file_mime or app.cv_text)
