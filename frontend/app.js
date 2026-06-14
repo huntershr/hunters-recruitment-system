@@ -171,6 +171,10 @@ async function fetchData() {
             const appData = await appRes.json();
             applications = Array.isArray(appData.applications) ? appData.applications : [];
             console.log('[fetchData] applications loaded:', applications.length, 'items');
+            // If SA job-pipeline is active, filter to that job so the view isn't reset
+            if (typeof _saActiveJobId !== 'undefined' && _saActiveJobId) {
+                applications = applications.filter(a => String(a.job_id) === String(_saActiveJobId));
+            }
         } else {
             console.warn('[fetchData] /api/admin/applications returned non-OK status:', appRes.status);
         }
@@ -1983,17 +1987,17 @@ function exportScreeningCard(id) {
             </div>
             <div class="card">
                 <div class="header">
-                    <h1>🎯 HUNTERS — CANDIDATE: "${candidate.name}" LIVE SCREENING CARD</h1>
+                    <h1>HUNTERS — CANDIDATE: "${candidate.name}" LIVE SCREENING CARD</h1>
                 </div>
-                
-                <div class="section-title">📋 CANDIDATE INFORMATION</div>
+
+                <div class="section-title">CANDIDATE INFORMATION</div>
                 <div class="grid"><div class="label">Candidate Name</div><div>${candidate.name}</div></div>
                 <div class="grid"><div class="label">Role Applied For</div><div>${job.job_title}</div></div>
                 <div class="grid"><div class="label">Phone Number</div><div>${candidate.phone}</div></div>
                 <div class="grid"><div class="label">Screening Date</div><div>${new Date().toLocaleDateString()}</div></div>
                 <div class="grid"><div class="label">Years of Experience</div><div>${candidate.experience_years}</div></div>
 
-                <div class="section-title">⚖️ COMPETENCY SCORING</div>
+                <div class="section-title">COMPETENCY SCORING</div>
                 <div class="grid" style="grid-template-columns: 1fr 1fr 100px;">
                     <div class="label">Metric</div><div class="label">Notes / Details</div><div class="label">AI Score</div>
                 </div>
@@ -2007,24 +2011,24 @@ function exportScreeningCard(id) {
                     <div class="label">Education Weight: ${job.weight_education}</div><div>Academic background alignment</div><div>${app.score_education != null ? app.score_education + '%' : '-'}</div>
                 </div>
 
-                <div class="score-summary">🔢 SCORE SUMMARY</div>
+                <div class="score-summary">SCORE SUMMARY</div>
                 <div class="grid"><div class="label">Weighted AI Score</div><div style="font-size: 24px; font-weight: 500; color: #1B2A4A;">${printPct != null ? printPct + '%' : '—'}</div></div>
 
-                <div class="section-title">⚙️ AUTO DECISION ENGINE</div>
+                <div class="section-title">AUTO DECISION ENGINE</div>
                 <div class="decision-box">
                     <div class="label">SCREENING DECISION</div>
                     <div class="value" style="color: ${(ev.decision || '').toLowerCase() === 'reject' ? '#df2029' : '#10b981'}">${(ev.decision || 'Pending').toUpperCase()}</div>
                 </div>
 
-                <div class="rejection-reason">🚩 ANALYSIS & REASONING</div>
+                <div class="rejection-reason">ANALYSIS & REASONING</div>
                 <div class="reason-list">
-                    ${(ev.reason || '').split('\n').filter(Boolean).map(r => `<p>🚩 ${r}</p>`).join('') || '<p>No reason provided.</p>'}
+                    ${(ev.reason || '').split('\n').filter(Boolean).map(r => `<p>${r}</p>`).join('') || '<p>No reason provided.</p>'}
                 </div>
 
-                <div class="section-title">📝 SCREENER NOTES & RECOMMENDATION</div>
+                <div class="section-title">SCREENER NOTES & RECOMMENDATION</div>
                 <div class="notes-section">
                     <strong>Strengths:</strong><br>${printStrengths}<br><br>
-                    <strong>Weaknesses:</strong><br>${printWeaknesses}
+                    <strong>Gaps / Areas to Improve:</strong><br>${printWeaknesses}
                 </div>
             </div>
         </body>

@@ -2905,28 +2905,28 @@
             '<button onclick="window.print()" style="padding:10px 20px;background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">Download / Print PDF</button>' +
             '</div>' +
             '<div class="card">' +
-            '<div class="header"><h1>🎯 HUNTERS — CANDIDATE: "' + (app.name || '') + '" LIVE SCREENING CARD</h1></div>' +
-            '<div class="section-title">📋 CANDIDATE INFORMATION</div>' +
+            '<div class="header"><h1>HUNTERS — CANDIDATE: "' + (app.name || '') + '" LIVE SCREENING CARD</h1></div>' +
+            '<div class="section-title">CANDIDATE INFORMATION</div>' +
             '<div class="grid"><div class="label">Candidate Name</div><div>' + (app.name || '—') + '</div></div>' +
             '<div class="grid"><div class="label">Role Applied For</div><div>' + (app.job_title || '—') + '</div></div>' +
             '<div class="grid"><div class="label">Phone Number</div><div>' + (app.phone || '—') + '</div></div>' +
             '<div class="grid"><div class="label">Screening Date</div><div>' + new Date().toLocaleDateString() + '</div></div>' +
             '<div class="grid"><div class="label">Years of Experience</div><div>' + (app.experience_years != null ? app.experience_years : '—') + '</div></div>' +
-            '<div class="section-title">⚖️ COMPETENCY SCORING</div>' +
+            '<div class="section-title">COMPETENCY SCORING</div>' +
             '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Metric</div><div class="label">Notes / Details</div><div class="label">AI Score</div></div>' +
             '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Experience Weight: ' + (app.weight_experience != null ? app.weight_experience + '%' : '—') + '</div><div>Verified against JD requirements</div><div>' + (app.score_experience != null ? app.score_experience + '%' : '-') + '</div></div>' +
             '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Skills Weight: ' + (app.weight_skills != null ? app.weight_skills + '%' : '—') + '</div><div>AI analysis of core technologies</div><div>' + (app.score_skills != null ? app.score_skills + '%' : '-') + '</div></div>' +
             '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Education Weight: ' + (app.weight_education != null ? app.weight_education + '%' : '—') + '</div><div>Academic background alignment</div><div>' + (app.score_education != null ? app.score_education + '%' : '-') + '</div></div>' +
-            '<div class="score-summary">🔢 SCORE SUMMARY</div>' +
+            '<div class="score-summary">SCORE SUMMARY</div>' +
             '<div class="grid"><div class="label">Weighted AI Score</div><div style="font-size:24px;font-weight:500;color:#1B2A4A;">' + (printPct != null ? printPct + '%' : '—') + '</div></div>' +
-            '<div class="section-title">⚙️ AUTO DECISION ENGINE</div>' +
+            '<div class="section-title">AUTO DECISION ENGINE</div>' +
             '<div class="decision-box"><div class="label">SCREENING DECISION</div>' +
             '<div class="value" style="color:' + ((app.decision || '').toLowerCase() === 'reject' ? '#df2029' : '#10b981') + '">' + (app.decision || 'Pending').toUpperCase() + '</div></div>' +
-            '<div class="rejection-reason">🚩 ANALYSIS & REASONING</div>' +
-            '<div class="reason-list">' + ((app.reason || '').split('\n').filter(Boolean).map(r => '<p>🚩 ' + r + '</p>').join('') || '<p>No reason provided.</p>') + '</div>' +
-            '<div class="section-title">📝 SCREENER NOTES & RECOMMENDATION</div>' +
-            '<div class="notes-section"><strong>Strengths:</strong><br>' + printStrengths + '<br><br><strong>Weaknesses / Areas to Improve:</strong><br>' + printWeaknesses + '</div>' +
-            (iqList.length ? '<div class="section-title">❓ SUGGESTED INTERVIEW QUESTIONS</div><div class="iq-section">' + iqRows + '</div>' : '') +
+            '<div class="rejection-reason">ANALYSIS & REASONING</div>' +
+            '<div class="reason-list">' + ((app.reason || '').split('\n').filter(Boolean).map(r => '<p>' + r + '</p>').join('') || '<p>No reason provided.</p>') + '</div>' +
+            '<div class="section-title">SCREENER NOTES & RECOMMENDATION</div>' +
+            '<div class="notes-section"><strong>Strengths:</strong><br>' + printStrengths + '<br><br><strong>Gaps / Areas to Improve:</strong><br>' + printWeaknesses + '</div>' +
+            (iqList.length ? '<div class="section-title">SUGGESTED INTERVIEW QUESTIONS</div><div class="iq-section">' + iqRows + '</div>' : '') +
             '</div></body></html>';
         printWindow.document.write(html);
         printWindow.document.close();

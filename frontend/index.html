@@ -1141,7 +1141,7 @@ function confirmResetPassword(){
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- CACHE VERSION: bump ?v= number on every app.js change -->
-<script src="app.js?v=1.46"></script>
+<script src="app.js?v=1.47"></script>
 
 <!-- ── SUPERADMIN BULK UPLOAD MODAL ── -->
 <div id="admin-bulk-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">
@@ -1312,7 +1312,17 @@ async function startAdminBulkProcessing() {
       '</div>';
   }).join('');
   resEl.style.display = 'block';
-  btn.textContent = 'Done ✓';
+
+  var successCount = results.filter(function(r) { return r.decision && r.decision !== 'Error'; }).length;
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  btn.style.background = '#0F6E56';
+  btn.style.color = '#fff';
+  btn.textContent = 'Done';
+  btn.onclick = function() {
+    closeAdminBulkUpload();
+    if (typeof showToast === 'function') showToast(successCount + ' candidate' + (successCount !== 1 ? 's' : '') + ' screened successfully', 'success');
+  };
   if (typeof fetchData === 'function') fetchData();
 }
 </script>
