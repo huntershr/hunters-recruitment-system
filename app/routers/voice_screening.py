@@ -399,6 +399,12 @@ def get_session(token: str, db: Session = Depends(get_db)):
     cand = vs.candidate
     app  = vs.application
     cand_name = (cand.name if cand else None) or (app.applicant_name if app else "Candidate")
+    job  = app.job if app else None
+    company_name = (
+        job.owner.company.company_name
+        if job and job.owner and job.owner.company
+        else None
+    )
     return {
         "screening_id": vs.id,
         "candidate_name": cand_name,
@@ -406,6 +412,7 @@ def get_session(token: str, db: Session = Depends(get_db)):
         "job_type": vs.job_type_at_time,
         "interview_date": vs.interview_date_at_time,
         "interview_time": vs.interview_time_at_time,
+        "company_name": company_name,
         "questions": questions,
     }
 

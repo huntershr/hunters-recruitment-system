@@ -151,6 +151,7 @@ let _jobTitle      = '';
 let _jobType       = '';
 let _interviewDate = '';
 let _interviewTime = '';
+let _companyName   = '';
 let _currentTranscript = '';
 let _sttLang       = 'en';
 let _langSwitch    = false;
@@ -259,9 +260,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     _jobType       = data.job_type        || 'Full-time';
     _interviewDate = data.interview_date  || '';
     _interviewTime = data.interview_time  || '';
+    _companyName   = data.company_name    || '';
     _questionsAR   = _buildArabicQuestions(_jobTitle, _jobType, _interviewDate, _interviewTime);
 
-    document.getElementById('header-sub').textContent = _jobTitle + ' · Screening';
+    const subParts = [_companyName, _jobTitle, 'Screening'].filter(Boolean);
+    document.getElementById('header-sub').textContent = subParts.join(' · ');
     document.getElementById('done-name').textContent  = _candName;
     _renderGreeting();
     show('state-greeting');
