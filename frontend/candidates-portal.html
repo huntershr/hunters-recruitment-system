@@ -79,14 +79,6 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
 .cv-drop{border:2px dashed #CBD5E1;border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;}
 .cv-drop:hover,.cv-drop.dragover{border-color:var(--navy);background:#F0F4FF;}
 @keyframes spin{to{transform:rotate(360deg);}}
-/* Job Share Section */
-.share-icon-row{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap;}
-.share-label{font-size:11px;color:#C4C9D4;font-weight:400;white-space:nowrap;margin-right:2px;}
-.share-icon-btn{background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity 0.15s ease;border-radius:4px;line-height:0;}
-.share-icon-btn:hover{opacity:0.65;}
-.share-copy-btn{background:none;border:none;color:#C4C9D4;font-size:11px;font-weight:400;cursor:pointer;padding:0 2px;transition:color 0.15s ease;}
-.share-copy-btn:hover{color:#9CA3AF;}
-.share-copy-btn.copied{color:#C9A84C;}
 </style>
 </head>
 <body>
@@ -437,18 +429,7 @@ function portalCopyJobLink(jobId,btn){
     showToast('Job link copied!');
   });
 }
-function portalJobShareHtml(jobId){
-  var li='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="#EAECEF"/><path d="M7 9h2v8H7V9zm1-1a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 8 8zm3 1h2v1.1c.3-.6 1-1.1 2-1.1 2 0 2.9 1.3 2.9 3.2V17h-2v-4.5c0-1-.3-1.5-1-1.5s-1.5.5-1.5 1.6V17h-2V9z" fill="#8C95A6"/></svg>';
-  var fb='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="#EAECEF"/><path d="M13.5 8H15V6h-1.5C12.1 6 11 7.1 11 8.5V10H9.5v2H11v6h2v-6h1.5l.5-2H13v-1.5c0-.3.2-.5.5-.5z" fill="#8C95A6"/></svg>';
-  var wa='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="#EAECEF"/><path d="M12 4a8 8 0 0 0-6.93 11.97L4 20l4.17-1.04A8 8 0 1 0 12 4zm4.12 10.88c-.18.5-1.04.95-1.43 1-.37.04-.72.18-2.42-.5-2.04-.83-3.34-2.9-3.44-3.03-.1-.13-.82-1.09-.82-2.08 0-1 .52-1.48.71-1.69.18-.2.4-.25.53-.25h.38c.12 0 .28-.04.44.34.17.4.57 1.38.62 1.48.05.1.08.22.02.35-.06.13-.1.2-.2.32-.1.12-.21.26-.3.35-.1.1-.2.2-.09.4.12.2.52.86 1.12 1.39.77.69 1.42.9 1.62 1 .2.1.32.08.44-.05.12-.13.5-.58.64-.78.13-.2.26-.17.44-.1.18.07 1.15.54 1.35.64.2.1.33.15.38.23.05.09.05.51-.13 1.01z" fill="#8C95A6"/></svg>';
-  return '<div class="share-icon-row" onclick="event.stopPropagation()">'
-    +'<span class="share-label">Share:</span>'
-    +'<button onclick="portalShareJob(\'linkedin\','+jobId+')" class="share-icon-btn" title="Share on LinkedIn">'+li+'</button>'
-    +'<button onclick="portalShareJob(\'facebook\','+jobId+')" class="share-icon-btn" title="Share on Facebook">'+fb+'</button>'
-    +'<button onclick="portalShareJob(\'whatsapp\','+jobId+')" class="share-icon-btn" title="Share on WhatsApp">'+wa+'</button>'
-    +'<button onclick="portalCopyJobLink('+jobId+',this)" class="share-copy-btn">Copy Link</button>'
-    +'</div>';
-}
+function portalJobShareHtml(jobId){ return ''; }
 function fixScore(r){if(r===null||r===undefined)return null;var n=Number(r);if(isNaN(n))return null;if(n<=1)return Math.round(n*100);if(n<=10)return Math.round(n*10);return Math.round(Math.min(100,n));}
 function scoreStyle(pct){if(pct===null)return{bg:'#F5F6F8',tx:'#6B7280'};if(pct>=75)return{bg:'#E1F5EE',tx:'#0F6E56'};if(pct>=50)return{bg:'#FAEEDA',tx:'#854F0B'};return{bg:'#FCEBEB',tx:'#A32D2D'};}
 function getCandidateMessage(score){
@@ -1608,10 +1589,10 @@ async function renderProfile(){
       /* No-Candidate-row banner */
       (hasNoRow?'<div style="background:#FEF3C7;border:0.5px solid #FCD34D;border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#92400E;">Apply to a job to save your profile, or fill it in and apply — your profile will be created automatically.</div>':'')+
       /* Auto-fill banner */
-      '<div id="cv-autofill-banner" style="background:#EEF2FF;border:0.5px solid #C7D2FE;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">' +
+      '<div id="cv-autofill-banner" style="background:#F8F9FA;border:0.5px solid #E5E7EB;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">' +
         '<svg width="20" height="20" fill="none" stroke="#4F46E5" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
         '<div style="flex:1;min-width:160px;"><div style="font-size:13px;font-weight:500;color:#1B2A4A;">Have an existing CV?</div><div style="font-size:11px;color:#6B7280;margin-top:2px;">Upload it and AI will auto-fill your profile fields instantly</div></div>' +
-        '<label style="background:#4F46E5;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;">📄 Upload CV to Auto-Fill<input type="file" accept=".pdf,.docx" style="display:none;" onchange="extractCVForProfile(this.files[0])"></label>' +
+        '<label style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;">Upload CV to Auto-Fill<input type="file" accept=".pdf,.docx" style="display:none;" onchange="extractCVForProfile(this.files[0])"></label>' +
       '</div>' +
       /* Saved CV status card */
       '<div style="background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,0.06);padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">' +
