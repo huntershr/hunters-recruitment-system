@@ -1704,6 +1704,7 @@
                     created_at: j.created_at,
                     description: j.job_description || j.description,
                     required_skills: j.required_skills,
+                    department: j.department || 'Other',
                     ai_score: aiScore,
                     company: currentCompany || null,
                     company_id: currentCompany ? currentCompany.id : null,
@@ -4586,7 +4587,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.6"></script>
+<script src="hunters-jobs.js?v=3.7"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies

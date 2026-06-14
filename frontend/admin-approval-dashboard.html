@@ -1136,6 +1136,7 @@
                 created_at: j.created_at,
                 description: j.job_description || j.description,
                 required_skills: j.required_skills,
+                department: j.department || 'Other',
                 ai_weights: {
                     experience: Math.round((j.weight_experience || 0) * 100),
                     skills: Math.round((j.weight_skills || 0) * 100),
