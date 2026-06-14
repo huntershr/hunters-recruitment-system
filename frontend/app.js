@@ -2716,6 +2716,13 @@ function _coWsJobFormModal(job, companyId) {
     const html = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             <div style="grid-column:span 2;">
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Department *</label>
+                <select id="cj-department" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+                    <option value="">— Select Department —</option>
+                    ${['Education','Human Resources','Administration & Operations','Finance & Accounting','Marketing & Communications','Sales & Business Development','Technology & IT','Legal & Compliance','Healthcare & Medical','Engineering & Technical','Customer Service','Media & Production','Hospitality & Tourism','Logistics & Supply Chain','Research & Consulting','Banking & Insurance','NGO & Non-Profit','Government & Public Sector','Pharmaceuticals & Medical Devices','Agriculture & Food Production','Manufacturing & Textile','Translation & Interpretation','Other'].map(d=>`<option value="${d}"${(job&&job.department===d)||(!job&&d==='Other')?'selected':''}>${d}</option>`).join('')}
+                </select>
+            </div>
+            <div style="grid-column:span 2;">
                 <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Job Title *</label>
                 <input id="cj-title" value="${v('job_title')}" placeholder="e.g. Senior Accountant" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
             </div>
@@ -2808,6 +2815,7 @@ function _coWsJobFormModal(job, companyId) {
     createAdminModal(title, html, async () => {
         const payload = {
             company_id: companyId,
+            department: document.getElementById('cj-department')?.value || 'Other',
             title: (document.getElementById('cj-title')?.value || '').trim(),
             location: document.getElementById('cj-location')?.value || '',
             experience_years: parseInt(document.getElementById('cj-exp')?.value) || 0,
