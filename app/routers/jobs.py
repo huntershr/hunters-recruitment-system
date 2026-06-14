@@ -38,6 +38,7 @@ def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
         salary_range     = salary_range,
         hide_salary      = bool(job.hide_salary),
         industry_experience = job.industry_experience,
+        department       = job.department or "Other",
         weight_experience = round(exp_w / 100, 4),
         weight_skills     = round(skl_w / 100, 4),
         weight_education  = round(edu_w / 100, 4),

@@ -526,6 +526,36 @@
                 </div>
             </div>
 
+            <!-- Department filter -->
+            <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <select id="jobs-dept-filter" onchange="renderJobs()" style="padding:7px 10px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;color:#1B2A4A;background:#fff;min-width:180px;">
+                    <option value="">All Departments</option>
+                    <option>Education</option>
+                    <option>Human Resources</option>
+                    <option>Administration &amp; Operations</option>
+                    <option>Finance &amp; Accounting</option>
+                    <option>Marketing &amp; Communications</option>
+                    <option>Sales &amp; Business Development</option>
+                    <option>Technology &amp; IT</option>
+                    <option>Legal &amp; Compliance</option>
+                    <option>Healthcare &amp; Medical</option>
+                    <option>Engineering &amp; Technical</option>
+                    <option>Customer Service</option>
+                    <option>Media &amp; Production</option>
+                    <option>Hospitality &amp; Tourism</option>
+                    <option>Logistics &amp; Supply Chain</option>
+                    <option>Research &amp; Consulting</option>
+                    <option>Banking &amp; Insurance</option>
+                    <option>NGO &amp; Non-Profit</option>
+                    <option>Government &amp; Public Sector</option>
+                    <option>Pharmaceuticals &amp; Medical Devices</option>
+                    <option>Agriculture &amp; Food Production</option>
+                    <option>Manufacturing &amp; Textile</option>
+                    <option>Translation &amp; Interpretation</option>
+                    <option>Other</option>
+                </select>
+            </div>
+
             <!-- Card view -->
             <div class="jobs-grid" id="jobs-card-view"></div>
 
@@ -851,6 +881,35 @@
                                 Step 1 of 3 — Fill in the basic job details below
                             </div>
                             <div class="form-grid">
+                                <div class="form-group" style="grid-column:1/-1;">
+                                    <label class="field-label">Department <span style="color:#A32D2D;">*</span></label>
+                                    <select id="manual-job-department" class="field-input" required style="padding:10px 12px;">
+                                        <option value="">— Select Department —</option>
+                                        <option>Education</option>
+                                        <option>Human Resources</option>
+                                        <option>Administration &amp; Operations</option>
+                                        <option>Finance &amp; Accounting</option>
+                                        <option>Marketing &amp; Communications</option>
+                                        <option>Sales &amp; Business Development</option>
+                                        <option>Technology &amp; IT</option>
+                                        <option>Legal &amp; Compliance</option>
+                                        <option>Healthcare &amp; Medical</option>
+                                        <option>Engineering &amp; Technical</option>
+                                        <option>Customer Service</option>
+                                        <option>Media &amp; Production</option>
+                                        <option>Hospitality &amp; Tourism</option>
+                                        <option>Logistics &amp; Supply Chain</option>
+                                        <option>Research &amp; Consulting</option>
+                                        <option>Banking &amp; Insurance</option>
+                                        <option>NGO &amp; Non-Profit</option>
+                                        <option>Government &amp; Public Sector</option>
+                                        <option>Pharmaceuticals &amp; Medical Devices</option>
+                                        <option>Agriculture &amp; Food Production</option>
+                                        <option>Manufacturing &amp; Textile</option>
+                                        <option>Translation &amp; Interpretation</option>
+                                        <option>Other</option>
+                                    </select>
+                                </div>
                                 <div class="form-group">
                                     <label class="field-label">Job Title</label>
                                     <input type="text" id="manual-job-title" class="field-input"
@@ -1141,7 +1200,7 @@ function confirmResetPassword(){
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- CACHE VERSION: bump ?v= number on every app.js change -->
-<script src="app.js?v=1.47"></script>
+<script src="app.js?v=1.48"></script>
 
 <!-- ── SUPERADMIN BULK UPLOAD MODAL ── -->
 <div id="admin-bulk-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">

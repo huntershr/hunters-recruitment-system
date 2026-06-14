@@ -417,6 +417,7 @@ function huntersJobCardInner(job, opts) {
         </div>
         <div style="font-size:15px;font-weight:500;color:#1B2A4A;margin-top:12px;line-height:1.35;max-height:2.7em;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${huntersEsc(title)}</div>
         <div ${companyClick} style="font-size:12px;color:#8C95A6;margin-top:2px;cursor:${cid ? 'pointer' : 'default'};font-weight:500;${cid ? '' : 'opacity:0.7;'}" title="${huntersEsc(cname)}">${huntersEsc(cname)}</div>
+        ${job.department ? `<span style="display:inline-block;margin-top:5px;background:#FFF3D4;color:#8B6000;border:0.5px solid #C9A84C;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;">${huntersEsc(job.department)}</span>` : ''}
         <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:12px;color:#6B7280;">
             <span>${huntersEsc(loc) || '—'}</span>
             <span>${huntersEsc(job.employment_type || 'Full-time')}</span>
@@ -497,6 +498,8 @@ function renderHuntersJobs(jobsData) {
     const typeVal = (fe.type && fe.type.value) || '';
     const locVal = ((fe.loc && fe.loc.value) || '').toLowerCase();
     const compVal = (fe.company && fe.company.value) || '';
+    const deptEl = document.getElementById('job-dept-filter');
+    const deptVal = (deptEl && deptEl.value) || '';
 
     const filtered = huntersAllJobs.filter((job) => {
         const loc = (job.location || '').toLowerCase();
@@ -505,12 +508,13 @@ function renderHuntersJobs(jobsData) {
         const statusMatch = !statusVal || job.status === statusVal;
         const typeMatch = !typeVal || (job.employment_type || 'Full-time') === typeVal;
         const locMatch = !locVal || loc.includes(locVal);
+        const deptMatch = !deptVal || (job.department || 'Other') === deptVal;
         let compMatch = true;
         if (huntersIsAdmin && compVal) {
             const cid = job.company_id || (job.company && job.company.id);
             compMatch = String(cid || '') === String(compVal);
         }
-        return titleMatch && statusMatch && typeMatch && locMatch && compMatch;
+        return titleMatch && statusMatch && typeMatch && locMatch && deptMatch && compMatch;
     });
 
     const cardContainer = document.getElementById('jobs-card-view');
@@ -639,6 +643,8 @@ function openEditJobModal(id) {
     document.getElementById('job-modal-title').innerText = "Edit Job — " + job.title;
     document.getElementById('job-modal-id').value = job.id;
     
+    const deptEditEl = document.getElementById('job-modal-department');
+    if (deptEditEl) deptEditEl.value = job.department || 'Other';
     document.getElementById('job-modal-title-input').value = job.title;
     document.getElementById('job-modal-location').value = job.location;
     document.getElementById('job-modal-type').value = job.employment_type || 'Full-time';
@@ -763,7 +769,15 @@ async function saveHuntersJob(e) {
     }
 
     const hideSal = document.getElementById('job-modal-hide-salary');
+    const deptEl = document.getElementById('job-modal-department');
+    const dept = deptEl ? deptEl.value : 'Other';
+    if (!dept) {
+        showToast('Please select a department', 'error');
+        gotoJobStep(1);
+        return;
+    }
     const payload = {
+        department: dept || 'Other',
         title: document.getElementById('job-modal-title-input').value,
         location: document.getElementById('job-modal-location').value,
         employment_type: document.getElementById('job-modal-type').value,

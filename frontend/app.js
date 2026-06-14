@@ -342,22 +342,32 @@ function renderJobs() {
     cardView.innerHTML = "";
     if (listTbody) listTbody.innerHTML = "";
 
-    if (jobs.length === 0) {
+    const deptFilter = (document.getElementById('jobs-dept-filter') || {}).value || '';
+    const filtered = deptFilter ? jobs.filter(j => (j.department || 'Other') === deptFilter) : jobs;
+
+    if (filtered.length === 0) {
         cardView.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-muted);'>No jobs found. Create one to get started!</p>";
         return;
     }
 
-    const eduJobs  = jobs.filter(j =>  isEduJob(j));
-    const corpJobs = jobs.filter(j => !isEduJob(j));
+    // Group by department
+    const deptOrder = ['Education','Human Resources','Administration & Operations','Finance & Accounting','Marketing & Communications','Sales & Business Development','Technology & IT','Legal & Compliance','Healthcare & Medical','Engineering & Technical','Customer Service','Media & Production','Hospitality & Tourism','Logistics & Supply Chain','Research & Consulting','Banking & Insurance','NGO & Non-Profit','Government & Public Sector','Pharmaceuticals & Medical Devices','Agriculture & Food Production','Manufacturing & Textile','Translation & Interpretation','Other'];
+    const groups = {};
+    filtered.forEach(j => {
+        const d = j.department || 'Other';
+        if (!groups[d]) groups[d] = [];
+        groups[d].push(j);
+    });
+    const sortedDepts = deptOrder.filter(d => groups[d]);
 
-    function renderGroup(group, label, icon) {
+    function renderGroup(group, label) {
         if (!group.length) return;
 
         if (jobsView !== 'list') {
-            cardView.innerHTML += sectionDivider(label, icon, group.length);
+            cardView.innerHTML += sectionDivider(label, '', group.length);
         }
         if (listTbody) {
-            listTbody.innerHTML += listDividerRow(label, icon);
+            listTbody.innerHTML += listDividerRow(label, '');
         }
 
         group.forEach(j => {
@@ -395,6 +405,9 @@ function renderJobs() {
                                 <button class="btn-share" onclick="copyPublicLink(${j.id})" title="Share Link"><i class='bx bx-share-alt'></i></button>
                                 <button class="btn-share" style="color:var(--red);border-color:var(--red);" onclick="deleteJob(${j.id})" title="Delete Job"><i class='bx bx-trash'></i></button>
                             </div>
+                        </div>
+                        <div style="margin-top:6px;margin-bottom:2px;">
+                            <span style="background:#FFF3D4;color:#8B6000;border:0.5px solid #C9A84C;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;">${j.department || 'Other'}</span>
                         </div>
                         <div class="job-meta">
                             <p><i class='bx bx-money'></i> ${salary}</p>
@@ -447,8 +460,7 @@ function renderJobs() {
         });
     }
 
-    renderGroup(eduJobs,  'Education Jobs',  '🎓');
-    renderGroup(corpJobs, 'Corporate Jobs',  '🏢');
+    sortedDepts.forEach(d => renderGroup(groups[d], d));
 }
 
 function copyPublicLink(id) {
@@ -1830,6 +1842,8 @@ function editJob(id) {
     manualTab.classList.add('active');
 
     // Fill form
+    const deptEl = document.getElementById("manual-job-department");
+    if (deptEl) deptEl.value = job.department || 'Other';
     document.getElementById("manual-job-title").value = job.job_title;
     document.getElementById("manual-job-location").value = job.job_location || '';
     document.getElementById("manual-job-exp").value = job.min_experience;
@@ -1878,6 +1892,7 @@ async function handleJobManualCreate(event) {
         };
         const toPercent = (decimal) => Math.round(decimal * 100);
         const payload = {
+            department: safeGet("manual-job-department") || "Other",
             title: safeGet("manual-job-title"),
             location: safeGet("manual-job-location"),
             description: safeGet("manual-job-desc"),
@@ -1896,6 +1911,10 @@ async function handleJobManualCreate(event) {
             }
         };
 
+        if (!payload.department || payload.department === '') {
+            showToast('Please select a department', 'error');
+            return;
+        }
         if (!payload.title) {
             showToast('Error: Job Title is required!', 'error');
             return;

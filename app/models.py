@@ -73,6 +73,7 @@ class Job(Base):
     approval_date = Column(DateTime, nullable=True)
     approval_notes = Column(Text, nullable=True)
     status = Column(String, nullable=True)
+    department = Column(String, nullable=True, default="Other")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="jobs")

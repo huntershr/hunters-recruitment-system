@@ -134,6 +134,7 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
         "salary_max": None,
         "employment_type": job.education_level,
         "hide_salary": hide_salary,
+        "department": job.department or "Other",
         "company_name": company_name,
         "company_id": company_id,
         "company_logo_url": company_logo_url,
@@ -307,7 +308,7 @@ def get_public_company_jobs(company_id: int, db: Session = Depends(get_db)):
     return jobs
 
 @router.get("/jobs")
-def get_public_jobs(db: Session = Depends(get_db)):
+def get_public_jobs(department: str = None, db: Session = Depends(get_db)):
     """
     Get all approved public job postings with company info.
     Only shows jobs from approved companies.
@@ -332,6 +333,9 @@ def get_public_jobs(db: Session = Depends(get_db)):
             ))
         else:
             filters.append(models.User.is_admin == True)
+
+        if department:
+            filters.append(models.Job.department == department)
 
         try:
             jobs = db.query(models.Job).join(
@@ -379,6 +383,7 @@ def get_public_jobs(db: Session = Depends(get_db)):
                     "salary_min": None,
                     "salary_max": None,
                     "employment_type": job.education_level,
+                    "department": job.department or "Other",
                 })
             except Exception as job_err:
                 print(f"=== ERROR SERIALIZING JOB {job.id}: {job_err} ===")

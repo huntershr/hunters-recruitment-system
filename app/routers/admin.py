@@ -32,6 +32,7 @@ class AdminJobPayload(BaseModel):
     salary_range: Optional[str] = None
     hide_salary: bool = False
     industry_experience: Optional[str] = None
+    department: Optional[str] = "Other"
     weight_experience: float = 0.40
     weight_skills: float = 0.30
     weight_education: float = 0.20
@@ -1409,6 +1410,7 @@ def _job_to_dict(j: models.Job) -> dict:
         "salary_range": j.salary_range or "",
         "hide_salary": bool(j.hide_salary),
         "industry_experience": j.industry_experience or "",
+        "department": j.department or "Other",
         "is_approved": bool(j.is_approved),
         "created_at": j.created_at.isoformat() if j.created_at else "",
         "owner_id": j.owner_id,
@@ -1459,6 +1461,7 @@ def admin_create_job(
         salary_range=payload.salary_range or "",
         hide_salary=payload.hide_salary,
         industry_experience=payload.industry_experience,
+        department=payload.department or "Other",
         weight_experience=payload.weight_experience,
         weight_skills=payload.weight_skills,
         weight_education=payload.weight_education,
@@ -1494,6 +1497,7 @@ def admin_update_job(
     job.salary_range = payload.salary_range or ""
     job.hide_salary = payload.hide_salary
     job.industry_experience = payload.industry_experience
+    job.department = payload.department or "Other"
     job.weight_experience = payload.weight_experience
     job.weight_skills = payload.weight_skills
     job.weight_education = payload.weight_education

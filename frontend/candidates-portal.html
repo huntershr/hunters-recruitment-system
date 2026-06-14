@@ -160,8 +160,7 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
   <button class="portal-tab employer-tab" style="display:none;" onclick="showPortalSection('talent-pool')">Talent Pool</button>
   <!-- Candidate-only tabs -->
   <button class="portal-tab job-tab active" onclick="showPortalSection('all-jobs')">All Jobs</button>
-  <button class="portal-tab job-tab" onclick="showPortalSection('edu-jobs')">Education Jobs</button>
-  <button class="portal-tab job-tab" onclick="showPortalSection('corp-jobs')">Corporate Jobs</button>
+  <button class="portal-tab job-tab" onclick="showPortalSection('departments')">By Department</button>
   <button class="portal-tab candidate-tab" onclick="showPortalSection('my-applications')">My Applications</button>
   <button class="portal-tab candidate-tab" onclick="showPortalSection('profile')">My Profile</button>
 </div>
@@ -209,20 +208,23 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
     </div>
   </div>
 
-  <!-- Education Jobs -->
-  <div id="section-edu-jobs" class="portal-section">
-    <div class="filter-bar">
-      <input type="text" id="q-edu" class="filter-input" style="flex:1;" placeholder="Search education jobs…" oninput="renderSection('edu-jobs')">
+  <!-- Browse by Department -->
+  <div id="section-departments" class="portal-section">
+    <!-- Level 1: department grid -->
+    <div id="dept-grid-view">
+      <div id="dept-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;"></div>
     </div>
-    <div id="grid-edu-jobs" class="jobs-grid"></div>
-  </div>
-
-  <!-- Corporate Jobs -->
-  <div id="section-corp-jobs" class="portal-section">
-    <div class="filter-bar">
-      <input type="text" id="q-corp" class="filter-input" style="flex:1;" placeholder="Search corporate jobs…" oninput="renderSection('corp-jobs')">
+    <!-- Level 2: jobs in selected department -->
+    <div id="dept-jobs-view" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+        <button onclick="showDeptGrid()" style="background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:7px 14px;font-size:12px;color:#1B2A4A;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>All Departments
+        </button>
+        <span id="dept-jobs-title" style="font-size:15px;font-weight:600;color:#1B2A4A;"></span>
+        <span id="dept-jobs-count" style="font-size:12px;color:#9CA3AF;"></span>
+      </div>
+      <div id="dept-jobs-grid" class="jobs-grid"></div>
     </div>
-    <div id="grid-corp-jobs" class="jobs-grid"></div>
   </div>
 
   <!-- My Applications -->
@@ -1049,7 +1051,7 @@ function closePortalModal(){
 }
 
 /* ─── Navigation ─── */
-var tabOrder=['talent-pool','all-jobs','edu-jobs','corp-jobs','my-applications','profile','cv-writer'];
+var tabOrder=['talent-pool','all-jobs','departments','my-applications','profile','cv-writer'];
 function showPortalSection(id){
   if(id==='cv-writer'){openCVModal();return;}
   document.querySelectorAll('.portal-section').forEach(function(s){s.style.display='none';s.classList.remove('active');});
@@ -1057,7 +1059,8 @@ function showPortalSection(id){
   document.querySelectorAll('.portal-tab').forEach(function(t,i){t.classList.toggle('active',tabOrder[i]===id);});
   if(id==='my-applications')renderMyApps();
   if(id==='profile'){renderProfile();}
-  if(['all-jobs','edu-jobs','corp-jobs'].includes(id))renderSection(id);
+  if(id==='all-jobs')renderSection(id);
+  if(id==='departments')renderDeptGrid();
   if(id==='talent-pool')filterTalentPool();
 }
 
@@ -1122,7 +1125,14 @@ async function loadJobs(){
     var locs=[...new Set(allJobs.map(function(j){return j.job_location;}).filter(Boolean))];
     var sel=document.getElementById('loc-all');
     if(sel)sel.innerHTML='<option value="">All Locations</option>'+locs.map(function(l){return'<option>'+esc(l)+'</option>';}).join('');
-    renderSection('all-jobs');
+    // Hash routing for department deep links
+    var _hash=window.location.hash;
+    if(_hash==='#departments'){showPortalSection('departments');}
+    else if(_hash.startsWith('#department/')){
+      var _dname=decodeURIComponent(_hash.replace('#department/',''));
+      showPortalSection('departments');
+      showDeptJobs(_dname);
+    }else{renderSection('all-jobs');}
     checkUrlJobParam();
   }catch(e){
     console.error('loadJobs fetch failed:',e);
@@ -1192,6 +1202,74 @@ function renderSection(sid){
       '</div>' +
     '</div>';
   }).join('');
+}
+
+/* ─── Department Browse ─── */
+var _DEPT_ORDER=['Education','Human Resources','Administration & Operations','Finance & Accounting','Marketing & Communications','Sales & Business Development','Technology & IT','Legal & Compliance','Healthcare & Medical','Engineering & Technical','Customer Service','Media & Production','Hospitality & Tourism','Logistics & Supply Chain','Research & Consulting','Banking & Insurance','NGO & Non-Profit','Government & Public Sector','Pharmaceuticals & Medical Devices','Agriculture & Food Production','Manufacturing & Textile','Translation & Interpretation','Other'];
+
+function renderDeptGrid(){
+  var grid=document.getElementById('dept-cards-grid');
+  if(!grid)return;
+  var counts={};
+  allJobs.forEach(function(j){var d=j.department||'Other';counts[d]=(counts[d]||0)+1;});
+  var depts=_DEPT_ORDER.filter(function(d){return counts[d]>0;});
+  if(!depts.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;color:#9CA3AF;font-size:13px;">No departments with active jobs yet.</div>';
+    return;
+  }
+  grid.innerHTML=depts.map(function(d){
+    var n=counts[d];
+    return '<div onclick="showDeptJobs(\''+d.replace(/'/g,"\\'")+'\')" style="background:#fff;border:0.5px solid #E5E7EB;border-radius:14px;padding:20px 16px;cursor:pointer;transition:box-shadow 0.15s,transform 0.15s;" onmouseenter="this.style.boxShadow=\'0 6px 20px rgba(0,0,0,0.10)\';this.style.transform=\'translateY(-2px)\'" onmouseleave="this.style.boxShadow=\'\';this.style.transform=\'\'">'
+      +'<div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:6px;">'+esc(d)+'</div>'
+      +'<div style="font-size:11px;color:#9CA3AF;margin-bottom:14px;">'+n+' open position'+(n===1?'':'s')+'</div>'
+      +'<button style="width:100%;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px;font-size:11px;font-weight:500;cursor:pointer;">View Jobs →</button>'
+      +'</div>';
+  }).join('');
+  document.getElementById('dept-grid-view').style.display='block';
+  document.getElementById('dept-jobs-view').style.display='none';
+}
+
+function showDeptJobs(dept){
+  var list=allJobs.filter(function(j){return (j.department||'Other')===dept;});
+  var titleEl=document.getElementById('dept-jobs-title');
+  var countEl=document.getElementById('dept-jobs-count');
+  if(titleEl)titleEl.textContent=dept;
+  if(countEl)countEl.textContent=list.length+' position'+(list.length===1?'':'s');
+  var grid=document.getElementById('dept-jobs-grid');
+  if(grid){
+    if(!list.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px;color:#9CA3AF;font-size:13px;">No jobs in this department.</div>';
+    }else{
+      grid.innerHTML=list.map(function(j){
+        var sal=(function(){if(j.hide_salary===true||j.hide_salary===1||j.hide_salary==='true')return'Negotiable';var r=j.salary_range||'';if(r.trim())return r;return'Negotiable';})();
+        var posted=daysAgo(j.created_at);
+        return '<div class="job-card" onclick="openJob('+j.id+')">'
+          +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'+logoHtml(j,40)
+          +'<div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:500;color:#C9A84C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(j.company_name||'Company')+'</div></div>'
+          +'</div>'
+          +'<h3 style="font-size:15px;font-weight:500;color:#1B2A4A;margin-bottom:8px;line-height:1.3;">'+esc(j.job_title)+'</h3>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:#6B7280;margin-bottom:12px;">'
+          +(j.job_location?'<span>'+esc(j.job_location)+'</span>':'')
+          +(j.min_experience!=null?'<span>'+j.min_experience+'+ yrs</span>':'')
+          +'</div>'
+          +'<div style="font-size:12px;color:#9CA3AF;margin-bottom:10px;">'+esc(sal)+'</div>'
+          +portalJobShareHtml(j.id)
+          +'<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid #F3F4F6;margin-top:10px;">'
+          +'<span style="font-size:11px;color:#9CA3AF;">'+esc(posted)+'</span>'
+          +'<button onclick="event.stopPropagation();openJob('+j.id+')" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;">View &amp; Apply →</button>'
+          +'</div></div>';
+      }).join('');
+    }
+  }
+  document.getElementById('dept-grid-view').style.display='none';
+  document.getElementById('dept-jobs-view').style.display='block';
+  // hash routing
+  history.pushState(null,'','#department/'+encodeURIComponent(dept));
+}
+
+function showDeptGrid(){
+  document.getElementById('dept-grid-view').style.display='block';
+  document.getElementById('dept-jobs-view').style.display='none';
+  history.pushState(null,'','#departments');
 }
 
 /* ─── Job Detail + Apply ─── */

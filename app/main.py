@@ -67,6 +67,15 @@ try:
 except Exception as _me:
     print(f"Warning: Evaluation column migration: {_me}")
 
+# Department column migration (safe — ADD COLUMN IF NOT EXISTS)
+try:
+    with engine.connect() as _mc2:
+        _mc2.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS department VARCHAR DEFAULT 'Other'"))
+        _mc2.commit()
+    print("Jobs department column: OK")
+except Exception as _me2:
+    print(f"Warning: Jobs department column migration: {_me2}")
+
 app = FastAPI(
     title="AI Recruitment System",
     description="An AI-powered recruitment system using FastAPI and Google Gemini API.",

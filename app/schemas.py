@@ -82,6 +82,7 @@ class JobBase(BaseModel):
     salary_range: Optional[str] = None
     behavioral_skills: Optional[str] = None
     industry_experience: Optional[str] = None
+    department: Optional[str] = "Other"
     weight_experience: float = Field(default=0.3, ge=0.0)
     weight_skills: float = Field(default=0.4, ge=0.0)
     weight_education: float = Field(default=0.1, ge=0.0)
@@ -190,6 +191,7 @@ class JobSavePayload(BaseModel):
     behavioral_skills: Optional[str] = None
     education_level: Optional[str] = None
     industry_experience: Optional[str] = None
+    department: Optional[str] = "Other"
     ai_weights: Optional[dict] = None
     hide_salary: bool = False
     company_id: Optional[str] = None
