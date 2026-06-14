@@ -610,6 +610,9 @@ function _renderStageCard(app) {
     const scoreBg   = pct===null?'#F3F4F6':pct>=80?'#E1F5EE':pct>=60?'#E6F1FB':'#FAEEDA';
     const scoreText = pct===null?'Pending':pct+'%';
     const initials  = (app.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const avatarHtml = app.photo_url
+        ? `<img src="${escHtml(app.photo_url)}" style="width:44px;height:44px;min-width:44px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;width:44px;height:44px;min-width:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${escHtml(initials)}</div>`
+        : `<div style="width:44px;height:44px;min-width:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${escHtml(initials)}</div>`;
     const isReg = app.candidate_type==='registered';
     const typePill = isReg
         ? `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#F3F4F6;color:#6B7280;">Registered</span>`
@@ -626,7 +629,7 @@ function _renderStageCard(app) {
         .map(s=>`<option value="${s}">${_stageLabels[s]||s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
     return `<div id="stage-card-${app.application_id}" style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
         <div style="display:flex;align-items:flex-start;gap:12px;">
-            <div style="width:44px;height:44px;min-width:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${escHtml(initials)}</div>
+            ${avatarHtml}
             <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
                     <div style="font-size:15px;font-weight:600;color:#1B2A4A;cursor:pointer;" onclick="viewApplication(${app.application_id})">${escHtml(app.name)}</div>
@@ -642,13 +645,13 @@ function _renderStageCard(app) {
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;flex-wrap:wrap;gap:8px;">
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                ${app.evaluation_id?`<button onclick="viewApplication(${app.application_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#1B2A4A;cursor:pointer;min-height:44px;">Report</button>`:''}
-                ${app.cv_available?`<button onclick="downloadAppCV(${app.application_id},'${safeName}')" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#0F6E56;cursor:pointer;min-height:44px;">CV</button>`:''}
-                ${isReg&&app.candidate_id?`<button onclick="viewAtsProfile(${app.application_id})" style="padding:7px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#185FA5;cursor:pointer;min-height:44px;">Profile</button>`:''}
-                ${stg==='interview'?`<button onclick="openScheduleInterviewModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}',_appIv(${app.application_id}))" style="padding:7px 12px;border:none;border-radius:8px;background:#1D9E75;color:#fff;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">${app.interview?'📅 Reschedule':'📅 Schedule'}</button>`:''}
-                ${stg==='screening'?`<button onclick="openVoiceScreeningPanel(${app.application_id})" style="padding:7px 12px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;min-height:44px;">🎙️ ${app.voice_screening&&app.voice_screening.status==='completed'?'View Screening':app.voice_screening&&app.voice_screening.status==='no_answer'?'Re-Call':'Start Screening'}</button>`:''}
-                ${app.email?`<button onclick="sendCandidateEmail('${(app.email||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}','${(app.company_name||'Hunters HR').replace(/'/g,"\\'")}')" style="padding:7px 12px;border:1px solid #1B2A4A;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#1B2A4A;cursor:pointer;min-height:44px;" title="Send Email">✉</button>`:''}
-                ${app.phone?`<button onclick="sendCandidateWhatsApp('${(app.phone||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}')" style="padding:7px 12px;border:1px solid #25D366;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#25D366;cursor:pointer;min-height:44px;" title="WhatsApp">WhatsApp</button>`:''}
+                ${app.evaluation_id?`<button onclick="viewApplication(${app.application_id})" style="padding:5px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F3F4F6;font-size:11px;font-weight:500;color:#6B7280;cursor:pointer;">Report</button>`:''}
+                ${app.cv_available?`<button onclick="downloadAppCV(${app.application_id},'${safeName}')" style="padding:5px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F3F4F6;font-size:11px;font-weight:500;color:#6B7280;cursor:pointer;">CV</button>`:''}
+                ${isReg&&app.candidate_id?`<button onclick="viewAtsProfile(${app.application_id})" style="padding:5px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F3F4F6;font-size:11px;font-weight:500;color:#6B7280;cursor:pointer;">Profile</button>`:''}
+                ${stg==='interview'?`<button onclick="openScheduleInterviewModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}',_appIv(${app.application_id}))" style="padding:5px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F3F4F6;font-size:11px;font-weight:500;color:#6B7280;cursor:pointer;">${app.interview?'Reschedule':'Schedule'}</button>`:''}
+                ${stg==='screening'?`<button onclick="openVoiceScreeningPanel(${app.application_id})" style="padding:5px 10px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;">🎙️ ${app.voice_screening&&app.voice_screening.status==='completed'?'View Screening':app.voice_screening&&app.voice_screening.status==='no_answer'?'Re-Call':'Start Screening'}</button>`:''}
+                ${app.email?`<button onclick="sendCandidateEmail('${(app.email||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}','${(app.company_name||'Hunters HR').replace(/'/g,"\\'")}')" style="padding:5px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F3F4F6;font-size:11px;font-weight:500;color:#6B7280;cursor:pointer;">Email</button>`:''}
+                ${app.phone?`<button onclick="sendCandidateWhatsApp('${(app.phone||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}')" style="padding:5px 10px;border:1px solid #25D366;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#25D366;cursor:pointer;">WhatsApp</button>`:''}
             </div>
             <div onclick="event.stopPropagation()" style="min-width:160px;">
                 <select onchange="changeAppStage(${app.application_id},this.value,this)" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:11px;color:#6B7280;background:#F9FAFB;cursor:pointer;min-height:44px;">
