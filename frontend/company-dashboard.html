@@ -2977,6 +2977,19 @@
     /* ── Company Pipeline Stage Tabs ── */
     let coCompanyView = 'tabs';
     let coAppsData = [];
+    // Looks up an app in coAppsData first, then falls back to the job-scoped
+    // window._coJobAppsData so action buttons work when a specific job is selected.
+    function _coFindApp(appId) {
+        return coAppsData.find(a => a.application_id === appId)
+            || (window._coJobAppsData || []).find(a => a.application_id === appId)
+            || null;
+    }
+    function _coUpdateAppStage(appId, newStage) {
+        const idx1 = coAppsData.findIndex(a => a.application_id === appId);
+        if (idx1 >= 0) coAppsData[idx1].stage = newStage;
+        const jd = window._coJobAppsData;
+        if (jd) { const idx2 = jd.findIndex(a => a.application_id === appId); if (idx2 >= 0) jd[idx2].stage = newStage; }
+    }
     let coActiveStageTab = 'applied';
 
     /* ── Job-first navigation (View 1 / View 2) ── */
@@ -3314,7 +3327,7 @@
     function coChangeStage(appId, newStage, selectEl) {
         if (!newStage) return;
         if (selectEl) selectEl.value = '';
-        const app = coAppsData.find(a => a.application_id === appId);
+        const app = _coFindApp(appId);
         if (_CO_CONFIRM_STAGES.has(newStage)) {
             _coShowStageConfirm(appId, newStage, app);
         } else {
@@ -3363,9 +3376,9 @@
             });
             if (!res.ok) { const err = await res.json().catch(() => ({})); showToast(err.detail || 'Stage update failed', 'error'); return; }
             const data = await res.json();
-            const idx = coAppsData.findIndex(a => a.application_id === appId);
-            const candName = idx >= 0 ? (coAppsData[idx].name || 'Candidate') : 'Candidate';
-            if (idx >= 0) coAppsData[idx].stage = data.stage;
+            const _stageApp = _coFindApp(appId);
+            const candName = _stageApp ? (_stageApp.name || 'Candidate') : 'Candidate';
+            _coUpdateAppStage(appId, data.stage);
             setTimeout(() => {
                 renderCoStageTabs();
                 showToast(candName + ' moved to ' + data.stage, 'success');
@@ -3418,7 +3431,7 @@
     }
 
     function openScheduleInterviewModal(appId, candName, existingIv) {
-        const app = coAppsData.find(a => a.application_id === appId) || {};
+        const app = _coFindApp(appId) || {};
         const today = new Date().toISOString().split('T')[0];
         const jobLine = escHtml((app.job_title || '—') + (app.company_name ? ' at ' + app.company_name : ''));
         const isEdit = !!existingIv;
@@ -3583,8 +3596,7 @@
                 return;
             }
             const data = await res.json();
-            const idx = coAppsData.findIndex(a => a.application_id === appId);
-            if (idx >= 0) coAppsData[idx].stage = 'Interview';
+            _coUpdateAppStage(appId, 'Interview');
             document.getElementById('schedule-interview-modal')?.remove();
             renderCoStageTabs();
             showToast('Interview scheduled', 'success');
@@ -3628,7 +3640,7 @@
         const iv     = data.interview || {};
         const notifs = data.notifications || [];
         const ics    = data.ics_files    || [];
-        const app    = coAppsData.find(a => a.application_id === iv.application_id) || {};
+        const app    = _coFindApp(iv.application_id) || {};
         const candName = app.name || 'Candidate';
         const jobTitle = app.job_title || '';
         const company  = app.company_name || '';
@@ -3734,7 +3746,7 @@
             const iv = await res.json();
             if (!iv) { showToast('Interview not found', 'error'); return; }
             iv.id = interviewId;
-            const app = coAppsData.find(a => a.application_id === appId);
+            const app = _coFindApp(appId);
             const candName = app ? (app.name || 'Candidate') : 'Candidate';
             openScheduleInterviewModal(appId, candName, iv);
         } catch(e) { showToast('Failed to load interview', 'error'); }
@@ -3743,7 +3755,7 @@
     // ── End Phase 9 ───────────────────────────────────────────────────────
 
     function coViewReport(appId) {
-        const app = coAppsData.find(a => a.application_id === appId);
+        const app = _coFindApp(appId);
         if (!app) { showToast('Report not found', 'error'); return; }
         // store full app object so coExportScreeningCard() has phone/exp/iq
         window._lastCoApp = app;
@@ -3860,7 +3872,7 @@
     let _coVsState = null;
 
     async function coStartScreening(appId) {
-        const app = coAppsData.find(a => a.application_id === appId);
+        const app = _coFindApp(appId);
         if (!app) { showToast('Application not found', 'error'); return; }
         const token = localStorage.getItem('token');
 
@@ -3945,11 +3957,14 @@
             const vs = await res.json();
             if (vs.status === 'completed') {
                 if (_coVsState && _coVsState.pollTimer) clearInterval(_coVsState.pollTimer);
+                const _vsApp = _coFindApp(appId);
                 const idx = coAppsData.findIndex(a => a.application_id === appId);
                 if (idx >= 0) coAppsData[idx].voice_screening = vs;
+                const jd = window._coJobAppsData;
+                if (jd) { const ji = jd.findIndex(a => a.application_id === appId); if (ji >= 0) jd[ji].voice_screening = vs; }
                 document.getElementById('co-vs-panel')?.remove();
                 renderCoStageTabs();
-                _coShowVsResults(vs, (coAppsData[idx] || {}).name || 'Candidate');
+                _coShowVsResults(vs, (_vsApp || {}).name || 'Candidate');
             }
         } catch(_) {}
     }
