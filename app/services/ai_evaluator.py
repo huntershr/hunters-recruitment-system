@@ -258,24 +258,25 @@ SCORING WEIGHTS:
 - Behavioral & Industry Fit: {getattr(job, 'weight_behavioral', 0.2)}x
 
 INSTRUCTIONS:
-1. Produce "score" as an INTEGER 0-100 (weighted overall match score).
-2. Produce "score_breakdown" with integer sub-scores 0-100 for: experience, skills, education, behavioral.
-3. Decision: "Shortlist" only if score >= 65; "Maybe" for 40-64; "Reject" for below 40. NEVER Shortlist below 30.
-4. summary_en: 2-3 professional English sentences summarizing candidate fit for this specific role.
-5. summary_ar: IDENTICAL content in Modern Standard Arabic.
-6. strengths_en: EXACTLY 3 strings in English — specific strengths this candidate brings to the role.
-7. strengths_ar: same 3 strengths translated to Arabic.
-8. gaps_en: EXACTLY 2 strings in English — most significant gaps vs. role requirements.
-9. gaps_ar: same 2 gaps in Arabic.
-10. quick_facts: extract from CV — years_experience (int), current_title (str or null), current_employer (str or null), education_level (str or null), key_skills_found (array of up to 5 skill strings found in CV), languages (array of spoken languages mentioned in CV).
-11. interview_questions_en: EXACTLY 3 specific, role-tailored English interview questions for this candidate.
-12. interview_questions_ar: same 3 questions in Arabic.
+1. FIRST, decide if the candidate's actual profession/field is fundamentally relevant to this specific role (e.g. a medical doctor applying to a teaching role is NOT field-relevant, even if some words on their CV overlap with the job description). Field relevance is the primary gate — strong experience in the WRONG field does not make someone a good fit.
+2. Based on field relevance plus experience/skills/education fit, make your "decision" first: "Shortlist" only for candidates who are field-relevant AND strong overall; "Maybe" for partial fit; "Reject" for poor fit or field-irrelevant candidates.
+3. ONLY AFTER deciding, produce "score" as an INTEGER 0-100 that is CONSISTENT WITH and DERIVED FROM the decision you just made — the score MUST fall inside the band for that decision: Shortlist = 65-100, Maybe = 40-64, Reject = 0-39. NEVER Shortlist below 30. Do not let keyword overlap inflate the score above its decision's band.
+4. Produce "score_breakdown" with integer sub-scores 0-100 for: experience, skills, education, behavioral.
+5. summary_en: 2-3 professional English sentences summarizing candidate fit for this specific role.
+6. summary_ar: IDENTICAL content in Modern Standard Arabic.
+7. strengths_en: EXACTLY 3 strings in English — specific strengths this candidate brings to the role.
+8. strengths_ar: same 3 strengths translated to Arabic.
+9. gaps_en: EXACTLY 2 strings in English — most significant gaps vs. role requirements.
+10. gaps_ar: same 2 gaps in Arabic.
+11. quick_facts: extract from CV — years_experience (int), current_title (str or null), current_employer (str or null), education_level (str or null), key_skills_found (array of up to 5 skill strings found in CV), languages (array of spoken languages mentioned in CV).
+12. interview_questions_en: EXACTLY 3 specific, role-tailored English interview questions for this candidate.
+13. interview_questions_ar: same 3 questions in Arabic.
 
-Return ONLY this JSON structure:
+Return ONLY this JSON structure, with fields generated IN THIS ORDER (decision and score must come first, in this sequence, before any other field):
 {{
+  "decision": "<Shortlist|Maybe|Reject>",
   "score": <integer 0-100>,
   "score_breakdown": {{"experience": <int>, "skills": <int>, "education": <int>, "behavioral": <int>}},
-  "decision": "<Shortlist|Maybe|Reject>",
   "summary_en": "<2-3 sentence English summary>",
   "summary_ar": "<2-3 جملة ملخص عربي>",
   "strengths_en": ["<strength 1>", "<strength 2>", "<strength 3>"],
