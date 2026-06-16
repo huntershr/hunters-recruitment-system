@@ -1,15 +1,79 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from typing import List
 import logging
 import json
+import secrets
+import string
 
 from .. import models, schemas, database
 from ..services.file_processor import extract_text_from_file
 from ..services.ai_evaluator import extract_candidate_info, evaluate_candidate, finalize_evaluation
+from ..auth_utils import get_password_hash
 
 logger = logging.getLogger(__name__)
+
+
+def generate_temp_password(length: int = 12) -> str:
+    chars = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(chars) for _ in range(length))
+
+
+def send_candidate_welcome_email(to_email: str, name: str, temp_password: str):
+    """Best-effort welcome email for auto-created candidate accounts. Never raises."""
+    try:
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail, From, To, Subject, HtmlContent
+        import os
+
+        api_key = os.getenv("SENDGRID_API_KEY", "")
+        if not api_key:
+            logger.warning("SENDGRID_API_KEY not set — skipping candidate welcome email")
+            return
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family:'Segoe UI',Arial,sans-serif;background:#F5F6F8;padding:40px 0;margin:0">
+          <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08)">
+            <div style="background:#1B2A4A;padding:24px 32px;text-align:center">
+              <div style="color:#C9A84C;font-size:11px;letter-spacing:3px;text-transform:uppercase">Hunters for HR Transformation</div>
+              <div style="color:#fff;font-size:20px;font-weight:600;margin-top:6px">Application Received!</div>
+            </div>
+            <div style="padding:32px">
+              <p style="color:#1B2A4A;font-size:15px;margin:0 0 16px">Dear {name},</p>
+              <p style="color:#555;font-size:14px">Your application has been submitted successfully. We have created an account for you to track your application status.</p>
+              <div style="background:#F5F6F8;border-radius:8px;padding:16px;margin:20px 0">
+                <p style="margin:0;font-size:13px;color:#1B2A4A"><strong>Login Email:</strong> {to_email}</p>
+                <p style="margin:8px 0 0;font-size:13px;color:#1B2A4A"><strong>Temporary Password:</strong> {temp_password}</p>
+              </div>
+              <p style="color:#555;font-size:13px">Use these credentials to log in and track your application status at any time.</p>
+              <div style="text-align:center;margin-top:24px">
+                <a href="https://app.hunters-egypt.com" style="background:#C9A84C;color:#1B2A4A;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14px">Track My Application</a>
+              </div>
+              <p style="color:#888;font-size:12px;margin-top:20px">Please change your password after first login for security.</p>
+            </div>
+            <div style="background:#F5F6F8;padding:14px 32px;text-align:center">
+              <p style="color:#aaa;font-size:11px;margin:0">Powered by Hunters HR · hr@hunters-egypt.com</p>
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+
+        message = Mail(
+            from_email=From("hr@hunters-egypt.com", "Hunters HR"),
+            to_emails=To(to_email),
+            subject=Subject("Your Application is Submitted — Hunters HR"),
+            html_content=HtmlContent(html_content)
+        )
+
+        sg = SendGridAPIClient(api_key)
+        response = sg.send(message)
+        logger.info(f"Candidate welcome email sent to {to_email} — status {response.status_code}")
+    except Exception as e:
+        logger.error(f"Candidate welcome email failed for {to_email}: {e}")
 
 
 def run_evaluation_task_for_application(application_id: int, cv_text: str, db: Session):
@@ -236,6 +300,44 @@ async def public_apply(
         db.refresh(new_candidate)
         application.candidate_id = new_candidate.id
         db.commit()
+
+    # Auto-create a candidate login account so applicants can track their
+    # application status. Best-effort only — never blocks the application.
+    try:
+        candidate_row = existing_candidate if existing_candidate else new_candidate
+        email_lower = (email or "").strip().lower()
+        existing_user = (
+            db.query(models.User)
+            .filter(
+                func.lower(models.User.email) == email_lower,
+                models.User.is_admin == False,
+                models.User.company_id.is_(None),
+            )
+            .first()
+        )
+        if not existing_user:
+            temp_password = generate_temp_password()
+            new_user = models.User(
+                email=email_lower,
+                hashed_password=get_password_hash(temp_password),
+                full_name=name,
+                is_active=True,
+                is_admin=False,
+                company_id=None,
+            )
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+
+            candidate_row.user_id = new_user.id
+            db.commit()
+
+            background_tasks.add_task(send_candidate_welcome_email, email, name, temp_password)
+        elif candidate_row.user_id is None:
+            candidate_row.user_id = existing_user.id
+            db.commit()
+    except Exception as e:
+        logger.error(f"Auto-create candidate account failed for {email}: {e}")
 
     from ..database import SessionLocal
     background_tasks.add_task(
