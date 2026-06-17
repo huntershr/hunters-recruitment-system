@@ -1452,8 +1452,8 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
     story.append(hdr)
 
     # ── CANDIDATE INFO + SCORE ──
-    s_name = ParagraphStyle('cn', fontName='Helvetica-Bold', fontSize=14, textColor=NAVY, spaceAfter=3)
-    s_sub  = ParagraphStyle('cs', fontName='Helvetica',      fontSize=10, textColor=GRAY, spaceBefore=0)
+    s_name = ParagraphStyle('cn', fontName='Helvetica-Bold', fontSize=14, textColor=NAVY, spaceAfter=6)
+    s_sub  = ParagraphStyle('cs', fontName='Helvetica',      fontSize=10, textColor=GRAY, spaceBefore=2)
     s_lbl  = ParagraphStyle('cl', fontName='Helvetica',      fontSize=7,
         textColor=colors.HexColor('#9CA3AF'))
     s_val  = ParagraphStyle('cv', fontName='Helvetica-Bold', fontSize=10, textColor=NAVY)
@@ -1482,28 +1482,14 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
 
     s_sc_lbl = ParagraphStyle('scl', fontName='Helvetica', fontSize=7,
         textColor=colors.HexColor('#9CA3AF'), alignment=TA_CENTER, spaceAfter=4)
-    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=34,
-        textColor=NAVY, alignment=TA_CENTER)
-    s_dec    = ParagraphStyle('scd', fontName='Helvetica-Bold', fontSize=10,
-        textColor=dec_color, alignment=TA_CENTER, spaceBefore=8)
-
-    num_cell = Table([
-        [Paragraph(str(score_pct), s_sc_num)],
-    ], colWidths=[20*mm], rowHeights=[16*mm])
-    num_cell.setStyle(TableStyle([
-        ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOX',           (0, 0), (-1, -1), 2.5, score_border),
-        ('ROUNDEDCORNERS', [6]),
-        ('TOPPADDING',    (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('LEFTPADDING',   (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
-    ]))
+    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=38,
+        textColor=dec_color, alignment=TA_CENTER)
+    s_dec    = ParagraphStyle('scd', fontName='Helvetica-Bold', fontSize=11,
+        textColor=dec_color, alignment=TA_CENTER, spaceBefore=4)
 
     score_block = Table([
         [Paragraph('AI SCORE', s_sc_lbl)],
-        [num_cell],
+        [Paragraph(str(score_pct), s_sc_num)],
         [Paragraph(decision or 'N/A', s_dec)],
     ], colWidths=[W * 0.28])
     score_block.setStyle(TableStyle([
