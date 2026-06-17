@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import func, or_
@@ -1334,6 +1334,401 @@ async def download_application_cv(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="CV_{safe_name}.pdf"', **_NO_CACHE},
+    )
+
+
+# ── Screening Report PDF ──────────────────────────────────────────────────────
+
+def _bullets_to_para(text: str) -> str:
+    """Convert '- item\n- item' stored text to reportlab Paragraph-safe '<br/>' string."""
+    if not text:
+        return '—'
+    lines = [l.lstrip('-• ').strip() for l in str(text).split('\n') if l.strip()]
+    if not lines:
+        return '—'
+    return '<br/>'.join(f'• {l}' for l in lines)
+
+
+def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, company_name: str = "") -> bytes:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable, Image
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from io import BytesIO
+    from datetime import datetime
+    import os
+
+    buffer = BytesIO()
+
+    NAVY  = colors.HexColor('#1B2A4A')
+    GOLD  = colors.HexColor('#C9A84C')
+    LIGHT = colors.HexColor('#F5F6F8')
+    GRAY  = colors.HexColor('#6B7280')
+    BORDER = colors.HexColor('#E0E2E6')
+    RED   = colors.HexColor('#E24B4A')
+    GREEN = colors.HexColor('#16A34A')
+    AMBER = colors.HexColor('#D97706')
+    WHITE = colors.white
+
+    raw = evaluation_data.get('score', 0)
+    score_pct = _norm_score(raw)
+    decision  = str(evaluation_data.get('decision') or '').upper()
+
+    if score_pct >= 65:
+        dec_color, score_border = GREEN, GREEN
+    elif score_pct >= 40:
+        dec_color, score_border = AMBER, AMBER
+    else:
+        dec_color, score_border = RED, RED
+
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+        rightMargin=18*mm, leftMargin=18*mm,
+        topMargin=12*mm, bottomMargin=12*mm)
+    W = A4[0] - 36*mm
+    story = []
+
+    # ── HEADER ──
+    logo_path = '/app/frontend/hunters-logo-white.jpeg'
+    if not os.path.exists(logo_path):
+        logo_path = '/app/frontend/hunters-logo-blue.jpeg'
+
+    try:
+        logo = Image(logo_path, width=42*mm, height=15*mm)
+    except Exception:
+        logo = Paragraph('<b>HUNTERS HR</b>', ParagraphStyle('lh',
+            fontName='Helvetica-Bold', fontSize=12, textColor=GOLD))
+
+    s_title = ParagraphStyle('ht', fontName='Helvetica', fontSize=8,
+        textColor=GOLD, leading=11)
+    s_co    = ParagraphStyle('hc', fontName='Helvetica', fontSize=11,
+        textColor=WHITE, leading=14)
+    s_conf  = ParagraphStyle('hcf', fontName='Helvetica-Bold', fontSize=9,
+        textColor=GOLD, alignment=TA_RIGHT)
+    s_date  = ParagraphStyle('hd', fontName='Helvetica', fontSize=8,
+        textColor=colors.HexColor('#9CA3AF'), alignment=TA_RIGHT)
+
+    hdr = Table([[
+        logo,
+        [Paragraph('CANDIDATE SCREENING REPORT', s_title),
+         Paragraph(company_name or 'Hunters HR', s_co)],
+        [Paragraph('Confidential', s_conf),
+         Paragraph(datetime.now().strftime('%d %b %Y'), s_date)]
+    ]], colWidths=[48*mm, W - 98*mm, 50*mm])
+    hdr.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), NAVY),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING',   (0, 0), (0,  0),  5*mm),
+        ('LEFTPADDING',   (1, 0), (1,  0),  4*mm),
+        ('RIGHTPADDING',  (2, 0), (2,  0),  5*mm),
+        ('TOPPADDING',    (0, 0), (-1, -1), 5*mm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5*mm),
+    ]))
+    story.append(hdr)
+
+    # ── CANDIDATE INFO + SCORE ──
+    s_name = ParagraphStyle('cn', fontName='Helvetica-Bold', fontSize=14, textColor=NAVY)
+    s_sub  = ParagraphStyle('cs', fontName='Helvetica',      fontSize=10, textColor=GRAY)
+    s_lbl  = ParagraphStyle('cl', fontName='Helvetica',      fontSize=7,
+        textColor=colors.HexColor('#9CA3AF'))
+    s_val  = ParagraphStyle('cv', fontName='Helvetica-Bold', fontSize=10, textColor=NAVY)
+
+    name = candidate_data.get('name', '—')
+
+    def info_box(lbl, val):
+        t = Table([[Paragraph(lbl, s_lbl)], [Paragraph(str(val), s_val)]],
+                  colWidths=[(W * 0.68) / 2 - 3*mm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND',    (0, 0), (-1, -1), LIGHT),
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 5),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 5),
+        ]))
+        return t
+
+    info_grid = Table([
+        [info_box('PHONE',          candidate_data.get('phone', '—')),
+         info_box('EXPERIENCE',     f"{candidate_data.get('experience_years', 0)} yrs")],
+        [info_box('SCREENING DATE', datetime.now().strftime('%d %b %Y')),
+         info_box('SOURCE',         candidate_data.get('source', '—'))],
+    ], colWidths=[(W * 0.68) / 2 - 2*mm, (W * 0.68) / 2 - 2*mm], spaceBefore=4)
+
+    s_sc_lbl = ParagraphStyle('scl', fontName='Helvetica', fontSize=7,
+        textColor=colors.HexColor('#9CA3AF'), alignment=TA_CENTER)
+    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=28,
+        textColor=NAVY, alignment=TA_CENTER)
+    s_dec    = ParagraphStyle('scd', fontName='Helvetica-Bold', fontSize=9,
+        textColor=dec_color, alignment=TA_CENTER)
+
+    score_block = Table([
+        [Paragraph('AI SCORE', s_sc_lbl)],
+        [Paragraph(str(score_pct), s_sc_num)],
+        [Paragraph(decision or 'N/A', s_dec)],
+    ], colWidths=[W * 0.28])
+    score_block.setStyle(TableStyle([
+        ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOX',           (0, 1), (0,  1),  2, score_border),
+        ('TOPPADDING',    (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+
+    left_col = Table([
+        [[Paragraph(name, s_name), Paragraph(candidate_data.get('job_title', '—'), s_sub)]],
+        [info_grid],
+    ], colWidths=[W * 0.68])
+
+    info_row = Table([[left_col, score_block]], colWidths=[W * 0.70, W * 0.30])
+    info_row.setStyle(TableStyle([
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4*mm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4*mm),
+        ('LINEBEFORE',    (1, 0), (1,  0),  0.5, BORDER),
+        ('LINEBELOW',     (0, 0), (-1, -1), 0.5, BORDER),
+    ]))
+    story.append(info_row)
+
+    # ── COMPETENCY SCORING ──
+    s_sec = ParagraphStyle('sec', fontName='Helvetica-Bold', fontSize=8,
+        textColor=NAVY, spaceBefore=4*mm, spaceAfter=2*mm)
+    s_bar_lbl = ParagraphStyle('bl', fontName='Helvetica', fontSize=9,
+        textColor=colors.HexColor('#4B5563'))
+
+    story.append(Paragraph('COMPETENCY SCORING', s_sec))
+
+    metrics = [
+        ('Experience', evaluation_data.get('weight_experience', 40), evaluation_data.get('score_experience', 0)),
+        ('Skills',     evaluation_data.get('weight_skills',     30), evaluation_data.get('score_skills',     0)),
+        ('Education',  evaluation_data.get('weight_education',  20), evaluation_data.get('score_education',  0)),
+        ('Behavioral', evaluation_data.get('weight_behavioral', 10), evaluation_data.get('score_behavioral', 0)),
+    ]
+
+    for label, weight, raw_s in metrics:
+        s_pct_val = _norm_score(raw_s)
+        bar_color = GREEN if s_pct_val >= 65 else AMBER if s_pct_val >= 40 else RED
+        fill_w  = max(W * 0.50 * s_pct_val / 100, 1)
+        empty_w = W * 0.50 - fill_w
+
+        filled = Table([['']], colWidths=[fill_w],  rowHeights=[5])
+        filled.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), bar_color),
+            ('TOPPADDING', (0, 0), (-1, -1), 0), ('BOTTOMPADDING', (0, 0), (-1, -1), 0)]))
+
+        empty = Table([['']], colWidths=[empty_w], rowHeights=[5])
+        empty.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), BORDER),
+            ('TOPPADDING', (0, 0), (-1, -1), 0), ('BOTTOMPADDING', (0, 0), (-1, -1), 0)]))
+
+        pct_s = ParagraphStyle('ps', fontName='Helvetica-Bold', fontSize=9,
+            textColor=bar_color, alignment=TA_RIGHT)
+
+        row = Table([[
+            Paragraph(f"{label} ({weight}%)", s_bar_lbl),
+            Table([[[filled, empty]]], colWidths=[W * 0.50]),
+            Paragraph(f"{s_pct_val}%", pct_s),
+        ]], colWidths=[W * 0.22, W * 0.54, W * 0.24])
+        row.setStyle(TableStyle([
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        story.append(row)
+
+    story.append(HRFlowable(width=W, thickness=0.5, color=BORDER, spaceAfter=2*mm, spaceBefore=3*mm))
+
+    # ── ANALYSIS & REASONING ──
+    story.append(Paragraph('ANALYSIS &amp; REASONING', s_sec))
+    s_body = ParagraphStyle('body', fontName='Helvetica', fontSize=10,
+        textColor=colors.HexColor('#4B5563'), leading=16)
+
+    reasoning_tbl = Table([[
+        Paragraph(evaluation_data.get('reasoning', '—'), s_body),
+    ]], colWidths=[W])
+    reasoning_tbl.setStyle(TableStyle([
+        ('LINEBEFORE',    (0, 0), (0, -1), 3, GOLD),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+        ('TOPPADDING',    (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(reasoning_tbl)
+    story.append(HRFlowable(width=W, thickness=0.5, color=BORDER, spaceAfter=2*mm, spaceBefore=4*mm))
+
+    # ── STRENGTHS & GAPS ──
+    s_str = ParagraphStyle('str', fontName='Helvetica-Bold', fontSize=8,
+        textColor=NAVY, spaceAfter=2*mm)
+
+    sg = Table([
+        [Paragraph('STRENGTHS', s_str), Paragraph('AREAS TO IMPROVE', s_str)],
+        [Paragraph(evaluation_data.get('strengths', '—'), s_body),
+         Paragraph(evaluation_data.get('gaps', '—'),      s_body)],
+    ], colWidths=[W / 2 - 3*mm, W / 2 - 3*mm])
+    sg.setStyle(TableStyle([
+        ('VALIGN',       (0, 0), (-1, -1), 'TOP'),
+        ('LINEAFTER',    (0, 0), (0, -1),  0.5, BORDER),
+        ('RIGHTPADDING', (0, 0), (0, -1),  4*mm),
+        ('LEFTPADDING',  (1, 0), (1, -1),  4*mm),
+    ]))
+    story.append(sg)
+
+    # ── INTERVIEW QUESTIONS ──
+    iq_en = evaluation_data.get('interview_questions_en', [])
+    iq_ar = evaluation_data.get('interview_questions_ar', [])
+
+    if iq_en or iq_ar:
+        story.append(HRFlowable(width=W, thickness=0.5, color=BORDER,
+            spaceAfter=2*mm, spaceBefore=4*mm))
+        story.append(Paragraph('SUGGESTED INTERVIEW QUESTIONS', s_sec))
+
+        if iq_en:
+            s_q = ParagraphStyle('q', fontName='Helvetica', fontSize=10,
+                textColor=colors.HexColor('#4B5563'), leading=16, leftIndent=10, spaceAfter=4)
+            for i, q in enumerate(iq_en if isinstance(iq_en, list) else [iq_en], 1):
+                story.append(Paragraph(f"{i}. {q}", s_q))
+
+        if iq_ar:
+            story.append(Spacer(1, 3*mm))
+            s_ar_hdr = ParagraphStyle('arh', fontName='Helvetica-Bold', fontSize=8,
+                textColor=NAVY, spaceAfter=2*mm)
+            story.append(Paragraph('INTERVIEW QUESTIONS (ARABIC)', s_ar_hdr))
+            s_q_ar = ParagraphStyle('qar', fontName='Helvetica', fontSize=10,
+                textColor=colors.HexColor('#4B5563'), leading=16, leftIndent=10,
+                spaceAfter=4, alignment=TA_RIGHT)
+            for i, q in enumerate(iq_ar if isinstance(iq_ar, list) else [iq_ar], 1):
+                story.append(Paragraph(f"{i}. {q}", s_q_ar))
+
+    # ── FOOTER ──
+    story.append(Spacer(1, 5*mm))
+    s_ft   = ParagraphStyle('ft',  fontName='Helvetica', fontSize=8,
+        textColor=colors.HexColor('#9CA3AF'))
+    s_ft_r = ParagraphStyle('ftr', fontName='Helvetica', fontSize=8,
+        textColor=colors.HexColor('#9CA3AF'), alignment=TA_RIGHT)
+
+    footer = Table([[
+        Paragraph('Powered by Hunters HR · hr@hunters-egypt.com', s_ft),
+        Paragraph('Confidential — For internal use only', s_ft_r),
+    ]], colWidths=[W / 2, W / 2])
+    footer.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), LIGHT),
+        ('TOPPADDING',    (0, 0), (-1, -1), 3*mm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3*mm),
+        ('LEFTPADDING',   (0, 0), (0, -1),  4*mm),
+        ('RIGHTPADDING',  (1, 0), (1, -1),  4*mm),
+    ]))
+    story.append(footer)
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
+@router.get("/applications/{application_id}/report")
+async def download_screening_report(
+    application_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generate and download candidate screening report as PDF."""
+    if not current_user.is_admin and not current_user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    application = (
+        db.query(models.Application)
+        .options(joinedload(models.Application.candidate), joinedload(models.Application.job))
+        .filter(models.Application.id == application_id)
+        .first()
+    )
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    # Company admin: verify the application belongs to their company's job
+    if not current_user.is_admin:
+        job_chk = application.job
+        allowed = False
+        if job_chk:
+            owner_chk = db.query(models.User).filter(
+                models.User.id == job_chk.owner_id,
+                models.User.company_id == current_user.company_id,
+            ).first()
+            allowed = owner_chk is not None
+        if not allowed:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    candidate  = application.candidate
+    job        = application.job
+    evaluation = application.evaluation
+    if not evaluation and candidate:
+        evaluation = (
+            db.query(models.Evaluation)
+            .filter(
+                models.Evaluation.candidate_id == candidate.id,
+                models.Evaluation.job_id == application.job_id,
+            )
+            .first()
+        )
+
+    # Company name
+    company_name = ""
+    if job and job.owner_id:
+        owner = db.query(models.User).filter(models.User.id == job.owner_id).first()
+        if owner and owner.company_id:
+            company = db.query(models.Company).filter(
+                models.Company.id == owner.company_id
+            ).first()
+            if company:
+                company_name = company.company_name or ""
+
+    display_name = (
+        (candidate.name if candidate else None)
+        or application.applicant_name
+        or "Candidate"
+    )
+
+    candidate_data = {
+        'name':             display_name,
+        'phone':            (candidate.phone if candidate else None) or application.applicant_phone or '—',
+        'email':            (candidate.email if candidate else None) or application.applicant_email or '—',
+        'job_title':        job.job_title if job else '—',
+        'experience_years': candidate.experience_years if candidate else 0,
+        'source':           'External Apply' if getattr(application, 'source', '') == 'external' else 'Portal Apply',
+    }
+
+    evaluation_data = {}
+    if evaluation:
+        import json as _json
+
+        iq_en = evaluation.suggested_interview_questions or []
+        if isinstance(iq_en, str):
+            try:    iq_en = _json.loads(iq_en)
+            except: iq_en = [iq_en] if iq_en else []
+
+        iq_ar = evaluation.interview_questions_ar or []
+        if isinstance(iq_ar, str):
+            try:    iq_ar = _json.loads(iq_ar)
+            except: iq_ar = [iq_ar] if iq_ar else []
+
+        evaluation_data = {
+            'score':                 evaluation.score or 0,
+            'decision':              evaluation.decision or '—',
+            'reasoning':             evaluation.reason or evaluation.summary_en or '—',
+            'strengths':             _bullets_to_para(evaluation.strengths),
+            'gaps':                  _bullets_to_para(evaluation.weaknesses or evaluation.gaps_en),
+            'score_experience':      evaluation.score_experience or 0,
+            'score_skills':          evaluation.score_skills     or 0,
+            'score_education':       evaluation.score_education  or 0,
+            'score_behavioral':      evaluation.score_behavioral or 0,
+            'weight_experience':     round((job.weight_experience or 0) * 100) if job else 40,
+            'weight_skills':         round((job.weight_skills     or 0) * 100) if job else 30,
+            'weight_education':      round((job.weight_education  or 0) * 100) if job else 20,
+            'weight_behavioral':     round((job.weight_behavioral or 0) * 100) if job else 10,
+            'interview_questions_en': iq_en,
+            'interview_questions_ar': iq_ar,
+        }
+
+    pdf_bytes = generate_screening_report_pdf(candidate_data, evaluation_data, company_name)
+    safe_name = "".join(c for c in display_name if c.isalnum() or c in " _-").strip().replace(" ", "_")
+    return Response(
+        content=pdf_bytes,
+        media_type='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename="screening_report_{safe_name}.pdf"'},
     )
 
 

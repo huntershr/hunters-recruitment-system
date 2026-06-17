@@ -1957,107 +1957,27 @@ async function handleJobManualCreate(event) {
     }
 }
 
-function exportScreeningCard(id) {
-    // Phase 3: use applications[] (supports Type A + Type B)
-    const app = applications.find(a => a.application_id === currentApplicationId);
-    if (!app) { showToast('Application data not found.', 'error'); return; }
-    if (!app.evaluation_id) { showToast('No evaluation found for this application.', 'error'); return; }
-
-    const ev = { decision: app.decision, reason: app.reason, score: app.score, strengths: app.strengths, weaknesses: app.weaknesses };
-    const candidate = { name: app.name, phone: app.phone, experience_years: app.experience_years };
-    const job = {
-        job_title: app.job_title,
-        weight_experience: app.weight_experience != null ? app.weight_experience + '%' : '—',
-        weight_skills:     app.weight_skills     != null ? app.weight_skills     + '%' : '—',
-        weight_education:  app.weight_education  != null ? app.weight_education  + '%' : '—',
-        weight_behavioral: app.weight_behavioral != null ? app.weight_behavioral + '%' : '—',
-    };
-
-    const printPct = evalScorePercent(app.score);
-    const printStrengths = parseListField(app.strengths).map(s => `• ${s}`).join('<br>') || (app.strengths || '—');
-    const printWeaknesses = parseListField(app.weaknesses).map(s => `• ${s}`).join('<br>') || (app.weaknesses || '—');
-
-    const printWindow = window.open('', '_blank');
-    const html = `
-        <html>
-        <head>
-            <title>Screening Card - ${candidate.name}</title>
-            <style>
-                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1e293b; background: white; }
-                .card { max-width: 800px; margin: auto; border: 2px solid #1B2A4A; }
-                .header { background: #1B2A4A; color: white; padding: 20px; text-align: center; }
-                .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
-                .section-title { background: #1B2A4A; color: white; padding: 8px 15px; font-weight: 500; display: flex; align-items: center; gap: 10px; margin-top: 20px; }
-                .grid { display: grid; grid-template-columns: 200px 1fr; border-bottom: 1px solid #e2e8f0; }
-                .grid div { padding: 10px 15px; border-right: 1px solid #e2e8f0; }
-                .grid div:last-child { border-right: none; }
-                .label { background: #f8fafc; font-weight: 500; color: #1B2A4A; }
-                .score-summary { background: #c5923b; color: white; padding: 10px; text-align: center; font-weight: 500; margin-top: 20px; }
-                .decision-box { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid #1B2A4A; margin-top: 10px; }
-                .decision-box div { padding: 20px; text-align: center; font-weight: 500; font-size: 20px; }
-                .decision-box .label { background: white; color: #1B2A4A; border-right: 2px solid #1B2A4A; }
-                .decision-box .value { background: #f0fff4; color: #10b981; }
-                .rejection-reason { background: #df2029; color: white; padding: 10px; font-weight: 500; margin-top: 20px; text-align: center; }
-                .reason-list { padding: 15px; background: #fff5f5; border: 1px solid #feb2b2; }
-                .notes-section { border: 1px solid #e2e8f0; padding: 20px; min-height: 100px; margin-top: 20px; }
-                @media print { .no-print { display: none; } }
-            </style>
-        </head>
-        <body>
-            <div class="no-print" style="margin-bottom: 20px; text-align: center;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: #1B2A4A; color: white; border: none; border-radius: 8px; cursor: pointer;">Download / Print PDF</button>
-            </div>
-            <div class="card">
-                <div class="header">
-                    <h1>HUNTERS — CANDIDATE: "${candidate.name}" LIVE SCREENING CARD</h1>
-                </div>
-
-                <div class="section-title">CANDIDATE INFORMATION</div>
-                <div class="grid"><div class="label">Candidate Name</div><div>${candidate.name}</div></div>
-                <div class="grid"><div class="label">Role Applied For</div><div>${job.job_title}</div></div>
-                <div class="grid"><div class="label">Phone Number</div><div>${candidate.phone}</div></div>
-                <div class="grid"><div class="label">Screening Date</div><div>${new Date().toLocaleDateString()}</div></div>
-                <div class="grid"><div class="label">Years of Experience</div><div>${candidate.experience_years}</div></div>
-
-                <div class="section-title">COMPETENCY SCORING</div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr 100px;">
-                    <div class="label">Metric</div><div class="label">Notes / Details</div><div class="label">AI Score</div>
-                </div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr 100px;">
-                    <div class="label">Experience Weight: ${job.weight_experience}</div><div>Verified against JD requirements</div><div>${app.score_experience != null ? app.score_experience + '%' : '-'}</div>
-                </div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr 100px;">
-                    <div class="label">Skills Weight: ${job.weight_skills}</div><div>AI analysis of core technologies</div><div>${app.score_skills != null ? app.score_skills + '%' : '-'}</div>
-                </div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr 100px;">
-                    <div class="label">Education Weight: ${job.weight_education}</div><div>Academic background alignment</div><div>${app.score_education != null ? app.score_education + '%' : '-'}</div>
-                </div>
-
-                <div class="score-summary">SCORE SUMMARY</div>
-                <div class="grid"><div class="label">Weighted AI Score</div><div style="font-size: 24px; font-weight: 500; color: #1B2A4A;">${printPct != null ? printPct + '%' : '—'}</div></div>
-
-                <div class="section-title">AUTO DECISION ENGINE</div>
-                <div class="decision-box">
-                    <div class="label">SCREENING DECISION</div>
-                    <div class="value" style="color: ${(ev.decision || '').toLowerCase() === 'reject' ? '#df2029' : '#10b981'}">${(ev.decision || 'Pending').toUpperCase()}</div>
-                </div>
-
-                <div class="rejection-reason">ANALYSIS & REASONING</div>
-                <div class="reason-list">
-                    ${(ev.reason || '').split('\n').filter(Boolean).map(r => `<p>${r}</p>`).join('') || '<p>No reason provided.</p>'}
-                </div>
-
-                <div class="section-title">SCREENER NOTES & RECOMMENDATION</div>
-                <div class="notes-section">
-                    <strong>Strengths:</strong><br>${printStrengths}<br><br>
-                    <strong>Gaps / Areas to Improve:</strong><br>${printWeaknesses}
-                </div>
-            </div>
-        </body>
-        </html>
-    `;
-    printWindow.document.write(html);
-    printWindow.document.close();
+async function exportScreeningCard(appId) {
+    const token = localStorage.getItem('token');
+    const id = currentApplicationId || appId;
+    if (!id) { showToast('No application selected', 'error'); return; }
+    showToast('Generating report...', 'info');
+    try {
+        const res = await fetch(`/api/admin/applications/${id}/report`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Server returned ' + res.status);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `screening_report_${id}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Report downloaded', 'success');
+    } catch (e) {
+        showToast('Failed to generate report', 'error');
+    }
 }
 
 async function fetchUserInfo() {

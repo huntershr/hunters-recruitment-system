@@ -2962,6 +2962,28 @@
         printWindow.document.close();
     }
 
+    async function coDownloadReport(appId) {
+        const token = localStorage.getItem('token');
+        if (!appId) { showToast('Application not found', 'error'); return; }
+        showToast('Generating report...', 'info');
+        try {
+            const res = await fetch(`/api/admin/applications/${appId}/report`, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (!res.ok) throw new Error('Server returned ' + res.status);
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `screening_report_${appId}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Report downloaded', 'success');
+        } catch (e) {
+            showToast('Failed to generate report', 'error');
+        }
+    }
+
     /* ── Data cache — avoids re-fetching stable data on section revisit ── */
     const coDataCache = {};
     function coInvalidateCache(...keys) { keys.forEach(k => delete coDataCache[k]); }
@@ -3782,7 +3804,10 @@
             const body = document.getElementById('ai-report-body');
             if (!body) return;
             const btns = body.querySelectorAll('button');
-            btns.forEach(b => { if (b.textContent.includes('Download CV')) b.onclick = () => coDownloadCV(appId, (app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_')); });
+            btns.forEach(b => {
+                if (b.textContent.includes('Download CV')) b.onclick = () => coDownloadCV(appId, (app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_'));
+                if (b.textContent.includes('Download / Print PDF')) b.onclick = () => coDownloadReport(appId);
+            });
         }, 50);
     }
 
