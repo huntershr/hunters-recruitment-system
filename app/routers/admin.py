@@ -1477,27 +1477,35 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
     ], colWidths=[(W * 0.68) / 2 - 2*mm, (W * 0.68) / 2 - 2*mm], spaceBefore=4)
 
     s_sc_lbl = ParagraphStyle('scl', fontName='Helvetica', fontSize=7,
-        textColor=colors.HexColor('#9CA3AF'), alignment=TA_CENTER)
-    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=32,
-        textColor=NAVY, alignment=TA_CENTER, spaceBefore=4, spaceAfter=4)
+        textColor=colors.HexColor('#9CA3AF'), alignment=TA_CENTER, spaceAfter=4)
+    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=36,
+        textColor=NAVY, alignment=TA_CENTER)
     s_dec    = ParagraphStyle('scd', fontName='Helvetica-Bold', fontSize=10,
-        textColor=dec_color, alignment=TA_CENTER, spaceBefore=6)
+        textColor=dec_color, alignment=TA_CENTER, spaceBefore=8)
+
+    num_cell = Table([
+        [Paragraph(str(score_pct), s_sc_num)],
+    ], colWidths=[22*mm], rowHeights=[20*mm])
+    num_cell.setStyle(TableStyle([
+        ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOX',           (0, 0), (-1, -1), 2.5, score_border),
+        ('TOPPADDING',    (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+    ]))
 
     score_block = Table([
         [Paragraph('AI SCORE', s_sc_lbl)],
-        [Paragraph(str(score_pct), s_sc_num)],
+        [num_cell],
         [Paragraph(decision or 'N/A', s_dec)],
     ], colWidths=[W * 0.28])
     score_block.setStyle(TableStyle([
         ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING',    (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('BOX',           (0, 1), (0,  1),  2.5, score_border),
-        ('LEFTPADDING',   (0, 1), (0,  1),  12),
-        ('RIGHTPADDING',  (0, 1), (0,  1),  12),
-        ('TOPPADDING',    (0, 1), (0,  1),  8),
-        ('BOTTOMPADDING', (0, 1), (0,  1),  8),
+        ('TOPPADDING',    (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ]))
 
     left_col = Table([
