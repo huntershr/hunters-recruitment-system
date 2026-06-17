@@ -163,7 +163,13 @@ def delete_job(job_id: int, db: Session = Depends(get_db), current_user: models.
                 models.Interview.application_id.in_(app_ids)
             ).delete(synchronize_session=False)
 
-        # 4. Delete applications
+        # 4. Delete offers (FK is application_id only)
+        if app_ids:
+            db.query(models.Offer).filter(
+                models.Offer.application_id.in_(app_ids)
+            ).delete(synchronize_session=False)
+
+        # 5. Delete applications
         db.query(models.Application).filter(
             models.Application.job_id == job_id
         ).delete(synchronize_session=False)
