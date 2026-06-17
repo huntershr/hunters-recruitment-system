@@ -1369,6 +1369,19 @@ def _parse_bullet_field(value) -> str:
     return str(value) or '—'
 
 
+_amiri_registered = False
+
+
+def _render_arabic(text: str) -> str:
+    """Reshape Arabic glyphs + apply bidi visual ordering for reportlab LTR rendering."""
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+        return get_display(arabic_reshaper.reshape(str(text)))
+    except Exception:
+        return str(text)
+
+
 def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, company_name: str = "") -> bytes:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
@@ -1376,9 +1389,23 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable, Image
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
     from io import BytesIO
     from datetime import datetime
     import os
+
+    global _amiri_registered
+    if not _amiri_registered:
+        try:
+            _font_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts')
+            _amiri_path = os.path.join(_font_dir, 'Amiri-Regular.ttf')
+            if os.path.exists(_amiri_path):
+                pdfmetrics.registerFont(TTFont('Amiri', _amiri_path))
+                _amiri_registered = True
+        except Exception:
+            pass
+    arabic_font = 'Amiri' if _amiri_registered else 'Helvetica'
 
     buffer = BytesIO()
 
@@ -1614,11 +1641,12 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
             s_ar_hdr = ParagraphStyle('arh', fontName='Helvetica-Bold', fontSize=8,
                 textColor=NAVY, spaceAfter=2*mm)
             story.append(Paragraph('INTERVIEW QUESTIONS (ARABIC)', s_ar_hdr))
-            s_q_ar = ParagraphStyle('qar', fontName='Helvetica', fontSize=10,
-                textColor=colors.HexColor('#4B5563'), leading=16, leftIndent=10,
-                spaceAfter=4, alignment=TA_RIGHT)
+            s_q_ar = ParagraphStyle('qar', fontName=arabic_font, fontSize=11,
+                textColor=colors.HexColor('#4B5563'), leading=20, rightIndent=10,
+                spaceAfter=6, alignment=TA_RIGHT)
             for i, q in enumerate(iq_ar if isinstance(iq_ar, list) else [iq_ar], 1):
-                story.append(Paragraph(f"{i}. {q}", s_q_ar))
+                rendered = _render_arabic(f"{i}. {q}") if arabic_font == 'Amiri' else f"{i}. {q}"
+                story.append(Paragraph(rendered, s_q_ar))
 
     # ── FOOTER ──
     story.append(Spacer(1, 5*mm))
