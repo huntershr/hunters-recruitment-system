@@ -1481,22 +1481,22 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
     ], colWidths=[(W * 0.68) / 2 - 2*mm, (W * 0.68) / 2 - 2*mm], spaceBefore=4)
 
     s_sc_lbl = ParagraphStyle('scl', fontName='Helvetica', fontSize=7,
-        textColor=colors.HexColor('#9CA3AF'), alignment=TA_CENTER, spaceAfter=4)
-    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=38,
-        textColor=dec_color, alignment=TA_CENTER)
+        textColor=colors.HexColor('#9CA3AF'), alignment=TA_CENTER)
+    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=36,
+        textColor=dec_color, alignment=TA_CENTER, leading=40)
     s_dec    = ParagraphStyle('scd', fontName='Helvetica-Bold', fontSize=11,
-        textColor=dec_color, alignment=TA_CENTER, spaceBefore=4)
+        textColor=dec_color, alignment=TA_CENTER)
 
     score_block = Table([
         [Paragraph('AI SCORE', s_sc_lbl)],
         [Paragraph(str(score_pct), s_sc_num)],
         [Paragraph(decision or 'N/A', s_dec)],
-    ], colWidths=[W * 0.28])
+    ], colWidths=[W * 0.28], rowHeights=[8*mm, 16*mm, 8*mm])
     score_block.setStyle(TableStyle([
         ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING',    (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING',    (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
 
     left_col = Table([
