@@ -1438,8 +1438,10 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
     ]], colWidths=[48*mm, W - 98*mm, 50*mm])
     hdr.setStyle(TableStyle([
         ('BACKGROUND',    (0, 0), (-1, -1), NAVY),
+        ('BACKGROUND',    (0, 0), (0,  0),  NAVY),
         ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING',   (0, 0), (0,  0),  5*mm),
+        ('LEFTPADDING',   (0, 0), (0,  0),  4*mm),
+        ('RIGHTPADDING',  (0, 0), (0,  0),  2*mm),
         ('LEFTPADDING',   (1, 0), (1,  0),  4*mm),
         ('RIGHTPADDING',  (2, 0), (2,  0),  5*mm),
         ('TOPPADDING',    (0, 0), (-1, -1), 5*mm),
