@@ -1482,14 +1482,14 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
 
     s_sc_lbl = ParagraphStyle('scl', fontName='Helvetica', fontSize=7,
         textColor=colors.HexColor('#9CA3AF'), alignment=TA_CENTER, spaceAfter=4)
-    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=36,
+    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=34,
         textColor=NAVY, alignment=TA_CENTER)
     s_dec    = ParagraphStyle('scd', fontName='Helvetica-Bold', fontSize=10,
         textColor=dec_color, alignment=TA_CENTER, spaceBefore=8)
 
     num_cell = Table([
         [Paragraph(str(score_pct), s_sc_num)],
-    ], colWidths=[22*mm], rowHeights=[20*mm])
+    ], colWidths=[18*mm], rowHeights=[14*mm])
     num_cell.setStyle(TableStyle([
         ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
@@ -1546,7 +1546,7 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
         s_pct_val = _norm_score(raw_s)
         bar_color = GREEN if s_pct_val >= 65 else AMBER if s_pct_val >= 40 else RED
         fill_w  = max(W * 0.50 * s_pct_val / 100, 1)
-        empty_w = W * 0.50 - fill_w
+        empty_w = max(W * 0.50 - fill_w, 0.5)
 
         filled = Table([['']], colWidths=[fill_w],  rowHeights=[5])
         filled.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), bar_color),
