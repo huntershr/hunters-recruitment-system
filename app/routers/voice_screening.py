@@ -60,19 +60,12 @@ def _screening_dict(vs: models.VoiceScreening) -> dict:
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
-def _build_questions(job_title, job_type, interview_date, interview_time):
-    q4 = (
-        f"Your interview is scheduled for {interview_date} at {interview_time} — can you confirm your attendance?"
-        if interview_date and interview_time
-        else "Would you be available for an interview this week or next week?"
-    )
+def _build_questions(job_title, job_type=None, interview_date=None, interview_time=None):
     return [
-        f"Please tell us about your experience relevant to the {job_title} role.",
-        "When are you available to start the job?",
-        f"This role is {job_type} — is that suitable for you?",
-        q4,
+        f"Please describe your experience relevant to the {job_title} role.",
+        "When are you available to start?",
         "What is your expected monthly salary?",
-        "Do you have any questions for us? If yes, please go ahead after the beep.",
+        "Do you have any questions for us?",
     ]
 
 
@@ -210,17 +203,15 @@ def save_answer(
     field_map = {
         1: "experience_response",
         2: "availability_response",
-        3: "job_type_suitable",
-        4: "interview_confirmed",
-        5: "expected_salary",
-        6: "candidate_questions",
+        3: "expected_salary",
+        4: "candidate_questions",
     }
     field = field_map.get(data.question_number)
     if not field:
-        raise HTTPException(status_code=400, detail="question_number must be 1-6")
+        raise HTTPException(status_code=400, detail="question_number must be 1-4")
 
     setattr(vs, field, data.transcript)
-    if data.question_number == 6 and data.transcript.strip():
+    if data.question_number == 4 and data.transcript.strip():
         vs.has_candidate_questions = True
     vs.status = "in_progress"
     db.commit()
@@ -248,10 +239,8 @@ def complete_screening(
     qa_pairs = [
         (vs.experience_response,   questions[0]),
         (vs.availability_response, questions[1]),
-        (vs.job_type_suitable,     questions[2]),
-        (vs.interview_confirmed,   questions[3]),
-        (vs.expected_salary,       questions[4]),
-        (vs.candidate_questions,   questions[5]),
+        (vs.expected_salary,       questions[2]),
+        (vs.candidate_questions,   questions[3]),
     ]
     parts = []
     for i, (answer, question) in enumerate(qa_pairs, start=1):
@@ -425,16 +414,14 @@ def session_save_answer(token: str, data: SaveAnswerIn, db: Session = Depends(ge
     field_map = {
         1: "experience_response",
         2: "availability_response",
-        3: "job_type_suitable",
-        4: "interview_confirmed",
-        5: "expected_salary",
-        6: "candidate_questions",
+        3: "expected_salary",
+        4: "candidate_questions",
     }
     field = field_map.get(data.question_number)
     if not field:
-        raise HTTPException(status_code=400, detail="question_number must be 1-6")
+        raise HTTPException(status_code=400, detail="question_number must be 1-4")
     setattr(vs, field, data.transcript)
-    if data.question_number == 6 and data.transcript.strip():
+    if data.question_number == 4 and data.transcript.strip():
         vs.has_candidate_questions = True
     vs.status = "in_progress"
     db.commit()
@@ -456,10 +443,8 @@ def session_complete(token: str, db: Session = Depends(get_db)):
     _qa = [
         (vs.experience_response,   _qs[0]),
         (vs.availability_response, _qs[1]),
-        (vs.job_type_suitable,     _qs[2]),
-        (vs.interview_confirmed,   _qs[3]),
-        (vs.expected_salary,       _qs[4]),
-        (vs.candidate_questions,   _qs[5]),
+        (vs.expected_salary,       _qs[2]),
+        (vs.candidate_questions,   _qs[3]),
     ]
     parts = []
     for i, (ans, q) in enumerate(_qa, start=1):

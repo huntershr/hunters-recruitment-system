@@ -3,46 +3,54 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hunters HR - Screening</title>
+<title>Hunters HR — Screening</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Segoe UI',Arial,sans-serif;background:#1B2A4A;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;color:#fff;}
-  .card{background:#fff;border-radius:20px;width:100%;max-width:520px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.4);}
-  .card-header{background:#1B2A4A;border-bottom:3px solid #C9A84C;padding:20px 24px;display:flex;align-items:center;gap:14px;}
-  .logo-circle{width:44px;height:44px;border-radius:50%;background:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#1B2A4A;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;color:#FAFAF8;}
+  .card{background:#243454;border-radius:16px;width:100%;max-width:520px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.08);}
+  .card-header{background:#1B2A4A;border-bottom:1px solid rgba(201,168,76,0.35);padding:18px 24px;display:flex;align-items:center;gap:14px;}
+  .logo-mark{width:36px;height:36px;border:1.5px solid #C9A84C;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#C9A84C;font-size:14px;font-weight:700;flex-shrink:0;letter-spacing:-.5px;}
   .header-text{flex:1;}
-  .header-title{color:#fff;font-size:15px;font-weight:600;line-height:1.2;}
-  .header-sub{color:#C9A84C;font-size:11px;margin-top:3px;letter-spacing:.5px;}
-  .card-body{padding:28px 24px;background:#fff;}
-  .progress-wrap{display:flex;gap:4px;margin-bottom:20px;}
-  .progress-seg{height:5px;border-radius:3px;flex:1;background:#E5E7EB;transition:background .3s;}
+  .header-title{color:#FAFAF8;font-size:14px;font-weight:600;line-height:1.2;}
+  .header-sub{color:#C9A84C;font-size:10px;margin-top:3px;letter-spacing:.5px;text-transform:uppercase;}
+  .card-body{padding:28px 24px;background:#243454;}
+  .progress-wrap{display:flex;gap:3px;margin-bottom:20px;}
+  .progress-seg{height:3px;flex:1;background:rgba(255,255,255,0.15);}
   .progress-seg.done{background:#C9A84C;}
-  .pulse-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin:20px 0;}
-  .pulse-outer{position:relative;width:80px;height:80px;}
-  .pulse-ring{position:absolute;inset:0;border-radius:50%;background:#C9A84C;opacity:.15;animation:pulse 1.4s ease-in-out infinite;animation-play-state:paused;}
-  .pulse-inner{position:absolute;inset:10px;border-radius:50%;background:#1B2A4A;display:flex;align-items:center;justify-content:center;font-size:26px;}
-  @keyframes pulse{0%,100%{transform:scale(1);opacity:.15;}50%{transform:scale(1.55);opacity:.07;}}
-  .status-label{font-size:13px;color:#6B7280;font-weight:500;}
-  .q-label{font-size:10px;font-weight:700;color:#9CA3AF;letter-spacing:1.5px;text-transform:uppercase;}
-  .q-text{font-size:16px;font-weight:600;color:#1B2A4A;line-height:1.55;margin-bottom:18px;}
-  .transcript-box{min-height:52px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:12px 14px;font-size:13px;color:#374151;margin-bottom:16px;line-height:1.5;}
-  .btn-gold{padding:13px 28px;border:none;border-radius:10px;background:#C9A84C;color:#1B2A4A;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;}
-  .btn-navy{padding:11px 20px;border:none;border-radius:10px;background:#1B2A4A;color:#C9A84C;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-top:8px;}
-  .btn-outline{padding:10px 18px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#6B7280;font-size:13px;cursor:pointer;margin-top:8px;width:100%;}
+  .pulse-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin:24px 0 20px;}
+  .pulse-outer{position:relative;width:72px;height:72px;}
+  .pulse-ring{position:absolute;inset:0;border-radius:50%;border:2px solid #C9A84C;opacity:.2;animation:pulse-ring 1.4s ease-in-out infinite;animation-play-state:paused;}
+  .pulse-inner{position:absolute;inset:10px;border-radius:50%;background:#1B2A4A;border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;color:#C9A84C;}
+  @keyframes pulse-ring{0%,100%{transform:scale(1);opacity:.2;}50%{transform:scale(1.5);opacity:.06;}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .status-label{font-size:12px;color:rgba(250,250,248,0.5);font-weight:500;letter-spacing:.3px;}
+  .q-label{font-size:10px;font-weight:600;color:rgba(250,250,248,0.38);letter-spacing:1.5px;text-transform:uppercase;}
+  .q-text{font-size:17px;font-weight:500;color:#FAFAF8;line-height:1.6;margin-bottom:20px;}
+  .transcript-box{min-height:52px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:12px 14px;font-size:13px;color:rgba(250,250,248,0.88);margin-bottom:14px;line-height:1.55;}
+  .btn-gold{padding:13px 28px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;transition:opacity .15s;}
+  .btn-gold:hover{opacity:.9;}
+  .btn-ghost{padding:11px 20px;border:1px solid rgba(255,255,255,0.22);border-radius:8px;background:transparent;color:#FAFAF8;font-size:13px;font-weight:500;cursor:pointer;width:100%;margin-top:8px;transition:border-color .15s;}
+  .btn-ghost:hover{border-color:rgba(255,255,255,0.45);}
+  .btn-outline{padding:10px 18px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:rgba(250,250,248,0.55);font-size:12px;cursor:pointer;margin-top:8px;width:100%;transition:color .15s,border-color .15s;}
+  .btn-outline:hover{color:rgba(250,250,248,0.85);border-color:rgba(255,255,255,0.3);}
   .lang-toggle{display:flex;gap:6px;justify-content:flex-end;margin-bottom:14px;}
   .stt-toggle{display:flex;gap:6px;justify-content:center;margin-bottom:10px;}
-  .stt-btn{padding:5px 14px;border:1.5px solid #E5E7EB;border-radius:20px;background:#fff;color:#6B7280;font-size:12px;font-weight:500;cursor:pointer;}
-  .stt-btn.stt-active{border-color:#1B2A4A;background:#1B2A4A;color:#fff;}
-  .warn-box{display:none;color:#DC2626;font-size:12px;text-align:center;margin-top:6px;padding:8px 12px;background:#FEF2F2;border-radius:8px;}
+  .stt-btn{padding:4px 12px;border:1.5px solid rgba(255,255,255,0.18);border-radius:4px;background:transparent;color:rgba(250,250,248,0.5);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;}
+  .stt-btn.stt-active{border-color:#C9A84C;background:rgba(201,168,76,0.1);color:#C9A84C;}
+  .warn-box{display:none;color:#F87171;font-size:12px;text-align:center;margin-top:6px;padding:8px 12px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:6px;}
   #state-error,#state-greeting,#state-progress,#state-done,#state-used{display:none;}
-  .footer-note{text-align:center;font-size:11px;color:rgba(255,255,255,0.45);margin-top:16px;}
+  .footer-note{text-align:center;font-size:11px;color:rgba(255,255,255,0.28);margin-top:16px;}
+  .state-icon{width:44px;height:44px;margin:0 auto 14px;border:1px solid rgba(255,255,255,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;color:rgba(250,250,248,0.45);}
+  .state-heading{font-size:18px;font-weight:600;color:#FAFAF8;margin-bottom:8px;}
+  .state-sub{font-size:13px;color:rgba(250,250,248,0.55);line-height:1.65;}
+  .success-badge{margin-top:20px;padding:12px 18px;background:rgba(22,163,74,0.1);border:1px solid rgba(22,163,74,0.25);border-radius:8px;font-size:12px;color:#4ADE80;font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px;}
 </style>
 </head>
 <body>
 
 <div class="card">
   <div class="card-header">
-    <div class="logo-circle">🎙️</div>
+    <div class="logo-mark">H</div>
     <div class="header-text">
       <div class="header-title">Hunters HR — Voice Screening</div>
       <div class="header-sub" id="header-sub">Powered by Hunters AI</div>
@@ -52,26 +60,30 @@
   <div class="card-body">
 
     <!-- STATE: loading -->
-    <div id="state-loading" style="text-align:center;padding:32px 0;">
-      <div style="font-size:32px;margin-bottom:12px;">⏳</div>
-      <div style="font-size:14px;color:#6B7280;">Loading your screening session…</div>
+    <div id="state-loading" style="text-align:center;padding:40px 0;">
+      <div style="width:28px;height:28px;border:2px solid rgba(255,255,255,0.1);border-top-color:#C9A84C;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div>
+      <div style="font-size:13px;color:rgba(250,250,248,0.5);">Loading your screening session…</div>
     </div>
 
     <!-- STATE: invalid / error -->
     <div id="state-error">
-      <div style="text-align:center;padding:24px 0;">
-        <div style="font-size:40px;margin-bottom:12px;">🔗</div>
-        <div style="font-size:16px;font-weight:600;color:#1B2A4A;margin-bottom:8px;">Invalid Link</div>
-        <div style="font-size:13px;color:#6B7280;line-height:1.6;" id="error-msg">This screening link is invalid or has expired. Please contact your recruiter.</div>
+      <div style="text-align:center;padding:32px 0;">
+        <div class="state-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="state-heading">Invalid Link</div>
+        <div class="state-sub" id="error-msg">This screening link is invalid or has expired. Please contact your recruiter.</div>
       </div>
     </div>
 
     <!-- STATE: already used -->
     <div id="state-used">
-      <div style="text-align:center;padding:24px 0;">
-        <div style="font-size:40px;margin-bottom:12px;">✅</div>
-        <div style="font-size:16px;font-weight:600;color:#1B2A4A;margin-bottom:8px;">Already Completed</div>
-        <div style="font-size:13px;color:#6B7280;line-height:1.6;">This screening session has already been completed. Thank you!</div>
+      <div style="text-align:center;padding:32px 0;">
+        <div class="state-icon" style="border-color:rgba(201,168,76,0.3);color:#C9A84C;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="state-heading">Already Completed</div>
+        <div class="state-sub">This screening session has already been completed. Thank you!</div>
       </div>
     </div>
 
@@ -81,18 +93,18 @@
         <button id="lang-en-btn" class="stt-btn stt-active" onclick="setPageLang('en')">EN English</button>
         <button id="lang-ar-btn" class="stt-btn" onclick="setPageLang('ar')">AR عربي</button>
       </div>
-      <div id="greet-heading" style="font-size:22px;font-weight:700;color:#1B2A4A;margin-bottom:6px;"></div>
-      <div id="greet-text" style="font-size:13px;color:#6B7280;line-height:1.65;margin-bottom:24px;"></div>
-      <button class="btn-gold" id="start-btn" onclick="startScreening()">▶ Start Screening</button>
+      <div id="greet-heading" style="font-size:22px;font-weight:700;color:#FAFAF8;margin-bottom:6px;"></div>
+      <div id="greet-text" style="font-size:13px;color:rgba(250,250,248,0.65);line-height:1.65;margin-bottom:24px;"></div>
+      <button class="btn-gold" id="start-btn" onclick="startScreening()">Start Screening</button>
     </div>
 
     <!-- STATE: in progress -->
     <div id="state-progress">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div class="q-label" id="q-label">QUESTION 1 OF 6</div>
+        <div class="q-label" id="q-label">QUESTION 1 OF 4</div>
         <div style="display:flex;gap:4px;">
-          <button id="lang-en-btn2" class="stt-btn stt-active" style="padding:3px 10px;font-size:11px;" onclick="setPageLang('en')">EN</button>
-          <button id="lang-ar-btn2" class="stt-btn" style="padding:3px 10px;font-size:11px;" onclick="setPageLang('ar')">AR عر</button>
+          <button id="lang-en-btn2" class="stt-btn stt-active" style="padding:3px 10px;font-size:10px;" onclick="setPageLang('en')">EN</button>
+          <button id="lang-ar-btn2" class="stt-btn" style="padding:3px 10px;font-size:10px;" onclick="setPageLang('ar')">AR</button>
         </div>
       </div>
       <div class="progress-wrap" id="progress-bar"></div>
@@ -100,36 +112,40 @@
       <div class="pulse-wrap">
         <div class="pulse-outer">
           <div class="pulse-ring" id="pulse-ring"></div>
-          <div class="pulse-inner" id="pulse-icon">🎙️</div>
+          <div class="pulse-inner" id="pulse-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </div>
         </div>
         <div class="status-label" id="status-label">Tap Record to answer</div>
       </div>
       <div id="stt-lang-toggle" class="stt-toggle" style="display:none;">
-        <button id="stt-ar-btn" class="stt-btn" onclick="setSttLang('ar')">AR عر</button>
+        <button id="stt-ar-btn" class="stt-btn" onclick="setSttLang('ar')">AR</button>
         <button id="stt-en-btn" class="stt-btn stt-active" onclick="setSttLang('en')">EN</button>
       </div>
       <div class="transcript-box" id="transcript-box" style="display:none;" dir="auto"></div>
-      <button class="btn-gold" id="record-btn" onclick="startListening()" style="display:none;">🎤 Record Answer</button>
-      <button class="btn-navy" id="next-btn" onclick="nextQuestion()" style="display:none;">Next Question ▶</button>
-      <div id="salary-warn" class="warn-box">⚠️ Please record your expected salary before continuing.</div>
-      <button class="btn-outline" id="repeat-btn" onclick="repeatQuestion()" style="display:none;">🔄 Re-record answer</button>
-      <button class="btn-outline" id="prev-btn" onclick="prevQuestion()" style="display:none;">← Previous question</button>
+      <button class="btn-gold" id="record-btn" onclick="startListening()" style="display:none;">Record Answer</button>
+      <button class="btn-ghost" id="next-btn" onclick="nextQuestion()" style="display:none;">Next Question</button>
+      <button class="btn-outline" id="skip-btn" onclick="skipQ4()" style="display:none;">Skip — I have no questions</button>
+      <div id="salary-warn" class="warn-box">Please record your expected salary before continuing.</div>
+      <button class="btn-outline" id="repeat-btn" onclick="repeatQuestion()" style="display:none;">Re-record answer</button>
+      <button class="btn-outline" id="prev-btn" onclick="prevQuestion()" style="display:none;">Previous question</button>
     </div>
 
     <!-- STATE: completed -->
-    <div id="state-done" style="text-align:center;padding:24px 0;">
-      <div style="font-size:44px;margin-bottom:14px;">🎉</div>
-      <div style="font-size:20px;font-weight:700;color:#1B2A4A;margin-bottom:8px;">Thank you, <span id="done-name"></span>!</div>
-      <div style="font-size:13px;color:#6B7280;line-height:1.7;">
+    <div id="state-done" style="text-align:center;padding:32px 0;">
+      <div class="state-icon" style="border-color:rgba(201,168,76,0.3);color:#C9A84C;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div style="font-size:20px;font-weight:700;color:#FAFAF8;margin-bottom:8px;">Thank you, <span id="done-name" style="color:#C9A84C;"></span></div>
+      <div style="font-size:13px;color:rgba(250,250,248,0.6);line-height:1.7;">
         Your screening is complete. Our team will review your responses and be in touch shortly.<br><br>
         You can now close this page.
       </div>
-      <div style="margin-top:20px;padding:14px 18px;background:#E1F5EE;border-radius:10px;font-size:12px;color:#0F6E56;font-weight:500;">
-        ✅ Results saved successfully
+      <div class="success-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Results saved successfully
       </div>
-      <div style="margin-top:20px;font-size:12px;color:#9CA3AF;">
-        hr@hunters-egypt.com
-      </div>
+      <div style="margin-top:16px;font-size:11px;color:rgba(250,250,248,0.3);">hr@hunters-egypt.com</div>
     </div>
 
   </div><!-- /card-body -->
@@ -156,25 +172,25 @@ let _currentTranscript = '';
 let _sttLang       = 'en';
 let _langSwitch    = false;
 let _pageLang      = 'en';
+let _nextClicked   = false;
 
-// ── States ──────────────────────────────────────────────────────────────────
+// ── States ───────────────────────────────────────────────────────────────
 function show(id) {
   ['state-loading','state-error','state-greeting','state-progress','state-done','state-used']
     .forEach(s => document.getElementById(s).style.display = s === id ? 'block' : 'none');
 }
 
-// ── Arabic questions (mirrors backend _build_questions) ──────────────────
-function _buildArabicQuestions(jobTitle, jobType, interviewDate, interviewTime) {
-  const q4 = (interviewDate && interviewTime)
-    ? `تم تحديد موعد مقابلتك في ${interviewDate} الساعة ${interviewTime} — هل يمكنك تأكيد حضورك؟`
-    : 'هل ستكون متاحاً للمقابلة هذا الأسبوع أو الأسبوع القادم؟';
+// ── Mic SVG ──────────────────────────────────────────────────────────────
+const _MIC_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+const _CLOCK_SVG = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+
+// ── Arabic questions (4 only) ─────────────────────────────────────────────
+function _buildArabicQuestions(jobTitle) {
   return [
-    `من فضلك أخبرنا عن خبرتك المتعلقة بمنصب ${jobTitle}.`,
+    `من فضلك صف خبرتك ذات الصلة بوظيفة ${jobTitle}.`,
     'متى يمكنك البدء في العمل؟',
-    `هذا الدور ${jobType} — هل يناسبك؟`,
-    q4,
-    'ما هو الراتب الشهري المتوقع لديك؟',
-    'هل لديك أي أسئلة لنا؟ إذا كان الجواب نعم، تفضل.',
+    'ما هو راتبك الشهري المتوقع؟',
+    'هل لديك أي أسئلة لنا؟',
   ];
 }
 
@@ -182,14 +198,14 @@ function _buildArabicQuestions(jobTitle, jobType, interviewDate, interviewTime) 
 const _GREET = {
   en: {
     hello : 'Hello',
-    body  : (job) => `You have been invited to complete a screening for the <strong style="color:#1B2A4A;">${job}</strong> position.<br><br>This takes approximately <strong>3–5 minutes</strong>. Read each question carefully, then press <strong>Record Answer</strong> to speak your response.<br><br>Ensure your microphone is enabled before starting.`,
-    start : '▶ Start Screening',
+    body  : (job) => `You have been invited to complete a screening for the <strong style="color:#C9A84C;">${job}</strong> position.<br><br>This takes approximately <strong>3–4 minutes</strong>. Read each question carefully, then press <strong>Record Answer</strong> to speak your response.<br><br>Ensure your microphone is enabled before starting.`,
+    start : 'Start Screening',
     dir   : 'ltr',
   },
   ar: {
     hello : 'مرحباً',
-    body  : (job) => `تمت دعوتك لإتمام مقابلة فحص لمنصب <strong style="color:#1B2A4A;">${job}</strong>.<br><br>ستستغرق حوالي <strong>٣–٥ دقائق</strong>. اقرأ كل سؤال بعناية، ثم اضغط على <strong>تسجيل الإجابة</strong> للتحدث بإجابتك.<br><br>تأكد من تمكين الميكروفون قبل البدء.`,
-    start : '▶ ابدأ المقابلة',
+    body  : (job) => `تمت دعوتك لإتمام مقابلة فحص لمنصب <strong style="color:#C9A84C;">${job}</strong>.<br><br>ستستغرق حوالي <strong>٣–٤ دقائق</strong>. اقرأ كل سؤال بعناية، ثم اضغط على <strong>تسجيل الإجابة</strong> للتحدث بإجابتك.<br><br>تأكد من تمكين الميكروفون قبل البدء.`,
+    start : 'ابدأ المقابلة',
     dir   : 'rtl',
   },
 };
@@ -198,7 +214,7 @@ function _renderGreeting() {
   if (!_candName) return;
   const t = _GREET[_pageLang];
   const h = document.getElementById('greet-heading');
-  h.innerHTML = `${t.hello}, <span style="color:#C9A84C;">${_candName}</span> 👋`;
+  h.innerHTML = `${t.hello}, <span style="color:#C9A84C;">${_candName}</span>`;
   h.dir = t.dir;
   const b = document.getElementById('greet-text');
   b.innerHTML = t.body(_jobTitle);
@@ -217,6 +233,9 @@ function setPageLang(lang) {
   document.getElementById('lang-ar-btn2').classList.toggle('stt-active', lang === 'ar');
   document.getElementById('stt-en-btn').classList.toggle('stt-active', lang === 'en');
   document.getElementById('stt-ar-btn').classList.toggle('stt-active', lang === 'ar');
+
+  const skipBtn = document.getElementById('skip-btn');
+  if (skipBtn) skipBtn.textContent = lang === 'ar' ? 'تخطى — ليس لدي أسئلة' : 'Skip — I have no questions';
 
   _renderGreeting();
 
@@ -261,7 +280,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     _interviewDate = data.interview_date  || '';
     _interviewTime = data.interview_time  || '';
     _companyName   = data.company_name    || '';
-    _questionsAR   = _buildArabicQuestions(_jobTitle, _jobType, _interviewDate, _interviewTime);
+    _questionsAR   = _buildArabicQuestions(_jobTitle);
 
     const subParts = [_companyName, _jobTitle, 'Screening'].filter(Boolean);
     document.getElementById('header-sub').textContent = subParts.join(' · ');
@@ -314,11 +333,12 @@ function showQuestion(idx) {
   document.getElementById('stt-ar-btn').classList.toggle('stt-active', _sttLang === 'ar');
   document.getElementById('stt-en-btn').classList.toggle('stt-active', _sttLang === 'en');
   document.getElementById('next-btn').style.display        = 'none';
+  document.getElementById('skip-btn').style.display        = idx === 3 ? 'block' : 'none';
   document.getElementById('repeat-btn').style.display      = 'none';
   document.getElementById('prev-btn').style.display        = 'none';
   document.getElementById('salary-warn').style.display     = 'none';
   document.getElementById('record-btn').style.display      = 'block';
-  document.getElementById('pulse-icon').textContent        = '🎙️';
+  document.getElementById('pulse-icon').innerHTML          = _MIC_SVG;
   document.getElementById('status-label').textContent      =
     _pageLang === 'ar' ? 'اضغط تسجيل للإجابة' : 'Tap Record to answer';
   document.getElementById('pulse-ring').style.animationPlayState = 'paused';
@@ -331,26 +351,25 @@ let _recognition = null;
 
 function startListening() {
   document.getElementById('record-btn').style.display      = 'none';
-  document.getElementById('pulse-icon').textContent        = '🎤';
-  document.getElementById('status-label').textContent      = '🎤 Listening… (speak now)';
+  document.getElementById('status-label').textContent      = _pageLang === 'ar' ? 'جارٍ الاستماع…' : 'Listening… (speak now)';
   document.getElementById('transcript-box').style.display  = 'block';
   document.getElementById('stt-lang-toggle').style.display = 'flex';
+  document.getElementById('next-btn').style.display        = 'block';
   if (_currentQ > 0) document.getElementById('prev-btn').style.display = 'block';
   document.getElementById('pulse-ring').style.animationPlayState = 'running';
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     document.getElementById('status-label').textContent = 'Microphone not supported — click Next to continue';
-    document.getElementById('next-btn').style.display   = 'block';
     return;
   }
 
   _recognition = new SR();
-  _recognition.lang             = _sttLang === 'ar' ? 'ar-SA' : 'en-US';
-  _recognition.continuous       = true;
-  _recognition.interimResults   = true;
+  _recognition.lang           = _sttLang === 'ar' ? 'ar-SA' : 'en-US';
+  _recognition.continuous     = true;
+  _recognition.interimResults = true;
 
-  // Q1 = 60 s silence; Q2–Q6 = 30 s silence
+  // Q1 = 60 s silence; Q2-Q4 = 30 s
   const silenceDuration = _currentQ === 0 ? 60000 : 30000;
   let final    = '';
   let silTimer = null;
@@ -371,41 +390,40 @@ function startListening() {
     if (_langSwitch) { _langSwitch = false; startListening(); return; }
     _currentTranscript = document.getElementById('transcript-box').textContent.trim();
     document.getElementById('status-label').textContent =
-      _currentTranscript ? '✅ Answer recorded' : '(No answer recorded)';
+      _currentTranscript
+        ? (_pageLang === 'ar' ? 'تم تسجيل الإجابة' : 'Answer recorded')
+        : '(No answer recorded)';
     document.getElementById('pulse-ring').style.animationPlayState = 'paused';
-    document.getElementById('next-btn').style.display   = 'block';
     document.getElementById('repeat-btn').style.display = 'block';
     _recognition = null;
+    if (_nextClicked) { _nextClicked = false; nextQuestion(); }
   };
 
   _recognition.onerror = (ev) => {
     clearTimeout(silTimer);
     if (_langSwitch) { _langSwitch = false; startListening(); return; }
-    if (ev.error === 'no-speech') {
-      _recognition.stop();
-      return;
-    }
+    if (ev.error === 'no-speech') { _recognition.stop(); return; }
     document.getElementById('status-label').textContent = 'Mic error — click Next to continue';
-    document.getElementById('next-btn').style.display   = 'block';
-    document.getElementById('repeat-btn').style.display = 'block';
     _recognition = null;
   };
 
   _recognition.start();
-  // Start silence timer from the beginning (candidate may not speak at all)
   silTimer = setTimeout(() => { if (_recognition) _recognition.stop(); }, silenceDuration);
 }
 
 // ── Next ──────────────────────────────────────────────────────────────────
 async function nextQuestion() {
-  if (_recognition) { _recognition.stop(); return; }
+  if (_recognition) { _nextClicked = true; _recognition.stop(); return; }
+  _nextClicked = false;
 
-  if (_currentQ === 4 && !_currentTranscript.trim()) {
+  // Salary (Q3 = index 2) is required
+  if (_currentQ === 2 && !_currentTranscript.trim()) {
     document.getElementById('salary-warn').style.display = 'block';
     return;
   }
   document.getElementById('salary-warn').style.display     = 'none';
   document.getElementById('next-btn').style.display        = 'none';
+  document.getElementById('skip-btn').style.display        = 'none';
   document.getElementById('repeat-btn').style.display      = 'none';
   document.getElementById('prev-btn').style.display        = 'none';
   document.getElementById('stt-lang-toggle').style.display = 'none';
@@ -414,6 +432,21 @@ async function nextQuestion() {
   await saveAnswer(_currentQ + 1, _currentTranscript);
   _currentQ++;
   if (_currentQ >= _questions.length) { finishScreening(); } else { showQuestion(_currentQ); }
+}
+
+// ── Skip Q4 ───────────────────────────────────────────────────────────────
+async function skipQ4() {
+  if (_recognition) { _recognition.stop(); _recognition = null; }
+  _currentTranscript = '';
+  document.getElementById('skip-btn').style.display        = 'none';
+  document.getElementById('next-btn').style.display        = 'none';
+  document.getElementById('repeat-btn').style.display      = 'none';
+  document.getElementById('prev-btn').style.display        = 'none';
+  document.getElementById('stt-lang-toggle').style.display = 'none';
+  document.getElementById('salary-warn').style.display     = 'none';
+  document.getElementById('status-label').textContent      = _pageLang === 'ar' ? 'جاري الحفظ…' : 'Saving…';
+  await saveAnswer(4, '');
+  finishScreening();
 }
 
 // ── API ───────────────────────────────────────────────────────────────────
@@ -431,8 +464,10 @@ async function finishScreening() {
   document.getElementById('status-label').textContent =
     _pageLang === 'ar' ? 'جاري التحليل بالذكاء الاصطناعي…' : 'Analysing with AI…';
   document.getElementById('next-btn').style.display   = 'none';
+  document.getElementById('skip-btn').style.display   = 'none';
   document.getElementById('record-btn').style.display = 'none';
-  document.getElementById('pulse-icon').textContent   = '⏳';
+  document.getElementById('pulse-icon').innerHTML     = _CLOCK_SVG;
+  document.getElementById('pulse-ring').style.animationPlayState = 'running';
   try {
     await fetch(API + '/api/voice-screening/session/' + TOKEN + '/complete', {
       method : 'POST',
@@ -442,7 +477,7 @@ async function finishScreening() {
   show('state-done');
 }
 
-// ── STT language (during recording) ─────────────────────────────────────
+// ── STT language (during recording) ──────────────────────────────────────
 function setSttLang(lang) {
   if (_sttLang === lang) return;
   _sttLang = lang;
@@ -458,12 +493,13 @@ function repeatQuestion() {
   document.getElementById('transcript-box').textContent    = '';
   document.getElementById('transcript-box').style.display  = 'none';
   document.getElementById('next-btn').style.display        = 'none';
+  document.getElementById('skip-btn').style.display        = _currentQ === 3 ? 'block' : 'none';
   document.getElementById('repeat-btn').style.display      = 'none';
   document.getElementById('prev-btn').style.display        = 'none';
   document.getElementById('stt-lang-toggle').style.display = 'none';
   document.getElementById('salary-warn').style.display     = 'none';
   document.getElementById('record-btn').style.display      = 'block';
-  document.getElementById('pulse-icon').textContent        = '🎙️';
+  document.getElementById('pulse-icon').innerHTML          = _MIC_SVG;
   document.getElementById('status-label').textContent      =
     _pageLang === 'ar' ? 'اضغط تسجيل للإجابة' : 'Tap Record to answer';
   document.getElementById('pulse-ring').style.animationPlayState = 'paused';
@@ -474,6 +510,7 @@ function prevQuestion() {
   if (_recognition) { _recognition.stop(); _recognition = null; }
   if (_currentQ <= 0) return;
   document.getElementById('next-btn').style.display        = 'none';
+  document.getElementById('skip-btn').style.display        = 'none';
   document.getElementById('repeat-btn').style.display      = 'none';
   document.getElementById('prev-btn').style.display        = 'none';
   document.getElementById('stt-lang-toggle').style.display = 'none';

@@ -16,8 +16,8 @@ _ANALYSIS_PROMPT = """You are an HR screening assistant. The candidate may have 
 - fluency_assessment: one sentence describing speech fluency
 - clarity_assessment: one sentence describing answer clarity
 - experience_match: one sentence on relevance of experience to the role
-- language_notes: note which language the candidate used (Arabic, English, or mixed) and any specific observations about language use
-- ai_summary: exactly 3 bullet points (plain text, each starting with "• ") covering (1) experience, (2) availability/salary, (3) interview confirmation
+- language_notes: note which language the candidate used (Arabic, English, or mixed) and any specific observations
+- ai_summary: exactly 3 bullet points (plain text, each starting with "• ") covering (1) relevant experience summary, (2) availability and expected salary, (3) whether the candidate had additional questions
 
 Job Title: {job_title}
 Transcript:

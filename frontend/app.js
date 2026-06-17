@@ -649,7 +649,7 @@ function _renderStageCard(app) {
                 ${app.cv_available?`<button onclick="downloadAppCV(${app.application_id},'${safeName}')" style="padding:5px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F3F4F6;font-size:11px;font-weight:500;color:#6B7280;cursor:pointer;">CV</button>`:''}
                 ${isReg&&app.candidate_id?`<button onclick="viewAtsProfile(${app.application_id})" style="padding:5px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F3F4F6;font-size:11px;font-weight:500;color:#6B7280;cursor:pointer;">Profile</button>`:''}
                 ${stg==='interview'?`<button onclick="openScheduleInterviewModal(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}',_appIv(${app.application_id}))" style="padding:5px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F3F4F6;font-size:11px;font-weight:500;color:#6B7280;cursor:pointer;">${app.interview?'Reschedule':'Schedule'}</button>`:''}
-                ${stg==='screening'?`<button onclick="openVoiceScreeningPanel(${app.application_id})" style="padding:5px 10px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;">🎙️ ${app.voice_screening&&app.voice_screening.status==='completed'?'View Screening':app.voice_screening&&app.voice_screening.status==='no_answer'?'Re-Call':'Start Screening'}</button>`:''}
+                ${(stg==='screening'||(app.voice_screening&&app.voice_screening.status==='completed'))?`<button onclick="openVoiceScreeningPanel(${app.application_id})" style="padding:5px 10px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;">${app.voice_screening&&app.voice_screening.status==='completed'?'View Screening':app.voice_screening&&app.voice_screening.status==='no_answer'?'Re-Call':'Start Screening'}</button>`:''}
                 ${app.email?`<button onclick="sendCandidateEmail('${(app.email||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}','${(app.company_name||'Hunters HR').replace(/'/g,"\\'")}')" style="padding:5px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F3F4F6;font-size:11px;font-weight:500;color:#6B7280;cursor:pointer;">Email</button>`:''}
                 ${app.phone?`<button onclick="sendCandidateWhatsApp('${(app.phone||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}')" style="padding:5px 10px;border:1px solid #25D366;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#25D366;cursor:pointer;">WhatsApp</button>`:''}
             </div>
@@ -3736,27 +3736,27 @@ async function openVoiceScreeningPanel(appId, forceNew = false) {
     overlay.id = 'voice-screening-panel';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.innerHTML = `
-    <div style="background:#fff;border-radius:20px;width:540px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;">
-      <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="background:#1E3055;border:1px solid rgba(255,255,255,0.08);border-radius:16px;width:540px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.5);overflow:hidden;">
+      <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(201,168,76,0.25);">
         <div>
-          <div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">🎙️ AI SCREENING CALL READY</div>
-          <div style="color:#fff;font-size:15px;font-weight:600;margin-top:2px;">${escHtml(app.name||'Candidate')} — ${escHtml(app.job_title||'')}</div>
+          <div style="color:#C9A84C;font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;">AI SCREENING — READY</div>
+          <div style="color:#FAFAF8;font-size:15px;font-weight:600;margin-top:3px;">${escHtml(app.name||'Candidate')} · ${escHtml(app.job_title||'')}</div>
         </div>
-        <button onclick="_vsClose()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>
+        <button onclick="_vsClose()" style="color:#FAFAF8;background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>
       </div>
       <div style="padding:24px;">
-        <div style="font-size:13px;color:#6B7280;margin-bottom:14px;">Send this link to the candidate to start the screening on their device:</div>
-        <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:12px 16px;font-size:12px;color:#1B2A4A;word-break:break-all;margin-bottom:16px;font-family:monospace;">${escHtml(screenLink)}</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
-          <button onclick="_vsCopyLink('${screenLink.replace(/'/g,"\\'")}')" style="padding:10px 18px;border:1px solid #1B2A4A;border-radius:8px;background:#fff;color:#1B2A4A;font-size:13px;font-weight:500;cursor:pointer;">📋 Copy Link</button>
-          ${waNum?`<a href="${escHtml(waUrl)}" target="_blank" style="padding:10px 18px;border:none;border-radius:8px;background:#25D366;color:#fff;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;">💬 Send via WhatsApp</a>`:''}
-          <button onclick="_vsMarkNoAnswer(${appId},${screeningId})" style="padding:10px 16px;border:1px solid #CC2B2B;border-radius:8px;background:#fff;color:#CC2B2B;font-size:12px;cursor:pointer;">📵 No Answer</button>
+        <div style="font-size:12px;color:rgba(250,250,248,0.55);margin-bottom:12px;">Send this link to the candidate to start the screening on their device:</div>
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 14px;font-size:12px;color:rgba(250,250,248,0.8);word-break:break-all;margin-bottom:16px;font-family:monospace;">${escHtml(screenLink)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+          <button onclick="_vsCopyLink('${screenLink.replace(/'/g,"\\'")}')" style="padding:9px 16px;border:1px solid rgba(255,255,255,0.22);border-radius:8px;background:transparent;color:#FAFAF8;font-size:12px;font-weight:500;cursor:pointer;">Copy Link</button>
+          ${waNum?`<a href="${escHtml(waUrl)}" target="_blank" style="padding:9px 16px;border:none;border-radius:8px;background:#25D366;color:#fff;font-size:12px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;">Send via WhatsApp</a>`:''}
+          <button onclick="_vsMarkNoAnswer(${appId},${screeningId})" style="padding:9px 14px;border:1px solid rgba(204,43,43,0.4);border-radius:8px;background:transparent;color:#F87171;font-size:12px;cursor:pointer;">No Answer</button>
         </div>
-        <div id="vs-poll-status" style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#F0F7FF;border-radius:8px;font-size:13px;color:#185FA5;">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#185FA5;animation:vs-blink 1.4s ease-in-out infinite;"></span>
-          ⏳ Waiting for candidate to complete the screening…
+        <div id="vs-poll-status" style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:12px;color:rgba(250,250,248,0.55);">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#C9A84C;animation:vs-blink 1.4s ease-in-out infinite;flex-shrink:0;"></span>
+          Waiting for candidate to complete the screening…
         </div>
-        <div style="font-size:11px;color:#9CA3AF;margin-top:10px;text-align:center;">Once the candidate finishes, results will appear here automatically.</div>
+        <div style="font-size:11px;color:rgba(250,250,248,0.3);margin-top:10px;text-align:center;">Results will appear here automatically once the candidate finishes.</div>
       </div>
     </div>
     <style>@keyframes vs-blink{0%,100%{opacity:1;}50%{opacity:0.2;}}</style>`;
@@ -3822,42 +3822,45 @@ function _showVsResultsModal(vs, candName, appId) {
     modal.id = 'vs-results-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10011;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
     modal.innerHTML = `
-    <div style="background:#fff;border-radius:20px;width:580px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;margin:auto;">
-      <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="background:#1E3055;border:1px solid rgba(255,255,255,0.08);border-radius:16px;width:580px;max-width:calc(100vw - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.5);overflow:hidden;margin:auto;">
+      <div style="background:#1B2A4A;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(201,168,76,0.25);">
         <div>
-          <div style="color:#C9A84C;font-size:11px;font-weight:600;letter-spacing:1px;">🎙️ AI SCREENING — COMPLETED ✅</div>
-          <div style="color:#fff;font-size:14px;margin-top:2px;">Attempt #${vs.attempt_number||1} · ${vs.completed_at?new Date(vs.completed_at).toLocaleDateString():''}</div>
+          <div style="color:#C9A84C;font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;">AI SCREENING — COMPLETED</div>
+          <div style="color:rgba(250,250,248,0.55);font-size:12px;margin-top:3px;font-weight:400;">Attempt #${vs.attempt_number||1} · ${vs.completed_at?new Date(vs.completed_at).toLocaleDateString():''}</div>
         </div>
-        <button onclick="document.getElementById('vs-results-modal').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>
+        <button onclick="document.getElementById('vs-results-modal').remove()" style="color:#FAFAF8;background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1;">×</button>
       </div>
       <div style="padding:20px 24px;overflow-y:auto;max-height:70vh;">
-        <div style="border-radius:10px;border:1px solid #E5E7EB;margin-bottom:14px;overflow:hidden;">
-          <div style="background:#F9FAFB;padding:8px 14px;font-size:10px;font-weight:700;color:#6B7280;letter-spacing:1px;border-bottom:1px solid #E5E7EB;">EXPERIENCE & LANGUAGE</div>
-          <div style="padding:12px 14px;display:grid;gap:6px;">
-            <div style="font-size:13px;"><strong>English Level:</strong> ${escHtml(vs.english_level||'—')}</div>
-            <div style="font-size:13px;"><strong>Fluency:</strong> ${escHtml(vs.fluency_assessment||'—')}</div>
-            <div style="font-size:13px;"><strong>Clarity:</strong> ${escHtml(vs.clarity_assessment||'—')}</div>
-            <div style="font-size:13px;"><strong>Experience Match:</strong> ${escHtml(vs.experience_match||'—')}</div>
-            ${vs.language_notes?`<div style="font-size:12px;color:#6B7280;">${escHtml(vs.language_notes)}</div>`:''}
+        <div style="border-left:2px solid #C9A84C;padding-left:12px;margin-bottom:6px;">
+          <div style="font-size:9px;font-weight:700;color:#C9A84C;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">EXPERIENCE &amp; LANGUAGE</div>
+          <div style="display:grid;gap:7px;padding-bottom:4px;">
+            <div style="font-size:13px;color:#FAFAF8;"><span style="color:#C9A84C;font-weight:500;">English Level</span> &nbsp;${escHtml(vs.english_level||'—')}</div>
+            <div style="font-size:13px;color:#FAFAF8;"><span style="color:#C9A84C;font-weight:500;">Fluency</span> &nbsp;${escHtml(vs.fluency_assessment||'—')}</div>
+            <div style="font-size:13px;color:#FAFAF8;"><span style="color:#C9A84C;font-weight:500;">Clarity</span> &nbsp;${escHtml(vs.clarity_assessment||'—')}</div>
+            <div style="font-size:13px;color:#FAFAF8;"><span style="color:#C9A84C;font-weight:500;">Experience Match</span> &nbsp;${escHtml(vs.experience_match||'—')}</div>
+            ${vs.language_notes?`<div style="font-size:12px;color:rgba(250,250,248,0.5);">${escHtml(vs.language_notes)}</div>`:''}
           </div>
         </div>
-        <div style="border-radius:10px;border:1px solid #E5E7EB;margin-bottom:14px;overflow:hidden;">
-          <div style="background:#F9FAFB;padding:8px 14px;font-size:10px;font-weight:700;color:#6B7280;letter-spacing:1px;border-bottom:1px solid #E5E7EB;">SCREENING ANSWERS</div>
-          <div style="padding:12px 14px;display:grid;gap:6px;">
-            ${vs.availability_response?`<div style="font-size:13px;"><strong>Available to start:</strong> ${escHtml(vs.availability_response)}</div>`:''}
-            ${vs.job_type_suitable?`<div style="font-size:13px;"><strong>Job type suitable:</strong> ${vs.job_type_suitable.toLowerCase().includes('yes')?'✅ ':''}${escHtml(vs.job_type_suitable)}</div>`:''}
-            ${vs.interview_confirmed?`<div style="font-size:13px;"><strong>Interview confirmed:</strong> ${vs.interview_confirmed.toLowerCase().includes('yes')?'✅ ':''}${escHtml(vs.interview_confirmed)}</div>`:''}
-            ${vs.expected_salary?`<div style="font-size:13px;"><strong>Expected salary:</strong> ${escHtml(vs.expected_salary)}</div>`:''}
-            <div style="font-size:13px;"><strong>Has questions:</strong> ${vs.has_candidate_questions?'❓ Yes (recorded)':'No'}</div>
+        <div style="height:1px;background:rgba(255,255,255,0.07);margin:16px 0;"></div>
+        <div style="border-left:2px solid #C9A84C;padding-left:12px;margin-bottom:6px;">
+          <div style="font-size:9px;font-weight:700;color:#C9A84C;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">SCREENING ANSWERS</div>
+          <div style="display:grid;gap:7px;padding-bottom:4px;">
+            ${vs.experience_response?`<div style="font-size:13px;color:#FAFAF8;"><span style="color:#C9A84C;font-weight:500;">Experience</span> &nbsp;${escHtml(vs.experience_response)}</div>`:''}
+            ${vs.availability_response?`<div style="font-size:13px;color:#FAFAF8;"><span style="color:#C9A84C;font-weight:500;">Available to start</span> &nbsp;${escHtml(vs.availability_response)}</div>`:''}
+            ${vs.expected_salary?`<div style="font-size:13px;color:#FAFAF8;"><span style="color:#C9A84C;font-weight:500;">Expected salary</span> &nbsp;${escHtml(vs.expected_salary)}</div>`:''}
+            ${vs.job_type_suitable?`<div style="font-size:13px;color:#FAFAF8;"><span style="color:#C9A84C;font-weight:500;">Job type suitable</span> &nbsp;${escHtml(vs.job_type_suitable)}</div>`:''}
+            ${vs.interview_confirmed?`<div style="font-size:13px;color:#FAFAF8;"><span style="color:#C9A84C;font-weight:500;">Interview confirmed</span> &nbsp;${escHtml(vs.interview_confirmed)}</div>`:''}
+            <div style="font-size:13px;color:#FAFAF8;"><span style="color:#C9A84C;font-weight:500;">Candidate questions</span> &nbsp;${vs.has_candidate_questions?'Yes (recorded)':'None'}</div>
           </div>
         </div>
-        ${summary.length?`<div style="border-radius:10px;border:1px solid #E5E7EB;margin-bottom:14px;overflow:hidden;">
-          <div style="background:#F9FAFB;padding:8px 14px;font-size:10px;font-weight:700;color:#6B7280;letter-spacing:1px;border-bottom:1px solid #E5E7EB;">AI SUMMARY</div>
-          <div style="padding:12px 14px;display:grid;gap:6px;">${summary.map(b=>`<div style="font-size:13px;color:#374151;">${escHtml(b)}</div>`).join('')}</div>
+        ${summary.length?`<div style="height:1px;background:rgba(255,255,255,0.07);margin:16px 0;"></div>
+        <div style="border-left:2px solid #C9A84C;padding-left:12px;margin-bottom:6px;">
+          <div style="font-size:9px;font-weight:700;color:#C9A84C;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">AI SUMMARY</div>
+          <div style="display:grid;gap:6px;padding-bottom:4px;">${summary.map(b=>`<div style="font-size:13px;color:rgba(250,250,248,0.85);">${escHtml(b)}</div>`).join('')}</div>
         </div>`:''}
-        ${vs.full_transcript?`<details style="margin-top:4px;"><summary style="font-size:12px;color:#185FA5;cursor:pointer;padding:4px 0;">View Full Transcript ▼</summary><pre style="font-size:11px;color:#374151;background:#F9FAFB;border-radius:8px;padding:12px;white-space:pre-wrap;margin-top:8px;">${escHtml(vs.full_transcript)}</pre></details>`:''}
-        ${appId?`<div style="margin-top:16px;padding-top:14px;border-top:1px solid #E5E7EB;text-align:right;">
-          <button onclick="document.getElementById('vs-results-modal').remove();openVoiceScreeningPanel(${appId},true)" style="padding:9px 18px;border:1px solid #C9A84C;border-radius:8px;background:#fff;color:#1B2A4A;font-size:13px;font-weight:600;cursor:pointer;">🔄 Re-Screen</button>
+        ${vs.full_transcript?`<div style="height:1px;background:rgba(255,255,255,0.07);margin:16px 0;"></div><details><summary style="font-size:12px;color:rgba(250,250,248,0.45);cursor:pointer;padding:2px 0;list-style:none;">View Full Transcript</summary><pre style="font-size:11px;color:rgba(250,250,248,0.65);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;white-space:pre-wrap;margin-top:10px;">${escHtml(vs.full_transcript)}</pre></details>`:''}
+        ${appId?`<div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.07);text-align:right;">
+          <button onclick="document.getElementById('vs-results-modal').remove();openVoiceScreeningPanel(${appId},true)" style="padding:9px 18px;border:1px solid rgba(201,168,76,0.5);border-radius:8px;background:transparent;color:#C9A84C;font-size:13px;font-weight:600;cursor:pointer;">Re-Screen</button>
         </div>`:''}
       </div>
     </div>`;
