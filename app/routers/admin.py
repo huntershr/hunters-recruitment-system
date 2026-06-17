@@ -1992,3 +1992,77 @@ def admin_delete_job(
     db.query(models.Job).filter(models.Job.id == job_id).delete(synchronize_session=False)
     db.commit()
     return {"message": "Job deleted"}
+
+
+# ── ONE-TIME MIGRATION: add ON DELETE CASCADE to FK constraints ────────────
+@router.post("/migrate/cascade-fk")
+def run_cascade_fk_migration(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _admin(current_user)
+    from sqlalchemy import text
+    sql = text("""
+    DO $$
+    DECLARE v TEXT;
+    BEGIN
+        -- jobs.id children
+        SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+        WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='applications' AND kcu.column_name='job_id';
+        EXECUTE format('ALTER TABLE applications DROP CONSTRAINT %I',v);
+        ALTER TABLE applications ADD CONSTRAINT applications_job_id_fkey FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE;
+
+        SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+        WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='evaluations' AND kcu.column_name='job_id';
+        IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE evaluations DROP CONSTRAINT %I',v); END IF;
+        ALTER TABLE evaluations ADD CONSTRAINT evaluations_job_id_fkey FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE;
+
+        SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+        WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='voice_screenings' AND kcu.column_name='job_id';
+        IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE voice_screenings DROP CONSTRAINT %I',v); END IF;
+        ALTER TABLE voice_screenings ADD CONSTRAINT voice_screenings_job_id_fkey FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE;
+
+        SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+        WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='candidates' AND kcu.column_name='job_applied';
+        IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE candidates DROP CONSTRAINT %I',v); END IF;
+        ALTER TABLE candidates ADD CONSTRAINT candidates_job_applied_fkey FOREIGN KEY (job_applied) REFERENCES jobs(id) ON DELETE SET NULL;
+
+        -- applications.id children
+        SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+        WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='evaluations' AND kcu.column_name='application_id';
+        IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE evaluations DROP CONSTRAINT %I',v); END IF;
+        ALTER TABLE evaluations ADD CONSTRAINT evaluations_application_id_fkey FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE;
+
+        SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+        WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='interviews' AND kcu.column_name='application_id';
+        EXECUTE format('ALTER TABLE interviews DROP CONSTRAINT %I',v);
+        ALTER TABLE interviews ADD CONSTRAINT interviews_application_id_fkey FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE;
+
+        SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+        WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='voice_screenings' AND kcu.column_name='application_id';
+        IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE voice_screenings DROP CONSTRAINT %I',v); END IF;
+        ALTER TABLE voice_screenings ADD CONSTRAINT voice_screenings_application_id_fkey FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE;
+
+        SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+        WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='offers' AND kcu.column_name='application_id';
+        EXECUTE format('ALTER TABLE offers DROP CONSTRAINT %I',v);
+        ALTER TABLE offers ADD CONSTRAINT offers_application_id_fkey FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE;
+
+        RAISE NOTICE 'CASCADE migration complete';
+    END$$;
+    """)
+    try:
+        db.execute(sql)
+        db.commit()
+        return {"status": "ok", "message": "CASCADE constraints applied"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
