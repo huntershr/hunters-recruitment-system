@@ -1339,14 +1339,34 @@ async def download_application_cv(
 
 # ── Screening Report PDF ──────────────────────────────────────────────────────
 
-def _bullets_to_para(text: str) -> str:
-    """Convert '- item\n- item' stored text to reportlab Paragraph-safe '<br/>' string."""
-    if not text:
+def _parse_bullet_field(value) -> str:
+    """Convert list/JSON/Python-repr/newline string to reportlab Paragraph-safe bullet text."""
+    import json as _j, ast as _ast
+    if not value:
         return '—'
-    lines = [l.lstrip('-• ').strip() for l in str(text).split('\n') if l.strip()]
-    if not lines:
-        return '—'
-    return '<br/>'.join(f'• {l}' for l in lines)
+    if isinstance(value, list):
+        items = [str(i).strip().strip("'\"") for i in value if i]
+        return '<br/>'.join(f'• {item}' for item in items if item) or '—'
+    if isinstance(value, str):
+        val = value.strip()
+        if val.startswith('['):
+            try:
+                parsed = _j.loads(val)
+                items = [str(i).strip() for i in parsed if i]
+                return '<br/>'.join(f'• {item}' for item in items if item) or '—'
+            except Exception:
+                pass
+            try:
+                parsed = _ast.literal_eval(val)
+                if isinstance(parsed, list):
+                    return '<br/>'.join(f'• {str(i).strip()}' for i in parsed if i) or '—'
+            except Exception:
+                pass
+        lines = [l.lstrip('-• ').strip() for l in val.split('\n') if l.strip()]
+        if lines:
+            return '<br/>'.join(f'• {l}' for l in lines)
+        return val or '—'
+    return str(value) or '—'
 
 
 def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, company_name: str = "") -> bytes:
@@ -1441,10 +1461,11 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
                   colWidths=[(W * 0.68) / 2 - 3*mm])
         t.setStyle(TableStyle([
             ('BACKGROUND',    (0, 0), (-1, -1), LIGHT),
-            ('TOPPADDING',    (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-            ('LEFTPADDING',   (0, 0), (-1, -1), 5),
-            ('RIGHTPADDING',  (0, 0), (-1, -1), 5),
+            ('TOPPADDING',    (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 7),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 7),
+            ('ROUNDEDCORNERS', [4]),
         ]))
         return t
 
@@ -1457,10 +1478,10 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
 
     s_sc_lbl = ParagraphStyle('scl', fontName='Helvetica', fontSize=7,
         textColor=colors.HexColor('#9CA3AF'), alignment=TA_CENTER)
-    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=28,
-        textColor=NAVY, alignment=TA_CENTER)
-    s_dec    = ParagraphStyle('scd', fontName='Helvetica-Bold', fontSize=9,
-        textColor=dec_color, alignment=TA_CENTER)
+    s_sc_num = ParagraphStyle('scn', fontName='Helvetica-Bold', fontSize=32,
+        textColor=NAVY, alignment=TA_CENTER, spaceBefore=4, spaceAfter=4)
+    s_dec    = ParagraphStyle('scd', fontName='Helvetica-Bold', fontSize=10,
+        textColor=dec_color, alignment=TA_CENTER, spaceBefore=6)
 
     score_block = Table([
         [Paragraph('AI SCORE', s_sc_lbl)],
@@ -1470,9 +1491,13 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
     score_block.setStyle(TableStyle([
         ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOX',           (0, 1), (0,  1),  2, score_border),
-        ('TOPPADDING',    (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('BOX',           (0, 1), (0,  1),  2.5, score_border),
+        ('LEFTPADDING',   (0, 1), (0,  1),  12),
+        ('RIGHTPADDING',  (0, 1), (0,  1),  12),
+        ('TOPPADDING',    (0, 1), (0,  1),  8),
+        ('BOTTOMPADDING', (0, 1), (0,  1),  8),
     ]))
 
     left_col = Table([
@@ -1709,8 +1734,8 @@ async def download_screening_report(
             'score':                 evaluation.score or 0,
             'decision':              evaluation.decision or '—',
             'reasoning':             evaluation.reason or evaluation.summary_en or '—',
-            'strengths':             _bullets_to_para(evaluation.strengths),
-            'gaps':                  _bullets_to_para(evaluation.weaknesses or evaluation.gaps_en),
+            'strengths':             _parse_bullet_field(evaluation.strengths),
+            'gaps':                  _parse_bullet_field(evaluation.weaknesses or evaluation.gaps_en),
             'score_experience':      evaluation.score_experience or 0,
             'score_skills':          evaluation.score_skills     or 0,
             'score_education':       evaluation.score_education  or 0,
