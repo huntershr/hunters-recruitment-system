@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import List
+import logging
+
+logger = logging.getLogger(__name__)
 from .. import models, schemas
 from ..database import get_db
 from ..services.file_processor import process_excel_jobs, extract_text_from_pdf
@@ -135,10 +138,49 @@ def delete_job(job_id: int, db: Session = Depends(get_db), current_user: models.
     db_job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
     if not db_job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    db.delete(db_job)
-    db.commit()
-    return {"message": "Job deleted successfully"}
+
+    try:
+        # Collect application IDs for this job (needed for child table cleanup)
+        app_ids = [r[0] for r in db.query(models.Application.id).filter(
+            models.Application.job_id == job_id
+        ).all()]
+
+        # 1. Delete voice_screenings (direct job_id FK + via application_id)
+        vs_conds = [models.VoiceScreening.job_id == job_id]
+        if app_ids:
+            vs_conds.append(models.VoiceScreening.application_id.in_(app_ids))
+        db.query(models.VoiceScreening).filter(or_(*vs_conds)).delete(synchronize_session=False)
+
+        # 2. Delete evaluations (direct job_id FK + via application_id)
+        ev_conds = [models.Evaluation.job_id == job_id]
+        if app_ids:
+            ev_conds.append(models.Evaluation.application_id.in_(app_ids))
+        db.query(models.Evaluation).filter(or_(*ev_conds)).delete(synchronize_session=False)
+
+        # 3. Delete interviews (FK is application_id only — no direct job_id)
+        if app_ids:
+            db.query(models.Interview).filter(
+                models.Interview.application_id.in_(app_ids)
+            ).delete(synchronize_session=False)
+
+        # 4. Delete applications
+        db.query(models.Application).filter(
+            models.Application.job_id == job_id
+        ).delete(synchronize_session=False)
+
+        # 5. Nullify candidates.job_applied — keep candidate records, just clear the FK
+        db.query(models.Candidate).filter(
+            models.Candidate.job_applied == job_id
+        ).update({"job_applied": None}, synchronize_session=False)
+
+        # 6. Delete the job itself
+        db.delete(db_job)
+        db.commit()
+        return {"message": "Job deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Job delete error for job_id={job_id}: {e}")
+        raise HTTPException(status_code=500, detail="Delete failed")
 
 @router.get("/{job_id}/candidates")
 def get_job_candidates(job_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
