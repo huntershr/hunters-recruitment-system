@@ -5,6 +5,7 @@ import time
 import random
 import logging
 from dotenv import load_dotenv
+from json_repair import repair_json
 
 load_dotenv()
 
@@ -316,7 +317,7 @@ Return ONLY this JSON structure, with fields generated IN THIS ORDER (decision a
             if result_content.endswith("```"):
                 result_content = result_content[:-3]
 
-            result_json = json.loads(result_content.strip())
+            result_json = json.loads(repair_json(result_content.strip()))
             return finalize_evaluation(result_json)
         except Exception as e:
             if "429" in str(e) and attempt < max_retries - 1:
