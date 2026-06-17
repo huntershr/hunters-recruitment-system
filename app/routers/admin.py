@@ -1452,8 +1452,8 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
     story.append(hdr)
 
     # ── CANDIDATE INFO + SCORE ──
-    s_name = ParagraphStyle('cn', fontName='Helvetica-Bold', fontSize=14, textColor=NAVY)
-    s_sub  = ParagraphStyle('cs', fontName='Helvetica',      fontSize=10, textColor=GRAY)
+    s_name = ParagraphStyle('cn', fontName='Helvetica-Bold', fontSize=14, textColor=NAVY, spaceAfter=3)
+    s_sub  = ParagraphStyle('cs', fontName='Helvetica',      fontSize=10, textColor=GRAY, spaceBefore=0)
     s_lbl  = ParagraphStyle('cl', fontName='Helvetica',      fontSize=7,
         textColor=colors.HexColor('#9CA3AF'))
     s_val  = ParagraphStyle('cv', fontName='Helvetica-Bold', fontSize=10, textColor=NAVY)
@@ -1489,15 +1489,16 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
 
     num_cell = Table([
         [Paragraph(str(score_pct), s_sc_num)],
-    ], colWidths=[18*mm], rowHeights=[14*mm])
+    ], colWidths=[20*mm], rowHeights=[16*mm])
     num_cell.setStyle(TableStyle([
         ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX',           (0, 0), (-1, -1), 2.5, score_border),
-        ('TOPPADDING',    (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('LEFTPADDING',   (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+        ('ROUNDEDCORNERS', [6]),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
     ]))
 
     score_block = Table([
