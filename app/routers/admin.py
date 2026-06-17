@@ -1410,7 +1410,9 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
     story = []
 
     # ── HEADER ──
-    logo_path = '/app/frontend/hunters-logo-white.jpeg'
+    logo_path = '/app/frontend/hunters-logo-transparent.png'
+    if not os.path.exists(logo_path):
+        logo_path = '/app/frontend/hunters-logo-white.jpeg'
     if not os.path.exists(logo_path):
         logo_path = '/app/frontend/hunters-logo-blue.jpeg'
 
