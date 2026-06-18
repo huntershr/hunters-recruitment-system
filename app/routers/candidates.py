@@ -134,7 +134,8 @@ def run_evaluation_task(candidate_id: int, db: Session):
             reason=eval_result.get("reason", "Failed to evaluate"),
             strengths=list_to_str(eval_result.get("strengths", "")),
             weaknesses=list_to_str(eval_result.get("weaknesses", "")),
-            suggested_interview_questions=json.dumps(eval_result.get("suggested_interview_questions", []))
+            suggested_interview_questions=json.dumps(eval_result.get("suggested_interview_questions", [])),
+            dimension_scores=eval_result.get("dimension_scores"),
         )
 
         db.add(db_eval)
@@ -414,6 +415,7 @@ async def screen_cv(
             gaps_ar=_lstr(result.get("gaps_ar") or []),
             interview_questions_ar=result.get("interview_questions_ar"),
             quick_facts=result.get("quick_facts"),
+            dimension_scores=result.get("dimension_scores"),
         )
         db.add(db_eval)
         db.commit()

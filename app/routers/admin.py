@@ -1248,6 +1248,7 @@ def rescreen_pending(
             ev.gaps_ar = _lstr(result.get("gaps_ar") or [])
             ev.interview_questions_ar = result.get("interview_questions_ar")
             ev.quick_facts = result.get("quick_facts")
+            ev.dimension_scores = result.get("dimension_scores")
 
             db.commit()
             rescreened += 1

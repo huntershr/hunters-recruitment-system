@@ -235,73 +235,76 @@ Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678",
 
 def evaluate_candidate(job, candidate):
     """
-    Evaluates a candidate against a job using Gemini, returning bilingual structured JSON.
+    Evaluates a candidate against a job using Gemini — 4-dimension screener.
     """
-    prompt = f"""You are a senior executive recruiter and HR analyst at a professional recruitment firm.
-Perform a deep screening of the candidate below against the job requirements and output ONLY a valid JSON object — no markdown, no explanation.
+    cv_text = (candidate.cv_text or '')[:6000]
+    job_title = job.job_title
+    experience_required = job.min_experience
+    skills_required = job.required_skills or ''
+    job_description = job.job_description or ''
+    department = (
+        getattr(job, 'industry_experience', None) or
+        getattr(job, 'department', None) or
+        'Not specified'
+    )
 
-JOB TITLE: {job.job_title}
-JOB DESCRIPTION:
-{job.job_description}
+    prompt = f"""You are an expert HR recruitment screener for a professional recruitment platform.
 
-REQUIREMENTS:
-- Required Skills: {job.required_skills}
-- Behavioral Skills: {getattr(job, 'behavioral_skills', 'Not specified')}
-- Industry Experience: {getattr(job, 'industry_experience', 'Not specified')}
-- Min Experience: {job.min_experience} years
-- Education Level: {job.education_level}
-- Salary Range: {job.salary_range}
+Analyze the candidate's CV against the job requirements below using 4 specific dimensions.
 
-CANDIDATE DATA:
-- Name: {candidate.name}
-- Total Experience: {candidate.experience_years} years
-- Stated Skills: {candidate.skills}
-- Education: {candidate.education}
-- CV TEXT EXTRACT:
-{(candidate.cv_text or '')[:3000]}
+CV TEXT:
+{cv_text}
 
-SCORING WEIGHTS:
-- Experience Relevance: {job.weight_experience}x
-- Technical Skills Match: {job.weight_skills}x
-- Education Alignment: {job.weight_education}x
-- Behavioral & Industry Fit: {getattr(job, 'weight_behavioral', 0.2)}x
+JOB REQUIREMENTS:
+Title: {job_title}
+Experience required: {experience_required}
+Skills required: {skills_required}
+Description: {job_description}
+Department/Industry: {department}
 
-INSTRUCTIONS:
-1. FIRST, decide if the candidate's actual profession/field is fundamentally relevant to this specific role (e.g. a medical doctor applying to a teaching role is NOT field-relevant, even if some words on their CV overlap with the job description). Field relevance is the primary gate — strong experience in the WRONG field does not make someone a good fit.
-2. Based on field relevance plus experience/skills/education fit, make your "decision" first: "Shortlist" only for candidates who are field-relevant AND strong overall; "Maybe" for partial fit; "Reject" for poor fit or field-irrelevant candidates.
-3. ONLY AFTER deciding, produce "score" as an INTEGER 0-100 that is CONSISTENT WITH and DERIVED FROM the decision you just made — the score MUST fall inside the band for that decision: Shortlist = 65-100, Maybe = 40-64, Reject = 0-39. NEVER Shortlist below 30. Do not let keyword overlap inflate the score above its decision's band.
-4. Produce "score_breakdown" with integer sub-scores 0-100 for: experience, skills, education, behavioral.
-5. summary_en: 2-3 professional English sentences summarizing candidate fit for this specific role.
-6. summary_ar: IDENTICAL content in Modern Standard Arabic.
-7. strengths_en: EXACTLY 3 strings in English — specific strengths this candidate brings to the role.
-8. strengths_ar: same 3 strengths translated to Arabic.
-9. gaps_en: EXACTLY 2 strings in English — most significant gaps vs. role requirements.
-10. gaps_ar: same 2 gaps in Arabic.
-11. quick_facts: extract from CV — years_experience (int), current_title (str or null), current_employer (str or null), education_level (str or null), key_skills_found (array of up to 5 skill strings found in CV), languages (array of spoken languages mentioned in CV).
-12. interview_questions_en: EXACTLY 3 specific, role-tailored English interview questions for this candidate.
-13. interview_questions_ar: same 3 questions in Arabic.
+SCORING — analyze each dimension and score 0 to 100:
 
-Return ONLY this JSON structure, with fields generated IN THIS ORDER (decision and score must come first, in this sequence, before any other field):
+DIMENSION 1 — Job Title Match (weight 25%):
+Read the last 3 job titles from the CV work history.
+Compare them to the required job title.
+Exact or equivalent title = 90–100. Same function/seniority = 70–89. Adjacent function = 40–69. Unrelated = 0–39.
+
+DIMENSION 2 — Industry Match (weight 25%):
+Read the last employer's industry or company type.
+Compare to the job's department/industry context.
+Same industry = 90–100. Adjacent industry = 60–89. Unrelated = 0–59.
+
+DIMENSION 3 — Years of Experience (weight 25%):
+Sum total years of work experience from all roles in the CV using date ranges.
+Compare to the required experience in the job.
+Meets or exceeds requirement = 90–100. 1 year short = 75–89. 2 years short = 55–74. 3+ years short = below 55.
+
+DIMENSION 4 — Skills Match (weight 25%):
+List all skills found in the CV (technical and soft).
+Compare to the required skills listed in the job.
+Score = percentage of required skills found in the CV.
+
+Overall score = average of all 4 dimension scores.
+
+Decision rule:
+- overall_score >= 75 → "Shortlist"
+- overall_score >= 50 → "Maybe"
+- overall_score < 50 → "Reject"
+
+Return ONLY a valid JSON object — no markdown, no explanation, no extra text before or after:
 {{
-  "decision": "<Shortlist|Maybe|Reject>",
-  "score": <integer 0-100>,
-  "score_breakdown": {{"experience": <int>, "skills": <int>, "education": <int>, "behavioral": <int>}},
-  "summary_en": "<2-3 sentence English summary>",
-  "summary_ar": "<2-3 جملة ملخص عربي>",
-  "strengths_en": ["<strength 1>", "<strength 2>", "<strength 3>"],
-  "strengths_ar": ["<قوة 1>", "<قوة 2>", "<قوة 3>"],
-  "gaps_en": ["<gap 1>", "<gap 2>"],
-  "gaps_ar": ["<فجوة 1>", "<فجوة 2>"],
-  "quick_facts": {{
-    "years_experience": <int>,
-    "current_title": "<str or null>",
-    "current_employer": "<str or null>",
-    "education_level": "<str or null>",
-    "key_skills_found": ["<skill1>", "<skill2>"],
-    "languages": ["<language1>"]
-  }},
-  "interview_questions_en": ["<Q1>", "<Q2>", "<Q3>"],
-  "interview_questions_ar": ["<س1>", "<س2>", "<س3>"]
+  "score": <integer 0–100, overall weighted average>,
+  "decision": "Shortlist" | "Maybe" | "Reject",
+  "reason": "<2–3 sentence summary explaining the overall match based on the 4 dimensions>",
+  "strengths": ["<specific strength from CV matching job requirement>", "<strength 2>", "<strength 3>"],
+  "weaknesses": ["<specific gap or missing requirement>", "<gap 2>"],
+  "suggested_interview_questions": ["<question targeting a gap or validating a strength>", "<question 2>", "<question 3>"],
+  "dimension_scores": {{
+    "job_title_match": <integer 0–100>,
+    "industry_match": <integer 0–100>,
+    "years_of_experience": <integer 0–100>,
+    "skills_match": <integer 0–100>
+  }}
 }}"""
 
     max_retries = 3

@@ -60,6 +60,7 @@ try:
             "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS gaps_ar TEXT",
             "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS interview_questions_ar JSONB",
             "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS quick_facts JSONB",
+            "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS dimension_scores JSONB",
         ]:
             _mc.execute(text(_col_sql))
         _mc.commit()
