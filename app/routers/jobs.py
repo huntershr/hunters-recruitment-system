@@ -140,6 +140,23 @@ def delete_job(job_id: int, db: Session = Depends(get_db), current_user: models.
         raise HTTPException(status_code=404, detail="Job not found")
 
     try:
+        app_ids = [r[0] for r in db.query(models.Application.id).filter(
+            models.Application.job_id == job_id
+        ).all()]
+        vs_conds = [models.VoiceScreening.job_id == job_id]
+        if app_ids:
+            vs_conds.append(models.VoiceScreening.application_id.in_(app_ids))
+        db.query(models.VoiceScreening).filter(or_(*vs_conds)).delete(synchronize_session=False)
+        ev_conds = [models.Evaluation.job_id == job_id]
+        if app_ids:
+            ev_conds.append(models.Evaluation.application_id.in_(app_ids))
+        db.query(models.Evaluation).filter(or_(*ev_conds)).delete(synchronize_session=False)
+        if app_ids:
+            db.query(models.Interview).filter(models.Interview.application_id.in_(app_ids)).delete(synchronize_session=False)
+        if app_ids:
+            db.query(models.Offer).filter(models.Offer.application_id.in_(app_ids)).delete(synchronize_session=False)
+        db.query(models.Application).filter(models.Application.job_id == job_id).delete(synchronize_session=False)
+        db.query(models.Candidate).filter(models.Candidate.job_applied == job_id).update({"job_applied": None}, synchronize_session=False)
         db.delete(db_job)
         db.commit()
         return {"message": "Job deleted successfully"}
