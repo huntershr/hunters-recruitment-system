@@ -457,6 +457,74 @@ def startup_populate_db():
     except Exception as _e:
         logging.error(f"Plan/invite column migrations failed: {_e}")
 
+    # ── CASCADE FK migration (one-time, guarded) ─────────────────────────────
+    try:
+        with engine.connect() as conn:
+            already = conn.execute(text(
+                "SELECT 1 FROM _schema_migrations WHERE name = 'cascade_fk_v1'"
+            )).first()
+            if not already:
+                conn.execute(text("""
+                DO $$
+                DECLARE v TEXT;
+                BEGIN
+                    SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+                    WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='applications' AND kcu.column_name='job_id';
+                    IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE applications DROP CONSTRAINT %I',v); END IF;
+                    ALTER TABLE applications ADD CONSTRAINT applications_job_id_fkey FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE;
+
+                    SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+                    WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='evaluations' AND kcu.column_name='job_id';
+                    IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE evaluations DROP CONSTRAINT %I',v); END IF;
+                    ALTER TABLE evaluations ADD CONSTRAINT evaluations_job_id_fkey FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE;
+
+                    SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+                    WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='voice_screenings' AND kcu.column_name='job_id';
+                    IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE voice_screenings DROP CONSTRAINT %I',v); END IF;
+                    ALTER TABLE voice_screenings ADD CONSTRAINT voice_screenings_job_id_fkey FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE;
+
+                    SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+                    WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='candidates' AND kcu.column_name='job_applied';
+                    IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE candidates DROP CONSTRAINT %I',v); END IF;
+                    ALTER TABLE candidates ADD CONSTRAINT candidates_job_applied_fkey FOREIGN KEY (job_applied) REFERENCES jobs(id) ON DELETE SET NULL;
+
+                    SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+                    WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='evaluations' AND kcu.column_name='application_id';
+                    IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE evaluations DROP CONSTRAINT %I',v); END IF;
+                    ALTER TABLE evaluations ADD CONSTRAINT evaluations_application_id_fkey FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE;
+
+                    SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+                    WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='interviews' AND kcu.column_name='application_id';
+                    IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE interviews DROP CONSTRAINT %I',v); END IF;
+                    ALTER TABLE interviews ADD CONSTRAINT interviews_application_id_fkey FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE;
+
+                    SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+                    WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='voice_screenings' AND kcu.column_name='application_id';
+                    IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE voice_screenings DROP CONSTRAINT %I',v); END IF;
+                    ALTER TABLE voice_screenings ADD CONSTRAINT voice_screenings_application_id_fkey FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE;
+
+                    SELECT tc.constraint_name INTO v FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema
+                    WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_name='offers' AND kcu.column_name='application_id';
+                    IF v IS NOT NULL THEN EXECUTE format('ALTER TABLE offers DROP CONSTRAINT %I',v); END IF;
+                    ALTER TABLE offers ADD CONSTRAINT offers_application_id_fkey FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE;
+                END$$;
+                """))
+                conn.execute(text("INSERT INTO _schema_migrations (name) VALUES ('cascade_fk_v1')"))
+                conn.commit()
+                logging.info("CASCADE FK migration applied (cascade_fk_v1)")
+            else:
+                logging.info("CASCADE FK migration already applied — skipping")
+    except Exception as _e:
+        logging.error(f"CASCADE FK migration failed: {_e}")
+
     # ── Admin user seed (always runs — fast single SELECT) ────────────────────
     db = SessionLocal()
     try:
