@@ -1196,10 +1196,82 @@ def rescreen_pending(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """SuperAdmin only: re-run Gemini screening for all evaluations with NULL or 'pending' decision."""
+    """SuperAdmin only.
+    Pass 1 — create missing Evaluation rows (max 10) for applications that have none.
+    Pass 2 — re-run Gemini for existing evaluations whose decision is NULL or 'pending'.
+    """
     if not current_user.is_admin or current_user.email != SUPERADMIN_EMAIL:
         raise HTTPException(status_code=403, detail="SuperAdmin only")
 
+    _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
+
+    def _save_result(result: dict, ev: models.Evaluation) -> None:
+        """Write all evaluation fields from a Gemini result dict onto an Evaluation ORM object."""
+        _bd3 = result.get("score_breakdown") or {}
+        ev.score = result.get("score", 0.0)
+        ev.score_experience = _bd3.get("experience")
+        ev.score_skills = _bd3.get("skills")
+        ev.score_education = _bd3.get("education")
+        ev.score_behavioral = _bd3.get("behavioral")
+        ev.decision = result.get("decision", "Reject")
+        ev.reason = result.get("summary_en") or result.get("reason", "")
+        ev.strengths = _lstr(result.get("strengths_en") or result.get("strengths") or [])
+        ev.weaknesses = _lstr(result.get("gaps_en") or result.get("weaknesses") or [])
+        ev.suggested_interview_questions = (
+            result.get("interview_questions_en") or result.get("suggested_interview_questions") or []
+        )
+        ev.summary_en = result.get("summary_en")
+        ev.summary_ar = result.get("summary_ar")
+        ev.strengths_ar = _lstr(result.get("strengths_ar") or [])
+        ev.gaps_en = _lstr(result.get("gaps_en") or [])
+        ev.gaps_ar = _lstr(result.get("gaps_ar") or [])
+        ev.interview_questions_ar = result.get("interview_questions_ar")
+        ev.quick_facts = result.get("quick_facts")
+        ev.dimension_scores = result.get("dimension_scores")
+
+    # ── Pass 1: INSERT missing evaluations (max 10 per call) ─────────────────
+    apps_missing = (
+        db.query(models.Application)
+        .outerjoin(
+            models.Evaluation,
+            models.Evaluation.application_id == models.Application.id,
+        )
+        .filter(
+            models.Evaluation.id == None,
+            models.Application.candidate_id != None,
+        )
+        .limit(10)
+        .all()
+    )
+
+    created = 0
+    failed = 0
+
+    for app in apps_missing:
+        try:
+            candidate = db.query(models.Candidate).filter(models.Candidate.id == app.candidate_id).first()
+            job = db.query(models.Job).filter(models.Job.id == app.job_id).first()
+
+            if not candidate or not job or not (candidate.cv_text or "").strip():
+                failed += 1
+                continue
+
+            result = finalize_evaluation(evaluate_candidate(job, candidate))
+            db_eval = models.Evaluation(
+                application_id=app.id,
+                candidate_id=app.candidate_id,
+                job_id=app.job_id,
+            )
+            _save_result(result, db_eval)
+            db.add(db_eval)
+            db.commit()
+            created += 1
+        except Exception as e:
+            db.rollback()
+            _logger.error(f"Create eval failed for application {app.id}: {e}")
+            failed += 1
+
+    # ── Pass 2: UPDATE existing evaluations with NULL/pending decision ────────
     pending_evals = (
         db.query(models.Evaluation)
         .filter(
@@ -1212,7 +1284,6 @@ def rescreen_pending(
     )
 
     rescreened = 0
-    failed = 0
 
     for ev in pending_evals:
         try:
@@ -1223,33 +1294,8 @@ def rescreen_pending(
                 failed += 1
                 continue
 
-            raw = evaluate_candidate(job, candidate)
-            result = finalize_evaluation(raw)
-
-            _bd3 = result.get("score_breakdown") or {}
-            _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
-
-            ev.score = result.get("score", 0.0)
-            ev.score_experience = _bd3.get("experience")
-            ev.score_skills = _bd3.get("skills")
-            ev.score_education = _bd3.get("education")
-            ev.score_behavioral = _bd3.get("behavioral")
-            ev.decision = result.get("decision", "Reject")
-            ev.reason = result.get("summary_en") or result.get("reason", "")
-            ev.strengths = _lstr(result.get("strengths_en") or result.get("strengths") or [])
-            ev.weaknesses = _lstr(result.get("gaps_en") or result.get("weaknesses") or [])
-            ev.suggested_interview_questions = (
-                result.get("interview_questions_en") or result.get("suggested_interview_questions") or []
-            )
-            ev.summary_en = result.get("summary_en")
-            ev.summary_ar = result.get("summary_ar")
-            ev.strengths_ar = _lstr(result.get("strengths_ar") or [])
-            ev.gaps_en = _lstr(result.get("gaps_en") or [])
-            ev.gaps_ar = _lstr(result.get("gaps_ar") or [])
-            ev.interview_questions_ar = result.get("interview_questions_ar")
-            ev.quick_facts = result.get("quick_facts")
-            ev.dimension_scores = result.get("dimension_scores")
-
+            result = finalize_evaluation(evaluate_candidate(job, candidate))
+            _save_result(result, ev)
             db.commit()
             rescreened += 1
         except Exception as e:
@@ -1257,7 +1303,12 @@ def rescreen_pending(
             _logger.error(f"Rescreen failed for eval {ev.id}: {e}")
             failed += 1
 
-    return {"rescreened": rescreened, "failed": failed}
+    return {
+        "created": created,
+        "rescreened": rescreened,
+        "failed": failed,
+        "apps_missing_eval_found": len(apps_missing),
+    }
 
 
 @router.patch("/applications/{application_id}/stage")
