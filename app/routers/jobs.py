@@ -157,11 +157,18 @@ def get_job_candidates(job_id: int, db: Session = Depends(get_db), current_user:
 
     candidates = db.query(models.Candidate).filter(models.Candidate.job_applied == job_id).all()
 
+    cand_ids = [c.id for c in candidates]
+    _evs = db.query(models.Evaluation).filter(
+        models.Evaluation.candidate_id.in_(cand_ids)
+    ).order_by(models.Evaluation.id.desc()).all()
+    ev_map = {}
+    for _ev in _evs:
+        if _ev.candidate_id not in ev_map:
+            ev_map[_ev.candidate_id] = _ev
+
     result = []
     for c in candidates:
-        ev = db.query(models.Evaluation).filter(
-            models.Evaluation.candidate_id == c.id
-        ).order_by(models.Evaluation.id.desc()).first()
+        ev = ev_map.get(c.id)
         result.append({
             "id": c.id,
             "name": c.name,
