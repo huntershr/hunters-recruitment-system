@@ -162,20 +162,24 @@ def extract_candidate_info(cv_text):
     prompt = f"""You are an expert HR Data Analyst. Read the CV text below carefully and extract the following fields.
 
 FIELDS TO EXTRACT:
-1. name - Full name of the candidate
-2. email - Email address (or empty string if not found)
-3. phone - Phone number (or empty string if not found)
-4. experience_years - Total years of professional work experience as an INTEGER (count years across all jobs; if a fresh graduate with no work exp use 0)
-5. education - Highest education level and institution (e.g. "BSc Computer Science, Cairo University")
+1. name - Full name of the candidate (null if not found)
+2. email - Email address (null if not found)
+3. phone - Phone number (null if not found)
+4. experience_years - Total years of professional work experience as an INTEGER (count years across all jobs; fresh graduate with no work exp = 0)
+5. education - Highest education level and institution as a single string (e.g. "BSc Computer Science, Cairo University")
 6. skills - Key technical and professional skills as a comma-separated string
-7. last_title - The most recent or current job title (e.g. "Senior Software Engineer", "Marketing Manager")
-8. last_employer - The most recent or current employer/company name (e.g. "Microsoft", "Vodafone Egypt")
+7. last_title - The most recent or current job title
+8. last_employer - The most recent or current employer/company name
+9. summary - 2-3 sentence professional summary of the candidate based on their CV
+10. experiences - Array of work experience entries. Each entry: {{"title":"job title","employer":"company name","start":"year or Month YYYY","end":"year/Month YYYY or Present","description":"brief role description"}}
+11. education_history - Array of education entries. Each entry: {{"degree":"degree name","institution":"school name","year":"graduation year"}}
+12. languages - Array of language entries. Each entry: {{"language":"language name","proficiency":"Native/Fluent/Intermediate/Basic"}}
 
 CV TEXT:
 {(cv_text or '')[:6000]}
 
-Return ONLY a valid JSON object with exactly these 8 keys. Use null for any field not found, except experience_years which must always be an integer.
-Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678","experience_years":5,"education":"BSc Engineering, AUC","skills":"Python, SQL, Power BI","last_title":"Data Analyst","last_employer":"Raya Holding"}}"""
+Return ONLY a valid JSON object with exactly these 12 keys. experience_years must always be an integer. Use null for missing scalar fields, [] for missing array fields.
+Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678","experience_years":5,"education":"BSc Engineering, AUC","skills":"Python, SQL, Power BI","last_title":"Data Analyst","last_employer":"Raya Holding","summary":"Experienced data analyst with 5 years in BI and reporting.","experiences":[{{"title":"Data Analyst","employer":"Raya Holding","start":"2019","end":"Present","description":"Led data analysis and BI dashboards."}}],"education_history":[{{"degree":"BSc Engineering","institution":"AUC","year":"2019"}}],"languages":[{{"language":"Arabic","proficiency":"Native"}},{{"language":"English","proficiency":"Fluent"}}]}}"""
 
     model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
     max_retries = 3
@@ -214,7 +218,7 @@ Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678",
             print(f"Error during extraction (Attempt {attempt+1}): {e}")
             if attempt == max_retries - 1:
                 return {
-                    "name": "Unknown",
+                    "name": None,
                     "email": "",
                     "phone": "",
                     "experience_years": 0,
@@ -222,6 +226,10 @@ Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678",
                     "skills": "",
                     "last_title": "",
                     "last_employer": "",
+                    "summary": None,
+                    "experiences": [],
+                    "education_history": [],
+                    "languages": [],
                 }
     return {}
 

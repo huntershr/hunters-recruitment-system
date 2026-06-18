@@ -335,6 +335,21 @@ async def screen_cv(
             db.commit()
             db.refresh(candidate)
 
+    # Write structured JSONB fields from AI extraction (additive — preserve any existing user-edited data)
+    _xp = info.get("experiences")
+    _edu_h = info.get("education_history")
+    _lang = info.get("languages")
+    _summ = info.get("summary")
+    if _xp:
+        candidate.experiences = _xp
+    if _edu_h:
+        candidate.education_history = _edu_h
+    if _lang:
+        candidate.languages = _lang
+    if _summ and not candidate.summary:
+        candidate.summary = _summ
+    db.commit()
+
     # Duplicate check: one Application per (candidate, job) pair
     if is_portal_candidate:
         existing_app = (
@@ -366,41 +381,59 @@ async def screen_cv(
     db.commit()
     db.refresh(application)
 
-    # Synchronous AI evaluation — gives immediate result
-    raw = await asyncio.get_event_loop().run_in_executor(None, evaluate_candidate, job, candidate)
-    result = finalize_evaluation(raw)
-
-    # Phase 2: always create a new Evaluation linked to the new Application.
-    # Dual-write: candidate_id also set so existing admin UI reads (via
-    # candidate_id) keep working during the transition to Phase 3-4.
-    _bd3 = result.get("score_breakdown") or {}
-    _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
-    db_eval = models.Evaluation(
-        application_id=application.id,
-        candidate_id=candidate.id,
-        job_id=job.id,
-        score=result.get("score", 0.0),
-        score_experience=_bd3.get("experience"),
-        score_skills=_bd3.get("skills"),
-        score_education=_bd3.get("education"),
-        score_behavioral=_bd3.get("behavioral"),
-        decision=result.get("decision", "Reject"),
-        # legacy columns — populated from new bilingual fields for backward compat
-        reason=result.get("summary_en") or result.get("reason", ""),
-        strengths=_lstr(result.get("strengths_en") or result.get("strengths") or []),
-        weaknesses=_lstr(result.get("gaps_en") or result.get("weaknesses") or []),
-        suggested_interview_questions=result.get("interview_questions_en") or result.get("suggested_interview_questions") or [],
-        # new bilingual columns
-        summary_en=result.get("summary_en"),
-        summary_ar=result.get("summary_ar"),
-        strengths_ar=_lstr(result.get("strengths_ar") or []),
-        gaps_en=_lstr(result.get("gaps_en") or []),
-        gaps_ar=_lstr(result.get("gaps_ar") or []),
-        interview_questions_ar=result.get("interview_questions_ar"),
-        quick_facts=result.get("quick_facts"),
-    )
-    db.add(db_eval)
-    db.commit()
+    # Synchronous AI evaluation — gives immediate result; fallback to pending on any failure
+    result = {}
+    try:
+        raw = await asyncio.get_event_loop().run_in_executor(None, evaluate_candidate, job, candidate)
+        result = finalize_evaluation(raw)
+        _bd3 = result.get("score_breakdown") or {}
+        _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
+        # Phase 2: always create a new Evaluation linked to the new Application.
+        # Dual-write: candidate_id also set so existing admin UI reads (via
+        # candidate_id) keep working during the transition to Phase 3-4.
+        db_eval = models.Evaluation(
+            application_id=application.id,
+            candidate_id=candidate.id,
+            job_id=job.id,
+            score=result.get("score", 0.0),
+            score_experience=_bd3.get("experience"),
+            score_skills=_bd3.get("skills"),
+            score_education=_bd3.get("education"),
+            score_behavioral=_bd3.get("behavioral"),
+            decision=result.get("decision", "Reject"),
+            # legacy columns — populated from new bilingual fields for backward compat
+            reason=result.get("summary_en") or result.get("reason", ""),
+            strengths=_lstr(result.get("strengths_en") or result.get("strengths") or []),
+            weaknesses=_lstr(result.get("gaps_en") or result.get("weaknesses") or []),
+            suggested_interview_questions=result.get("interview_questions_en") or result.get("suggested_interview_questions") or [],
+            # new bilingual columns
+            summary_en=result.get("summary_en"),
+            summary_ar=result.get("summary_ar"),
+            strengths_ar=_lstr(result.get("strengths_ar") or []),
+            gaps_en=_lstr(result.get("gaps_en") or []),
+            gaps_ar=_lstr(result.get("gaps_ar") or []),
+            interview_questions_ar=result.get("interview_questions_ar"),
+            quick_facts=result.get("quick_facts"),
+        )
+        db.add(db_eval)
+        db.commit()
+    except Exception as _eval_err:
+        logger.error(f"AI screening failed for candidate {candidate.id}: {_eval_err}")
+        try:
+            db.rollback()
+            _fallback = models.Evaluation(
+                application_id=application.id,
+                candidate_id=candidate.id,
+                job_id=job.id,
+                score=0.0,
+                decision="pending",
+                reason="AI screening could not be completed. Please re-screen manually.",
+            )
+            db.add(_fallback)
+            db.commit()
+        except Exception:
+            db.rollback()
+        result = {"score": 0, "decision": "pending", "reason": "AI screening failed"}
 
     return {
         "candidate_id": candidate.id,

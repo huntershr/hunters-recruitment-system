@@ -623,6 +623,7 @@ function _renderStageCard(app) {
     const stgLabel = _stageLabelMap[stg] || stg.charAt(0).toUpperCase()+stg.slice(1);
     const expLine = [app.last_title, app.experience_years!=null?app.experience_years+' yrs':null].filter(Boolean).join(' · ');
     const safeName = (app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_');
+    const displayName = (app.name && app.name !== 'Unknown') ? app.name : (app.email ? app.email.split('@')[0].replace(/^bulk_/,'').replace(/[._]/g,' ').trim() || app.email : '—');
     const _stageLabels = {applied:'Applied',screening:'AI Screening Call',shortlisted:'Shortlisted',interview:'Interview',offered:'Offered',hired:'Hired',rejected:'Rejected'};
     const stageOpts = ['applied','screening','shortlisted','interview','offered','hired','rejected']
         .filter(s=>s!==stg&&!(stg==='new'&&s==='applied'))
@@ -632,7 +633,7 @@ function _renderStageCard(app) {
             ${avatarHtml}
             <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-                    <div style="font-size:15px;font-weight:600;color:#1B2A4A;cursor:pointer;" onclick="viewApplication(${app.application_id})">${escHtml(app.name)}</div>
+                    <div style="font-size:15px;font-weight:600;color:#1B2A4A;cursor:pointer;" onclick="viewApplication(${app.application_id})">${escHtml(displayName)}</div>
                     <span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:${scoreBg};color:${scoreColor};flex-shrink:0;">${scoreText}</span>
                 </div>
                 <div style="font-size:13px;color:#6B7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(app.job_title||'—')}${app.company_name?' · '+escHtml(app.company_name):''}</div>
