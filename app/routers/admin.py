@@ -2119,7 +2119,7 @@ def _upsert_agent_screening(db: Session, application_id: int, job_id: int,
              dimension_scores, strengths, concerns, semantic_match,
              screened_at, screened_by)
         VALUES (:app_id, :job_id, :score, :rec,
-                :dims::jsonb, :str::jsonb, :con::jsonb, :sem,
+                CAST(:dims AS jsonb), CAST(:str AS jsonb), CAST(:con AS jsonb), :sem,
                 NOW(), :uid)
         ON CONFLICT (application_id) DO UPDATE SET
             agent_score          = EXCLUDED.agent_score,
