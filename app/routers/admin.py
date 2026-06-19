@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Header
 from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import func, or_
@@ -2367,3 +2367,55 @@ def admin_delete_job(
     db.commit()
     return {"message": "Job deleted"}
 
+
+# ── TEMPORARY DEBUG ENDPOINT — remove after diagnosis ──
+@router.get("/debug-screen-env")
+def debug_screen_env(x_debug_token: str = Header(None, alias="X-Debug-Token")):
+    """Temporary: read env vars live + probe screening service. No JWT needed."""
+    import os, httpx
+    if x_debug_token != "hunters-debug-2026":
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    key = os.getenv("SCREEN_API_KEY", "")
+    url = os.getenv(
+        "SCREEN_SERVICE_URL",
+        "https://hunters-screening-service-production.up.railway.app",
+    )
+
+    if len(key) >= 8:
+        masked = f"{key[:4]}...{key[-4:]} (len={len(key)})"
+    elif len(key) > 0:
+        masked = f"[present, len={len(key)}]"
+    else:
+        masked = "[EMPTY — not set]"
+
+    probe = {}
+    try:
+        with httpx.Client(timeout=20.0) as client:
+            resp = client.post(
+                f"{url}/api/screen",
+                json={
+                    "cv_text": "Ahmed Ali, 5 years Python experience.",
+                    "job": {
+                        "title": "Python Developer",
+                        "description": "Python backend dev",
+                        "required_skills": ["Python"],
+                        "required_experience": 3,
+                        "required_industry": "Software",
+                        "min_education": "Bachelor",
+                    },
+                },
+                headers={"X-API-Key": key},
+            )
+        probe = {
+            "http_status": resp.status_code,
+            "response_body": resp.text[:800],
+        }
+    except Exception as exc:
+        probe = {"exception": str(exc)}
+
+    return {
+        "SCREEN_API_KEY": masked,
+        "SCREEN_SERVICE_URL": url,
+        "live_probe": probe,
+    }
