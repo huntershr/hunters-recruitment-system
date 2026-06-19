@@ -902,9 +902,10 @@
         </div>
 
         <!-- Warning banner — unchanged -->
-        <div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#856404;font-weight:500;">
+        <div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:10px;padding:12px 18px;margin-bottom:12px;font-size:13px;color:#856404;font-weight:500;">
             ⚠️ TEST ENGINE — Results are <strong>NOT shown to clients</strong>, not included in any reports, and do not affect the Gemini screening pipeline.
         </div>
+        <div id="sc-alert" style="margin-bottom:12px;"></div>
 
         <!-- Step 1: Select Job -->
         <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -1741,7 +1742,7 @@
         </div>
     </div>
 </div>
-<script src="hunters-jobs.js?v=4"></script>
+<script src="hunters-jobs.js?v=5"></script>
 <script>
 /* ── Voice Screenings Admin Tab ── */
 var _vsAllData = [];
@@ -1971,12 +1972,12 @@ async function scScreenSingle(appId, btn) {
             method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
         });
         var data = await res.json();
-        if (!res.ok) { showAlert(data.detail || 'Screen failed', 'error', ''); return; }
-        showAlert('Agent: ' + data.agent_score + ' | Gemini: ' + (data.gemini_score !== null ? data.gemini_score : 'N/A'), 'success', '');
+        if (!res.ok) { showAlert(data.detail || 'Screen failed', 'error', 'sc-alert'); return; }
+        showAlert('Agent: ' + data.agent_score + ' | Gemini: ' + (data.gemini_score !== null ? data.gemini_score : 'N/A'), 'success', 'sc-alert');
         var sel = document.getElementById('sc-job-select');
         if (sel && sel.value) scLoadResults(sel.value);
     } catch(e) {
-        showAlert('Request failed', 'error', '');
+        showAlert('Request failed', 'error', 'sc-alert');
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = origText; }
     }
@@ -1985,7 +1986,7 @@ async function scScreenSingle(appId, btn) {
 async function scScreenAll() {
     var sel = document.getElementById('sc-job-select');
     var jobId = sel ? sel.value : '';
-    if (!jobId) { showAlert('Select a job first', 'error', ''); return; }
+    if (!jobId) { showAlert('Select a job first', 'error', 'sc-alert'); return; }
     var btn = document.getElementById('sc-screen-all-btn');
     var origText = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Screening…'; }
@@ -1995,11 +1996,11 @@ async function scScreenAll() {
             method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
         });
         var data = await res.json();
-        if (!res.ok) { showAlert(data.detail || 'Bulk screen failed', 'error', ''); return; }
-        showAlert('Done — screened: ' + data.screened + ', skipped: ' + data.skipped_no_cv + ', failed: ' + data.failed, 'success', '');
+        if (!res.ok) { showAlert(data.detail || 'Bulk screen failed', 'error', 'sc-alert'); return; }
+        showAlert('Done — screened: ' + data.screened + ', skipped: ' + data.skipped_no_cv + ', failed: ' + data.failed, 'success', 'sc-alert');
         await scLoadResults(jobId);
     } catch(e) {
-        showAlert('Request failed', 'error', '');
+        showAlert('Request failed', 'error', 'sc-alert');
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = origText; }
     }
