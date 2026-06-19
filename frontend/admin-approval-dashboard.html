@@ -1741,7 +1741,7 @@
         </div>
     </div>
 </div>
-<script src="hunters-jobs.js?v=3"></script>
+<script src="hunters-jobs.js?v=4"></script>
 <script>
 /* ── Voice Screenings Admin Tab ── */
 var _vsAllData = [];
@@ -1818,7 +1818,7 @@ async function scInit() {
         jobs.forEach(function(j) {
             var opt = document.createElement('option');
             opt.value = j.id;
-            opt.textContent = j.job_title;
+            opt.textContent = j.job_title + (j.company_name ? ' (' + j.company_name + ')' : '');
             sel.appendChild(opt);
         });
     } catch(e) {
@@ -1858,7 +1858,8 @@ async function scLoadCandidates(jobId) {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         if (!res.ok) { cl.innerHTML = '<div style="padding:32px;text-align:center;color:#CC2B2B;font-size:13px;">Failed to load candidates.</div>'; return; }
-        var apps = await res.json();
+        var data = await res.json();
+        var apps = Array.isArray(data) ? data : (data.applications || []);
         if (!apps.length) {
             cl.innerHTML = '<div style="padding:32px;text-align:center;color:#9CA3AF;font-size:13px;">No applications for this job yet.</div>';
             if (countEl) countEl.textContent = '0 applicants';

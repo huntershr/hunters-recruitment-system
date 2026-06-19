@@ -1976,9 +1976,13 @@ def get_admin_analytics(
 # ── Admin Job Management ───────────────────────────────────────────────────────
 
 def _job_to_dict(j: models.Job) -> dict:
+    company_name = ""
+    if j.owner and j.owner.company:
+        company_name = j.owner.company.company_name or ""
     return {
         "id": j.id,
         "job_title": j.job_title or "",
+        "company_name": company_name,
         "job_description": j.job_description or "",
         "job_location": j.job_location or "",
         "min_experience": j.min_experience or 0,
@@ -2012,7 +2016,13 @@ def list_admin_jobs(
             db.query(models.User.id).filter(models.User.company_id == company_id).subquery()
         )
         q = q.filter(models.Job.owner_id.in_(co_user_ids))
-    jobs = q.order_by(models.Job.id.desc()).all()
+    jobs = (
+        q.options(
+            joinedload(models.Job.owner).joinedload(models.User.company)
+        )
+        .order_by(models.Job.id.desc())
+        .all()
+    )
     return [_job_to_dict(j) for j in jobs]
 
 
