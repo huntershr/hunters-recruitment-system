@@ -2370,8 +2370,12 @@ def admin_delete_job(
 
 # ── TEMPORARY DEBUG ENDPOINT — remove after diagnosis ──
 @router.get("/debug-screen-env")
-def debug_screen_env(x_debug_token: str = Header(None, alias="X-Debug-Token")):
-    """Temporary: read env vars live + probe screening service. No JWT needed."""
+def debug_screen_env(
+    x_debug_token: str = Header(None, alias="X-Debug-Token"),
+    app_id: int = 376,
+    db: Session = Depends(get_db),
+):
+    """Temporary: env vars + live screening probe + end-to-end save test."""
     import os, httpx
     if x_debug_token != "hunters-debug-2026":
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -2389,13 +2393,16 @@ def debug_screen_env(x_debug_token: str = Header(None, alias="X-Debug-Token")):
     else:
         masked = "[EMPTY — not set]"
 
+    # ── Live screening probe ──
     probe = {}
+    screen_result = None
     try:
-        with httpx.Client(timeout=20.0) as client:
+        _endpoint = url if url.rstrip("/").endswith("/api/screen") else f"{url.rstrip('/')}/api/screen"
+        with httpx.Client(timeout=30.0) as client:
             resp = client.post(
-                f"{url}/api/screen",
+                _endpoint,
                 json={
-                    "cv_text": "Ahmed Ali, 5 years Python experience.",
+                    "cv_text": "Ahmed Ali, 5 years Python experience, skills: Python, FastAPI.",
                     "job": {
                         "title": "Python Developer",
                         "description": "Python backend dev",
@@ -2407,15 +2414,31 @@ def debug_screen_env(x_debug_token: str = Header(None, alias="X-Debug-Token")):
                 },
                 headers={"X-API-Key": key},
             )
-        probe = {
-            "http_status": resp.status_code,
-            "response_body": resp.text[:800],
-        }
+        probe = {"http_status": resp.status_code, "response_body": resp.text[:800]}
+        if resp.status_code == 200:
+            screen_result = resp.json()
     except Exception as exc:
         probe = {"exception": str(exc)}
+
+    # ── SQL save test against real app_id ──
+    save_test = {}
+    if screen_result is not None:
+        app_row = db.query(models.Application).filter(models.Application.id == app_id).first()
+        if not app_row:
+            save_test = {"error": f"Application {app_id} not found"}
+        else:
+            try:
+                _upsert_agent_screening(db, app_id, app_row.job_id, screen_result, 1)
+                save_test = {"status": "ok", "message": f"INSERT/UPSERT for app {app_id} succeeded"}
+            except Exception as exc:
+                db.rollback()
+                save_test = {"status": "error", "exception": str(exc)}
+    else:
+        save_test = {"skipped": "screening probe did not return a result"}
 
     return {
         "SCREEN_API_KEY": masked,
         "SCREEN_SERVICE_URL": url,
         "live_probe": probe,
+        "save_test": save_test,
     }
