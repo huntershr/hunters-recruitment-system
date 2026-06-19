@@ -901,51 +901,34 @@
             <p style="font-size:13px;color:#9CA3AF;margin:4px 0 0;">Test engine scores vs Gemini — SuperAdmin only</p>
         </div>
 
-        <!-- Warning banner -->
+        <!-- Warning banner — unchanged -->
         <div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#856404;font-weight:500;">
             ⚠️ TEST ENGINE — Results are <strong>NOT shown to clients</strong>, not included in any reports, and do not affect the Gemini screening pipeline.
         </div>
 
-        <!-- Controls -->
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
-            <!-- Single screen -->
-            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;flex:1;min-width:280px;">
-                <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:10px;">Screen Single Application</div>
-                <div style="display:flex;gap:8px;">
-                    <input type="number" id="sc-app-id" placeholder="Application ID" min="1"
-                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
-                    <button onclick="shadowScreenSingle()" id="sc-single-btn"
-                        style="padding:8px 16px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap;">
-                        Run Screen
-                    </button>
-                </div>
+        <!-- Step 1: Select Job -->
+        <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:600;color:#1B2A4A;white-space:nowrap;">Select Job</span>
+            <select id="sc-job-select" onchange="scOnJobChange()" style="flex:1;min-width:240px;padding:9px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;">
+                <option value="">— Select a job to begin —</option>
+            </select>
+            <button onclick="scInit()" style="padding:8px 14px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:12px;color:#6B7280;cursor:pointer;white-space:nowrap;">↻ Refresh</button>
+        </div>
+
+        <!-- Step 2: Candidates for selected job -->
+        <div id="sc-candidates-wrap" style="display:none;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                <span id="sc-candidate-count" style="font-size:13px;font-weight:500;color:#6B7280;"></span>
+                <button id="sc-screen-all-btn" onclick="scScreenAll()" style="padding:8px 20px;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">Screen All Visible</button>
             </div>
-            <!-- Bulk screen -->
-            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;flex:1;min-width:280px;">
-                <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:10px;">Bulk Screen by Job (max 20)</div>
-                <div style="display:flex;gap:8px;">
-                    <input type="number" id="sc-job-id" placeholder="Job ID" min="1"
-                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
-                    <button onclick="shadowScreenBulk()" id="sc-bulk-btn"
-                        style="padding:8px 16px;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap;">
-                        Bulk Screen
-                    </button>
-                </div>
-            </div>
-            <!-- Filter + refresh -->
-            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;min-width:200px;display:flex;flex-direction:column;gap:8px;">
-                <div style="font-size:13px;font-weight:600;color:#1B2A4A;">Filter by Job ID</div>
-                <div style="display:flex;gap:8px;">
-                    <input type="number" id="sc-filter-job" placeholder="All jobs"
-                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
-                    <button onclick="loadShadowScreenings()" style="padding:8px 14px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;">↻</button>
-                </div>
+            <div id="sc-candidate-list" style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden;">
+                <div style="padding:32px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>
             </div>
         </div>
 
-        <!-- Results table -->
+        <!-- Step 3: Comparison results (scoped to selected job) -->
         <div id="sc-results-wrap" style="background:#fff;border-radius:16px;border:1px solid #E5E7EB;overflow:hidden;">
-            <div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Load shadow screenings to compare results.</div>
+            <div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Select a job above to see shadow screening results.</div>
         </div>
     </div>
 
@@ -1030,7 +1013,7 @@
         if (page === 'companies') loadCompaniesList();
         if (page === 'jobs') loadJobsList();
         if (page === 'voice-screenings') loadVoiceScreenings();
-        if (page === 'shadow-compare') loadShadowScreenings();
+        if (page === 'shadow-compare') scInit();
     }
 
     async function loadOverviewData() {
@@ -1758,7 +1741,7 @@
         </div>
     </div>
 </div>
-<script src="hunters-jobs.js?v=2"></script>
+<script src="hunters-jobs.js?v=3"></script>
 <script>
 /* ── Voice Screenings Admin Tab ── */
 var _vsAllData = [];
@@ -1823,14 +1806,105 @@ function exportVoiceScreeningsCSV() {
 function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ── Shadow Compare Tab ── */
-async function loadShadowScreenings() {
+async function scInit() {
+    var sel = document.getElementById('sc-job-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Loading jobs… —</option>';
     var token = localStorage.getItem('token');
-    var jobFilter = (document.getElementById('sc-filter-job')||{}).value || '';
-    var url = '/api/admin/shadow-screenings' + (jobFilter ? '?job_id=' + jobFilter : '');
+    try {
+        var res = await fetch('/api/admin/jobs', { headers: { 'Authorization': 'Bearer ' + token } });
+        var jobs = await res.json();
+        sel.innerHTML = '<option value="">— Select a job to begin —</option>';
+        jobs.forEach(function(j) {
+            var opt = document.createElement('option');
+            opt.value = j.id;
+            opt.textContent = j.job_title;
+            sel.appendChild(opt);
+        });
+    } catch(e) {
+        sel.innerHTML = '<option value="">— Failed to load jobs —</option>';
+    }
+    var cw = document.getElementById('sc-candidates-wrap');
+    if (cw) cw.style.display = 'none';
+    var rw = document.getElementById('sc-results-wrap');
+    if (rw) rw.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Select a job above to see shadow screening results.</div>';
+}
+
+async function scOnJobChange() {
+    var sel = document.getElementById('sc-job-select');
+    var jobId = sel ? sel.value : '';
+    if (!jobId) {
+        var cw = document.getElementById('sc-candidates-wrap');
+        if (cw) cw.style.display = 'none';
+        var rw = document.getElementById('sc-results-wrap');
+        if (rw) rw.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Select a job above to see shadow screening results.</div>';
+        return;
+    }
+    await scLoadCandidates(jobId);
+    await scLoadResults(jobId);
+}
+
+async function scLoadCandidates(jobId) {
+    var cw = document.getElementById('sc-candidates-wrap');
+    var cl = document.getElementById('sc-candidate-list');
+    var btn = document.getElementById('sc-screen-all-btn');
+    var countEl = document.getElementById('sc-candidate-count');
+    if (!cw || !cl) return;
+    cw.style.display = 'block';
+    cl.innerHTML = '<div style="padding:32px;text-align:center;color:#9CA3AF;font-size:13px;">Loading candidates…</div>';
+    var token = localStorage.getItem('token');
+    try {
+        var res = await fetch('/api/admin/applications?job_id=' + jobId + '&limit=100', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) { cl.innerHTML = '<div style="padding:32px;text-align:center;color:#CC2B2B;font-size:13px;">Failed to load candidates.</div>'; return; }
+        var apps = await res.json();
+        if (!apps.length) {
+            cl.innerHTML = '<div style="padding:32px;text-align:center;color:#9CA3AF;font-size:13px;">No applications for this job yet.</div>';
+            if (countEl) countEl.textContent = '0 applicants';
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+            return;
+        }
+        if (countEl) countEl.textContent = apps.length + ' applicant' + (apps.length !== 1 ? 's' : '');
+        var tooMany = apps.length > 20;
+        if (btn) {
+            btn.disabled = tooMany;
+            btn.style.opacity = tooMany ? '0.4' : '1';
+            btn.title = tooMany ? 'Too many (' + apps.length + ') — max 20 for bulk screen' : '';
+        }
+        var html = '<table style="width:100%;border-collapse:collapse;">';
+        html += '<thead><tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;">';
+        ['Candidate','Stage','Gemini Score','Decision','Action'].forEach(function(h) {
+            html += '<th style="padding:10px 14px;font-size:11px;font-weight:600;color:#6B7280;text-align:left;">' + h + '</th>';
+        });
+        html += '</tr></thead><tbody>';
+        apps.forEach(function(app) {
+            var displayName = (app.name && app.name !== 'Unknown') ? app.name :
+                (app.email ? app.email.split('@')[0].replace(/^bulk_/,'').replace(/[._]/g,' ').trim() || app.email : '—');
+            var scoreBadge = (app.score !== null && app.score !== undefined) ? _scoreBadge(Math.round(app.score), null) : '<span style="color:#9CA3AF;font-size:12px;">—</span>';
+            html += '<tr style="border-bottom:0.5px solid #F3F4F6;">';
+            html += '<td style="padding:9px 14px;font-size:13px;font-weight:500;color:#1B2A4A;">' + escHtml(displayName) + '</td>';
+            html += '<td style="padding:9px 14px;font-size:12px;color:#6B7280;">' + escHtml(app.stage || '—') + '</td>';
+            html += '<td style="padding:9px 14px;">' + scoreBadge + '</td>';
+            html += '<td style="padding:9px 14px;font-size:12px;color:#6B7280;">' + escHtml(app.decision || '—') + '</td>';
+            html += '<td style="padding:9px 14px;"><button onclick="scScreenSingle(' + app.application_id + ', this)" style="padding:6px 14px;background:#1B2A4A;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:500;">Run Screen</button></td>';
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        cl.innerHTML = html;
+    } catch(e) {
+        cl.innerHTML = '<div style="padding:32px;text-align:center;color:#CC2B2B;font-size:13px;">Error loading candidates.</div>';
+    }
+}
+
+async function scLoadResults(jobId) {
     var wrap = document.getElementById('sc-results-wrap');
     if (wrap) wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>';
+    var token = localStorage.getItem('token');
     try {
-        var res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        var res = await fetch('/api/admin/shadow-screenings?job_id=' + jobId, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
         if (!res.ok) {
             var err = await res.json().catch(function(){ return {}; });
             if (wrap) wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#CC2B2B;">Error: ' + escHtml(err.detail||res.status) + '</div>';
@@ -1887,48 +1961,46 @@ function _renderShadowTable(rows) {
     wrap.innerHTML = html;
 }
 
-async function shadowScreenSingle() {
-    var appId = (document.getElementById('sc-app-id')||{}).value;
-    if (!appId) { showAlert('Enter an Application ID', 'error', ''); return; }
-    var btn = document.getElementById('sc-single-btn');
-    var origText = btn.textContent;
-    btn.disabled = true; btn.textContent = 'Screening…';
+async function scScreenSingle(appId, btn) {
+    var origText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Screening…'; }
     var token = localStorage.getItem('token');
     try {
         var res = await fetch('/api/admin/shadow-screen/' + appId, {
             method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
         });
         var data = await res.json();
-        if (!res.ok) { showAlert(data.detail || 'Failed', 'error', ''); return; }
-        showAlert('Agent score: ' + data.agent_score + ' | Gemini score: ' + (data.gemini_score !== null ? data.gemini_score : 'N/A'), 'success', '');
-        loadShadowScreenings();
+        if (!res.ok) { showAlert(data.detail || 'Screen failed', 'error', ''); return; }
+        showAlert('Agent: ' + data.agent_score + ' | Gemini: ' + (data.gemini_score !== null ? data.gemini_score : 'N/A'), 'success', '');
+        var sel = document.getElementById('sc-job-select');
+        if (sel && sel.value) scLoadResults(sel.value);
     } catch(e) {
         showAlert('Request failed', 'error', '');
     } finally {
-        btn.disabled = false; btn.textContent = origText;
+        if (btn) { btn.disabled = false; btn.textContent = origText; }
     }
 }
 
-async function shadowScreenBulk() {
-    var jobId = (document.getElementById('sc-job-id')||{}).value;
-    if (!jobId) { showAlert('Enter a Job ID', 'error', ''); return; }
-    var btn = document.getElementById('sc-bulk-btn');
-    var origText = btn.textContent;
-    btn.disabled = true; btn.textContent = 'Screening…';
+async function scScreenAll() {
+    var sel = document.getElementById('sc-job-select');
+    var jobId = sel ? sel.value : '';
+    if (!jobId) { showAlert('Select a job first', 'error', ''); return; }
+    var btn = document.getElementById('sc-screen-all-btn');
+    var origText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Screening…'; }
     var token = localStorage.getItem('token');
     try {
         var res = await fetch('/api/admin/shadow-screen-bulk?job_id=' + jobId, {
             method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
         });
         var data = await res.json();
-        if (!res.ok) { showAlert(data.detail || 'Failed', 'error', ''); return; }
+        if (!res.ok) { showAlert(data.detail || 'Bulk screen failed', 'error', ''); return; }
         showAlert('Done — screened: ' + data.screened + ', skipped: ' + data.skipped_no_cv + ', failed: ' + data.failed, 'success', '');
-        document.getElementById('sc-filter-job').value = jobId;
-        loadShadowScreenings();
+        await scLoadResults(jobId);
     } catch(e) {
         showAlert('Request failed', 'error', '');
     } finally {
-        btn.disabled = false; btn.textContent = origText;
+        if (btn) { btn.disabled = false; btn.textContent = origText; }
     }
 }
 </script>
