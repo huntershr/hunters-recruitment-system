@@ -662,6 +662,12 @@
             </svg>
             Voice Screenings
         </a>
+        <a href="#" class="nav-link" data-page="shadow-compare">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18"/>
+            </svg>
+            Shadow Compare
+        </a>
     </nav>
 
     <hr class="sidebar-sep">
@@ -946,6 +952,7 @@
         if (page === 'companies') loadCompaniesList();
         if (page === 'jobs') loadJobsList();
         if (page === 'voice-screenings') loadVoiceScreenings();
+        if (page === 'shadow-compare') loadShadowScreenings();
     }
 
     async function loadOverviewData() {
@@ -1694,6 +1701,62 @@
             <div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>
         </div>
     </div>
+
+    <!-- ── SHADOW COMPARE ── -->
+    <div id="shadow-compare" class="content-area">
+        <div style="background:#fff;border-radius:16px;border-left:4px solid #854F0B;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:20px;">
+            <h1 style="font-size:22px;font-weight:500;color:#1B2A4A;margin:0;">⚗️ Shadow Compare</h1>
+            <p style="font-size:13px;color:#9CA3AF;margin:4px 0 0;">Test engine scores vs Gemini — SuperAdmin only</p>
+        </div>
+
+        <!-- Warning banner -->
+        <div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#856404;font-weight:500;">
+            ⚠️ TEST ENGINE — Results are <strong>NOT shown to clients</strong>, not included in any reports, and do not affect the Gemini screening pipeline.
+        </div>
+
+        <!-- Controls -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+            <!-- Single screen -->
+            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;flex:1;min-width:280px;">
+                <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:10px;">Screen Single Application</div>
+                <div style="display:flex;gap:8px;">
+                    <input type="number" id="sc-app-id" placeholder="Application ID" min="1"
+                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
+                    <button onclick="shadowScreenSingle()" id="sc-single-btn"
+                        style="padding:8px 16px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap;">
+                        Run Screen
+                    </button>
+                </div>
+            </div>
+            <!-- Bulk screen -->
+            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;flex:1;min-width:280px;">
+                <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:10px;">Bulk Screen by Job (max 20)</div>
+                <div style="display:flex;gap:8px;">
+                    <input type="number" id="sc-job-id" placeholder="Job ID" min="1"
+                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
+                    <button onclick="shadowScreenBulk()" id="sc-bulk-btn"
+                        style="padding:8px 16px;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap;">
+                        Bulk Screen
+                    </button>
+                </div>
+            </div>
+            <!-- Filter + refresh -->
+            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;min-width:200px;display:flex;flex-direction:column;gap:8px;">
+                <div style="font-size:13px;font-weight:600;color:#1B2A4A;">Filter by Job ID</div>
+                <div style="display:flex;gap:8px;">
+                    <input type="number" id="sc-filter-job" placeholder="All jobs"
+                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
+                    <button onclick="loadShadowScreenings()" style="padding:8px 14px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;">↻</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results table -->
+        <div id="sc-results-wrap" style="background:#fff;border-radius:16px;border:1px solid #E5E7EB;overflow:hidden;">
+            <div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Load shadow screenings to compare results.</div>
+        </div>
+    </div>
+
 </div>
 <script src="hunters-jobs.js"></script>
 <script>
@@ -1758,6 +1821,116 @@ function exportVoiceScreeningsCSV() {
     a.click();
 }
 function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ── Shadow Compare Tab ── */
+async function loadShadowScreenings() {
+    var token = localStorage.getItem('token');
+    var jobFilter = (document.getElementById('sc-filter-job')||{}).value || '';
+    var url = '/api/admin/shadow-screenings' + (jobFilter ? '?job_id=' + jobFilter : '');
+    var wrap = document.getElementById('sc-results-wrap');
+    if (wrap) wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>';
+    try {
+        var res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!res.ok) {
+            var err = await res.json().catch(function(){ return {}; });
+            if (wrap) wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#CC2B2B;">Error: ' + escHtml(err.detail||res.status) + '</div>';
+            return;
+        }
+        var rows = await res.json();
+        _renderShadowTable(rows);
+    } catch(e) {
+        if (wrap) wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#CC2B2B;">Failed to load</div>';
+    }
+}
+
+function _scoreBadge(score, label) {
+    if (score === null || score === undefined) return '<span style="color:#9CA3AF;font-size:12px;">—</span>';
+    var color = score >= 75 ? '#0F6E56' : score >= 50 ? '#854F0B' : '#CC2B2B';
+    var bg = score >= 75 ? '#E1F5EE' : score >= 50 ? '#FAEEDA' : '#FCEBEB';
+    return '<span style="padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:' + bg + ';color:' + color + ';">' + score + (label ? ' — ' + escHtml(label) : '') + '</span>';
+}
+
+function _renderShadowTable(rows) {
+    var wrap = document.getElementById('sc-results-wrap');
+    if (!wrap) return;
+    if (!rows.length) {
+        wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">No shadow screenings yet. Run a screen above to start comparing.</div>';
+        return;
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;">';
+    html += '<thead><tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;">';
+    ['App ID','Candidate','Job','Gemini Score','Gemini Decision','Agent Score','Agent Rec','Title','Industry','Exp','Skills','Δ Delta','Screened'].forEach(function(h) {
+        html += '<th style="padding:10px 12px;font-size:10px;font-weight:600;color:#6B7280;text-align:left;white-space:nowrap;">' + h + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+    rows.forEach(function(r) {
+        var dim = r.dimension_scores || {};
+        var delta = r.score_delta;
+        var deltaHtml = delta === null ? '—' : (delta > 0 ? '<span style="color:#0F6E56">+' + delta + '</span>' : delta < 0 ? '<span style="color:#CC2B2B">' + delta + '</span>' : '<span style="color:#6B7280">0</span>');
+        html += '<tr style="border-bottom:0.5px solid #F3F4F6;">';
+        html += '<td style="padding:9px 12px;font-size:12px;color:#9CA3AF;">' + r.application_id + '</td>';
+        html += '<td style="padding:9px 12px;font-size:12px;font-weight:500;color:#1B2A4A;">' + escHtml(r.candidate_name) + '</td>';
+        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r.job_title) + '</td>';
+        html += '<td style="padding:9px 12px;">' + _scoreBadge(r.gemini_score, null) + '</td>';
+        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + escHtml(r.gemini_decision||'—') + '</td>';
+        html += '<td style="padding:9px 12px;">' + _scoreBadge(r.agent_score, null) + '</td>';
+        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + escHtml(r.agent_recommendation||'—') + '</td>';
+        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + (dim.titleMatch !== undefined ? dim.titleMatch : '—') + '</td>';
+        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + (dim.industryMatch !== undefined ? dim.industryMatch : '—') + '</td>';
+        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + (dim.experienceMatch !== undefined ? dim.experienceMatch : '—') + '</td>';
+        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + (dim.skillsMatch !== undefined ? dim.skillsMatch : '—') + '</td>';
+        html += '<td style="padding:9px 12px;">' + deltaHtml + '</td>';
+        html += '<td style="padding:9px 12px;font-size:10px;color:#9CA3AF;white-space:nowrap;">' + (r.screened_at ? new Date(r.screened_at).toLocaleDateString() : '—') + '</td>';
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+}
+
+async function shadowScreenSingle() {
+    var appId = (document.getElementById('sc-app-id')||{}).value;
+    if (!appId) { showAlert('Enter an Application ID', 'error', ''); return; }
+    var btn = document.getElementById('sc-single-btn');
+    var origText = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Screening…';
+    var token = localStorage.getItem('token');
+    try {
+        var res = await fetch('/api/admin/shadow-screen/' + appId, {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var data = await res.json();
+        if (!res.ok) { showAlert(data.detail || 'Failed', 'error', ''); return; }
+        showAlert('Agent score: ' + data.agent_score + ' | Gemini score: ' + (data.gemini_score !== null ? data.gemini_score : 'N/A'), 'success', '');
+        loadShadowScreenings();
+    } catch(e) {
+        showAlert('Request failed', 'error', '');
+    } finally {
+        btn.disabled = false; btn.textContent = origText;
+    }
+}
+
+async function shadowScreenBulk() {
+    var jobId = (document.getElementById('sc-job-id')||{}).value;
+    if (!jobId) { showAlert('Enter a Job ID', 'error', ''); return; }
+    var btn = document.getElementById('sc-bulk-btn');
+    var origText = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Screening…';
+    var token = localStorage.getItem('token');
+    try {
+        var res = await fetch('/api/admin/shadow-screen-bulk?job_id=' + jobId, {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var data = await res.json();
+        if (!res.ok) { showAlert(data.detail || 'Failed', 'error', ''); return; }
+        showAlert('Done — screened: ' + data.screened + ', skipped: ' + data.skipped_no_cv + ', failed: ' + data.failed, 'success', '');
+        document.getElementById('sc-filter-job').value = jobId;
+        loadShadowScreenings();
+    } catch(e) {
+        showAlert('Request failed', 'error', '');
+    } finally {
+        btn.disabled = false; btn.textContent = origText;
+    }
+}
 </script>
 
 <!-- ── COMPANY USERS MODAL ── -->

@@ -2086,6 +2086,246 @@ def admin_update_job(
     return _job_to_dict(job)
 
 
+# ── Shadow Screening (SuperAdmin only — isolated, never client-facing) ────────
+
+def _cv_text_for_application(app, db: Session) -> str | None:
+    """Resolve CV text for an application: candidate profile first, then inline."""
+    candidate = app.candidate
+    if candidate and (candidate.cv_text or "").strip():
+        return candidate.cv_text.strip()
+    if (app.cv_text or "").strip():
+        return app.cv_text.strip()
+    return None
+
+
+def _upsert_agent_screening(db: Session, application_id: int, job_id: int,
+                            result: dict, user_id: int) -> None:
+    from sqlalchemy import text as _text
+    import json as _json
+    dim = result.get("dimension_scores") or {}
+    db.execute(_text("""
+        INSERT INTO agent_screenings
+            (application_id, job_id, agent_score, agent_recommendation,
+             dimension_scores, strengths, concerns, semantic_match,
+             screened_at, screened_by)
+        VALUES (:app_id, :job_id, :score, :rec,
+                :dims::jsonb, :str::jsonb, :con::jsonb, :sem,
+                NOW(), :uid)
+        ON CONFLICT (application_id) DO UPDATE SET
+            agent_score          = EXCLUDED.agent_score,
+            agent_recommendation = EXCLUDED.agent_recommendation,
+            dimension_scores     = EXCLUDED.dimension_scores,
+            strengths            = EXCLUDED.strengths,
+            concerns             = EXCLUDED.concerns,
+            semantic_match       = EXCLUDED.semantic_match,
+            screened_at          = EXCLUDED.screened_at,
+            screened_by          = EXCLUDED.screened_by
+    """), {
+        "app_id": application_id,
+        "job_id": job_id,
+        "score": result.get("overall_score"),
+        "rec": result.get("recommendation"),
+        "dims": _json.dumps(dim),
+        "str": _json.dumps(result.get("strengths") or []),
+        "con": _json.dumps(result.get("concerns") or []),
+        "sem": result.get("semantic_match"),
+        "uid": user_id,
+    })
+    db.commit()
+
+
+@router.post("/shadow-screen/{application_id}")
+def shadow_screen_single(
+    application_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """SuperAdmin only. Run the Node screening service against one application.
+    Result is stored in agent_screenings — never in evaluations."""
+    if not current_user.is_admin or current_user.email != SUPERADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="SuperAdmin only")
+
+    from ..services.agent_screener import call_agent_screen
+
+    app = (
+        db.query(models.Application)
+        .options(
+            joinedload(models.Application.candidate),
+            joinedload(models.Application.job),
+            joinedload(models.Application.evaluation),
+        )
+        .filter(models.Application.id == application_id)
+        .first()
+    )
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+    if not app.job:
+        raise HTTPException(status_code=400, detail="Application has no associated job")
+
+    cv_text = _cv_text_for_application(app, db)
+    if not cv_text:
+        raise HTTPException(status_code=400, detail="No CV text found for this application")
+
+    result = call_agent_screen(cv_text, app.job)
+    if result is None:
+        raise HTTPException(status_code=502, detail="Screening service unreachable or returned error")
+
+    _upsert_agent_screening(db, application_id, app.job_id, result, current_user.id)
+
+    ev = app.evaluation
+    gemini_score = None
+    if ev and ev.score is not None:
+        gemini_score = _norm_score(ev.score)
+
+    return {
+        "application_id": application_id,
+        "candidate_name": (
+            (app.candidate.name if app.candidate else None)
+            or app.applicant_name or "Unknown"
+        ),
+        "job_title": app.job.job_title,
+        "gemini_score": gemini_score,
+        "gemini_decision": ev.decision if ev else None,
+        "agent_score": result.get("overall_score"),
+        "agent_recommendation": result.get("recommendation"),
+        "dimension_scores": result.get("dimension_scores"),
+        "strengths": result.get("strengths"),
+        "concerns": result.get("concerns"),
+        "semantic_match": result.get("semantic_match"),
+    }
+
+
+@router.post("/shadow-screen-bulk")
+def shadow_screen_bulk(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """SuperAdmin only. Shadow-screen up to 20 applications for a job.
+    Results go to agent_screenings only — Gemini evaluations are untouched."""
+    if not current_user.is_admin or current_user.email != SUPERADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="SuperAdmin only")
+
+    from ..services.agent_screener import call_agent_screen
+
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    apps = (
+        db.query(models.Application)
+        .options(
+            joinedload(models.Application.candidate),
+            joinedload(models.Application.evaluation),
+        )
+        .filter(models.Application.job_id == job_id)
+        .limit(20)
+        .all()
+    )
+
+    screened, skipped, failed = 0, 0, 0
+    for app in apps:
+        cv_text = _cv_text_for_application(app, db)
+        if not cv_text:
+            skipped += 1
+            continue
+        result = call_agent_screen(cv_text, job)
+        if result is None:
+            failed += 1
+            continue
+        try:
+            _upsert_agent_screening(db, app.id, job_id, result, current_user.id)
+            screened += 1
+        except Exception as exc:
+            _logger.error("Failed to persist shadow screening for app %d: %s", app.id, exc)
+            db.rollback()
+            failed += 1
+
+    return {
+        "job_id": job_id,
+        "job_title": job.job_title,
+        "total_apps": len(apps),
+        "screened": screened,
+        "skipped_no_cv": skipped,
+        "failed": failed,
+    }
+
+
+@router.get("/shadow-screenings")
+def list_shadow_screenings(
+    job_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """SuperAdmin only. List shadow screening results with Gemini comparison."""
+    if not current_user.is_admin or current_user.email != SUPERADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="SuperAdmin only")
+
+    from sqlalchemy import text as _text
+    import json as _json
+
+    where = "WHERE 1=1"
+    params: dict = {}
+    if job_id is not None:
+        where += " AND ag.job_id = :job_id"
+        params["job_id"] = job_id
+
+    rows = db.execute(_text(f"""
+        SELECT
+            ag.id,
+            ag.application_id,
+            ag.job_id,
+            ag.agent_score,
+            ag.agent_recommendation,
+            ag.dimension_scores,
+            ag.strengths,
+            ag.concerns,
+            ag.semantic_match,
+            ag.screened_at,
+            j.job_title,
+            COALESCE(c.name, ap.applicant_name) AS candidate_name,
+            ev.score   AS gemini_score_raw,
+            ev.decision AS gemini_decision
+        FROM agent_screenings ag
+        LEFT JOIN applications ap ON ap.id = ag.application_id
+        LEFT JOIN jobs         j  ON j.id  = ag.job_id
+        LEFT JOIN candidates   c  ON c.id  = ap.candidate_id
+        LEFT JOIN evaluations  ev ON ev.application_id = ag.application_id
+        {where}
+        ORDER BY ag.screened_at DESC
+        LIMIT 200
+    """), params).fetchall()
+
+    result = []
+    for r in rows:
+        gemini_score = _norm_score(r.gemini_score_raw) if r.gemini_score_raw is not None else None
+        dim = r.dimension_scores
+        if isinstance(dim, str):
+            try:
+                dim = _json.loads(dim)
+            except Exception:
+                dim = {}
+        result.append({
+            "id": r.id,
+            "application_id": r.application_id,
+            "job_id": r.job_id,
+            "job_title": r.job_title or "",
+            "candidate_name": r.candidate_name or "Unknown",
+            "agent_score": r.agent_score,
+            "agent_recommendation": r.agent_recommendation,
+            "dimension_scores": dim or {},
+            "semantic_match": r.semantic_match,
+            "gemini_score": gemini_score,
+            "gemini_decision": r.gemini_decision,
+            "score_delta": (
+                (r.agent_score - gemini_score)
+                if r.agent_score is not None and gemini_score is not None else None
+            ),
+            "screened_at": r.screened_at.isoformat() if r.screened_at else None,
+        })
+    return result
+
+
 @router.delete("/jobs/{job_id}")
 def admin_delete_job(
     job_id: int,

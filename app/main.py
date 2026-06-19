@@ -419,6 +419,43 @@ def startup_populate_db():
     except Exception as _e:
         logging.error(f"voice_screenings column migrations failed: {_e}")
 
+    # ── agent_screenings table — always run, isolated shadow table ──
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SAVEPOINT _as1"))
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS agent_screenings (
+                        id                  SERIAL PRIMARY KEY,
+                        application_id      INTEGER REFERENCES applications(id),
+                        job_id              INTEGER REFERENCES jobs(id),
+                        agent_score         INTEGER,
+                        agent_recommendation VARCHAR,
+                        dimension_scores    JSONB,
+                        strengths           JSONB,
+                        concerns            JSONB,
+                        semantic_match      FLOAT,
+                        screened_at         TIMESTAMP DEFAULT NOW(),
+                        screened_by         INTEGER REFERENCES users(id)
+                    )
+                """))
+                conn.execute(text("RELEASE SAVEPOINT _as1"))
+            except Exception:
+                conn.execute(text("ROLLBACK TO SAVEPOINT _as1"))
+            conn.execute(text("SAVEPOINT _as2"))
+            try:
+                conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_screenings_app "
+                    "ON agent_screenings(application_id)"
+                ))
+                conn.execute(text("RELEASE SAVEPOINT _as2"))
+            except Exception:
+                conn.execute(text("ROLLBACK TO SAVEPOINT _as2"))
+            conn.commit()
+            logging.info("agent_screenings table ensured")
+    except Exception as _e:
+        logging.error(f"agent_screenings migration failed: {_e}")
+
     # ── Password reset columns (additive, runs every startup — safe no-ops after first run) ──
     try:
         with engine.connect() as conn:
