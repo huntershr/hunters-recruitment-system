@@ -871,6 +871,84 @@
         </div>
     </div>
 
+    <!-- ── VOICE SCREENINGS ── -->
+    <div id="voice-screenings" class="content-area">
+        <div style="background:#fff;border-radius:16px;border-left:4px solid #C9A84C;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <div>
+                <h1 style="font-size:22px;font-weight:500;color:#1B2A4A;margin:0;">🎙️ Voice Screenings</h1>
+                <p style="font-size:13px;color:#9CA3AF;margin:4px 0 0;">All AI voice screening sessions across companies</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <select id="vs-filter-status" onchange="loadVoiceScreenings()" style="padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;color:#1B2A4A;background:#fff;outline:none;">
+                    <option value="">All Statuses</option>
+                    <option value="completed">Completed</option>
+                    <option value="no_answer">No Answer</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="pending">Pending</option>
+                </select>
+                <button onclick="exportVoiceScreeningsCSV()" style="padding:8px 14px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#1B2A4A;font-size:12px;cursor:pointer;font-weight:500;">↓ Export CSV</button>
+            </div>
+        </div>
+        <div id="vs-table-wrap" style="background:#fff;border-radius:16px;border:1px solid #E5E7EB;overflow:hidden;">
+            <div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>
+        </div>
+    </div>
+
+    <!-- ── SHADOW COMPARE ── -->
+    <div id="shadow-compare" class="content-area">
+        <div style="background:#fff;border-radius:16px;border-left:4px solid #854F0B;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:20px;">
+            <h1 style="font-size:22px;font-weight:500;color:#1B2A4A;margin:0;">⚗️ Shadow Compare</h1>
+            <p style="font-size:13px;color:#9CA3AF;margin:4px 0 0;">Test engine scores vs Gemini — SuperAdmin only</p>
+        </div>
+
+        <!-- Warning banner -->
+        <div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#856404;font-weight:500;">
+            ⚠️ TEST ENGINE — Results are <strong>NOT shown to clients</strong>, not included in any reports, and do not affect the Gemini screening pipeline.
+        </div>
+
+        <!-- Controls -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+            <!-- Single screen -->
+            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;flex:1;min-width:280px;">
+                <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:10px;">Screen Single Application</div>
+                <div style="display:flex;gap:8px;">
+                    <input type="number" id="sc-app-id" placeholder="Application ID" min="1"
+                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
+                    <button onclick="shadowScreenSingle()" id="sc-single-btn"
+                        style="padding:8px 16px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap;">
+                        Run Screen
+                    </button>
+                </div>
+            </div>
+            <!-- Bulk screen -->
+            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;flex:1;min-width:280px;">
+                <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:10px;">Bulk Screen by Job (max 20)</div>
+                <div style="display:flex;gap:8px;">
+                    <input type="number" id="sc-job-id" placeholder="Job ID" min="1"
+                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
+                    <button onclick="shadowScreenBulk()" id="sc-bulk-btn"
+                        style="padding:8px 16px;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap;">
+                        Bulk Screen
+                    </button>
+                </div>
+            </div>
+            <!-- Filter + refresh -->
+            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;min-width:200px;display:flex;flex-direction:column;gap:8px;">
+                <div style="font-size:13px;font-weight:600;color:#1B2A4A;">Filter by Job ID</div>
+                <div style="display:flex;gap:8px;">
+                    <input type="number" id="sc-filter-job" placeholder="All jobs"
+                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
+                    <button onclick="loadShadowScreenings()" style="padding:8px 14px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;">↻</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results table -->
+        <div id="sc-results-wrap" style="background:#fff;border-radius:16px;border:1px solid #E5E7EB;overflow:hidden;">
+            <div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Load shadow screenings to compare results.</div>
+        </div>
+    </div>
+
 </main>
 
 <script>
@@ -1680,84 +1758,6 @@
         </div>
     </div>
 </div>
-<!-- ── VOICE SCREENINGS ── -->
-<div id="voice-screenings" class="content-area">
-        <div style="background:#fff;border-radius:16px;border-left:4px solid #C9A84C;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-            <div>
-                <h1 style="font-size:22px;font-weight:500;color:#1B2A4A;margin:0;">🎙️ Voice Screenings</h1>
-                <p style="font-size:13px;color:#9CA3AF;margin:4px 0 0;">All AI voice screening sessions across companies</p>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-                <select id="vs-filter-status" onchange="loadVoiceScreenings()" style="padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;color:#1B2A4A;background:#fff;outline:none;">
-                    <option value="">All Statuses</option>
-                    <option value="completed">Completed</option>
-                    <option value="no_answer">No Answer</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="pending">Pending</option>
-                </select>
-                <button onclick="exportVoiceScreeningsCSV()" style="padding:8px 14px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#1B2A4A;font-size:12px;cursor:pointer;font-weight:500;">↓ Export CSV</button>
-            </div>
-        </div>
-        <div id="vs-table-wrap" style="background:#fff;border-radius:16px;border:1px solid #E5E7EB;overflow:hidden;">
-            <div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>
-        </div>
-    </div>
-
-    <!-- ── SHADOW COMPARE ── -->
-    <div id="shadow-compare" class="content-area">
-        <div style="background:#fff;border-radius:16px;border-left:4px solid #854F0B;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:20px;">
-            <h1 style="font-size:22px;font-weight:500;color:#1B2A4A;margin:0;">⚗️ Shadow Compare</h1>
-            <p style="font-size:13px;color:#9CA3AF;margin:4px 0 0;">Test engine scores vs Gemini — SuperAdmin only</p>
-        </div>
-
-        <!-- Warning banner -->
-        <div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#856404;font-weight:500;">
-            ⚠️ TEST ENGINE — Results are <strong>NOT shown to clients</strong>, not included in any reports, and do not affect the Gemini screening pipeline.
-        </div>
-
-        <!-- Controls -->
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
-            <!-- Single screen -->
-            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;flex:1;min-width:280px;">
-                <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:10px;">Screen Single Application</div>
-                <div style="display:flex;gap:8px;">
-                    <input type="number" id="sc-app-id" placeholder="Application ID" min="1"
-                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
-                    <button onclick="shadowScreenSingle()" id="sc-single-btn"
-                        style="padding:8px 16px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap;">
-                        Run Screen
-                    </button>
-                </div>
-            </div>
-            <!-- Bulk screen -->
-            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;flex:1;min-width:280px;">
-                <div style="font-size:13px;font-weight:600;color:#1B2A4A;margin-bottom:10px;">Bulk Screen by Job (max 20)</div>
-                <div style="display:flex;gap:8px;">
-                    <input type="number" id="sc-job-id" placeholder="Job ID" min="1"
-                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
-                    <button onclick="shadowScreenBulk()" id="sc-bulk-btn"
-                        style="padding:8px 16px;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap;">
-                        Bulk Screen
-                    </button>
-                </div>
-            </div>
-            <!-- Filter + refresh -->
-            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:18px 20px;min-width:200px;display:flex;flex-direction:column;gap:8px;">
-                <div style="font-size:13px;font-weight:600;color:#1B2A4A;">Filter by Job ID</div>
-                <div style="display:flex;gap:8px;">
-                    <input type="number" id="sc-filter-job" placeholder="All jobs"
-                        style="flex:1;padding:8px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;">
-                    <button onclick="loadShadowScreenings()" style="padding:8px 14px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;">↻</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Results table -->
-        <div id="sc-results-wrap" style="background:#fff;border-radius:16px;border:1px solid #E5E7EB;overflow:hidden;">
-            <div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Load shadow screenings to compare results.</div>
-        </div>
-    </div>
-
 <script src="hunters-jobs.js?v=2"></script>
 <script>
 /* ── Voice Screenings Admin Tab ── */
