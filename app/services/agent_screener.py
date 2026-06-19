@@ -32,9 +32,10 @@ def call_agent_screen(cv_text: str, job) -> dict | None:
         },
     }
     try:
+        _endpoint = _SCREEN_URL if _SCREEN_URL.rstrip("/").endswith("/api/screen") else f"{_SCREEN_URL.rstrip('/')}/api/screen"
         with httpx.Client(timeout=60.0) as client:
             resp = client.post(
-                f"{_SCREEN_URL}/api/screen",
+                _endpoint,
                 json=payload,
                 headers={"X-API-Key": _SCREEN_KEY},
             )
