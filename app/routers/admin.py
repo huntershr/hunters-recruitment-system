@@ -2117,9 +2117,11 @@ def _upsert_agent_screening(db: Session, application_id: int, job_id: int,
         INSERT INTO agent_screenings
             (application_id, job_id, agent_score, agent_recommendation,
              dimension_scores, strengths, concerns, semantic_match,
+             matched_skills, missed_skills,
              screened_at, screened_by)
         VALUES (:app_id, :job_id, :score, :rec,
                 CAST(:dims AS jsonb), CAST(:str AS jsonb), CAST(:con AS jsonb), :sem,
+                CAST(:matched AS jsonb), CAST(:missed AS jsonb),
                 NOW(), :uid)
         ON CONFLICT (application_id) DO UPDATE SET
             agent_score          = EXCLUDED.agent_score,
@@ -2128,6 +2130,8 @@ def _upsert_agent_screening(db: Session, application_id: int, job_id: int,
             strengths            = EXCLUDED.strengths,
             concerns             = EXCLUDED.concerns,
             semantic_match       = EXCLUDED.semantic_match,
+            matched_skills       = EXCLUDED.matched_skills,
+            missed_skills        = EXCLUDED.missed_skills,
             screened_at          = EXCLUDED.screened_at,
             screened_by          = EXCLUDED.screened_by
     """), {
@@ -2139,6 +2143,8 @@ def _upsert_agent_screening(db: Session, application_id: int, job_id: int,
         "str": _json.dumps(result.get("strengths") or []),
         "con": _json.dumps(result.get("concerns") or []),
         "sem": result.get("semantic_match"),
+        "matched": _json.dumps(result.get("matched_skills") or []),
+        "missed":  _json.dumps(result.get("missed_skills") or []),
         "uid": user_id,
     })
     db.commit()
@@ -2290,9 +2296,12 @@ def list_shadow_screenings(
             ag.dimension_scores,
             ag.strengths,
             ag.concerns,
+            ag.matched_skills,
+            ag.missed_skills,
             ag.semantic_match,
             ag.screened_at,
             j.job_title,
+            j.required_skills AS job_required_skills,
             COALESCE(c.name, ap.applicant_name) AS candidate_name,
             ev.score   AS gemini_score_raw,
             ev.decision AS gemini_decision
@@ -2306,24 +2315,34 @@ def list_shadow_screenings(
         LIMIT 200
     """), params).fetchall()
 
+    def _parse_jsonb(val):
+        if val is None:
+            return None
+        if isinstance(val, (list, dict)):
+            return val
+        try:
+            return _json.loads(val)
+        except Exception:
+            return None
+
     result = []
     for r in rows:
         gemini_score = _norm_score(r.gemini_score_raw) if r.gemini_score_raw is not None else None
-        dim = r.dimension_scores
-        if isinstance(dim, str):
-            try:
-                dim = _json.loads(dim)
-            except Exception:
-                dim = {}
+        dim = _parse_jsonb(r.dimension_scores) or {}
         result.append({
             "id": r.id,
             "application_id": r.application_id,
             "job_id": r.job_id,
             "job_title": r.job_title or "",
+            "job_required_skills": r.job_required_skills or "",
             "candidate_name": r.candidate_name or "Unknown",
             "agent_score": r.agent_score,
             "agent_recommendation": r.agent_recommendation,
-            "dimension_scores": dim or {},
+            "dimension_scores": dim,
+            "strengths": _parse_jsonb(r.strengths) or [],
+            "concerns": _parse_jsonb(r.concerns) or [],
+            "matched_skills": _parse_jsonb(r.matched_skills) or [],
+            "missed_skills": _parse_jsonb(r.missed_skills) or [],
             "semantic_match": r.semantic_match,
             "gemini_score": gemini_score,
             "gemini_decision": r.gemini_decision,

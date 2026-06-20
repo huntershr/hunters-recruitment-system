@@ -451,6 +451,17 @@ def startup_populate_db():
                 conn.execute(text("RELEASE SAVEPOINT _as2"))
             except Exception:
                 conn.execute(text("ROLLBACK TO SAVEPOINT _as2"))
+            conn.execute(text("SAVEPOINT _as3"))
+            try:
+                conn.execute(text(
+                    "ALTER TABLE agent_screenings ADD COLUMN IF NOT EXISTS matched_skills JSONB"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE agent_screenings ADD COLUMN IF NOT EXISTS missed_skills JSONB"
+                ))
+                conn.execute(text("RELEASE SAVEPOINT _as3"))
+            except Exception:
+                conn.execute(text("ROLLBACK TO SAVEPOINT _as3"))
             conn.commit()
             logging.info("agent_screenings table ensured")
     except Exception as _e:

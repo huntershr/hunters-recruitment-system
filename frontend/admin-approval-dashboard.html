@@ -1742,7 +1742,7 @@
         </div>
     </div>
 </div>
-<script src="hunters-jobs.js?v=5"></script>
+<script src="hunters-jobs.js?v=6"></script>
 <script>
 /* ── Voice Screenings Admin Tab ── */
 var _vsAllData = [];
@@ -1926,6 +1926,36 @@ function _scoreBadge(score, label) {
     return '<span style="padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:' + bg + ';color:' + color + ';">' + score + (label ? ' — ' + escHtml(label) : '') + '</span>';
 }
 
+function _dimBar(label, val) {
+    if (val === null || val === undefined) return '';
+    var color = val >= 75 ? '#0F6E56' : val >= 50 ? '#C9A84C' : '#CC2B2B';
+    var bg    = val >= 75 ? '#E1F5EE' : val >= 50 ? '#FEF9EC' : '#FCEBEB';
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'
+        + '<span style="font-size:11px;color:#6B7280;width:90px;flex-shrink:0;">' + escHtml(label) + '</span>'
+        + '<div style="flex:1;background:#F3F4F6;border-radius:4px;height:8px;overflow:hidden;">'
+        +   '<div style="width:' + val + '%;height:100%;background:' + color + ';border-radius:4px;"></div>'
+        + '</div>'
+        + '<span style="font-size:11px;font-weight:700;color:' + color + ';width:30px;text-align:right;">' + val + '</span>'
+        + '</div>';
+}
+
+function _skillPill(text, matched) {
+    var bg    = matched ? '#E1F5EE' : '#FCEBEB';
+    var color = matched ? '#0F6E56' : '#CC2B2B';
+    var icon  = matched ? '✓' : '✗';
+    return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:' + bg + ';color:' + color + ';margin:2px 2px;">'
+        + icon + ' ' + escHtml(text) + '</span>';
+}
+
+function scToggleDetail(rowId) {
+    var detail = document.getElementById('sc-detail-' + rowId);
+    var btn    = document.getElementById('sc-toggle-' + rowId);
+    if (!detail) return;
+    var open = detail.style.display !== 'none';
+    detail.style.display = open ? 'none' : '';
+    if (btn) btn.textContent = open ? '+' : '−';
+}
+
 function _renderShadowTable(rows) {
     var wrap = document.getElementById('sc-results-wrap');
     if (!wrap) return;
@@ -1935,30 +1965,102 @@ function _renderShadowTable(rows) {
     }
     var html = '<table style="width:100%;border-collapse:collapse;">';
     html += '<thead><tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;">';
-    ['App ID','Candidate','Job','Gemini Score','Gemini Decision','Agent Score','Agent Rec','Title','Industry','Exp','Skills','Δ Delta','Screened'].forEach(function(h) {
+    ['','Candidate','Job','Gemini','Gemini Dec','Agent','Agent Rec','Δ Delta','Screened'].forEach(function(h) {
         html += '<th style="padding:10px 12px;font-size:10px;font-weight:600;color:#6B7280;text-align:left;white-space:nowrap;">' + h + '</th>';
     });
     html += '</tr></thead><tbody>';
+
     rows.forEach(function(r) {
-        var dim = r.dimension_scores || {};
+        var dim   = r.dimension_scores || {};
         var delta = r.score_delta;
-        var deltaHtml = delta === null ? '—' : (delta > 0 ? '<span style="color:#0F6E56">+' + delta + '</span>' : delta < 0 ? '<span style="color:#CC2B2B">' + delta + '</span>' : '<span style="color:#6B7280">0</span>');
-        html += '<tr style="border-bottom:0.5px solid #F3F4F6;">';
-        html += '<td style="padding:9px 12px;font-size:12px;color:#9CA3AF;">' + r.application_id + '</td>';
-        html += '<td style="padding:9px 12px;font-size:12px;font-weight:500;color:#1B2A4A;">' + escHtml(r.candidate_name) + '</td>';
+        var deltaHtml = delta === null || delta === undefined
+            ? '—'
+            : (delta > 0
+                ? '<span style="color:#0F6E56;font-weight:600;">+' + delta + '</span>'
+                : delta < 0
+                    ? '<span style="color:#CC2B2B;font-weight:600;">' + delta + '</span>'
+                    : '<span style="color:#6B7280;">0</span>');
+
+        // ── Summary row ──
+        html += '<tr id="sc-row-' + r.id + '" style="border-bottom:0.5px solid #F3F4F6;cursor:pointer;" onclick="scToggleDetail(' + r.id + ')">';
+        html += '<td style="padding:9px 12px;"><button id="sc-toggle-' + r.id + '" onclick="event.stopPropagation();scToggleDetail(' + r.id + ')" style="width:22px;height:22px;border:1px solid #E5E7EB;border-radius:5px;background:#fff;font-size:13px;cursor:pointer;line-height:1;">+</button></td>';
+        html += '<td style="padding:9px 12px;font-size:12px;font-weight:500;color:#1B2A4A;">' + escHtml(r.candidate_name) + '<br><span style="font-size:10px;color:#9CA3AF;font-weight:400;">app #' + r.application_id + '</span></td>';
         html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r.job_title) + '</td>';
         html += '<td style="padding:9px 12px;">' + _scoreBadge(r.gemini_score, null) + '</td>';
-        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + escHtml(r.gemini_decision||'—') + '</td>';
+        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + escHtml(r.gemini_decision || '—') + '</td>';
         html += '<td style="padding:9px 12px;">' + _scoreBadge(r.agent_score, null) + '</td>';
-        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + escHtml(r.agent_recommendation||'—') + '</td>';
-        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + (dim.titleMatch !== undefined ? dim.titleMatch : '—') + '</td>';
-        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + (dim.industryMatch !== undefined ? dim.industryMatch : '—') + '</td>';
-        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + (dim.experienceMatch !== undefined ? dim.experienceMatch : '—') + '</td>';
-        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + (dim.skillsMatch !== undefined ? dim.skillsMatch : '—') + '</td>';
+        html += '<td style="padding:9px 12px;font-size:11px;color:#6B7280;">' + escHtml(r.agent_recommendation || '—') + '</td>';
         html += '<td style="padding:9px 12px;">' + deltaHtml + '</td>';
         html += '<td style="padding:9px 12px;font-size:10px;color:#9CA3AF;white-space:nowrap;">' + (r.screened_at ? new Date(r.screened_at).toLocaleDateString() : '—') + '</td>';
         html += '</tr>';
+
+        // ── Expandable detail row ──
+        var strengths     = r.strengths     || [];
+        var concerns      = r.concerns      || [];
+        var matchedSkills = r.matched_skills || [];
+        var missedSkills  = r.missed_skills  || [];
+        var hasSkillData  = matchedSkills.length > 0 || missedSkills.length > 0;
+
+        // Fallback: if no per-skill data yet, parse job_required_skills as pills (legacy rows)
+        var skillsHtml = '';
+        if (hasSkillData) {
+            skillsHtml += matchedSkills.map(function(s) { return _skillPill(s, true); }).join('');
+            skillsHtml += missedSkills.map(function(s)  { return _skillPill(s, false); }).join('');
+        } else if (r.job_required_skills) {
+            var allSkills = r.job_required_skills.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+            var pct = dim.skillsMatch;
+            skillsHtml = allSkills.map(function(s) {
+                return '<span style="display:inline-flex;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:#F3F4F6;color:#6B7280;margin:2px 2px;">' + escHtml(s) + '</span>';
+            }).join('');
+            if (pct !== undefined) skillsHtml += '<span style="font-size:10px;color:#6B7280;margin-left:6px;">(' + pct + '% match — re-screen to see breakdown)</span>';
+        }
+
+        html += '<tr id="sc-detail-' + r.id + '" style="display:none;background:#FAFAFA;">';
+        html += '<td colspan="9" style="padding:0;">';
+        html += '<div style="padding:16px 20px 20px;border-bottom:1px solid #E5E7EB;">';
+
+        // Dimension bars
+        html += '<div style="display:flex;gap:32px;flex-wrap:wrap;margin-bottom:16px;">';
+        html += '<div style="min-width:220px;flex:1;">';
+        html += '<div style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Dimension Scores</div>';
+        html += _dimBar('Job Title',  dim.titleMatch);
+        html += _dimBar('Industry',   dim.industryMatch);
+        html += _dimBar('Experience', dim.experienceMatch);
+        html += _dimBar('Skills',     dim.skillsMatch);
+        if (r.semantic_match !== null && r.semantic_match !== undefined) {
+            html += _dimBar('Semantic',   Math.round(r.semantic_match));
+        }
+        html += '</div>';
+
+        // Strengths + Concerns
+        html += '<div style="min-width:220px;flex:1;">';
+        if (strengths.length) {
+            html += '<div style="font-size:10px;font-weight:700;color:#0F6E56;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Strengths</div>';
+            strengths.forEach(function(s) {
+                html += '<div style="font-size:12px;color:#1B2A4A;padding:3px 0 3px 12px;border-left:2px solid #0F6E56;margin-bottom:4px;">' + escHtml(s) + '</div>';
+            });
+        }
+        if (concerns.length) {
+            html += '<div style="font-size:10px;font-weight:700;color:#CC2B2B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;' + (strengths.length ? 'margin-top:12px;' : '') + '">Concerns</div>';
+            concerns.forEach(function(c) {
+                html += '<div style="font-size:12px;color:#1B2A4A;padding:3px 0 3px 12px;border-left:2px solid #CC2B2B;margin-bottom:4px;">' + escHtml(c) + '</div>';
+            });
+        }
+        html += '</div>';
+        html += '</div>';
+
+        // Skills breakdown
+        if (skillsHtml) {
+            html += '<div>';
+            html += '<div style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Required Skills'
+                + (hasSkillData ? ' — ' + matchedSkills.length + ' matched, ' + missedSkills.length + ' missed' : '') + '</div>';
+            html += '<div style="line-height:2;">' + skillsHtml + '</div>';
+            html += '</div>';
+        }
+
+        html += '</div></td></tr>';
     });
+
     html += '</tbody></table>';
     wrap.innerHTML = html;
 }
