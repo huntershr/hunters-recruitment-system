@@ -27,7 +27,7 @@ def call_agent_screen(cv_text: str, job) -> dict | None:
             "description": job.job_description or "",
             "required_skills": skills_list,
             "required_experience": job.min_experience or 0,
-            "required_industry": job.industry_experience or "",
+            "required_industry": job.industry_experience or job.department or "",
             "min_education": job.education_level or "",
         },
     }
