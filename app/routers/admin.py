@@ -41,6 +41,10 @@ class AdminJobPayload(BaseModel):
     weight_skills: float = 0.30
     weight_education: float = 0.20
     weight_behavioral: float = 0.10
+    agent_weight_title: int = 25
+    agent_weight_industry: int = 25
+    agent_weight_experience: int = 25
+    agent_weight_skills: int = 25
 
 
 class PlanUpdateRequest(BaseModel):
@@ -1997,6 +2001,10 @@ def _job_to_dict(j: models.Job) -> dict:
         "is_approved": bool(j.is_approved),
         "created_at": j.created_at.isoformat() if j.created_at else "",
         "owner_id": j.owner_id,
+        "agent_weight_title":      getattr(j, "agent_weight_title",      25) or 25,
+        "agent_weight_industry":   getattr(j, "agent_weight_industry",   25) or 25,
+        "agent_weight_experience": getattr(j, "agent_weight_experience", 25) or 25,
+        "agent_weight_skills":     getattr(j, "agent_weight_skills",     25) or 25,
     }
 
 
@@ -2055,6 +2063,10 @@ def admin_create_job(
         weight_skills=payload.weight_skills,
         weight_education=payload.weight_education,
         weight_behavioral=payload.weight_behavioral,
+        agent_weight_title=payload.agent_weight_title,
+        agent_weight_industry=payload.agent_weight_industry,
+        agent_weight_experience=payload.agent_weight_experience,
+        agent_weight_skills=payload.agent_weight_skills,
         is_approved=True,
     )
     db.add(job)
@@ -2091,6 +2103,10 @@ def admin_update_job(
     job.weight_skills = payload.weight_skills
     job.weight_education = payload.weight_education
     job.weight_behavioral = payload.weight_behavioral
+    job.agent_weight_title      = payload.agent_weight_title
+    job.agent_weight_industry   = payload.agent_weight_industry
+    job.agent_weight_experience = payload.agent_weight_experience
+    job.agent_weight_skills     = payload.agent_weight_skills
     db.commit()
     db.refresh(job)
     return _job_to_dict(job)

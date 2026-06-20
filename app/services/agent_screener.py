@@ -29,6 +29,12 @@ def call_agent_screen(cv_text: str, job) -> dict | None:
             "required_experience": job.min_experience or 0,
             "required_industry": job.department or job.industry_experience or "",
             "min_education": job.education_level or "",
+            "weights": {
+                "title":      getattr(job, "agent_weight_title",      None) or 25,
+                "industry":   getattr(job, "agent_weight_industry",   None) or 25,
+                "experience": getattr(job, "agent_weight_experience", None) or 25,
+                "skills":     getattr(job, "agent_weight_skills",     None) or 25,
+            },
         },
     }
     try:

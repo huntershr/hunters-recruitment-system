@@ -18,6 +18,7 @@ def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
     skl_w   = weights.get("skills",     40)
     edu_w   = weights.get("education",  20)
     beh_w   = weights.get("behavioral", 10)
+    aw = job.agent_weights or {}
 
     if job.salary_min or job.salary_max:
         salary_parts = []
@@ -46,6 +47,10 @@ def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
         weight_skills     = round(skl_w / 100, 4),
         weight_education  = round(edu_w / 100, 4),
         weight_behavioral = round(beh_w / 100, 4),
+        agent_weight_title      = int(aw.get("title",      25)),
+        agent_weight_industry   = int(aw.get("industry",   25)),
+        agent_weight_experience = int(aw.get("experience", 25)),
+        agent_weight_skills     = int(aw.get("skills",     25)),
     )
 
 router = APIRouter(

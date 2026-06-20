@@ -193,6 +193,7 @@ class JobSavePayload(BaseModel):
     industry_experience: Optional[str] = None
     department: Optional[str] = "Other"
     ai_weights: Optional[dict] = None
+    agent_weights: Optional[dict] = None
     hide_salary: bool = False
     company_id: Optional[str] = None
 

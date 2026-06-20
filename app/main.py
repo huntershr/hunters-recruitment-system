@@ -462,6 +462,15 @@ def startup_populate_db():
                 conn.execute(text("RELEASE SAVEPOINT _as3"))
             except Exception:
                 conn.execute(text("ROLLBACK TO SAVEPOINT _as3"))
+            conn.execute(text("SAVEPOINT _as4"))
+            try:
+                conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS agent_weight_title      INTEGER NOT NULL DEFAULT 25"))
+                conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS agent_weight_industry   INTEGER NOT NULL DEFAULT 25"))
+                conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS agent_weight_experience INTEGER NOT NULL DEFAULT 25"))
+                conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS agent_weight_skills     INTEGER NOT NULL DEFAULT 25"))
+                conn.execute(text("RELEASE SAVEPOINT _as4"))
+            except Exception:
+                conn.execute(text("ROLLBACK TO SAVEPOINT _as4"))
             conn.commit()
             logging.info("agent_screenings table ensured")
     except Exception as _e:

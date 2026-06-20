@@ -675,6 +675,14 @@ function openEditJobModal(id) {
             updateHuntersWeights();
         } catch(e) {}
     }
+    // Populate agent scoring weights (fall back to 25 if not set)
+    const aw = job.agent_weights || {};
+    const _setAw = (id, key) => { const el = document.getElementById(id); if (el) el.value = aw[key] ?? 25; };
+    _setAw('aw-title',      'title');
+    _setAw('aw-industry',   'industry');
+    _setAw('aw-experience', 'experience');
+    _setAw('aw-skills',     'skills');
+    updateAgentWeights();
 
     const hs = document.getElementById('job-modal-hide-salary');
     if (hs) hs.checked = !!job.hide_salary;
@@ -736,6 +744,47 @@ function updateHuntersWeights() {
     }
 }
 
+function toggleAgentWeights() {
+    const panel = document.getElementById('agent-weights-panel');
+    const chevron = document.getElementById('agent-weights-chevron');
+    if (!panel) return;
+    const open = panel.style.display !== 'none';
+    panel.style.display = open ? 'none' : 'block';
+    chevron.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function updateAgentWeights() {
+    const title    = parseInt(document.getElementById('aw-title')?.value)      || 0;
+    const industry = parseInt(document.getElementById('aw-industry')?.value)   || 0;
+    const exp      = parseInt(document.getElementById('aw-experience')?.value) || 0;
+    const skills   = parseInt(document.getElementById('aw-skills')?.value)     || 0;
+    const total    = title + industry + exp + skills;
+    const display  = document.getElementById('aw-sum-display');
+    const submitBtn = document.getElementById('job-modal-submit-btn');
+    if (!display) return;
+    display.innerText = 'Total: ' + total + '%';
+    if (total === 100) {
+        display.style.background = '#E1F5EE';
+        display.style.color      = '#0F6E56';
+        display.innerText += ' ✓';
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; }
+    } else {
+        display.style.background = '#FCEBEB';
+        display.style.color      = '#A32D2D';
+        display.innerText += ' ✗  (must sum to 100)';
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.5'; }
+    }
+}
+
+function _getAgentWeights() {
+    return {
+        title:      parseInt(document.getElementById('aw-title')?.value)      || 25,
+        industry:   parseInt(document.getElementById('aw-industry')?.value)   || 25,
+        experience: parseInt(document.getElementById('aw-experience')?.value) || 25,
+        skills:     parseInt(document.getElementById('aw-skills')?.value)     || 25,
+    };
+}
+
 async function loadAdminCompaniesForDropdown() {
     try {
         const res = await fetch(API_URL + '/companies/', {
@@ -789,6 +838,7 @@ async function saveHuntersJob(e) {
         nice_to_have_skills: (document.getElementById('job-modal-nice')?.value || '').trim() || null,
         behavioral_skills: (document.getElementById('job-modal-behavioral')?.value || '').trim() || null,
         ai_weights: { experience: exp, skills: skills, education: edu, behavioral: behav },
+        agent_weights: _getAgentWeights(),
         hide_salary: hideSal ? !!hideSal.checked : false,
     };
 

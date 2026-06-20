@@ -4426,6 +4426,36 @@
                         </div>
                     </div>
 
+                    <!-- Agent Scoring Weights (collapsible) -->
+                    <div style="border:1px solid #E5E7EB; border-radius:12px; margin-bottom:20px; overflow:hidden;">
+                        <button type="button" onclick="toggleAgentWeights()" style="width:100%; background:#F9FAFB; border:none; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                            <span style="font-size:13px; font-weight:500; color:#1B2A4A;">Agent Scoring Weights <span style="font-size:11px; font-weight:400; color:#6B7280;">(optional — default 25/25/25/25)</span></span>
+                            <span id="agent-weights-chevron" style="color:#6B7280; font-size:16px; transition:transform 0.2s;">▼</span>
+                        </button>
+                        <div id="agent-weights-panel" style="display:none; padding:16px;">
+                            <p style="font-size:12px; color:#6B7280; margin:0 0 14px;">These weights control how the AI agent scores candidates for this specific job. They must sum to 100.</p>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                                <div>
+                                    <label style="font-size:12px; color:#374151; display:block; margin-bottom:4px;">Title Match %</label>
+                                    <input type="number" id="aw-title" min="0" max="100" value="25" oninput="updateAgentWeights()" style="width:100%; border:1px solid #E5E7EB; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; color:#374151; display:block; margin-bottom:4px;">Industry Match %</label>
+                                    <input type="number" id="aw-industry" min="0" max="100" value="25" oninput="updateAgentWeights()" style="width:100%; border:1px solid #E5E7EB; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; color:#374151; display:block; margin-bottom:4px;">Experience Match %</label>
+                                    <input type="number" id="aw-experience" min="0" max="100" value="25" oninput="updateAgentWeights()" style="width:100%; border:1px solid #E5E7EB; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; color:#374151; display:block; margin-bottom:4px;">Skills Match %</label>
+                                    <input type="number" id="aw-skills" min="0" max="100" value="25" oninput="updateAgentWeights()" style="width:100%; border:1px solid #E5E7EB; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;">
+                                </div>
+                            </div>
+                            <div id="aw-sum-display" style="text-align:center; font-size:12px; padding:6px 12px; border-radius:20px; background:#E1F5EE; color:#0F6E56; font-weight:500; display:inline-block;">Total: 100%</div>
+                        </div>
+                    </div>
+
                     <div style="display:flex; justify-content:space-between;">
                         <button type="button" onclick="gotoJobStep(2)" style="background:#FFFFFF; color:#1B2A4A; border:1px solid #E5E7EB; border-radius:8px; padding:10px 20px; font-size:13px; cursor:pointer;">Back</button>
                         <button type="submit" id="job-modal-submit-btn" style="background:#1B2A4A; color:#FFFFFF; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:500; cursor:pointer;">Save Job Posting</button>
