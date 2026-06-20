@@ -88,16 +88,22 @@ def finalize_evaluation(parsed: dict) -> dict:
         dec = "Reject"
         out["decision"] = dec
     dl = dec.lower()
-    if "shortlist" in dl and pct < 30:
-        logger.error(
-            "Invalid evaluation: Shortlist with overall_score %.1f (< 30). Overriding decision to Maybe.",
-            pct,
-        )
-        dec = "Maybe"
-        out["decision"] = dec
+
+    def _adjust(new_dec: str, tag: str, msg: str) -> str:
+        logger.warning("Guard fired [%s]: %s score=%.1f → %s", tag, msg, pct, new_dec)
+        out["decision"] = new_dec
         if not str(out.get("reason", "")).startswith("[Adjusted"):
             prev = str(out.get("reason", "") or "")
-            out["reason"] = f"[Adjusted: score under 30 for Shortlist] {prev}"
+            out["reason"] = f"[Adjusted: {tag}] {prev}"
+        return new_dec
+
+    # Guard A (tightened): Shortlist requires score >= 50; below that is at best Maybe
+    if "shortlist" in dl and pct < 50:
+        dec = _adjust("Maybe", "Shortlist score<50", "Shortlist decision contradicts score")
+
+    # Guard B (new): Reject with score >= 75 is internally contradictory — split to Maybe
+    elif "reject" in dl and pct >= 75:
+        dec = _adjust("Maybe", "Reject score>=75", "Reject decision contradicts high score")
 
     return out
 
@@ -267,22 +273,24 @@ SCORING — analyze each dimension and score 0 to 100:
 DIMENSION 1 — Job Title Match (weight 25%):
 Read the last 3 job titles from the CV work history.
 Compare them to the required job title.
-Exact or equivalent title = 90–100. Same function/seniority = 70–89. Adjacent function = 40–69. Unrelated = 0–39.
+Exact or equivalent title = 90–100. Same subject/specialization, different seniority = 70–89. Same broad field but DIFFERENT SUBJECT (e.g. Science teacher applying for Math Teacher, or English teacher for Arabic) = 20–40. Unrelated field entirely = 0–19.
 
 DIMENSION 2 — Industry Match (weight 25%):
 Read the last employer's industry or company type.
 Compare to the job's department/industry context.
-Same industry = 90–100. Adjacent industry = 60–89. Unrelated = 0–59.
+Same industry AND same sub-specialization (e.g. British curriculum school for British curriculum role) = 90–100. Same broad industry but different specialization (e.g. Education generally but wrong subject or wrong curriculum) = 40–60. Unrelated industry = 0–39.
 
 DIMENSION 3 — Years of Experience (weight 25%):
 Sum total years of work experience from all roles in the CV using date ranges.
 Compare to the required experience in the job.
-Meets or exceeds requirement = 90–100. 1 year short = 75–89. 2 years short = 55–74. 3+ years short = below 55.
+Meets or exceeds requirement = 90–100. Up to 1 year short = 60–74. 2 years short = 35–59. 3+ years short = below 35.
 
 DIMENSION 4 — Skills Match (weight 25%):
-List all skills found in the CV (technical and soft).
+List ONLY skills EXPLICITLY STATED in the CV text — do NOT infer or assume a skill exists because of the candidate's job title or field. For example, do not assume "lesson planning" or "classroom management" are present just because the candidate is a teacher — only count them if the CV text actually names or describes them.
 Compare to the required skills listed in the job.
-Score = percentage of required skills found in the CV.
+Score = percentage of required skills EXPLICITLY found in the CV. A candidate with 1 of 5 required skills explicitly stated should score ~20, not be rounded up.
+
+Be a strict, skeptical screener. Do not give benefit-of-the-doubt credit for adjacent or assumed qualifications. A mismatch in core subject, curriculum, or explicitly named requirement should weigh heavily even if other dimensions are strong.
 
 Overall score = average of all 4 dimension scores.
 
