@@ -471,6 +471,14 @@ def startup_populate_db():
                 conn.execute(text("RELEASE SAVEPOINT _as4"))
             except Exception:
                 conn.execute(text("ROLLBACK TO SAVEPOINT _as4"))
+            conn.execute(text("SAVEPOINT _as5"))
+            try:
+                conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS essential_skills JSONB DEFAULT '[]'"))
+                conn.execute(text("ALTER TABLE agent_screenings ADD COLUMN IF NOT EXISTS gate_triggered BOOLEAN DEFAULT FALSE"))
+                conn.execute(text("ALTER TABLE agent_screenings ADD COLUMN IF NOT EXISTS gate_reason TEXT"))
+                conn.execute(text("RELEASE SAVEPOINT _as5"))
+            except Exception:
+                conn.execute(text("ROLLBACK TO SAVEPOINT _as5"))
             conn.commit()
             logging.info("agent_screenings table ensured")
     except Exception as _e:

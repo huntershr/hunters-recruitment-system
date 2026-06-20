@@ -73,6 +73,8 @@ class Job(Base):
     agent_weight_industry   = Column(Integer, default=25)
     agent_weight_experience = Column(Integer, default=25)
     agent_weight_skills     = Column(Integer, default=25)
+    # Essential skills: subset of required_skills that are hard-gate disqualifiers
+    essential_skills        = Column(JSON, default=list)
     owner_id = Column(Integer, ForeignKey("users.id"))
     is_approved = Column(Boolean, default=False)
     approval_date = Column(DateTime, nullable=True)

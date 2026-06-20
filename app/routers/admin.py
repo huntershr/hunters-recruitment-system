@@ -45,6 +45,7 @@ class AdminJobPayload(BaseModel):
     agent_weight_industry: int = 25
     agent_weight_experience: int = 25
     agent_weight_skills: int = 25
+    essential_skills: Optional[list] = None
 
 
 class PlanUpdateRequest(BaseModel):
@@ -2005,6 +2006,7 @@ def _job_to_dict(j: models.Job) -> dict:
         "agent_weight_industry":   getattr(j, "agent_weight_industry",   25) or 25,
         "agent_weight_experience": getattr(j, "agent_weight_experience", 25) or 25,
         "agent_weight_skills":     getattr(j, "agent_weight_skills",     25) or 25,
+        "essential_skills":        getattr(j, "essential_skills",        None) or [],
     }
 
 
@@ -2067,6 +2069,7 @@ def admin_create_job(
         agent_weight_industry=payload.agent_weight_industry,
         agent_weight_experience=payload.agent_weight_experience,
         agent_weight_skills=payload.agent_weight_skills,
+        essential_skills=payload.essential_skills or [],
         is_approved=True,
     )
     db.add(job)
@@ -2107,6 +2110,7 @@ def admin_update_job(
     job.agent_weight_industry   = payload.agent_weight_industry
     job.agent_weight_experience = payload.agent_weight_experience
     job.agent_weight_skills     = payload.agent_weight_skills
+    job.essential_skills        = payload.essential_skills or []
     db.commit()
     db.refresh(job)
     return _job_to_dict(job)
@@ -2134,10 +2138,12 @@ def _upsert_agent_screening(db: Session, application_id: int, job_id: int,
             (application_id, job_id, agent_score, agent_recommendation,
              dimension_scores, strengths, concerns, semantic_match,
              matched_skills, missed_skills,
+             gate_triggered, gate_reason,
              screened_at, screened_by)
         VALUES (:app_id, :job_id, :score, :rec,
                 CAST(:dims AS jsonb), CAST(:str AS jsonb), CAST(:con AS jsonb), :sem,
                 CAST(:matched AS jsonb), CAST(:missed AS jsonb),
+                :gate_triggered, :gate_reason,
                 NOW(), :uid)
         ON CONFLICT (application_id) DO UPDATE SET
             agent_score          = EXCLUDED.agent_score,
@@ -2148,6 +2154,8 @@ def _upsert_agent_screening(db: Session, application_id: int, job_id: int,
             semantic_match       = EXCLUDED.semantic_match,
             matched_skills       = EXCLUDED.matched_skills,
             missed_skills        = EXCLUDED.missed_skills,
+            gate_triggered       = EXCLUDED.gate_triggered,
+            gate_reason          = EXCLUDED.gate_reason,
             screened_at          = EXCLUDED.screened_at,
             screened_by          = EXCLUDED.screened_by
     """), {
@@ -2161,6 +2169,8 @@ def _upsert_agent_screening(db: Session, application_id: int, job_id: int,
         "sem": result.get("semantic_match"),
         "matched": _json.dumps(result.get("matched_skills") or []),
         "missed":  _json.dumps(result.get("missed_skills") or []),
+        "gate_triggered": bool(result.get("gate_triggered")),
+        "gate_reason": result.get("gate_reason"),
         "uid": user_id,
     })
     db.commit()
@@ -2224,6 +2234,8 @@ def shadow_screen_single(
         "strengths": result.get("strengths"),
         "concerns": result.get("concerns"),
         "semantic_match": result.get("semantic_match"),
+        "gate_triggered": bool(result.get("gate_triggered")),
+        "gate_reason": result.get("gate_reason"),
     }
 
 
@@ -2315,6 +2327,8 @@ def list_shadow_screenings(
             ag.matched_skills,
             ag.missed_skills,
             ag.semantic_match,
+            ag.gate_triggered,
+            ag.gate_reason,
             ag.screened_at,
             j.job_title,
             j.required_skills AS job_required_skills,
@@ -2360,6 +2374,8 @@ def list_shadow_screenings(
             "matched_skills": _parse_jsonb(r.matched_skills) or [],
             "missed_skills": _parse_jsonb(r.missed_skills) or [],
             "semantic_match": r.semantic_match,
+            "gate_triggered": bool(r.gate_triggered) if r.gate_triggered is not None else False,
+            "gate_reason": r.gate_reason,
             "gemini_score": gemini_score,
             "gemini_decision": r.gemini_decision,
             "score_delta": (

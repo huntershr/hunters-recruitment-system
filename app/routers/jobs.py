@@ -51,6 +51,7 @@ def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
         agent_weight_industry   = int(aw.get("industry",   25)),
         agent_weight_experience = int(aw.get("experience", 25)),
         agent_weight_skills     = int(aw.get("skills",     25)),
+        essential_skills        = job.essential_skills or [],
     )
 
 router = APIRouter(

@@ -2019,6 +2019,16 @@ function _renderShadowTable(rows) {
         html += '<td colspan="9" style="padding:0;">';
         html += '<div style="padding:16px 20px 20px;border-bottom:1px solid #E5E7EB;">';
 
+        // Gate banner — shown above everything else when a hard gate fired
+        if (r.gate_triggered) {
+            html += '<div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;">';
+            html += '<span style="font-size:16px;color:#CC2B2B;line-height:1.2;">⛔</span>';
+            html += '<div><div style="font-size:12px;font-weight:700;color:#CC2B2B;letter-spacing:.02em;">GATE-REJECTED — essential skill missing</div>';
+            html += '<div style="font-size:11px;color:#7F1D1D;margin-top:3px;">' + escHtml(r.gate_reason || '') + '</div>';
+            html += '<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">Weighted score below is real — recommendation overridden by gate.</div></div>';
+            html += '</div>';
+        }
+
         // Dimension bars
         html += '<div style="display:flex;gap:32px;flex-wrap:wrap;margin-bottom:16px;">';
         html += '<div style="min-width:220px;flex:1;">';
