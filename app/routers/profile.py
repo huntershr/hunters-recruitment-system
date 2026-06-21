@@ -373,8 +373,19 @@ async def update_candidate_cv(
     candidate = db.query(models.Candidate).filter(models.Candidate.user_id == current_user.id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="No profile found.")
+    fname = (file.filename or "").lower()
+    if not (fname.endswith(".pdf") or fname.endswith(".docx") or fname.endswith(".doc")):
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload your CV as a PDF or Word document (.pdf or .docx). Images and other file types are not accepted.",
+        )
     content = await file.read()
     cv_text = extract_text_from_file(file.filename, content)
+    if not cv_text or not cv_text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Your CV could not be read — it may be a scanned image or a protected file. Please save it as a text-based PDF or upload a .docx file.",
+        )
     candidate.cv_file_data = content
     candidate.cv_file_mime = _resolve_mime(file.filename, file.content_type)
     candidate.cv_text = cv_text
@@ -409,8 +420,19 @@ async def candidate_apply(
         raise HTTPException(status_code=409, detail="You have already applied to this job.")
 
     if file and file.filename:
+        fname = file.filename.lower()
+        if not (fname.endswith(".pdf") or fname.endswith(".docx") or fname.endswith(".doc")):
+            raise HTTPException(
+                status_code=400,
+                detail="Please upload your CV as a PDF or Word document (.pdf or .docx). Images and other file types are not accepted.",
+            )
         content = await file.read()
         cv_text = extract_text_from_file(file.filename, content)
+        if not cv_text or not cv_text.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="Your CV could not be read — it may be a scanned image or a protected file. Please save it as a text-based PDF or upload a .docx file.",
+            )
         candidate.cv_file_data = content
         candidate.cv_file_mime = _resolve_mime(file.filename, file.content_type)
         candidate.cv_text = cv_text

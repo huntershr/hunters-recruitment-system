@@ -697,9 +697,22 @@ async def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db)
 
 
 _MIME_TO_EXT = {
+    # Documents (CV-valid types)
     "application/pdf": ".pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "application/msword": ".doc",
+    # Images — map honestly so a JPEG doesn't download disguised as .pdf
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/tiff": ".tiff",
+    "image/bmp": ".bmp",
+    # Other common uploads
+    "text/plain": ".txt",
+    "application/rtf": ".rtf",
+    "application/vnd.oasis.opendocument.text": ".odt",
 }
 
 _NO_CACHE = {
