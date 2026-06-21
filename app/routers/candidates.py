@@ -666,7 +666,7 @@ async def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db)
         if not allowed:
             raise HTTPException(status_code=403, detail="Access denied")
 
-    safe_name = "".join(c for c in (candidate.name or "Candidate") if c.isalnum() or c in " _-").strip().replace(" ", "_")
+    safe_name = _safe("".join(c for c in (candidate.name or "Candidate") if c.isalnum() or c in " _-").strip().replace(" ", "_")) or "Candidate"
 
     # Storage-first: new uploads have cv_url pointing to Supabase Storage
     if candidate.cv_url:

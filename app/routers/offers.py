@@ -357,7 +357,8 @@ def download_offer(
     doc.save(buf)
     buf.seek(0)
 
-    safe_name = (offer.candidate_name or "Offer").replace(" ", "_")
+    from .candidates import _safe
+    safe_name = _safe("".join(c for c in (offer.candidate_name or "Offer") if c.isalnum() or c in " _-").strip().replace(" ", "_")) or "Offer"
     filename = f"JobOffer_{safe_name}.docx"
 
     return StreamingResponse(

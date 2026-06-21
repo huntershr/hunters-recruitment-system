@@ -1414,10 +1414,10 @@ async def download_application_cv(
         or application.applicant_name
         or "Applicant"
     )
-    safe_name = "".join(c for c in display_name if c.isalnum() or c in " _-").strip().replace(" ", "_")
-
-    from .candidates import _build_cv_pdf, _mime_to_ext, _NO_CACHE, get_cv_signed_url
+    from .candidates import _build_cv_pdf, _mime_to_ext, _NO_CACHE, _safe, get_cv_signed_url
     from fastapi import Response as _Response
+
+    safe_name = _safe("".join(c for c in display_name if c.isalnum() or c in " _-").strip().replace(" ", "_")) or "Applicant"
 
     # Storage-first: new uploads have cv_url pointing to Supabase Storage
     cv_url = (candidate.cv_url if candidate else None) or application.cv_url
@@ -1905,7 +1905,8 @@ async def download_screening_report(
         }
 
     pdf_bytes = generate_screening_report_pdf(candidate_data, evaluation_data, company_name)
-    safe_name = "".join(c for c in display_name if c.isalnum() or c in " _-").strip().replace(" ", "_")
+    from .candidates import _safe as _safe_fn
+    safe_name = _safe_fn("".join(c for c in display_name if c.isalnum() or c in " _-").strip().replace(" ", "_")) or "Candidate"
     return Response(
         content=pdf_bytes,
         media_type='application/pdf',
