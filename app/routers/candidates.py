@@ -586,11 +586,15 @@ async def upload_candidates(
 
 @router.get("/", response_model=List[schemas.CandidateResponse])
 def read_candidates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    _BINARY_COLS = {"cv_file_data", "cv_file_mime"}
     if current_user.is_admin:
-        cands = db.query(models.Candidate).offset(skip).limit(limit).all()
+        cands = db.query(models.Candidate).options(
+            defer(models.Candidate.cv_file_data)
+        ).offset(skip).limit(limit).all()
         result = []
         for c in cands:
-            d = {col.name: getattr(c, col.name) for col in c.__table__.columns}
+            d = {col.name: getattr(c, col.name) for col in c.__table__.columns
+                 if col.name not in _BINARY_COLS}
             company_name = None
             if c.owner and c.owner.company:
                 company_name = c.owner.company.company_name
@@ -598,7 +602,9 @@ def read_candidates(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
             result.append(d)
         return result
     else:
-        candidates = db.query(models.Candidate).filter(models.Candidate.owner_id == current_user.id).offset(skip).limit(limit).all()
+        candidates = db.query(models.Candidate).options(
+            defer(models.Candidate.cv_file_data)
+        ).filter(models.Candidate.owner_id == current_user.id).offset(skip).limit(limit).all()
         return candidates
 
 @router.get("/talent-pool")

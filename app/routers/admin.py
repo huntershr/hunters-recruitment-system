@@ -420,24 +420,34 @@ def get_company_overview(
     jobs = db.query(models.Job).filter(models.Job.owner_id.in_(user_ids), or_(models.Job.status == None, models.Job.status != 'rejected')).all() if user_ids else []
     job_ids = [j.id for j in jobs]
 
-    apps = (
-        db.query(models.Application).filter(models.Application.job_id.in_(job_ids)).all()
-        if job_ids else []
-    )
-    app_ids = [a.id for a in apps]
+    # Aggregate stage counts and total in one query — avoids loading all Application rows
+    if job_ids:
+        stage_rows = (
+            db.query(models.Application.stage, func.count(models.Application.id))
+            .filter(models.Application.job_id.in_(job_ids))
+            .group_by(models.Application.stage)
+            .all()
+        )
+        stage_counts: Dict[str, int] = {}
+        for stage_val, cnt in stage_rows:
+            stage_counts[(stage_val or "New").capitalize()] = cnt
+        candidates_count = sum(stage_counts.values())
 
-    interviews_count = (
-        db.query(models.Interview).filter(models.Interview.application_id.in_(app_ids)).count()
-        if app_ids else 0
-    )
-    candidates_count = db.query(models.Candidate).filter(
-        models.Candidate.owner_id.in_(user_ids)
-    ).count() if user_ids else 0
-
-    stage_counts: Dict[str, int] = {}
-    for a in apps:
-        s = (a.stage or "New").capitalize()
-        stage_counts[s] = stage_counts.get(s, 0) + 1
+        interviews_count = (
+            db.query(func.count(models.Interview.id))
+            .filter(
+                models.Interview.application_id.in_(
+                    db.query(models.Application.id)
+                    .filter(models.Application.job_id.in_(job_ids))
+                    .scalar_subquery()
+                )
+            )
+            .scalar() or 0
+        )
+    else:
+        stage_counts = {}
+        candidates_count = 0
+        interviews_count = 0
 
     return {
         "id": company.id,
@@ -457,7 +467,7 @@ def get_company_overview(
         "job_count": len(jobs),
         "approved_job_count": sum(1 for j in jobs if j.is_approved),
         "candidate_count": candidates_count,
-        "applications_count": len(apps),
+        "applications_count": candidates_count,
         "interviews_count": interviews_count,
         "pipeline": stage_counts,
         "logo_url": getattr(company, "logo_url", None) or None,

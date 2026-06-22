@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer, joinedload
 from sqlalchemy import or_
 from typing import List
 import logging
@@ -178,20 +178,14 @@ def get_job_candidates(job_id: int, db: Session = Depends(get_db), current_user:
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    candidates = db.query(models.Candidate).filter(models.Candidate.job_applied == job_id).all()
-
-    cand_ids = [c.id for c in candidates]
-    _evs = db.query(models.Evaluation).filter(
-        models.Evaluation.candidate_id.in_(cand_ids)
-    ).order_by(models.Evaluation.id.desc()).all()
-    ev_map = {}
-    for _ev in _evs:
-        if _ev.candidate_id not in ev_map:
-            ev_map[_ev.candidate_id] = _ev
+    candidates = db.query(models.Candidate).options(
+        defer(models.Candidate.cv_file_data),
+        joinedload(models.Candidate.evaluations),
+    ).filter(models.Candidate.job_applied == job_id).all()
 
     result = []
     for c in candidates:
-        ev = ev_map.get(c.id)
+        ev = max(c.evaluations, key=lambda e: e.id, default=None) if c.evaluations else None
         result.append({
             "id": c.id,
             "name": c.name,

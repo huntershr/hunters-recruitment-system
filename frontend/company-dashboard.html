@@ -1672,23 +1672,24 @@
         const token = localStorage.getItem('token');
         try {
             let rawJobs = await fetchWithCache('jobs', `${API_URL}/jobs`, token);
-            if(!Array.isArray(rawJobs)) rawJobs = [];
-            
-            // Map keys
+            if (!Array.isArray(rawJobs)) rawJobs = [];
+
             window.__huntersCompanyContext = currentCompany || null;
 
-            // Fetch candidates for all jobs in parallel
-            const mappedJobs = await Promise.all(rawJobs.map(async j => {
-                let cands = [];
-                try {
-                    const cr = await fetch(`${API_URL}/jobs/${j.id}/candidates`, { headers: { 'Authorization': `Bearer ${token}` } });
-                    if (cr.ok) cands = await cr.json();
-                } catch (e) {}
-                let aiScore = null;
-                if (cands.length) {
-                    const scores = cands.map(c => c.ai_score != null ? Number(c.ai_score) : null).filter(v => v != null && !Number.isNaN(v));
-                    if (scores.length) aiScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-                }
+            // Ensure coAppsData is populated — replaces N parallel /jobs/{id}/candidates fetches
+            if (!_coAppsReady) {
+                await loadCompanyApplications();
+                _coAppsReady = true;
+            }
+
+            const mappedJobs = rawJobs.map(j => {
+                const jobApps = coAppsData.filter(a => String(a.job_id) === String(j.id));
+                const scores = jobApps
+                    .map(a => a.score != null ? Number(a.score) : null)
+                    .filter(v => v != null && !Number.isNaN(v));
+                const aiScore = scores.length
+                    ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+                    : null;
                 return {
                     id: j.id,
                     title: j.job_title || j.title,
@@ -1700,7 +1701,7 @@
                     salary_currency: 'EGP',
                     hide_salary: !!(j.hide_salary),
                     status: j.is_approved ? 'Approved' : 'Pending',
-                    candidates: cands,
+                    candidates: jobApps,
                     created_at: j.created_at,
                     description: j.job_description || j.description,
                     required_skills: j.required_skills,
@@ -1715,8 +1716,8 @@
                         behavioral: Math.round((j.weight_behavioral || 0) * 100)
                     }
                 };
-            }));
-            
+            });
+
             if (typeof huntersInitJobs === 'function') {
                 huntersInitJobs(false);
                 renderHuntersJobs(mappedJobs);
@@ -3224,7 +3225,7 @@
     async function loadCompanyApplications() {
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`${API_URL}/api/admin/applications?limit=50`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const res = await fetch(`${API_URL}/api/admin/applications?limit=2000`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (!res.ok) return;
             const data = await res.json();
             coAppsData = Array.isArray(data.applications) ? data.applications : [];
@@ -4669,7 +4670,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.7"></script>
+<script src="hunters-jobs.js?v=3.8"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies
