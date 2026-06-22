@@ -115,6 +115,7 @@ class Candidate(Base):
     cv_file_data = Column(LargeBinary, nullable=True)  # original uploaded CV file bytes
     cv_file_mime = Column(Text, nullable=True)          # MIME type of the original file
     cv_url = Column(Text, nullable=True)                # Supabase Storage path (new uploads)
+    certifications = Column(Text, nullable=True)        # comma-separated cert lines from agent
 
     owner = relationship("User", back_populates="candidates", foreign_keys=[owner_id])
     user = relationship("User", back_populates="candidate_profile", foreign_keys=[user_id])

@@ -10,6 +10,7 @@ import string
 from .. import models, schemas, database
 from ..services.file_processor import extract_text_from_file
 from ..services.ai_evaluator import extract_candidate_info, evaluate_candidate, finalize_evaluation
+from ..services.agent_screener import call_agent_screen
 from ..auth_utils import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,43 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
                     logger.info(f"ATS fields written to candidate {application.candidate_id}")
             except Exception as _ats_err:
                 logger.error(f"ATS field write-back failed for candidate {application.candidate_id}: {_ats_err}")
+
+            # ── Agent candidate_profile save (additive, best-effort) ──────────────
+            try:
+                agent_resp = call_agent_screen(cv_text, job)
+                cp = (agent_resp or {}).get("candidate_profile") or {}
+                if cp:
+                    _cand = db.query(models.Candidate).filter(
+                        models.Candidate.id == application.candidate_id
+                    ).first()
+                    if _cand:
+                        if not _cand.last_title:
+                            v = (cp.get("current_title") or "").strip()
+                            if v: _cand.last_title = v
+                        if not _cand.last_employer:
+                            v = (cp.get("last_employer") or "").strip()
+                            if v: _cand.last_employer = v
+                        if not (_cand.experience_years or 0):
+                            v = cp.get("years_experience")
+                            if v: _cand.experience_years = int(v)
+                        if not _cand.education:
+                            v = (cp.get("education") or "").strip()
+                            if v: _cand.education = v
+                        if not _cand.skills:
+                            v = cp.get("skills")
+                            if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                            if v: _cand.skills = str(v).strip()
+                        if not _cand.languages:
+                            v = cp.get("languages")
+                            if isinstance(v, list) and v: _cand.languages = v
+                        if not _cand.certifications:
+                            v = cp.get("certifications")
+                            if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                            if v: _cand.certifications = str(v).strip()
+                        db.commit()
+                        logger.info(f"Agent candidate_profile saved to candidate {application.candidate_id}")
+            except Exception as _ap_err:
+                logger.error(f"Agent profile save failed for candidate {application.candidate_id}: {_ap_err}")
 
         import types
         applicant = types.SimpleNamespace(

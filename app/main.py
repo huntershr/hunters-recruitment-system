@@ -523,6 +523,15 @@ def startup_populate_db():
     except Exception as _e:
         logging.error(f"Plan/invite column migrations failed: {_e}")
 
+    # ── candidates.certifications column (additive, always-run) ─────────────
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS certifications TEXT"))
+            conn.commit()
+        logging.info("candidates.certifications column: OK")
+    except Exception as _e:
+        logging.error(f"candidates.certifications migration: {_e}")
+
     # ── CASCADE FK migration (one-time, guarded) ─────────────────────────────
     try:
         with engine.connect() as conn:

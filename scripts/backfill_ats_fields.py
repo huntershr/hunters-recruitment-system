@@ -1,139 +1,205 @@
 """
-One-time backfill: populate ATS fields for existing portal candidates.
+Backfill ATS profile fields (last_title, last_employer, education, skills,
+languages, certifications) for existing Candidate rows that have cv_text
+but no last_title yet (i.e. were created before the agent extraction was
+wired into the submission flow).
 
-Targets candidates where:
-  - user_id IS NOT NULL  (self-registered via portal)
-  - last_title IS NULL or empty  (ATS fields not yet populated)
-  - cv_text IS NOT NULL and non-empty  (something to extract from)
+Usage:
+    DATABASE_URL=postgresql://... SCREEN_SERVICE_URL=https://... SCREEN_API_KEY=... \
+        python scripts/backfill_ats_fields.py
 
-For each candidate, calls extract_candidate_info(cv_text) — the same
-Gemini call used in the live screening flow — then writes back:
-  last_title, last_employer, skills, education, summary,
-  experiences, education_history, languages, experience_years
-
-Additive only: never overwrites a field that already has a value.
-Commits after each candidate. Sleeps 2 s between Gemini calls.
-
-Run manually once:
-  python scripts/backfill_ats_fields.py
-
-Requires the venv to be active (or full path to venv python):
-  .\\venv\\Scripts\\python.exe scripts\\backfill_ats_fields.py
+Dry-run (read-only, prints what would be written):
+    DRY_RUN=1 DATABASE_URL=... python scripts/backfill_ats_fields.py
 """
 
-import sys
 import os
+import sys
 import time
 import logging
+import httpx
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
 
-# Allow imports from the app package
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger(__name__)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(message)s",
-    datefmt="%H:%M:%S",
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+if not DATABASE_URL:
+    sys.exit("ERROR: DATABASE_URL env var not set")
+
+SCREEN_URL = os.environ.get(
+    "SCREEN_SERVICE_URL",
+    "https://hunters-screening-service-production.up.railway.app",
 )
-logger = logging.getLogger("backfill_ats")
+SCREEN_KEY = os.environ.get("SCREEN_API_KEY", "")
+DRY_RUN = os.environ.get("DRY_RUN", "").strip().lower() in ("1", "true", "yes")
 
-from dotenv import load_dotenv
-load_dotenv()
+_endpoint = (
+    SCREEN_URL
+    if SCREEN_URL.rstrip("/").endswith("/api/screen")
+    else f"{SCREEN_URL.rstrip('/')}/api/screen"
+)
 
-from app.database import SessionLocal
-from app import models
-from app.services.ai_evaluator import extract_candidate_info
-
-
-def _str_or_none(v) -> str | None:
-    s = str(v).strip() if v else ""
-    return s if s else None
+engine = create_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
 
 
-def backfill():
-    db = SessionLocal()
+def call_agent(cv_text: str) -> dict | None:
+    payload = {
+        "cv_text": cv_text,
+        "job": {
+            "title": "General",
+            "description": "",
+            "required_skills": [],
+            "required_experience": 0,
+            "required_industry": "",
+            "min_education": "",
+            "weights": {"title": 25, "industry": 25, "experience": 25, "skills": 25},
+            "essential_skills": [],
+        },
+    }
     try:
-        candidates = (
-            db.query(models.Candidate)
-            .filter(
-                models.Candidate.user_id.isnot(None),
-                models.Candidate.cv_text.isnot(None),
-                models.Candidate.cv_text != "",
-                (
-                    models.Candidate.last_title.is_(None)
-                    | (models.Candidate.last_title == "")
-                ),
-            )
-            .order_by(models.Candidate.id)
-            .all()
-        )
+        with httpx.Client(timeout=60.0) as client:
+            resp = client.post(_endpoint, json=payload, headers={"X-API-Key": SCREEN_KEY})
+        if resp.status_code == 200:
+            return resp.json()
+        log.warning("Agent returned HTTP %d: %s", resp.status_code, resp.text[:200])
+    except Exception as exc:
+        log.error("Agent request failed: %s", exc)
+    return None
 
-        total = len(candidates)
-        logger.info(f"Candidates qualifying for backfill: {total}")
-        if total == 0:
-            logger.info("Nothing to do.")
-            return
 
-        written = 0
-        skipped = 0
-        errors = 0
-
-        for i, cand in enumerate(candidates, 1):
-            logger.info(f"[{i}/{total}] cand_id={cand.id}  name={cand.name!r}")
-            try:
-                info = extract_candidate_info(cand.cv_text)
-
-                changed = False
-                def _set(field, value):
-                    nonlocal changed
-                    if value and not getattr(cand, field):
-                        setattr(cand, field, value)
-                        changed = True
-
-                _set("last_title",        _str_or_none(info.get("last_title")))
-                _set("last_employer",     _str_or_none(info.get("last_employer")))
-                _set("skills",            _str_or_none(info.get("skills")))
-                _set("education",         _str_or_none(info.get("education")))
-                _set("summary",           _str_or_none(info.get("summary")))
-                _set("experiences",       info.get("experiences") or None)
-                _set("education_history", info.get("education_history") or None)
-                _set("languages",         info.get("languages") or None)
-
-                # experience_years: only update if currently 0 or null
-                if (not cand.experience_years or cand.experience_years == 0):
-                    new_exp = int(info.get("experience_years") or 0)
-                    if new_exp:
-                        cand.experience_years = new_exp
-                        changed = True
-
-                if changed:
-                    db.commit()
-                    written += 1
-                    logger.info(
-                        f"  WRITTEN: last_title={cand.last_title!r}  "
-                        f"last_employer={cand.last_employer!r}  "
-                        f"exp_yrs={cand.experience_years}"
-                    )
-                else:
-                    db.rollback()
-                    skipped += 1
-                    logger.info("  SKIPPED: no new data extracted (Gemini returned empty fields)")
-
-            except Exception as e:
-                db.rollback()
-                errors += 1
-                logger.error(f"  ERROR for cand_id={cand.id}: {e}")
-
-            if i < total:
-                time.sleep(2)
-
-        logger.info(
-            f"\nBackfill complete — {total} candidates processed: "
-            f"{written} written, {skipped} skipped, {errors} errors."
-        )
-
+def main():
+    db = Session()
+    try:
+        rows = db.execute(text(
+            "SELECT id, cv_text FROM candidates "
+            "WHERE last_title IS NULL AND cv_text IS NOT NULL AND cv_text != '' "
+            "ORDER BY id"
+        )).fetchall()
     finally:
         db.close()
 
+    total = len(rows)
+    log.info("Candidates qualifying for backfill: %d%s", total, " (DRY RUN)" if DRY_RUN else "")
+    if total == 0:
+        return
+
+    updated = skipped = failed = 0
+
+    for i, (cand_id, cv_text) in enumerate(rows, 1):
+        log.info("[%d/%d] candidate_id=%d", i, total, cand_id)
+
+        resp = call_agent(cv_text)
+        cp = (resp or {}).get("candidate_profile") or {}
+        if not cp:
+            log.warning("  -> no candidate_profile returned; skipping")
+            skipped += 1
+            time.sleep(1)
+            continue
+
+        fields = {}
+        v = (cp.get("current_title") or "").strip()
+        if v:
+            fields["last_title"] = v
+        v = (cp.get("last_employer") or "").strip()
+        if v:
+            fields["last_employer"] = v
+        v = cp.get("years_experience")
+        if v:
+            fields["experience_years"] = int(v)
+        v = (cp.get("education") or "").strip()
+        if v:
+            fields["education"] = v
+        v = cp.get("skills")
+        if isinstance(v, list):
+            v = ", ".join(str(x) for x in v if x)
+        if v:
+            fields["skills"] = str(v).strip()
+        v = cp.get("certifications")
+        if isinstance(v, list):
+            v = ", ".join(str(x) for x in v if x)
+        if v:
+            fields["certifications"] = str(v).strip()
+        langs = cp.get("languages")
+        if isinstance(langs, list) and langs:
+            fields["_languages"] = langs
+
+        log.info("  -> fields to write: %s", {k: v for k, v in fields.items() if k != "_languages"})
+        if "_languages" in fields:
+            log.info("  -> languages: %s", fields["_languages"])
+
+        if DRY_RUN:
+            skipped += 1
+            time.sleep(1)
+            continue
+
+        db2 = Session()
+        try:
+            row = db2.execute(
+                text("SELECT last_title, last_employer, experience_years, education, skills, certifications, languages "
+                     "FROM candidates WHERE id = :id"),
+                {"id": cand_id}
+            ).fetchone()
+            if not row:
+                log.warning("  -> candidate %d not found in DB; skipping", cand_id)
+                skipped += 1
+                db2.close()
+                time.sleep(1)
+                continue
+
+            sets = []
+            params = {"id": cand_id}
+
+            def _guard(col, val, current):
+                if val and not current:
+                    sets.append(f"{col} = :{col}")
+                    params[col] = val
+
+            _guard("last_title",      fields.get("last_title"),      row.last_title)
+            _guard("last_employer",   fields.get("last_employer"),   row.last_employer)
+            _guard("education",       fields.get("education"),       row.education)
+            _guard("skills",          fields.get("skills"),          row.skills)
+            _guard("certifications",  fields.get("certifications"),  row.certifications)
+
+            if not (row.experience_years or 0) and fields.get("experience_years"):
+                sets.append("experience_years = :experience_years")
+                params["experience_years"] = fields["experience_years"]
+
+            if not row.languages and "_languages" in fields:
+                import json as _json
+                sets.append("languages = :languages")
+                params["languages"] = _json.dumps(fields["_languages"])
+
+            if sets:
+                db2.execute(
+                    text(f"UPDATE candidates SET {', '.join(sets)} WHERE id = :id"),
+                    params
+                )
+                db2.commit()
+                log.info("  -> saved %d field(s) to candidate %d", len(sets), cand_id)
+                updated += 1
+            else:
+                log.info("  -> all fields already populated; skipping")
+                skipped += 1
+        except Exception as exc:
+            log.error("  -> DB write failed for candidate %d: %s", cand_id, exc)
+            db2.rollback()
+            failed += 1
+        finally:
+            db2.close()
+
+        time.sleep(1)
+
+    log.info(
+        "\n=== Backfill complete ===\n"
+        "  Total qualifying : %d\n"
+        "  Updated          : %d\n"
+        "  Skipped          : %d\n"
+        "  Failed           : %d",
+        total, updated, skipped, failed,
+    )
+
 
 if __name__ == "__main__":
-    backfill()
+    main()
