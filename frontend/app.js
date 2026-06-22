@@ -1294,7 +1294,7 @@ function viewAtsProfile(applicationId) {
                         ${metaLine ? `<div style="font-size:11px;color:#6B7280;margin-top:4px;word-break:break-all;">${metaLine}</div>` : ''}
                         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
                             ${p.experience_years != null ? pill(p.experience_years + ' yrs exp') : ''}
-                            ${p.expected_salary ? pill('💰 ' + p.expected_salary, '#F0FFF4', '#0F6E56') : ''}
+                            ${p.expected_salary ? pill('💰 Salary: ' + p.expected_salary, '#F0FFF4', '#0F6E56') : ''}
                         </div>
                     </div>
                 </div>

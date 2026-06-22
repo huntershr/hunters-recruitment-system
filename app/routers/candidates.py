@@ -104,17 +104,17 @@ def find_best_job_id(job_title: str, db: Session) -> int:
     first_job = db.query(models.Job).first()
     return first_job.id if first_job else 1
 
-def run_evaluation_task(candidate_id: int, db: Session):
+def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional[int] = None):
     try:
         candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
         job = db.query(models.Job).filter(models.Job.id == candidate.job_applied).first()
-        
+
         if not candidate or not job:
             logger.error(f"Evaluation failed: Candidate {candidate_id} or Job not found")
             return
 
         eval_result = evaluate_candidate(job, candidate)
-        
+
         def list_to_str(val):
             if isinstance(val, list):
                 return "\n".join([f"- {i}" for i in val])
@@ -125,6 +125,7 @@ def run_evaluation_task(candidate_id: int, db: Session):
         db_eval = models.Evaluation(
             candidate_id=candidate.id,
             job_id=job.id,
+            application_id=application_id,
             score=eval_result.get("score", 0.0),
             score_experience=_bd.get("experience"),
             score_skills=_bd.get("skills"),

@@ -93,6 +93,36 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
 
         info = extract_candidate_info(cv_text)
 
+        # Write extracted ATS fields back to the Candidate row (additive — never overwrites populated values)
+        if application.candidate_id:
+            try:
+                cand = db.query(models.Candidate).filter(
+                    models.Candidate.id == application.candidate_id
+                ).first()
+                if cand:
+                    if not cand.last_title:
+                        cand.last_title = info.get("last_title") or None
+                    if not cand.last_employer:
+                        cand.last_employer = info.get("last_employer") or None
+                    if not cand.skills:
+                        cand.skills = info.get("skills") or None
+                    if not cand.education:
+                        cand.education = info.get("education") or None
+                    if not cand.summary:
+                        cand.summary = info.get("summary") or None
+                    if not cand.experiences:
+                        cand.experiences = info.get("experiences") or None
+                    if not cand.education_history:
+                        cand.education_history = info.get("education_history") or None
+                    if not cand.languages:
+                        cand.languages = info.get("languages") or None
+                    if not cand.experience_years or cand.experience_years == 0:
+                        cand.experience_years = int(info.get("experience_years") or 0)
+                    db.commit()
+                    logger.info(f"ATS fields written to candidate {application.candidate_id}")
+            except Exception as _ats_err:
+                logger.error(f"ATS field write-back failed for candidate {application.candidate_id}: {_ats_err}")
+
         import types
         applicant = types.SimpleNamespace(
             name=application.applicant_name or "",
