@@ -1,17 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 from typing import List
 from datetime import datetime
 from jose import JWTError, jwt
 import logging
-
-_PLAN_INVITE_LIMITS = {
-    "free": 10,
-    "growth": 50,
-    "professional": 150,
-    "enterprise": 999999,
-}
 
 from .. import models, schemas, database, auth_utils
 from ..auth_utils import SECRET_KEY, ALGORITHM
@@ -271,10 +265,7 @@ def track_invite(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """
-    Record a talent pool invitation send.
-    Enforces monthly limit based on the company's selected plan.
-    """
+    """Record a talent pool invitation send. Enforces monthly limit based on plan."""
     if not current_user.company_id:
         raise HTTPException(status_code=403, detail="Company account required")
 
@@ -282,29 +273,75 @@ def track_invite(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
 
-    plan = (company.selected_plan or "free").lower()
-    limit = _PLAN_INVITE_LIMITS.get(plan, 10)
-
-    now = datetime.utcnow()
-    if (
-        not company.invitations_reset_date
-        or company.invitations_reset_date.month != now.month
-        or company.invitations_reset_date.year != now.year
-    ):
-        company.invitations_used_this_month = 0
-        company.invitations_reset_date = now
+    from ..utils.plan_limits import get_plan_limits, reset_monthly_usage_if_needed, plan_limit_exceeded
+    plan_key = (company.plan or company.selected_plan or "starter").lower()
+    limits = get_plan_limits(plan_key)
+    reset_monthly_usage_if_needed(company, db)
 
     used = company.invitations_used_this_month or 0
-    if used >= limit:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Monthly invitation limit reached ({limit} invitations on the {plan.title()} plan). Please upgrade to invite more candidates."
-        )
+    invite_limit = limits["invitations_per_month"]
+    if used >= invite_limit:
+        plan_limit_exceeded("invitations", used, invite_limit, plan_key)
 
     company.invitations_used_this_month = used + 1
     db.commit()
-    logger.info(f"Company {company.id} sent invite {used + 1}/{limit} this month")
-    return {"invitations_used": used + 1, "limit": limit, "remaining": limit - (used + 1)}
+    logger.info(f"Company {company.id} sent invite {used + 1}/{invite_limit} this month")
+    return {"invitations_used": used + 1, "limit": invite_limit, "remaining": invite_limit - (used + 1)}
+
+
+@router.get("/{company_id}/usage")
+def get_company_usage(
+    company_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return current usage vs plan limits for a company."""
+    if not current_user.is_admin and current_user.company_id != company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    from ..utils.plan_limits import get_plan_limits, reset_monthly_usage_if_needed
+    plan_key = (company.plan or company.selected_plan or "starter").lower()
+    limits = get_plan_limits(plan_key)
+    reset_monthly_usage_if_needed(company, db)
+
+    company_user_ids = db.query(models.User.id).filter(
+        models.User.company_id == company_id
+    ).scalar_subquery()
+    active_jobs = db.query(func.count(models.Job.id)).filter(
+        models.Job.owner_id.in_(company_user_ids),
+        or_(models.Job.status == None, models.Job.status != "rejected"),
+    ).scalar() or 0
+    user_count = db.query(func.count(models.User.id)).filter(
+        models.User.company_id == company_id
+    ).scalar() or 0
+
+    return {
+        "plan": plan_key,
+        "jobs": {
+            "used": active_jobs,
+            "limit": limits["jobs"] + (company.extra_jobs_count or 0),
+        },
+        "bulk_screenings": {
+            "used": company.bulk_screening_used_this_month or 0,
+            "limit": limits["bulk_screenings_per_month"],
+            "reset_date": company.usage_reset_date.isoformat() if company.usage_reset_date else None,
+        },
+        "invitations": {
+            "used": company.invitations_used_this_month or 0,
+            "limit": limits["invitations_per_month"],
+        },
+        "users": {
+            "used": user_count,
+            "limit": limits["users"],
+        },
+        "cvs_per_job": {
+            "limit": limits["cvs_per_job"],
+        },
+    }
 
 
 @router.get("/{company_id}", response_model=schemas.CompanyResponse)

@@ -26,6 +26,10 @@ class Company(Base):
     # Invitation counter
     invitations_used_this_month = Column(Integer, default=0, nullable=True)
     invitations_reset_date = Column(DateTime, nullable=True)
+    # Usage enforcement counters (INFRA-2)
+    bulk_screening_used_this_month = Column(Integer, default=0, nullable=True)
+    usage_reset_date = Column(Date, nullable=True)
+    extra_jobs_count = Column(Integer, default=0, nullable=True)
 
     users = relationship("User", back_populates="company")
 

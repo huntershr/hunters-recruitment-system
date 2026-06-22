@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, File, UploadFile, Form, Response
 from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy.orm import Session, defer
+from sqlalchemy import func
 from typing import List, Optional
 import asyncio
 import logging
@@ -232,6 +233,37 @@ async def screen_cv(
     job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+
+    # ── Usage enforcement (company users only; portal candidates are exempt) ──
+    if not is_portal_candidate and current_user.company_id:
+        from ..utils.plan_limits import get_plan_limits, reset_monthly_usage_if_needed, plan_limit_exceeded
+        _company = db.query(models.Company).filter(models.Company.id == current_user.company_id).first()
+        if _company:
+            _plan_key = (_company.plan or _company.selected_plan or "starter").lower()
+            _limits = get_plan_limits(_plan_key)
+            reset_monthly_usage_if_needed(_company, db)
+
+            # Bulk screening limit
+            _used = _company.bulk_screening_used_this_month or 0
+            if _used >= _limits["bulk_screenings_per_month"]:
+                plan_limit_exceeded("bulk_screenings", _used, _limits["bulk_screenings_per_month"], _plan_key)
+
+            # CVs/job limit — only applies when adding a NEW candidate (not re-screening)
+            _existing_for_job = db.query(models.Candidate).filter(
+                models.Candidate.email == email,
+                models.Candidate.job_applied == job_id,
+            ).first()
+            if not _existing_for_job:
+                _cv_count = db.query(func.count(models.Candidate.id)).filter(
+                    models.Candidate.job_applied == job_id,
+                    models.Candidate.user_id == None,
+                ).scalar() or 0
+                if _cv_count >= _limits["cvs_per_job"]:
+                    plan_limit_exceeded("cvs_per_job", _cv_count, _limits["cvs_per_job"], _plan_key)
+
+            # Increment bulk screening counter
+            _company.bulk_screening_used_this_month = _used + 1
+            db.commit()
 
     # Try uploading the new file to Supabase Storage (no-op if env vars missing or no new file)
     storage_path = None

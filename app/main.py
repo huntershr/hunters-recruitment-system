@@ -532,6 +532,25 @@ def startup_populate_db():
     except Exception as _e:
         logging.error(f"candidates.certifications migration: {_e}")
 
+    # ── Usage enforcement columns (INFRA-2, additive, always-run) ────────────
+    try:
+        with engine.connect() as conn:
+            for _stmt in [
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS bulk_screening_used_this_month INTEGER DEFAULT 0",
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS usage_reset_date DATE DEFAULT CURRENT_DATE",
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS extra_jobs_count INTEGER DEFAULT 0",
+            ]:
+                try:
+                    conn.execute(text("SAVEPOINT _mig"))
+                    conn.execute(text(_stmt))
+                    conn.execute(text("RELEASE SAVEPOINT _mig"))
+                except Exception:
+                    conn.execute(text("ROLLBACK TO SAVEPOINT _mig"))
+            conn.commit()
+            logging.info("Usage enforcement columns: OK")
+    except Exception as _e:
+        logging.error(f"Usage enforcement column migrations failed: {_e}")
+
     # ── CASCADE FK migration (one-time, guarded) ─────────────────────────────
     try:
         with engine.connect() as conn:

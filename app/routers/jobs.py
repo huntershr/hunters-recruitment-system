@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy.orm import Session, defer, joinedload
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from typing import List
 import logging
 
@@ -61,6 +61,22 @@ router = APIRouter(
 
 @router.post("", response_model=schemas.JobResponse)
 def create_job(job: schemas.JobSavePayload, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if not current_user.is_admin and current_user.company_id:
+        from ..utils.plan_limits import get_plan_limits, plan_limit_exceeded
+        company = db.query(models.Company).filter(models.Company.id == current_user.company_id).first()
+        if company:
+            plan_key = (company.plan or company.selected_plan or "starter").lower()
+            limits = get_plan_limits(plan_key)
+            company_user_ids = db.query(models.User.id).filter(
+                models.User.company_id == company.id
+            ).scalar_subquery()
+            active_jobs = db.query(func.count(models.Job.id)).filter(
+                models.Job.owner_id.in_(company_user_ids),
+                or_(models.Job.status == None, models.Job.status != "rejected"),
+            ).scalar() or 0
+            job_limit = limits["jobs"] + (company.extra_jobs_count or 0)
+            if active_jobs >= job_limit:
+                plan_limit_exceeded("jobs", active_jobs, job_limit, plan_key)
     fields = _payload_to_job_fields(job)
     db_job = models.Job(**fields, owner_id=current_user.id)
     db.add(db_job)
@@ -94,6 +110,23 @@ async def upload_jobs(
         })
     else:
         raise HTTPException(status_code=400, detail="Unsupported file format. Please use Excel or PDF.")
+
+    if not current_user.is_admin and current_user.company_id and jobs_data:
+        from ..utils.plan_limits import get_plan_limits, plan_limit_exceeded
+        company = db.query(models.Company).filter(models.Company.id == current_user.company_id).first()
+        if company:
+            plan_key = (company.plan or company.selected_plan or "starter").lower()
+            limits = get_plan_limits(plan_key)
+            company_user_ids = db.query(models.User.id).filter(
+                models.User.company_id == company.id
+            ).scalar_subquery()
+            active_jobs = db.query(func.count(models.Job.id)).filter(
+                models.Job.owner_id.in_(company_user_ids),
+                or_(models.Job.status == None, models.Job.status != "rejected"),
+            ).scalar() or 0
+            job_limit = limits["jobs"] + (company.extra_jobs_count or 0)
+            if active_jobs + len(jobs_data) > job_limit:
+                plan_limit_exceeded("jobs", active_jobs, job_limit, plan_key)
 
     imported_count = 0
     for data in jobs_data:
