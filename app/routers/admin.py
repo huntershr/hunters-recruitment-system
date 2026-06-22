@@ -52,6 +52,7 @@ class PlanUpdateRequest(BaseModel):
     plan: str
     plan_expires_at: str = None   # ISO date string or null
     billing_status: str = "active"
+    extra_jobs_count: int = 0
 
 
 class InviteUserRequest(BaseModel):
@@ -270,6 +271,7 @@ def get_all_companies_full(
             c.billing_status,
             c.plan_expires_at,
             c.logo_url,
+            c.extra_jobs_count,
             MIN(u.id)         AS admin_user_id,
             MIN(u.email)      AS admin_email,
             MIN(u.full_name)  AS admin_name,
@@ -285,7 +287,7 @@ def get_all_companies_full(
         LEFT JOIN applications ap ON ap.job_id = j.id
         GROUP BY c.id, c.company_name, c.company_email, c.company_website,
                  c.registration_number, c.is_approved, c.created_at,
-                 c.plan, c.selected_plan, c.billing_status, c.plan_expires_at, c.logo_url
+                 c.plan, c.selected_plan, c.billing_status, c.plan_expires_at, c.logo_url, c.extra_jobs_count
         ORDER BY c.created_at DESC
     """)).fetchall()
     return [
@@ -313,6 +315,7 @@ def get_all_companies_full(
             "plan_expires_at": r.plan_expires_at.isoformat() if r.plan_expires_at else None,
             "billing_status": r.billing_status or "active",
             "logo_url": r.logo_url or None,
+            "extra_jobs_count": r.extra_jobs_count or 0,
         }
         for r in rows
     ]
@@ -619,6 +622,7 @@ def update_company_plan(
 
     company.plan = payload.plan
     company.billing_status = payload.billing_status
+    company.extra_jobs_count = payload.extra_jobs_count or 0
     if payload.plan_expires_at:
         try:
             company.plan_expires_at = datetime.fromisoformat(payload.plan_expires_at)
@@ -633,6 +637,7 @@ def update_company_plan(
         "plan": company.plan,
         "billing_status": company.billing_status,
         "plan_expires_at": company.plan_expires_at.isoformat() if company.plan_expires_at else None,
+        "extra_jobs_count": company.extra_jobs_count or 0,
     }
 
 

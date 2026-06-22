@@ -682,6 +682,17 @@
             </div>
         </div>
 
+        <!-- ── Plan Usage Card ── -->
+        <div id="plan-usage-card" style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);padding:16px 20px;margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="_togglePlanUsage()">
+                <div style="font-size:13px;font-weight:600;color:#1B2A4A;">Plan Usage</div>
+                <span id="plan-usage-toggle" style="font-size:11px;color:#9CA3AF;user-select:none;">▾</span>
+            </div>
+            <div id="plan-usage-body" style="margin-top:14px;">
+                <div style="font-size:12px;color:#9CA3AF;text-align:center;padding:4px 0;">Loading usage…</div>
+            </div>
+        </div>
+
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
             <div class="card" style="margin-bottom:0;">
                 <div class="card-title">Pipeline Overview</div>
@@ -1564,6 +1575,7 @@
             renderOverviewPipeline(allCandidatesData);
             renderOverviewActivity(allCandidatesData);
             displayRecentJobs(jobs.slice(0, 5));
+            loadPlanUsageBars();
         } catch (error) {
             console.error('Overview error:', error);
         }
@@ -2294,9 +2306,10 @@
             if (response.ok) {
                 showJobAlert('Job posted! It will be visible once approved by admin.', 'success');
                 setTimeout(() => { cancelJobForm(); coInvalidateCache('jobs'); loadJobsList(); }, 1500);
+            } else if (data.detail && typeof data.detail === 'object' && data.detail.error === 'plan_limit_exceeded') {
+                showPlanLimitModal(data.detail);
             } else {
-                const _planMsg = typeof _formatPlanLimitMsg === 'function' ? _formatPlanLimitMsg(data.detail) : null;
-                showJobAlert(_planMsg || `Error: ${typeof data.detail === 'string' ? data.detail : 'Failed to post job'}`, 'error');
+                showJobAlert(`Error: ${typeof data.detail === 'string' ? data.detail : 'Failed to post job'}`, 'error');
             }
         } catch (error) {
             showJobAlert(`Error: ${error.message}`, 'error');
@@ -4671,7 +4684,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.9"></script>
+<script src="hunters-jobs.js?v=3.10"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies
@@ -4739,7 +4752,15 @@ async function runSingleScreening() {
     });
     clearTimeout(_st);
     var data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Screening failed');
+    if (!res.ok) {
+      if (res.status === 403 && data.detail && typeof data.detail === 'object' && data.detail.error === 'plan_limit_exceeded') {
+        showPlanLimitModal(data.detail);
+        btn.textContent = 'Screen CV with AI';
+        btn.disabled = false;
+        return;
+      }
+      throw new Error(typeof data.detail === 'string' ? data.detail : 'Screening failed');
+    }
 
     var score = data.score != null ? Math.round(data.score) : null;
     var scoreColor = score == null ? '#6B7280' : score >= 75 ? '#0F6E56' : score >= 50 ? '#854F0B' : '#A32D2D';
@@ -4850,7 +4871,14 @@ async function runBulkScreening() {
         });
         clearTimeout(_bt);
         var d = await res.json();
-        if (!res.ok) throw new Error(d.detail || 'Failed');
+        if (!res.ok) {
+          if (res.status === 403 && d.detail && typeof d.detail === 'object' && d.detail.error === 'plan_limit_exceeded') {
+            document.getElementById(rowId + '-status').innerHTML = '<span style="color:#854F0B;font-weight:600;">Limit reached</span>';
+            showPlanLimitModal(d.detail);
+            break;
+          }
+          throw new Error(typeof d.detail === 'string' ? d.detail : 'Failed');
+        }
         var s = d.score != null ? Math.round(d.score) : null;
         var col = s == null ? '#6B7280' : s >= 75 ? '#0F6E56' : s >= 50 ? '#854F0B' : '#A32D2D';
         document.getElementById(rowId + '-status').innerHTML =
@@ -4898,13 +4926,111 @@ async function _trackInvite() {
         });
         if (res.status === 403) {
             const err = await res.json().catch(function() { return {}; });
-            _showInviteLimitModal(err.detail || 'Monthly invitation limit reached. Please upgrade your plan.');
+            showPlanLimitModal(typeof err.detail === 'object' ? err.detail : { error: 'plan_limit_exceeded', resource: 'invitations', used: 0, limit: 0, plan: 'starter' });
             return false;
         }
         return true;
     } catch (e) {
         return true; // allow on network error — don't block HR
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PLAN LIMIT MODAL  (shared by all limit types)
+// ═══════════════════════════════════════════════════════════════
+
+function showPlanLimitModal(detail) {
+    document.getElementById('plan-limit-modal')?.remove();
+    if (!detail || typeof detail !== 'object' || detail.error !== 'plan_limit_exceeded') return;
+    const plan = (detail.plan || 'starter');
+    const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+    const limit = detail.limit || 0;
+    const used = detail.used || 0;
+    const company = window.__huntersCurrentCompany || currentCompany || {};
+    const companyName = company.company_name || 'My Company';
+    const mailtoLink = 'mailto:hr@hunters-egypt.com?subject=' + encodeURIComponent('Plan Upgrade Request — ' + companyName);
+    let msg = '';
+    if (detail.resource === 'jobs') {
+        msg = `You've used all ${limit} job slot${limit !== 1 ? 's' : ''} on your ${planLabel} plan. Add extra job slots (+500 EGP each) or upgrade your plan to post more jobs.`;
+    } else if (detail.resource === 'bulk_screenings') {
+        msg = `You've used ${used} / ${limit} bulk screenings this month on your ${planLabel} plan. Your limit resets on the 1st of next month, or upgrade to get more screenings.`;
+    } else if (detail.resource === 'invitations') {
+        msg = `You've used ${used} / ${limit} invitations this month on your ${planLabel} plan. Your limit resets on the 1st of next month, or upgrade to get more.`;
+    } else if (detail.resource === 'cvs_per_job') {
+        msg = `This job has reached its ${limit} CV limit. No more CVs can be uploaded for this specific job.`;
+    } else {
+        msg = `You've reached your plan limit (${used} / ${limit} ${detail.resource || ''} on the ${planLabel} plan).`;
+    }
+    const m = document.createElement('div');
+    m.id = 'plan-limit-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10005;display:flex;align-items:center;justify-content:center;padding:24px;';
+    m.innerHTML =
+        '<div style="background:#fff;border-radius:20px;width:460px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.25);overflow:hidden;">' +
+            '<div style="background:#1B2A4A;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">' +
+                '<span style="color:#C9A84C;font-weight:600;font-size:15px;">Plan Limit Reached</span>' +
+                '<button onclick="document.getElementById(\'plan-limit-modal\').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px;">×</button>' +
+            '</div>' +
+            '<div style="padding:28px 24px;text-align:center;">' +
+                '<div style="font-size:32px;margin-bottom:12px;">📊</div>' +
+                '<div style="font-size:14px;color:#6B7280;line-height:1.65;margin-bottom:24px;">' + msg + '</div>' +
+                '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
+                    '<a href="' + mailtoLink + '" style="display:inline-flex;align-items:center;gap:8px;background:#1B2A4A;color:#C9A84C;border-radius:10px;padding:12px 22px;font-size:14px;font-weight:600;text-decoration:none;">✉ Contact Hunters to Upgrade</a>' +
+                    '<button onclick="document.getElementById(\'plan-limit-modal\').remove()" style="background:#F3F4F6;color:#374151;border:none;border-radius:10px;padding:12px 22px;font-size:14px;font-weight:500;cursor:pointer;">Close</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', function(e) { if (e.target === m) m.remove(); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PLAN USAGE BARS
+// ═══════════════════════════════════════════════════════════════
+
+async function loadPlanUsageBars() {
+    const company = currentCompany || window.__huntersCurrentCompany;
+    if (!company || !company.id) return;
+    const body = document.getElementById('plan-usage-body');
+    if (!body) return;
+    try {
+        const res = await fetch(API_URL + '/companies/' + company.id + '/usage', {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        if (!res.ok) { body.innerHTML = ''; return; }
+        const u = await res.json();
+        const planLabel = (u.plan || 'starter').charAt(0).toUpperCase() + (u.plan || 'starter').slice(1);
+        function _usageBar(label, used, limit) {
+            if (!limit) return '';
+            const pct = Math.min(100, Math.round((used / limit) * 100));
+            const color = pct >= 90 ? '#A32D2D' : pct >= 70 ? '#854F0B' : '#0F6E56';
+            return '<div style="margin-bottom:11px;">' +
+                '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">' +
+                    '<span style="color:#374151;font-weight:500;">' + label + '</span>' +
+                    '<span style="color:' + color + ';font-weight:600;">' + used + ' / ' + limit + '</span>' +
+                '</div>' +
+                '<div style="height:6px;background:#F3F4F6;border-radius:3px;overflow:hidden;">' +
+                    '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:3px;transition:width 0.4s;"></div>' +
+                '</div>' +
+            '</div>';
+        }
+        body.innerHTML =
+            '<div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;">' + planLabel + ' plan</div>' +
+            _usageBar('Jobs', u.jobs.used, u.jobs.limit) +
+            _usageBar('Bulk Screenings this month', u.bulk_screenings.used, u.bulk_screenings.limit) +
+            _usageBar('Invitations this month', u.invitations.used, u.invitations.limit);
+    } catch(e) {
+        const b2 = document.getElementById('plan-usage-body');
+        if (b2) b2.innerHTML = '';
+    }
+}
+
+function _togglePlanUsage() {
+    const b = document.getElementById('plan-usage-body');
+    const t = document.getElementById('plan-usage-toggle');
+    if (!b) return;
+    const isHidden = b.style.display === 'none';
+    b.style.display = isHidden ? 'block' : 'none';
+    if (t) t.textContent = isHidden ? '▾' : '▸';
 }
 
 function _showInviteLimitModal(detail) {

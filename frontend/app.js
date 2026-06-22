@@ -2453,6 +2453,11 @@ function _renderCoWorkspace(co, activeTab) {
                         <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:5px;">Plan Expires (leave blank = no expiry)</label>
                         <input type="date" id="ws-expires" value="${escHtml(planExpVal)}" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
                     </div>
+                    <div>
+                        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:5px;">Extra Job Add-ons</label>
+                        <input type="number" id="ws-extra-jobs" min="0" max="50" step="1" value="${co.extra_jobs_count || 0}" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+                        <div style="font-size:11px;color:#9CA3AF;margin-top:3px;">+500 EGP per extra job slot per month</div>
+                    </div>
                 </div>
                 <button onclick="_savePlanChanges(${co.id})" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;">Save Plan Changes</button>
             </div>`;
@@ -2489,20 +2494,22 @@ async function _savePlanChanges(companyId) {
     const plan = (document.getElementById('ws-plan') || {}).value || 'free';
     const billing = (document.getElementById('ws-billing') || {}).value || 'active';
     const expires = (document.getElementById('ws-expires') || {}).value || null;
+    const extraJobs = parseInt((document.getElementById('ws-extra-jobs') || {}).value || '0') || 0;
     const token = localStorage.getItem('token');
     try {
         const res = await fetch('/api/admin/companies/' + companyId + '/plan', {
             method: 'PATCH',
             headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ plan, billing_status: billing, plan_expires_at: expires || null })
+            body: JSON.stringify({ plan, billing_status: billing, plan_expires_at: expires || null, extra_jobs_count: extraJobs })
         });
         if (!res.ok) throw new Error('Failed to save');
         const data = await res.json();
-        showToast('Plan updated to ' + data.plan, 'success');
+        showToast('Plan updated to ' + data.plan + (extraJobs ? ' · ' + extraJobs + ' add-on job(s)' : ''), 'success');
         if (window._coWorkspaceCo) {
             window._coWorkspaceCo.plan = data.plan;
             window._coWorkspaceCo.billing_status = data.billing_status;
             window._coWorkspaceCo.plan_expires_at = data.plan_expires_at;
+            window._coWorkspaceCo.extra_jobs_count = data.extra_jobs_count;
         }
     } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
 }

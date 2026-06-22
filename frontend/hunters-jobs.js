@@ -950,8 +950,13 @@ async function saveHuntersJob(e) {
             }
         } else {
             const data = await res.json();
-            const _planMsg = _formatPlanLimitMsg(data.detail);
-            showToast(_planMsg || ('Error: ' + (typeof data.detail === 'string' ? data.detail : 'Failed to save job')), 'error');
+            if (data.detail && typeof data.detail === 'object' && data.detail.error === 'plan_limit_exceeded'
+                && typeof showPlanLimitModal === 'function') {
+                showPlanLimitModal(data.detail);
+            } else {
+                const _planMsg = _formatPlanLimitMsg(data.detail);
+                showToast(_planMsg || ('Error: ' + (typeof data.detail === 'string' ? data.detail : 'Failed to save job')), 'error');
+            }
         }
     } catch(err) {
         showToast("Error connecting to server", "error");
