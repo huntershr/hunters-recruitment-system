@@ -4965,17 +4965,16 @@ function showPlanLimitModal(detail) {
     m.id = 'plan-limit-modal';
     m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10005;display:flex;align-items:center;justify-content:center;padding:24px;';
     m.innerHTML =
-        '<div style="background:#fff;border-radius:20px;width:460px;max-width:calc(100vw - 48px);box-shadow:0 24px 64px rgba(0,0,0,0.25);overflow:hidden;">' +
+        '<div style="background:#fff;border-radius:12px;width:460px;max-width:calc(100vw - 48px);box-shadow:0 16px 48px rgba(0,0,0,0.18);overflow:hidden;">' +
             '<div style="background:#1B2A4A;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">' +
                 '<span style="color:#C9A84C;font-weight:600;font-size:15px;">Plan Limit Reached</span>' +
                 '<button onclick="document.getElementById(\'plan-limit-modal\').remove()" style="color:#fff;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px;">×</button>' +
             '</div>' +
-            '<div style="padding:28px 24px;text-align:center;">' +
-                '<div style="font-size:32px;margin-bottom:12px;">📊</div>' +
-                '<div style="font-size:14px;color:#6B7280;line-height:1.65;margin-bottom:24px;">' + msg + '</div>' +
+            '<div style="padding:24px;text-align:center;">' +
+                '<div style="font-size:14px;color:#4B5563;line-height:1.65;margin-bottom:20px;">' + msg + '</div>' +
                 '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
-                    '<a href="' + mailtoLink + '" style="display:inline-flex;align-items:center;gap:8px;background:#1B2A4A;color:#C9A84C;border-radius:10px;padding:12px 22px;font-size:14px;font-weight:600;text-decoration:none;">✉ Contact Hunters to Upgrade</a>' +
-                    '<button onclick="document.getElementById(\'plan-limit-modal\').remove()" style="background:#F3F4F6;color:#374151;border:none;border-radius:10px;padding:12px 22px;font-size:14px;font-weight:500;cursor:pointer;">Close</button>' +
+                    '<a href="' + mailtoLink + '" style="display:inline-flex;align-items:center;background:#1B2A4A;color:#C9A84C;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;text-decoration:none;">Contact Hunters to Upgrade</a>' +
+                    '<button onclick="document.getElementById(\'plan-limit-modal\').remove()" style="background:#F3F4F6;color:#374151;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:500;cursor:pointer;">Close</button>' +
                 '</div>' +
             '</div>' +
         '</div>';
@@ -4999,25 +4998,35 @@ async function loadPlanUsageBars() {
         if (!res.ok) { body.innerHTML = ''; return; }
         const u = await res.json();
         const planLabel = (u.plan || 'starter').charAt(0).toUpperCase() + (u.plan || 'starter').slice(1);
-        function _usageBar(label, used, limit) {
+        function _usageRow(label, used, limit) {
             if (!limit) return '';
-            const pct = Math.min(100, Math.round((used / limit) * 100));
-            const color = pct >= 90 ? '#A32D2D' : pct >= 70 ? '#854F0B' : '#0F6E56';
-            return '<div style="margin-bottom:11px;">' +
-                '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">' +
-                    '<span style="color:#374151;font-weight:500;">' + label + '</span>' +
-                    '<span style="color:' + color + ';font-weight:600;">' + used + ' / ' + limit + '</span>' +
-                '</div>' +
-                '<div style="height:6px;background:#F3F4F6;border-radius:3px;overflow:hidden;">' +
-                    '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:3px;transition:width 0.4s;"></div>' +
-                '</div>' +
-            '</div>';
+            const pct = Math.round((used / limit) * 100);
+            let status, statusColor;
+            if (used >= limit) { status = 'At limit'; statusColor = '#A32D2D'; }
+            else if (pct >= 90) { status = 'Near limit'; statusColor = '#854F0B'; }
+            else { status = '—'; statusColor = '#6B7280'; }
+            return '<tr>' +
+                '<td style="padding:7px 10px 7px 0;font-size:13px;color:#374151;">' + label + '</td>' +
+                '<td style="padding:7px 10px;font-size:13px;color:#374151;text-align:center;">' + used + '</td>' +
+                '<td style="padding:7px 10px;font-size:13px;color:#374151;text-align:center;">' + limit + '</td>' +
+                '<td style="padding:7px 0 7px 10px;font-size:13px;font-weight:600;color:' + statusColor + ';text-align:right;">' + status + '</td>' +
+            '</tr>';
         }
         body.innerHTML =
             '<div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;">' + planLabel + ' plan</div>' +
-            _usageBar('Jobs', u.jobs.used, u.jobs.limit) +
-            _usageBar('Bulk Screenings this month', u.bulk_screenings.used, u.bulk_screenings.limit) +
-            _usageBar('Invitations this month', u.invitations.used, u.invitations.limit);
+            '<table style="width:100%;border-collapse:collapse;">' +
+                '<thead><tr>' +
+                    '<th style="padding:0 10px 8px 0;font-size:11px;font-weight:600;color:#9CA3AF;text-align:left;text-transform:uppercase;letter-spacing:0.04em;">Resource</th>' +
+                    '<th style="padding:0 10px 8px;font-size:11px;font-weight:600;color:#9CA3AF;text-align:center;text-transform:uppercase;letter-spacing:0.04em;">Used</th>' +
+                    '<th style="padding:0 10px 8px;font-size:11px;font-weight:600;color:#9CA3AF;text-align:center;text-transform:uppercase;letter-spacing:0.04em;">Limit</th>' +
+                    '<th style="padding:0 0 8px 10px;font-size:11px;font-weight:600;color:#9CA3AF;text-align:right;text-transform:uppercase;letter-spacing:0.04em;">Status</th>' +
+                '</tr></thead>' +
+                '<tbody>' +
+                    _usageRow('Jobs', u.jobs.used, u.jobs.limit) +
+                    _usageRow('Bulk Screenings (month)', u.bulk_screenings.used, u.bulk_screenings.limit) +
+                    _usageRow('Invitations (month)', u.invitations.used, u.invitations.limit) +
+                '</tbody>' +
+            '</table>';
     } catch(e) {
         const b2 = document.getElementById('plan-usage-body');
         if (b2) b2.innerHTML = '';
