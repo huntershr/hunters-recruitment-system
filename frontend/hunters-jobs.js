@@ -849,6 +849,34 @@ async function loadAdminCompaniesForDropdown() {
     } catch(e) {}
 }
 
+function _formatPlanLimitMsg(detail) {
+    if (!detail || typeof detail !== 'object') return null;
+    if (detail.error !== 'plan_limit_exceeded') return null;
+    const plan = (detail.plan || 'starter');
+    const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+    const limit = detail.limit || 0;
+    const used = detail.used || 0;
+    const _baseLimits = { starter: 3, growth: 8, enterprise: 12 };
+    const base = _baseLimits[plan] !== undefined ? _baseLimits[plan] : limit;
+    const addOns = limit - base;
+    if (detail.resource === 'jobs') {
+        const limitStr = addOns > 0
+            ? `${base} jobs + ${addOns} add-on${addOns !== 1 ? 's' : ''}`
+            : `${limit} job${limit !== 1 ? 's' : ''}`;
+        return `Job limit reached — you are on the ${planLabel} plan (${limitStr}). Contact Hunters to add more.`;
+    }
+    if (detail.resource === 'bulk_screenings') {
+        return `Monthly screening limit reached (${used} / ${limit} on the ${planLabel} plan). Resets next month or contact Hunters to upgrade.`;
+    }
+    if (detail.resource === 'cvs_per_job') {
+        return `CV limit reached for this job (${limit} CVs max on the ${planLabel} plan). Contact Hunters to increase your limit.`;
+    }
+    if (detail.resource === 'invitations') {
+        return `Monthly invitation limit reached (${used} / ${limit} on the ${planLabel} plan). Resets next month or contact Hunters to upgrade.`;
+    }
+    return `Plan limit reached (${used} / ${limit} ${detail.resource || ''} on the ${planLabel} plan).`;
+}
+
 async function saveHuntersJob(e) {
     e.preventDefault();
     
@@ -922,7 +950,8 @@ async function saveHuntersJob(e) {
             }
         } else {
             const data = await res.json();
-            showToast("Error: " + (data.detail || 'Failed to save job'), "error");
+            const _planMsg = _formatPlanLimitMsg(data.detail);
+            showToast(_planMsg || ('Error: ' + (typeof data.detail === 'string' ? data.detail : 'Failed to save job')), 'error');
         }
     } catch(err) {
         showToast("Error connecting to server", "error");

@@ -2295,7 +2295,8 @@
                 showJobAlert('Job posted! It will be visible once approved by admin.', 'success');
                 setTimeout(() => { cancelJobForm(); coInvalidateCache('jobs'); loadJobsList(); }, 1500);
             } else {
-                showJobAlert(`Error: ${data.detail || 'Failed to post job'}`, 'error');
+                const _planMsg = typeof _formatPlanLimitMsg === 'function' ? _formatPlanLimitMsg(data.detail) : null;
+                showJobAlert(_planMsg || `Error: ${typeof data.detail === 'string' ? data.detail : 'Failed to post job'}`, 'error');
             }
         } catch (error) {
             showJobAlert(`Error: ${error.message}`, 'error');
@@ -4670,7 +4671,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.8"></script>
+<script src="hunters-jobs.js?v=3.9"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies
