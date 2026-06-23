@@ -54,7 +54,7 @@
         .plan-annual-price { font-size:11px; color:#6B7280; margin-bottom:12px; min-height:16px; }
         .plan-features { list-style:none; padding:0; margin:12px 0 0; }
         .plan-features li { font-size:12px; color:#374151; padding:3px 0; display:flex; align-items:center; gap:6px; }
-        .plan-features li::before { content:'✓'; color:#0F6E56; font-weight:700; flex-shrink:0; }
+        .plan-features li::before { content:'✓'; color:#6B7280; font-weight:700; flex-shrink:0; }
         .plan-features li.unlimited { color:#1B2A4A; font-weight:600; }
         /* Annual toggle */
         .annual-toggle-bar { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:24px; padding:12px 16px; background:#F8F9FF; border-radius:10px; border:1px solid #E5E7EB; }
@@ -157,7 +157,7 @@
                     <span class="toggle-slider"></span>
                 </label>
                 <span style="font-size:13px;color:#374151;font-weight:500;">Annual</span>
-                <span style="background:#E1F5EE;color:#0F6E56;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;margin-left:4px;">Save 2 months</span>
+                <span style="background:#E5E7EB;color:#374151;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;margin-left:4px;">Save 2 months</span>
             </div>
             <div class="plans-grid" id="plans-grid"></div>
             <div style="font-size:11px;color:#9CA3AF;text-align:center;margin-bottom:6px;">Job-link applications are unlimited on all plans. Invitation limits apply only to HR-initiated talent pool invites.</div>
@@ -223,10 +223,10 @@
                 const priceLabel = p.monthly === 0
                     ? '<span style="font-size:16px;">0</span> <span>EGP</span>'
                     : annual
-                        ? `<span style="font-size:24px;font-weight:800;">${annualPrice.toLocaleString()}</span><span> EGP/yr</span>`
-                        : `<span style="font-size:24px;font-weight:800;">${p.monthly.toLocaleString()}</span><span> EGP/mo</span>`;
+                        ? `<span style="font-size:24px;font-weight:800;font-family:Georgia,'Times New Roman',serif;">${annualPrice.toLocaleString()}</span><span> EGP/yr</span>`
+                        : `<span style="font-size:24px;font-weight:800;font-family:Georgia,'Times New Roman',serif;">${p.monthly.toLocaleString()}</span><span> EGP/mo</span>`;
                 const annualNote = p.monthly > 0 && annual
-                    ? `<div class="plan-annual-price" style="color:#0F6E56;">2 months free vs monthly</div>`
+                    ? `<div class="plan-annual-price" style="color:#6B7280;">2 months free vs monthly</div>`
                     : p.monthly > 0 && !annual
                         ? `<div class="plan-annual-price">or ${(p.monthly * 10).toLocaleString()} EGP/yr (save 2 mo)</div>`
                         : `<div class="plan-annual-price"></div>`;
