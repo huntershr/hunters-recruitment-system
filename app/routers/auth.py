@@ -166,9 +166,39 @@ def delete_candidate_user(user_id: int, current_user: models.User = Depends(get_
         raise HTTPException(status_code=404, detail="User not found")
     if user.is_admin:
         raise HTTPException(status_code=400, detail="Cannot delete admin accounts")
-    db.delete(user)
-    db.commit()
-    return {"detail": "Deleted"}
+    try:
+        from sqlalchemy import or_
+        n_apps = n_evals = n_cands = 0
+        candidates = db.query(models.Candidate).filter(
+            or_(models.Candidate.user_id == user_id, models.Candidate.owner_id == user_id)
+        ).all()
+        for cand in candidates:
+            cand_emails = {e for e in [cand.email] if e}
+            ev_del = db.query(models.Evaluation).filter(
+                models.Evaluation.candidate_id == cand.id
+            ).delete(synchronize_session=False)
+            n_evals += ev_del
+            app_q = db.query(models.Application).filter(
+                or_(
+                    models.Application.candidate_id == cand.id,
+                    models.Application.applicant_email.in_(cand_emails) if cand_emails else False,
+                )
+            )
+            n_apps += app_q.delete(synchronize_session=False)
+            db.delete(cand)
+            n_cands += 1
+        db.flush()
+        db.delete(user)
+        db.commit()
+        logger.info(
+            "Deleted candidate user %s: %d candidate(s), %d application(s), %d evaluation(s)",
+            user_id, n_cands, n_apps, n_evals,
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.error("Cascade delete failed for candidate user %s: %s", user_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to delete user — rolled back")
+    return {"detail": "Deleted", "deleted": {"candidates": n_cands, "applications": n_apps, "evaluations": n_evals}}
 
 @router.post("/candidate-users/{user_id}/reset-password")
 def reset_candidate_password(user_id: int, body: dict, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
