@@ -2475,45 +2475,52 @@ def admin_delete_job(
         raise HTTPException(status_code=404, detail="Job not found")
 
     try:
+        from sqlalchemy import text as _text
         app_ids = [r[0] for r in db.query(models.Application.id).filter(
             models.Application.job_id == job_id
         ).all()]
 
-        # 1. VoiceScreenings (FK → applications.id AND jobs.id)
+        # 1. agent_screenings (no SQLAlchemy model — raw SQL; FK → applications.id AND jobs.id)
+        if app_ids:
+            db.execute(_text("DELETE FROM agent_screenings WHERE application_id = ANY(:ids)"),
+                       {"ids": app_ids})
+        db.execute(_text("DELETE FROM agent_screenings WHERE job_id = :jid"), {"jid": job_id})
+
+        # 2. VoiceScreenings (FK → applications.id AND jobs.id)
         vs_conds = [models.VoiceScreening.job_id == job_id]
         if app_ids:
             vs_conds.append(models.VoiceScreening.application_id.in_(app_ids))
         db.query(models.VoiceScreening).filter(or_(*vs_conds)).delete(synchronize_session=False)
 
-        # 2. Evaluations (FK → applications.id and job_id)
+        # 3. Evaluations (FK → applications.id and job_id)
         ev_conds = [models.Evaluation.job_id == job_id]
         if app_ids:
             ev_conds.append(models.Evaluation.application_id.in_(app_ids))
         db.query(models.Evaluation).filter(or_(*ev_conds)).delete(synchronize_session=False)
 
-        # 3. Interviews (FK → applications.id)
+        # 4. Interviews (FK → applications.id)
         if app_ids:
             db.query(models.Interview).filter(
                 models.Interview.application_id.in_(app_ids)
             ).delete(synchronize_session=False)
 
-        # 4. Offers (FK → applications.id)
+        # 5. Offers (FK → applications.id)
         if app_ids:
             db.query(models.Offer).filter(
                 models.Offer.application_id.in_(app_ids)
             ).delete(synchronize_session=False)
 
-        # 5. Applications
+        # 6. Applications
         db.query(models.Application).filter(
             models.Application.job_id == job_id
         ).delete(synchronize_session=False)
 
-        # 6. Null out job_applied on Candidates (preserve candidate records)
+        # 7. Null out job_applied on Candidates (preserve candidate records)
         db.query(models.Candidate).filter(
             models.Candidate.job_applied == job_id
         ).update({"job_applied": None}, synchronize_session=False)
 
-        # 7. Delete the job
+        # 8. Delete the job
         db.delete(job)
         db.commit()
         return {"message": "Job deleted"}

@@ -193,9 +193,15 @@ def delete_job(job_id: int, db: Session = Depends(get_db), current_user: models.
         raise HTTPException(status_code=404, detail="Job not found")
 
     try:
+        from sqlalchemy import text as _text
         app_ids = [r[0] for r in db.query(models.Application.id).filter(
             models.Application.job_id == job_id
         ).all()]
+        # agent_screenings has no SQLAlchemy model — must delete via raw SQL first
+        if app_ids:
+            db.execute(_text("DELETE FROM agent_screenings WHERE application_id = ANY(:ids)"),
+                       {"ids": app_ids})
+        db.execute(_text("DELETE FROM agent_screenings WHERE job_id = :jid"), {"jid": job_id})
         vs_conds = [models.VoiceScreening.job_id == job_id]
         if app_ids:
             vs_conds.append(models.VoiceScreening.application_id.in_(app_ids))
