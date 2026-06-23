@@ -562,6 +562,12 @@ function renderCandidates() {
     try { renderCandidateList(pipelineFilter); } catch (e) { console.error('[renderCandidates] renderCandidateList crash:', e); }
 }
 
+function _appMatchesFilters(app, lf, cf) {
+    if (lf) return (app.name||'').toLowerCase().includes(lf)||(app.email||'').toLowerCase().includes(lf)||(app.job_title||'').toLowerCase().includes(lf);
+    if (cf) return (app.company_name||'').toLowerCase()===cf;
+    return true;
+}
+
 function renderStageTabs(filter) {
     if (pipelineView !== 'tabs') return;
     const tabsBar = document.getElementById('stage-tabs-bar');
@@ -576,7 +582,7 @@ function renderStageTabs(filter) {
     _STAGE_TABS.forEach(tab => {
         counts[tab.id] = useApps ? applications.filter(app => {
             const stg = (app.stage || 'applied').toLowerCase();
-            return tab.stages.includes(stg);
+            return tab.stages.includes(stg) && _appMatchesFilters(app, lf, cf);
         }).length : 0;
     });
 
@@ -591,9 +597,7 @@ function renderStageTabs(filter) {
         tabApps = applications.filter(app => {
             const stg = (app.stage || 'applied').toLowerCase();
             if (!activeTabDef.stages.includes(stg)) return false;
-            if (lf) return (app.name||'').toLowerCase().includes(lf)||(app.email||'').toLowerCase().includes(lf)||(app.job_title||'').toLowerCase().includes(lf);
-            if (cf) return (app.company_name||'').toLowerCase()===cf;
-            return true;
+            return _appMatchesFilters(app, lf, cf);
         });
     }
 
