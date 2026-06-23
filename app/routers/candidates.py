@@ -182,17 +182,17 @@ async def screen_cv(
             cv_mime = _ct
         elif filename.endswith(".pdf"):
             cv_mime = "application/pdf"
-        elif filename.endswith(".docx"):
+        elif filename.endswith(".docx") or filename.endswith(".doc"):
             cv_mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         else:
             cv_mime = "application/octet-stream"
 
         if filename.endswith(".pdf"):
             cv_text = extract_text_from_pdf(content)
-        elif filename.endswith(".docx"):
+        elif filename.endswith(".docx") or filename.endswith(".doc"):
             cv_text = extract_text_from_docx(content)
         else:
-            raise HTTPException(status_code=400, detail="Only PDF or DOCX files are supported")
+            raise HTTPException(status_code=400, detail="Only PDF, DOCX, or DOC files are supported")
 
         if not cv_text or not cv_text.strip():
             raise HTTPException(
@@ -517,24 +517,23 @@ async def upload_candidates(
     
     candidates_data = []
     
-    if filename.endswith(".pdf") or filename.endswith(".docx"):
+    if filename.endswith(".pdf") or filename.endswith(".docx") or filename.endswith(".doc"):
         text = extract_text_from_pdf(content) if filename.endswith(".pdf") else extract_text_from_docx(content)
-        if text:
-            from ..services.ai_evaluator import extract_candidate_info
-            ai_data = extract_candidate_info(text)
-            candidates_data.append({
-                "name": ai_data.get("name", file.filename),
-                "email": ai_data.get("email", ""),
-                "phone": ai_data.get("phone", ""),
-                "experience_years": ai_data.get("experience_years", 0),
-                "education": ai_data.get("education", ""),
-                "skills": ai_data.get("skills", ""),
-                "last_title": ai_data.get("last_title", ""),
-                "last_employer": ai_data.get("last_employer", ""),
-                "cv_text": text
-            })
-        else:
-            raise HTTPException(status_code=400, detail="Could not extract text from file")
+        if not text or not text.strip():
+            raise HTTPException(status_code=400, detail="Could not extract text from CV — file may be a scanned image or protected PDF.")
+        from ..services.ai_evaluator import extract_candidate_info
+        ai_data = extract_candidate_info(text)
+        candidates_data.append({
+            "name": ai_data.get("name", file.filename),
+            "email": ai_data.get("email", ""),
+            "phone": ai_data.get("phone", ""),
+            "experience_years": ai_data.get("experience_years", 0),
+            "education": ai_data.get("education", ""),
+            "skills": ai_data.get("skills", ""),
+            "last_title": ai_data.get("last_title", ""),
+            "last_employer": ai_data.get("last_employer", ""),
+            "cv_text": text
+        })
     elif filename.endswith(".xlsx") or filename.endswith(".xls"):
         candidates_data = process_excel_candidates(content)
     else:

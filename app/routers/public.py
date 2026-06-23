@@ -287,8 +287,19 @@ async def public_apply(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    fname = (file.filename or "").lower()
+    if not (fname.endswith(".pdf") or fname.endswith(".docx") or fname.endswith(".doc")):
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload your CV as a PDF or Word document (.pdf or .docx). Images and other file types are not accepted.",
+        )
     content = await file.read()
     cv_text = extract_text_from_file(file.filename, content)
+    if not cv_text or not cv_text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Your CV could not be read — it may be a scanned image or a protected file. Please save it as a text-based PDF or upload a .docx file.",
+        )
 
     # Resolve MIME type for original file storage
     _fname = (file.filename or "").lower()
