@@ -2468,27 +2468,56 @@ def admin_delete_job(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Delete any job as admin, cascading to applications and evaluations."""
+    """Delete any job as admin, cascading all dependent records."""
     _admin(current_user)
     job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    app_ids = [
-        a.id for a in db.query(models.Application.id).filter(models.Application.job_id == job_id).all()
-    ]
-    if app_ids:
-        db.query(models.Evaluation).filter(
-            models.Evaluation.application_id.in_(app_ids)
-        ).delete(synchronize_session=False)
+    try:
+        app_ids = [r[0] for r in db.query(models.Application.id).filter(
+            models.Application.job_id == job_id
+        ).all()]
+
+        # 1. VoiceScreenings (FK → applications.id AND jobs.id)
+        vs_conds = [models.VoiceScreening.job_id == job_id]
+        if app_ids:
+            vs_conds.append(models.VoiceScreening.application_id.in_(app_ids))
+        db.query(models.VoiceScreening).filter(or_(*vs_conds)).delete(synchronize_session=False)
+
+        # 2. Evaluations (FK → applications.id and job_id)
+        ev_conds = [models.Evaluation.job_id == job_id]
+        if app_ids:
+            ev_conds.append(models.Evaluation.application_id.in_(app_ids))
+        db.query(models.Evaluation).filter(or_(*ev_conds)).delete(synchronize_session=False)
+
+        # 3. Interviews (FK → applications.id)
+        if app_ids:
+            db.query(models.Interview).filter(
+                models.Interview.application_id.in_(app_ids)
+            ).delete(synchronize_session=False)
+
+        # 4. Offers (FK → applications.id)
+        if app_ids:
+            db.query(models.Offer).filter(
+                models.Offer.application_id.in_(app_ids)
+            ).delete(synchronize_session=False)
+
+        # 5. Applications
         db.query(models.Application).filter(
             models.Application.job_id == job_id
         ).delete(synchronize_session=False)
 
-    db.query(models.Candidate).filter(
-        models.Candidate.job_applied == job_id
-    ).delete(synchronize_session=False)
+        # 6. Null out job_applied on Candidates (preserve candidate records)
+        db.query(models.Candidate).filter(
+            models.Candidate.job_applied == job_id
+        ).update({"job_applied": None}, synchronize_session=False)
 
-    db.query(models.Job).filter(models.Job.id == job_id).delete(synchronize_session=False)
-    db.commit()
-    return {"message": "Job deleted"}
+        # 7. Delete the job
+        db.delete(job)
+        db.commit()
+        return {"message": "Job deleted"}
+    except Exception as exc:
+        db.rollback()
+        _logger.error("admin_delete_job failed for job_id=%s: %s", job_id, exc)
+        raise HTTPException(status_code=500, detail="Delete failed — rolled back")
