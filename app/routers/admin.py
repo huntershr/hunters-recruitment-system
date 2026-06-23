@@ -2058,13 +2058,15 @@ def _job_to_dict(j: models.Job) -> dict:
 @router.get("/jobs")
 def list_admin_jobs(
     company_id: Optional[int] = None,
+    archived: bool = False,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """List all jobs as admin, optionally scoped to a company."""
+    """List all jobs as admin, optionally scoped to a company. Pass archived=true to list archived jobs."""
     _admin(current_user)
     q = db.query(models.Job).filter(
-        or_(models.Job.status == None, models.Job.status != 'rejected')
+        or_(models.Job.status == None, models.Job.status != 'rejected'),
+        models.Job.is_archived == archived,
     )
     if company_id is not None:
         co_user_ids = (
@@ -2431,6 +2433,34 @@ def list_shadow_screenings(
         })
     return result
 
+
+@router.patch("/jobs/{job_id}/archive")
+def admin_archive_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _admin(current_user)
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.is_archived = True
+    db.commit()
+    return {"message": "Job archived"}
+
+@router.patch("/jobs/{job_id}/restore")
+def admin_restore_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _admin(current_user)
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.is_archived = False
+    db.commit()
+    return {"message": "Job restored"}
 
 @router.delete("/jobs/{job_id}")
 def admin_delete_job(

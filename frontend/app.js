@@ -393,7 +393,7 @@ function renderJobs() {
 
             if (jobsView !== 'list') {
                 cardView.innerHTML += `
-                    <div class="job-card">
+                    <div class="job-card" id="job-card-${j.id}">
                         <div class="job-card-header" style="flex-wrap:wrap;gap:8px;">
                             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
                                 ${jobLogoHtml36}
@@ -403,7 +403,7 @@ function renderJobs() {
                                 ${statusPill}
                                 <button class="btn-share edit-btn" onclick="editJob(${j.id})" title="Edit Job"><i class='bx bx-pencil'></i> Edit</button>
                                 <button class="btn-share" onclick="copyPublicLink(${j.id})" title="Share Link"><i class='bx bx-share-alt'></i></button>
-                                <button class="btn-share" style="color:var(--red);border-color:var(--red);" onclick="deleteJob(${j.id})" title="Delete Job"><i class='bx bx-trash'></i></button>
+                                <button class="btn-share" style="color:#6B7280;border-color:#D1D5DB;" onclick="archiveJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"\\'")}')" title="Archive Job"><i class='bx bx-archive-in'></i> Archive</button>
                             </div>
                         </div>
                         <div style="margin-top:6px;margin-bottom:2px;">
@@ -430,7 +430,7 @@ function renderJobs() {
             if (listTbody) {
                 const posted = j.created_at ? new Date(j.created_at).toLocaleDateString() : '—';
                 listTbody.innerHTML += `
-                    <tr style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background='#FAFBFF'" onmouseout="this.style.background='transparent'">
+                    <tr id="job-row-${j.id}" style="border-bottom:0.5px solid #F3F4F6;" onmouseover="this.style.background='#FAFBFF'" onmouseout="this.style.background='transparent'">
                         <td style="padding:10px 14px;">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 ${jobLogoHtml28}
@@ -450,8 +450,8 @@ function renderJobs() {
                                 <button onclick="copyPublicLink(${j.id})" style="height:28px;padding:0 8px;border:0.5px solid #C9A84C;background:#fff;color:#C9A84C;border-radius:7px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
                                     <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Share
                                 </button>
-                                <button onclick="deleteJob(${j.id})" style="height:28px;width:28px;padding:0;border:0.5px solid #CC2B2B;background:#fff;color:#CC2B2B;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" title="Delete">
-                                    <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                <button onclick="archiveJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"\\'")}')" style="height:28px;padding:0 8px;border:0.5px solid #D1D5DB;background:#fff;color:#6B7280;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:11px;" title="Archive">
+                                    <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>Archive
                                 </button>
                             </div>
                         </td>
@@ -2113,24 +2113,28 @@ async function saveManualEvaluation() {
     }
 }
 
-async function deleteJob(id) {
-    if (!confirm("Are you sure you want to delete this job? This will also delete all associated candidates and evaluations.")) return;
-
-    try {
-        const response = await authFetch(`/jobs/${id}`, {
-            method: "DELETE"
-        });
-
-        if (response.ok) {
-            showToast('Job deleted successfully!', 'success');
-            location.reload();
-        } else {
-            showToast('Failed to delete job.', 'error');
+async function archiveJob(id, title) {
+    createConfirmModal(
+        'Archive "' + (title || 'this job') + '"?',
+        'This job will be hidden from candidates and your dashboard. Contact Hunters to restore it.',
+        async () => {
+            try {
+                const res = await authFetch(`/jobs/${id}/archive`, { method: 'PATCH' });
+                if (res.ok) {
+                    showToast('Job archived — it is no longer visible to candidates or in your dashboard', 'success');
+                    const card = document.getElementById('job-card-' + id);
+                    const row = document.getElementById('job-row-' + id);
+                    if (card) card.remove();
+                    if (row) row.remove();
+                    if (!card && !row) location.reload();
+                } else {
+                    showToast('Failed to archive job.', 'error');
+                }
+            } catch (err) {
+                showToast('Error archiving job.', 'error');
+            }
         }
-    } catch (err) {
-        console.error("Delete job error:", err);
-        showToast('Error deleting job.', 'error');
-    }
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2612,6 +2616,7 @@ function _renderCoWsJobs(jobs) {
                     <button onclick="openAdminJobPreview(${j.id})" title="Preview" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Preview</button>
                     <button onclick="_coWsEditJobModal(${j.id})" title="Edit" style="background:#FBF7E8;color:#C9A84C;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Edit</button>
                     <button onclick="_coWsShareJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" title="Share" style="background:#F0FFF4;color:#0F6E56;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Share</button>
+                    <button onclick="_coWsArchiveJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" title="Archive" style="background:#F0F2F8;color:#1B2A4A;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Archive</button>
                     <button onclick="_coWsDeleteJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" title="Delete" style="background:#FEECEC;color:#DC2626;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Delete</button>
                 </div>
             </div>`).join('')
@@ -2619,7 +2624,10 @@ function _renderCoWsJobs(jobs) {
 
     body.innerHTML =
         `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-            <div style="font-size:12px;color:#9CA3AF;">${jobs.length} job${jobs.length!==1?'s':''}</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="font-size:12px;color:#9CA3AF;">${jobs.length} job${jobs.length!==1?'s':''}</div>
+                <button onclick="_coWsLoadArchivedJobs(window._coWorkspaceCo)" style="background:#F0F2F8;color:#6B7280;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:500;cursor:pointer;">Archived Jobs</button>
+            </div>
             <button onclick="_coWsPostJobModal()" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;">+ Post New Job</button>
         </div>
         <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden;">${rows}</div>`;
@@ -2890,6 +2898,71 @@ async function _coWsDeleteJob(jobId, jobTitle) {
             }
         }
     );
+}
+
+async function _coWsArchiveJob(jobId, jobTitle) {
+    createConfirmModal('Archive "' + jobTitle + '"?',
+        'This job will be hidden from candidates and all listings. You can restore it from the Archived Jobs section.',
+        async () => {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/admin/jobs/' + jobId + '/archive', {
+                method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (res.ok) {
+                showToast('Job archived', 'success');
+                _coWsLoadJobs(window._coWorkspaceCo);
+            } else {
+                showToast('Archive failed', 'error');
+            }
+        }
+    );
+}
+
+async function _coWsRestoreJob(jobId, jobTitle) {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/admin/jobs/' + jobId + '/restore', {
+        method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.ok) {
+        showToast('"' + jobTitle + '" restored', 'success');
+        _coWsLoadArchivedJobs(window._coWorkspaceCo);
+    } else {
+        showToast('Restore failed', 'error');
+    }
+}
+
+async function _coWsLoadArchivedJobs(co) {
+    const body = document.getElementById('co-ws-body');
+    try {
+        const res = await fetch('/api/admin/jobs?company_id=' + co.id + '&archived=true', {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const jobs = await res.json();
+        const rows = jobs.length
+            ? jobs.map(j => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:0.5px solid #F3F4F6;gap:10px;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:13px;font-weight:500;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(j.job_title||'')}</div>
+                        <div style="font-size:11px;color:#9CA3AF;">${j.created_at?new Date(j.created_at).toLocaleDateString('en-GB'):''} ${j.job_location?'· '+escHtml(j.job_location):''}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                        <span style="padding:2px 8px;border-radius:8px;font-size:10px;background:#F3F4F6;color:#6B7280;">Archived</span>
+                        <button onclick="_coWsRestoreJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" style="background:#E1F5EE;color:#0F6E56;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Restore</button>
+                        <button onclick="_coWsDeleteJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" style="background:#FEECEC;color:#DC2626;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:500;">Delete</button>
+                    </div>
+                </div>`).join('')
+            : '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">No archived jobs for this company.</div>';
+
+        body.innerHTML =
+            `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div style="font-size:12px;color:#9CA3AF;">${jobs.length} archived job${jobs.length!==1?'s':''}</div>
+                <button onclick="_coWsLoadJobs(window._coWorkspaceCo)" style="background:#F0F2F8;color:#1B2A4A;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;">← Active Jobs</button>
+            </div>
+            <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden;">${rows}</div>`;
+    } catch(e) {
+        if (body) body.innerHTML = '<div style="padding:24px;color:#DC2626;font-size:13px;">Failed to load archived jobs: ' + escHtml(e.message) + '</div>';
+    }
 }
 
 async function openAdminJobPreview(jobId) {

@@ -84,6 +84,7 @@ class Job(Base):
     approval_date = Column(DateTime, nullable=True)
     approval_notes = Column(Text, nullable=True)
     status = Column(String, nullable=True)
+    is_archived = Column(Boolean, default=False, nullable=False)
     department = Column(String, nullable=True, default="Other")
     created_at = Column(DateTime, default=datetime.utcnow)
 

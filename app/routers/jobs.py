@@ -154,7 +154,8 @@ async def upload_jobs(
 def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     return db.query(models.Job).filter(
         models.Job.owner_id == current_user.id,
-        or_(models.Job.status == None, models.Job.status != 'rejected')
+        or_(models.Job.status == None, models.Job.status != 'rejected'),
+        models.Job.is_archived == False,
     ).offset(skip).limit(limit).all()
 
 @router.get("/{job_id}", response_model=schemas.JobResponse)
@@ -176,6 +177,15 @@ def update_job(job_id: int, updated_job: schemas.JobSavePayload, db: Session = D
     db.commit()
     db.refresh(db_job)
     return db_job
+@router.patch("/{job_id}/archive")
+def archive_job(job_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    db_job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    db_job.is_archived = True
+    db.commit()
+    return {"message": "Job archived successfully"}
+
 @router.delete("/{job_id}")
 def delete_job(job_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     db_job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
@@ -261,7 +271,8 @@ def get_all_jobs(db: Session = Depends(get_db), current_user: models.User = Depe
         raise HTTPException(status_code=403, detail="Admin access required")
     
     all_jobs = db.query(models.Job).filter(
-        or_(models.Job.status == None, models.Job.status != 'rejected')
+        or_(models.Job.status == None, models.Job.status != 'rejected'),
+        models.Job.is_archived == False,
     ).all()
     return all_jobs
 

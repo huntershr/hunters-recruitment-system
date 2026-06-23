@@ -225,7 +225,7 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
     job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    if job.status == 'rejected':
+    if job.status == 'rejected' or job.is_archived:
         raise HTTPException(status_code=404, detail="Job not found")
 
     HUNTERS_LOGO = "/hunters-logo-blue.jpeg"
@@ -494,8 +494,8 @@ def get_public_jobs(department: str = None, db: Session = Depends(get_db)):
         logo_map    = {c.id: c.logo_url for c in approved_companies}
         print(f"=== APPROVED COMPANIES: {len(approved_company_ids)} ===")
 
-        # Build filter: approved jobs from admin users OR approved companies
-        filters = [models.Job.is_approved == True]
+        # Build filter: approved, non-archived jobs from admin users OR approved companies
+        filters = [models.Job.is_approved == True, models.Job.is_archived == False]
         if approved_company_ids:
             filters.append(or_(
                 models.User.is_admin == True,

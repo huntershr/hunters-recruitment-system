@@ -501,6 +501,14 @@ def startup_populate_db():
     except Exception:
         pass
 
+    # ── Job is_archived column (additive, runs every startup) ──
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE"))
+            conn.commit()
+    except Exception:
+        pass
+
     # ── Plan/invite columns (additive, runs every startup — safe no-ops after first run) ──
     try:
         with engine.connect() as conn:
