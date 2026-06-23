@@ -2254,13 +2254,16 @@ function renderAdminCompaniesTable(companies) {
 
     const planBadge = plan => {
         const map = {
-            free:         ['#9CA3AF','#F3F4F6'],
+            starter:      ['#0F6E56','#E1F5EE'],
             growth:       ['#185FA5','#E6F1FB'],
-            professional: ['#0F6E56','#E1F5EE'],
             enterprise:   ['#C9A84C','#FBF7E8'],
+            free:         ['#0F6E56','#E1F5EE'],
+            professional: ['#185FA5','#E6F1FB'],
         };
-        const [c, bg] = map[(plan||'free').toLowerCase()] || map.free;
-        const label = (plan||'free').charAt(0).toUpperCase() + (plan||'free').slice(1);
+        const key = (plan||'starter').toLowerCase();
+        const [c, bg] = map[key] || map.starter;
+        const _labelMap = { free: 'Starter', professional: 'Growth' };
+        const label = _labelMap[key] || (key.charAt(0).toUpperCase() + key.slice(1));
         return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:${bg};color:${c};font-size:10px;font-weight:600;">${escHtml(label)}</span>`;
     };
     const statusBadge = s => s === 'approved'
@@ -2312,9 +2315,8 @@ function renderAdminCompaniesTable(companies) {
                 '<select id="company-plan-filter" onchange="filterAdminCompanies()" ' +
                     'style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;outline:none;background:#fff;color:#1B2A4A;">' +
                     '<option value="">All Plans</option>' +
-                    '<option value="free">Free</option>' +
+                    '<option value="starter">Starter</option>' +
                     '<option value="growth">Growth</option>' +
-                    '<option value="professional">Professional</option>' +
                     '<option value="enterprise">Enterprise</option>' +
                 '</select>' +
             '</div>' +
@@ -2330,7 +2332,7 @@ function filterAdminCompanies() {
         const matchQ = !q || (card.dataset.search||'').includes(q);
         const matchS = !st || card.dataset.status === st;
         const c = (window._adminCompanies||[]).find(x => String(x.id) === card.dataset.id);
-        const matchP = !pl || (c && (c.plan||'free').toLowerCase() === pl);
+        const matchP = !pl || (c && (c.plan||'starter').toLowerCase() === pl);
         card.style.display = matchQ && matchS && matchP ? '' : 'none';
     });
 }
@@ -2361,13 +2363,16 @@ function _renderCoWorkspace(co, activeTab) {
     window._coWorkspaceCo = co;
 
     const planColors = {
-        free:         ['#9CA3AF','#F3F4F6'],
+        starter:      ['#0F6E56','#E1F5EE'],
         growth:       ['#185FA5','#E6F1FB'],
-        professional: ['#0F6E56','#E1F5EE'],
         enterprise:   ['#C9A84C','#FBF7E8'],
+        free:         ['#0F6E56','#E1F5EE'],
+        professional: ['#185FA5','#E6F1FB'],
     };
-    const [pc, pb] = planColors[(co.plan||'free').toLowerCase()] || planColors.free;
-    const planLabel = (co.plan||'free').charAt(0).toUpperCase() + (co.plan||'free').slice(1);
+    const _coPlanKey = (co.plan||'starter').toLowerCase();
+    const [pc, pb] = planColors[_coPlanKey] || planColors.starter;
+    const _planLabelMap = { free: 'Starter', professional: 'Growth' };
+    const planLabel = _planLabelMap[_coPlanKey] || (_coPlanKey.charAt(0).toUpperCase() + _coPlanKey.slice(1));
 
     const tabs = ['overview', 'jobs', 'candidates', 'profile'];
     const tabBtn = t => {
@@ -2440,7 +2445,11 @@ function _renderCoWorkspace(co, activeTab) {
                     <div>
                         <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:5px;">Plan</label>
                         <select id="ws-plan" style="width:100%;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;">
-                            ${['growth','professional','enterprise'].map(p => `<option value="${p}" ${(co.plan||'').toLowerCase()===p?'selected':''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`).join('')}
+                            ${[
+                                ['starter','Starter — 3,000 EGP/mo'],
+                                ['growth','Growth — 6,000 EGP/mo'],
+                                ['enterprise','Enterprise — 10,000 EGP/mo'],
+                            ].map(([v,l]) => `<option value="${v}" ${(co.plan||'').toLowerCase()===v?'selected':''}>${escHtml(l)}</option>`).join('')}
                         </select>
                     </div>
                     <div>
@@ -2491,7 +2500,7 @@ function _coWsTab(tab) {
 }
 
 async function _savePlanChanges(companyId) {
-    const plan = (document.getElementById('ws-plan') || {}).value || 'free';
+    const plan = (document.getElementById('ws-plan') || {}).value || 'starter';
     const billing = (document.getElementById('ws-billing') || {}).value || 'active';
     const expires = (document.getElementById('ws-expires') || {}).value || null;
     const extraJobs = parseInt((document.getElementById('ws-extra-jobs') || {}).value || '0') || 0;

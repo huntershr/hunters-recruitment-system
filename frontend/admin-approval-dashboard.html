@@ -1136,18 +1136,19 @@
             }
 
             const _planBadge = {
-                free:         { color:'#6B7280', bg:'#F3F4F6',  label:'Free'         },
-                growth:       { color:'#185FA5', bg:'#E6F1FB',  label:'Growth'       },
-                professional: { color:'#C9A84C', bg:'#FEF9EC',  label:'Professional' },
-                enterprise:   { color:'#A32D2D', bg:'#FCEBEB',  label:'Enterprise'   },
+                starter:      { color:'#0F6E56', bg:'#E1F5EE',  label:'Starter'    },
+                growth:       { color:'#185FA5', bg:'#E6F1FB',  label:'Growth'     },
+                enterprise:   { color:'#C9A84C', bg:'#FBF7E8',  label:'Enterprise' },
+                free:         { color:'#0F6E56', bg:'#E1F5EE',  label:'Starter'    },
+                professional: { color:'#185FA5', bg:'#E6F1FB',  label:'Growth'     },
             };
             const _contactIcons = { whatsapp:'📱', call:'📞', email:'✉️' };
 
             let html = '';
             companies.forEach(company => {
                 const createdDate = new Date(company.created_at).toLocaleDateString();
-                const plan = (company.plan || company.selected_plan || 'free').toLowerCase();
-                const badge = _planBadge[plan] || _planBadge.free;
+                const plan = (company.plan || company.selected_plan || 'starter').toLowerCase();
+                const badge = _planBadge[plan] || _planBadge.starter;
                 const billing = company.billing_preference === 'annual' ? 'Annual' : 'Monthly';
                 const phone = (company.contact_phone || '').replace(/\s/g,'');
                 const waPhone = phone.startsWith('+') ? phone : (phone.startsWith('0') ? '+2' + phone : '+20' + phone);

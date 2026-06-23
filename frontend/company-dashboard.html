@@ -5092,14 +5092,13 @@ async function _refreshInviteCounter() {
 function _updateInviteCounterBadge() {
     const el = document.getElementById('invite-counter-badge');
     if (!el || !currentCompany) return;
-    const plan = (currentCompany.selected_plan || 'free').toLowerCase();
-    const limits = { free: 10, growth: 50, professional: 150, enterprise: '∞' };
-    const limit = limits[plan] || 10;
+    const plan = (currentCompany.selected_plan || 'starter').toLowerCase();
+    const limits = { starter: 30, growth: 50, enterprise: 100, free: 30, professional: 50 };
+    const limit = limits[plan] || 30;
     const used = currentCompany.invitations_used_this_month || 0;
-    const isUnlimited = plan === 'enterprise';
-    const color = isUnlimited || used < limit * 0.8 ? '#0F6E56' : used < limit ? '#854F0B' : '#A32D2D';
+    const color = used >= limit ? '#A32D2D' : used >= limit * 0.9 ? '#854F0B' : '#0F6E56';
     el.style.color = color;
-    el.textContent = isUnlimited ? '∞ invitations' : used + ' / ' + limit + ' invitations used this month';
+    el.textContent = used + ' / ' + limit + ' invitations used this month';
     el.style.display = 'inline';
 }
 
