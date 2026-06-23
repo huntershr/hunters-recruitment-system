@@ -74,9 +74,11 @@ def create_job(job: schemas.JobSavePayload, db: Session = Depends(get_db), curre
                 models.Job.owner_id.in_(company_user_ids),
                 or_(models.Job.status == None, models.Job.status != "rejected"),
             ).scalar() or 0
-            job_limit = limits["jobs"] + (company.extra_jobs_count or 0)
+            _addon_slots = company.extra_jobs_count or 0
+            job_limit = limits["jobs"] + _addon_slots
             if active_jobs >= job_limit:
-                plan_limit_exceeded("jobs", active_jobs, job_limit, plan_key)
+                plan_limit_exceeded("jobs", active_jobs, job_limit, plan_key,
+                                    base_limit=limits["jobs"], addon_slots=_addon_slots)
     fields = _payload_to_job_fields(job)
     db_job = models.Job(**fields, owner_id=current_user.id)
     db.add(db_job)
@@ -124,9 +126,11 @@ async def upload_jobs(
                 models.Job.owner_id.in_(company_user_ids),
                 or_(models.Job.status == None, models.Job.status != "rejected"),
             ).scalar() or 0
-            job_limit = limits["jobs"] + (company.extra_jobs_count or 0)
+            _addon_slots = company.extra_jobs_count or 0
+            job_limit = limits["jobs"] + _addon_slots
             if active_jobs + len(jobs_data) > job_limit:
-                plan_limit_exceeded("jobs", active_jobs, job_limit, plan_key)
+                plan_limit_exceeded("jobs", active_jobs, job_limit, plan_key,
+                                    base_limit=limits["jobs"], addon_slots=_addon_slots)
 
     imported_count = 0
     for data in jobs_data:

@@ -4684,7 +4684,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.10"></script>
+<script src="hunters-jobs.js?v=3.11"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies
@@ -4951,7 +4951,12 @@ function showPlanLimitModal(detail) {
     const mailtoLink = 'mailto:hr@hunters-egypt.com?subject=' + encodeURIComponent('Plan Upgrade Request — ' + companyName);
     let msg = '';
     if (detail.resource === 'jobs') {
-        msg = `You've used all ${limit} job slot${limit !== 1 ? 's' : ''} on your ${planLabel} plan. Add extra job slots (+500 EGP each) or upgrade your plan to post more jobs.`;
+        const _baseLimit = detail.base_limit || limit;
+        const _addonSlots = detail.addon_slots || 0;
+        const _slotDesc = _addonSlots > 0
+            ? `${_baseLimit} base + ${_addonSlots} add-on slot${_addonSlots !== 1 ? 's' : ''}`
+            : `${_baseLimit} slot${_baseLimit !== 1 ? 's' : ''}`;
+        msg = `You've used all ${_slotDesc} on your ${planLabel} plan. Add extra job slots (+500 EGP each) or upgrade your plan to post more jobs.`;
     } else if (detail.resource === 'bulk_screenings') {
         msg = `You've used ${used} / ${limit} bulk screenings this month on your ${planLabel} plan. Your limit resets on the 1st of next month, or upgrade to get more screenings.`;
     } else if (detail.resource === 'invitations') {
@@ -4998,20 +5003,24 @@ async function loadPlanUsageBars() {
         if (!res.ok) { body.innerHTML = ''; return; }
         const u = await res.json();
         const planLabel = (u.plan || 'starter').charAt(0).toUpperCase() + (u.plan || 'starter').slice(1);
-        function _usageRow(label, used, limit) {
-            if (!limit) return '';
-            const pct = Math.round((used / limit) * 100);
+        function _usageRow(label, used, effectiveLimit, limitDisplay) {
+            if (!effectiveLimit) return '';
+            const pct = Math.round((used / effectiveLimit) * 100);
             let status, statusColor;
-            if (used >= limit) { status = 'At limit'; statusColor = '#A32D2D'; }
+            if (used >= effectiveLimit) { status = 'At limit'; statusColor = '#A32D2D'; }
             else if (pct >= 90) { status = 'Near limit'; statusColor = '#854F0B'; }
             else { status = '—'; statusColor = '#6B7280'; }
             return '<tr>' +
                 '<td style="padding:7px 10px 7px 0;font-size:13px;color:#374151;">' + label + '</td>' +
                 '<td style="padding:7px 10px;font-size:13px;color:#374151;text-align:center;">' + used + '</td>' +
-                '<td style="padding:7px 10px;font-size:13px;color:#374151;text-align:center;">' + limit + '</td>' +
+                '<td style="padding:7px 10px;font-size:13px;color:#374151;text-align:center;">' + (limitDisplay || effectiveLimit) + '</td>' +
                 '<td style="padding:7px 0 7px 10px;font-size:13px;font-weight:600;color:' + statusColor + ';text-align:right;">' + status + '</td>' +
             '</tr>';
         }
+        const _jobsAddon = u.jobs.addon_slots || 0;
+        const _jobsLimitDisplay = _jobsAddon > 0
+            ? u.jobs.base_limit + ' + ' + _jobsAddon + ' add-on' + (_jobsAddon !== 1 ? 's' : '')
+            : String(u.jobs.effective_limit || u.jobs.base_limit);
         body.innerHTML =
             '<div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;">' + planLabel + ' plan</div>' +
             '<table style="width:100%;border-collapse:collapse;">' +
@@ -5022,7 +5031,7 @@ async function loadPlanUsageBars() {
                     '<th style="padding:0 0 8px 10px;font-size:11px;font-weight:600;color:#9CA3AF;text-align:right;text-transform:uppercase;letter-spacing:0.04em;">Status</th>' +
                 '</tr></thead>' +
                 '<tbody>' +
-                    _usageRow('Jobs', u.jobs.used, u.jobs.limit) +
+                    _usageRow('Jobs', u.jobs.used, u.jobs.effective_limit || u.jobs.base_limit, _jobsLimitDisplay) +
                     _usageRow('Bulk Screenings (month)', u.bulk_screenings.used, u.bulk_screenings.limit) +
                     _usageRow('Invitations (month)', u.invitations.used, u.invitations.limit) +
                 '</tbody>' +

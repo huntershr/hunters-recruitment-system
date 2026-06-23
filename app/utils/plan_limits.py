@@ -50,14 +50,17 @@ def reset_monthly_usage_if_needed(company, db) -> None:
         db.commit()
 
 
-def plan_limit_exceeded(resource: str, used: int, limit: int, plan: str):
-    raise HTTPException(
-        status_code=403,
-        detail={
-            "error": "plan_limit_exceeded",
-            "resource": resource,
-            "used": used,
-            "limit": limit,
-            "plan": plan,
-        },
-    )
+def plan_limit_exceeded(resource: str, used: int, limit: int, plan: str,
+                        base_limit: int = None, addon_slots: int = None):
+    detail = {
+        "error": "plan_limit_exceeded",
+        "resource": resource,
+        "used": used,
+        "limit": limit,
+        "plan": plan,
+    }
+    if base_limit is not None:
+        detail["base_limit"] = base_limit
+    if addon_slots is not None:
+        detail["addon_slots"] = addon_slots
+    raise HTTPException(status_code=403, detail=detail)

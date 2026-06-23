@@ -856,12 +856,11 @@ function _formatPlanLimitMsg(detail) {
     const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
     const limit = detail.limit || 0;
     const used = detail.used || 0;
-    const _baseLimits = { starter: 3, growth: 8, enterprise: 12 };
-    const base = _baseLimits[plan] !== undefined ? _baseLimits[plan] : limit;
-    const addOns = limit - base;
     if (detail.resource === 'jobs') {
+        const base = detail.base_limit || limit;
+        const addOns = detail.addon_slots || 0;
         const limitStr = addOns > 0
-            ? `${base} jobs + ${addOns} add-on${addOns !== 1 ? 's' : ''}`
+            ? `${base} base + ${addOns} add-on slot${addOns !== 1 ? 's' : ''}`
             : `${limit} job${limit !== 1 ? 's' : ''}`;
         return `Job limit reached — you are on the ${planLabel} plan (${limitStr}). Contact Hunters to add more.`;
     }

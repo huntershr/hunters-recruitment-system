@@ -319,11 +319,14 @@ def get_company_usage(
         models.User.company_id == company_id
     ).scalar() or 0
 
+    _addon_slots = company.extra_jobs_count or 0
     return {
         "plan": plan_key,
         "jobs": {
             "used": active_jobs,
-            "limit": limits["jobs"] + (company.extra_jobs_count or 0),
+            "base_limit": limits["jobs"],
+            "addon_slots": _addon_slots,
+            "effective_limit": limits["jobs"] + _addon_slots,
         },
         "bulk_screenings": {
             "used": company.bulk_screening_used_this_month or 0,
