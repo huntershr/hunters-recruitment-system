@@ -174,6 +174,7 @@
         <div class="header">
             <img src="hunters-logo-white.jpeg" alt="Hunters for HR Transformation &amp; Execution" style="height:64px;width:auto;object-fit:contain;display:block;margin:0 auto;">
             <h1 id="job-title">Loading Job...</h1>
+            <p id="company-name" style="color:#1B2A4A;font-weight:400;font-size:0.95rem;margin:4px 0 2px;display:none;"></p>
             <p>Complete the form below to apply</p>
         </div>
         <form id="public-apply-form" onsubmit="handleApply(event)">
@@ -300,6 +301,8 @@
                 if (!res.ok) throw new Error();
                 const job = await res.json();
                 document.getElementById('job-title').innerText = job.job_title;
+                const cnEl = document.getElementById('company-name');
+                if (cnEl && job.company_name) { cnEl.textContent = job.company_name; cnEl.style.display = ''; }
             } catch (err) {
                 document.getElementById('job-title').innerText = "Job Not Found";
             }

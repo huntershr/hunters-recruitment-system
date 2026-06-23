@@ -69,7 +69,8 @@
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         }
 
-        .job-card h3 { font-size: 22px; color: var(--navy); margin-bottom: 15px; }
+        .job-card h3 { font-size: 22px; color: var(--navy); margin-bottom: 4px; }
+        .job-company-name { color: #1B2A4A; font-size: 0.85rem; font-weight: 400; margin: 2px 0 12px 0; opacity: 0.65; }
         
         .meta-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
         .tag {
@@ -152,6 +153,7 @@
                     container.innerHTML += `
                         <div class="job-card">
                             <h3>${job.job_title}</h3>
+                            ${job.company_name ? `<p class="job-company-name">${job.company_name}</p>` : ''}
                             <div class="meta-tags">
                                 <div class="tag"><i class='bx bx-map'></i> ${job.job_location || 'Location TBD'}</div>
                                 <div class="tag"><i class='bx bx-time'></i> ${job.min_experience}+ yrs</div>
