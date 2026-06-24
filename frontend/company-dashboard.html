@@ -768,30 +768,19 @@
             </select>
             <input type="text" id="job-loc-filter" oninput="renderHuntersJobs()" placeholder="Filter by location…" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; width:160px;">
             <select id="job-dept-filter" onchange="renderHuntersJobs()" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Segoe UI', Arial, sans-serif; cursor:pointer;">
-                <option value="">All Departments</option>
-                <option>Education</option>
-                <option>Human Resources</option>
-                <option>Administration &amp; Operations</option>
-                <option>Finance &amp; Accounting</option>
-                <option>Marketing &amp; Communications</option>
-                <option>Sales &amp; Business Development</option>
-                <option>Technology &amp; IT</option>
-                <option>Legal &amp; Compliance</option>
-                <option>Healthcare &amp; Medical</option>
-                <option>Engineering &amp; Technical</option>
-                <option>Customer Service</option>
-                <option>Media &amp; Production</option>
-                <option>Hospitality &amp; Tourism</option>
-                <option>Logistics &amp; Supply Chain</option>
-                <option>Research &amp; Consulting</option>
-                <option>Banking &amp; Insurance</option>
-                <option>NGO &amp; Non-Profit</option>
-                <option>Government &amp; Public Sector</option>
-                <option>Pharmaceuticals &amp; Medical Devices</option>
-                <option>Agriculture &amp; Food Production</option>
-                <option>Manufacturing &amp; Textile</option>
-                <option>Translation &amp; Interpretation</option>
-                <option>Other</option>
+                <option value="">All Industries</option>
+                <option value="Education">Education</option>
+                <option value="Finance/Accounting">Finance / Accounting</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Technology">Technology</option>
+                <option value="Manufacturing">Manufacturing</option>
+                <option value="Real Estate">Real Estate</option>
+                <option value="Retail">Retail</option>
+                <option value="Hospitality">Hospitality</option>
+                <option value="Construction">Construction</option>
+                <option value="Marketing/Advertising">Marketing / Advertising</option>
+                <option value="Legal">Legal</option>
+                <option value="Other">Other</option>
             </select>
         </div>
 
@@ -4288,32 +4277,21 @@
                 <!-- STEP 1 -->
                 <div id="job-step-1">
                     <div style="margin-bottom:16px;">
-                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Department <span style="color:#A32D2D;">*</span></label>
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Industry <span style="color:#A32D2D;">*</span></label>
                         <select id="job-modal-department" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
-                            <option value="">— Select Department —</option>
-                            <option>Education</option>
-                            <option>Human Resources</option>
-                            <option>Administration &amp; Operations</option>
-                            <option>Finance &amp; Accounting</option>
-                            <option>Marketing &amp; Communications</option>
-                            <option>Sales &amp; Business Development</option>
-                            <option>Technology &amp; IT</option>
-                            <option>Legal &amp; Compliance</option>
-                            <option>Healthcare &amp; Medical</option>
-                            <option>Engineering &amp; Technical</option>
-                            <option>Customer Service</option>
-                            <option>Media &amp; Production</option>
-                            <option>Hospitality &amp; Tourism</option>
-                            <option>Logistics &amp; Supply Chain</option>
-                            <option>Research &amp; Consulting</option>
-                            <option>Banking &amp; Insurance</option>
-                            <option>NGO &amp; Non-Profit</option>
-                            <option>Government &amp; Public Sector</option>
-                            <option>Pharmaceuticals &amp; Medical Devices</option>
-                            <option>Agriculture &amp; Food Production</option>
-                            <option>Manufacturing &amp; Textile</option>
-                            <option>Translation &amp; Interpretation</option>
-                            <option>Other</option>
+                            <option value="">Select Industry</option>
+                            <option value="Education">Education</option>
+                            <option value="Finance/Accounting">Finance / Accounting</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Manufacturing">Manufacturing</option>
+                            <option value="Real Estate">Real Estate</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Hospitality">Hospitality</option>
+                            <option value="Construction">Construction</option>
+                            <option value="Marketing/Advertising">Marketing / Advertising</option>
+                            <option value="Legal">Legal</option>
+                            <option value="Other">Other</option>
                         </select>
                     </div>
                     <div style="display:flex; gap:16px; margin-bottom:16px;">
@@ -4684,7 +4662,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.12"></script>
+<script src="hunters-jobs.js?v=3.13"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies

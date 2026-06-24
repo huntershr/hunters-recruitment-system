@@ -351,7 +351,7 @@ function renderJobs() {
     }
 
     // Group by department
-    const deptOrder = ['Education','Human Resources','Administration & Operations','Finance & Accounting','Marketing & Communications','Sales & Business Development','Technology & IT','Legal & Compliance','Healthcare & Medical','Engineering & Technical','Customer Service','Media & Production','Hospitality & Tourism','Logistics & Supply Chain','Research & Consulting','Banking & Insurance','NGO & Non-Profit','Government & Public Sector','Pharmaceuticals & Medical Devices','Agriculture & Food Production','Manufacturing & Textile','Translation & Interpretation','Other'];
+    const deptOrder = ['Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Other'];
     const groups = {};
     filtered.forEach(j => {
         const d = j.department || 'Other';
@@ -407,7 +407,7 @@ function renderJobs() {
                             </div>
                         </div>
                         <div style="margin-top:6px;margin-bottom:2px;">
-                            <span style="background:#FFF3D4;color:#8B6000;border:0.5px solid #C9A84C;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;">${j.department || 'Other'}</span>
+                            <span style="background:#FFF3D4;color:#8B6000;border:0.5px solid #C9A84C;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;">${(j.department || 'Other').replace('/', ' / ')}</span>
                         </div>
                         <div class="job-meta">
                             <p><i class='bx bx-money'></i> ${salary}</p>
@@ -460,7 +460,7 @@ function renderJobs() {
         });
     }
 
-    sortedDepts.forEach(d => renderGroup(groups[d], d));
+    sortedDepts.forEach(d => renderGroup(groups[d], d.replace('/', ' / ')));
 }
 
 function copyPublicLink(id) {
@@ -1851,7 +1851,10 @@ function editJob(id) {
 
     // Fill form
     const deptEl = document.getElementById("manual-job-department");
-    if (deptEl) deptEl.value = job.department || 'Other';
+    if (deptEl) {
+        const _knownInds = ['Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Other'];
+        deptEl.value = _knownInds.includes(job.department) ? job.department : 'Other';
+    }
     document.getElementById("manual-job-title").value = job.job_title;
     document.getElementById("manual-job-location").value = job.job_location || '';
     document.getElementById("manual-job-exp").value = job.min_experience;
@@ -1920,7 +1923,7 @@ async function handleJobManualCreate(event) {
         };
 
         if (!payload.department || payload.department === '') {
-            showToast('Please select a department', 'error');
+            showToast('Please select an industry', 'error');
             return;
         }
         if (!payload.title) {
@@ -2289,6 +2292,7 @@ function renderAdminCompaniesTable(companies) {
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:14px;font-weight:600;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(c.name||'—')}</div>
                     <div style="font-size:11px;color:#9CA3AF;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(c.admin_email||c.email||'')}</div>
+                    ${c.phone?`<div style="font-size:11px;margin-top:2px;"><a href="https://wa.me/${c.phone.replace(/\D/g,'')}" target="_blank" style="color:#25D366;text-decoration:none;">📞 ${escHtml(c.phone)}</a></div>`:''}
                     <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">${statusBadge(c.status)} ${planBadge(c.plan)}</div>
                 </div>
             </div>
@@ -2444,7 +2448,7 @@ function _renderCoWorkspace(co, activeTab) {
             <div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:20px;margin-bottom:16px;">
                 <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px;">Company Info</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;">
-                    ${[['Name', co.name],['Email',co.email],['Website',co.website||'—'],['Reg. No.',co.registration_number||'—'],['Admin',co.admin_name||'—'],['Admin Email',co.admin_email||'—'],['Status',co.status],['Registered',co.created_at?new Date(co.created_at).toLocaleDateString('en-GB'):'—']].map(([l,v])=>`<div><div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">${l}</div><div style="color:#1B2A4A;">${escHtml(String(v||'—'))}</div></div>`).join('')}
+                    ${[['Name', co.name],['Email',co.email],['Phone',co.contact_phone||''],['Website',co.website||'—'],['Reg. No.',co.registration_number||'—'],['Admin',co.admin_name||'—'],['Admin Email',co.admin_email||'—'],['Status',co.status],['Registered',co.created_at?new Date(co.created_at).toLocaleDateString('en-GB'):'—']].map(([l,v])=>`<div><div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">${l}</div><div style="color:#1B2A4A;">${l==='Phone'&&v?`<a href="https://wa.me/${v.replace(/\D/g,'')}" target="_blank" style="color:#25D366;text-decoration:none;">${escHtml(v)}</a>`:escHtml(String(v||'—'))}</div></div>`).join('')}
                 </div>
             </div>
             <div style="background:#fff;border-radius:12px;border:1px solid #C9A84C;padding:20px;">
@@ -2668,10 +2672,10 @@ function _coWsJobFormModal(job, companyId) {
     const html = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             <div style="grid-column:span 2;">
-                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Department *</label>
+                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Industry *</label>
                 <select id="cj-department" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
-                    <option value="">— Select Department —</option>
-                    ${['Education','Human Resources','Administration & Operations','Finance & Accounting','Marketing & Communications','Sales & Business Development','Technology & IT','Legal & Compliance','Healthcare & Medical','Engineering & Technical','Customer Service','Media & Production','Hospitality & Tourism','Logistics & Supply Chain','Research & Consulting','Banking & Insurance','NGO & Non-Profit','Government & Public Sector','Pharmaceuticals & Medical Devices','Agriculture & Food Production','Manufacturing & Textile','Translation & Interpretation','Other'].map(d=>`<option value="${d}"${(job&&job.department===d)||(!job&&d==='Other')?'selected':''}>${d}</option>`).join('')}
+                    <option value="">Select Industry</option>
+                    ${[['Education','Education'],['Finance/Accounting','Finance / Accounting'],['Healthcare','Healthcare'],['Technology','Technology'],['Manufacturing','Manufacturing'],['Real Estate','Real Estate'],['Retail','Retail'],['Hospitality','Hospitality'],['Construction','Construction'],['Marketing/Advertising','Marketing / Advertising'],['Legal','Legal'],['Other','Other']].map(([v,l])=>`<option value="${v}"${(job?job.department===v||(!['Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal'].includes(job.department)&&v==='Other'):v==='Other')?'selected':''}>${l}</option>`).join('')}
                 </select>
             </div>
             <div style="grid-column:span 2;">
@@ -3328,10 +3332,10 @@ function viewCompanyAdmin(companyId) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             ${[
                 ['Company Name', c.name], ['Email', c.email],
-                ['Website', c.website], ['Reg. Number', c.registration_number],
-                ['Status', c.status], ['Admin User', c.admin_name],
-                ['Admin Email', c.admin_email], ['Total Jobs', c.job_count],
-                ['Total Candidates', c.candidate_count],
+                ['Phone', c.phone||'—'], ['Website', c.website],
+                ['Reg. Number', c.registration_number], ['Status', c.status],
+                ['Admin User', c.admin_name], ['Admin Email', c.admin_email],
+                ['Total Jobs', c.job_count], ['Total Candidates', c.candidate_count],
                 ['Registered', c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—'],
             ].map(([label,val]) => `<div>
                 <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">${label}</div>

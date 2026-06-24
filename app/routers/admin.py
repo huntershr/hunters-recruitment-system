@@ -272,6 +272,7 @@ def get_all_companies_full(
             c.plan_expires_at,
             c.logo_url,
             c.extra_jobs_count,
+            c.contact_phone,
             MIN(u.id)         AS admin_user_id,
             MIN(u.email)      AS admin_email,
             MIN(u.full_name)  AS admin_name,
@@ -287,7 +288,7 @@ def get_all_companies_full(
         LEFT JOIN applications ap ON ap.job_id = j.id
         GROUP BY c.id, c.company_name, c.company_email, c.company_website,
                  c.registration_number, c.is_approved, c.created_at,
-                 c.plan, c.selected_plan, c.billing_status, c.plan_expires_at, c.logo_url, c.extra_jobs_count
+                 c.plan, c.selected_plan, c.billing_status, c.plan_expires_at, c.logo_url, c.extra_jobs_count, c.contact_phone
         ORDER BY c.created_at DESC
     """)).fetchall()
     return [
@@ -298,7 +299,7 @@ def get_all_companies_full(
             "website": r.company_website or "",
             "registration_number": r.registration_number or "",
             "industry": "",
-            "phone": "",
+            "phone": r.contact_phone or "",
             "country": "",
             "status": "approved" if r.is_approved else "pending",
             "is_approved": r.is_approved,
@@ -458,6 +459,7 @@ def get_company_overview(
         "email": company.company_email or "",
         "website": company.company_website or "",
         "registration_number": company.registration_number or "",
+        "contact_phone": company.contact_phone or "",
         "status": _status(company),
         "is_approved": company.is_approved,
         "created_at": company.created_at.isoformat() if company.created_at else "",
