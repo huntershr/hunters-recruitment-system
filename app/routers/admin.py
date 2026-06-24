@@ -11,7 +11,7 @@ import logging
 
 from .. import models, database
 from ..routers.auth import get_current_user
-from ..services.ai_evaluator import evaluate_candidate, finalize_evaluation
+from ..services.ai_evaluator import evaluate_candidate, finalize_evaluation, extract_candidate_info
 
 _logger = logging.getLogger(__name__)
 
@@ -1355,11 +1355,65 @@ def rescreen_pending(
             _logger.error(f"Rescreen failed for eval {ev.id}: {e}")
             failed += 1
 
+    # ── Pass 3: Extract ATS profiles for candidates with empty profiles ─────────
+    candidates_empty = (
+        db.query(models.Candidate)
+        .filter(
+            models.Candidate.last_title.is_(None),
+            models.Candidate.cv_text.isnot(None),
+            models.Candidate.cv_text != "",
+        )
+        .limit(10)
+        .all()
+    )
+
+    profiles_extracted = 0
+    profiles_failed = 0
+
+    for cand in candidates_empty:
+        try:
+            info = extract_candidate_info(cand.cv_text)
+            if not (
+                info.get("last_title") or info.get("skills")
+                or info.get("summary") or info.get("experiences")
+            ):
+                _logger.warning(f"extract_candidate_info returned empty result for candidate {cand.id}")
+                profiles_failed += 1
+                continue
+            if not cand.last_title:
+                cand.last_title = info.get("last_title") or None
+            if not cand.last_employer:
+                cand.last_employer = info.get("last_employer") or None
+            if not cand.skills:
+                cand.skills = info.get("skills") or None
+            if not cand.education:
+                cand.education = info.get("education") or None
+            if not cand.summary:
+                cand.summary = info.get("summary") or None
+            if not cand.experiences:
+                cand.experiences = info.get("experiences") or None
+            if not cand.education_history:
+                cand.education_history = info.get("education_history") or None
+            if not cand.languages:
+                cand.languages = info.get("languages") or None
+            if not cand.experience_years or cand.experience_years == 0:
+                cand.experience_years = int(info.get("experience_years") or 0)
+            db.commit()
+            profiles_extracted += 1
+            _logger.info(f"ATS profile extracted for candidate {cand.id}")
+        except Exception as e:
+            db.rollback()
+            _logger.error(f"ATS extraction failed for candidate {cand.id}: {e}")
+            profiles_failed += 1
+
     return {
         "created": created,
         "rescreened": rescreened,
         "failed": failed,
+        "profiles_extracted": profiles_extracted,
+        "profiles_failed": profiles_failed,
         "apps_missing_eval_found": len(apps_missing),
+        "profiles_empty_found": len(candidates_empty),
     }
 
 

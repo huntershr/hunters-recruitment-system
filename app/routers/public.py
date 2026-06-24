@@ -93,7 +93,30 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
             logger.error(f"Job {application.job_id} not found for application {application_id}")
             return
 
-        info = extract_candidate_info(cv_text)
+        _info = None
+        for _ext_attempt in range(3):
+            try:
+                _result = extract_candidate_info(cv_text)
+                if _result and (
+                    _result.get("last_title") or _result.get("skills")
+                    or _result.get("summary") or _result.get("experiences")
+                ):
+                    _info = _result
+                    break
+            except Exception as _ext_err:
+                logger.warning(
+                    f"ATS extraction attempt {_ext_attempt + 1}/3 failed "
+                    f"for application {application_id}: {_ext_err}"
+                )
+            if _ext_attempt < 2:
+                time.sleep(5)
+
+        if _info is None:
+            logger.error(
+                f"ATS extraction produced empty profile for application {application_id} "
+                f"(candidate {application.candidate_id}) — will be picked up by rescreen-pending"
+            )
+        info = _info or {}
 
         # Write extracted ATS fields back to the Candidate row (additive — never overwrites populated values)
         if application.candidate_id:
@@ -334,6 +357,12 @@ async def public_apply(
         raise HTTPException(
             status_code=422,
             detail="Your CV could not be read — it may be a scanned image or a protected file. Please save it as a text-based PDF or upload a .docx file.",
+        )
+    _cv_len = len(cv_text.strip())
+    if _cv_len < 50:
+        logger.warning(
+            f"CV text for job {job_id} application from {email!r} is very short "
+            f"({_cv_len} chars) — ATS profile extraction may produce empty results"
         )
 
     # Resolve MIME type for original file storage
