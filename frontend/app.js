@@ -1741,9 +1741,11 @@ async function handleLogin(event) {
     const password = document.getElementById("login-password").value;
     const btn = event.submitter;
 
-    // Hide previous error
+    // Hide previous error/status messages
     const loginErrDiv = document.getElementById('login-error');
     if (loginErrDiv) loginErrDiv.style.display = 'none';
+    const loginPendDiv = document.getElementById('login-pending');
+    if (loginPendDiv) loginPendDiv.style.display = 'none';
 
     btn.disabled = true;
     btn.innerText = "Authenticating...";
@@ -1760,14 +1762,23 @@ async function handleLogin(event) {
 
         if (!response.ok) {
             let errorMessage = "Invalid email or password";
+            let pendingApproval = false;
             try {
                 const errorData = await response.json();
-                if (response.status === 403 && errorData.detail && errorData.detail.includes("pending approval")) {
+                if (response.status === 403 && errorData.detail === 'pending_approval') {
+                    pendingApproval = true;
+                } else if (response.status === 403 && errorData.detail && errorData.detail.includes("pending approval")) {
                     throw new Error("⏳ Waiting for Admin's Approval\n\nYour company registration is pending administrator approval. We'll notify you as soon as you're approved!");
+                } else {
+                    errorMessage = errorData.detail || "Login failed";
                 }
-                errorMessage = errorData.detail || "Login failed";
             } catch (e) {
                 if (e.message.includes("pending approval")) throw e;
+            }
+            if (pendingApproval) {
+                const pd = document.getElementById('login-pending');
+                if (pd) pd.style.display = 'block';
+                return;
             }
             throw new Error(errorMessage);
         }

@@ -119,6 +119,14 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     
     # Check if user is active (for company users, must wait for approval)
     if not user.is_active:
+        # Gift/pilot registrations: billing_status='pending' → distinct frontend message
+        if user.company_id:
+            company = db.query(models.Company).filter(models.Company.id == user.company_id).first()
+            if company and company.billing_status == 'pending':
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="pending_approval",
+                )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account is pending approval from an administrator. Please check back soon!",
@@ -311,3 +319,66 @@ def reset_password(data: dict, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Password updated successfully"}
+
+
+@router.post("/validate-gift-code")
+def validate_gift_code(body: schemas.GiftCodeRequest):
+    gift_code = os.environ.get("GIFT_CODE", "HUNTERS2026")
+    if (body.code or "").strip().upper() == gift_code.upper():
+        return {"valid": True}
+    return {
+        "valid": False,
+        "message": "Invalid gift code. Please contact hr@hunters-egypt.com to request access.",
+    }
+
+
+@router.post("/register-with-gift", response_model=schemas.CompanyResponse)
+def register_with_gift(data: schemas.CompanyGiftRegister, db: Session = Depends(get_db)):
+    # Server-side gift code re-validation
+    gift_code = os.environ.get("GIFT_CODE", "HUNTERS2026")
+    if (data.gift_code or "").strip().upper() != gift_code.upper():
+        raise HTTPException(status_code=400, detail="Invalid gift code")
+
+    company_email = (data.company_email or "").strip().lower()
+    existing = db.query(models.Company).filter(
+        func.lower(models.Company.company_email) == company_email
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user_email = (data.contact_email or "").strip().lower()
+    existing_user = db.query(models.User).filter(func.lower(models.User.email) == user_email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="User email already registered")
+
+    new_company = models.Company(
+        company_name=data.company_name,
+        company_email=company_email,
+        company_website=data.company_website,
+        registration_number=data.registration_number,
+        is_approved=False,
+        selected_plan="starter",
+        billing_status="pending",
+        billing_preference="monthly",
+        contact_phone=data.contact_phone,
+        preferred_contact=data.preferred_contact or "whatsapp",
+    )
+    db.add(new_company)
+    db.commit()
+    db.refresh(new_company)
+
+    hashed_password = get_password_hash(data.password)
+    new_user = models.User(
+        email=user_email,
+        hashed_password=hashed_password,
+        full_name=data.contact_person,
+        is_admin=False,
+        company_id=new_company.id,
+        is_active=False,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_company)
+
+    logger.info("Gift registration: company=%s email=%s", data.company_name, company_email)
+    return new_company

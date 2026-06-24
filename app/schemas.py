@@ -43,6 +43,21 @@ class CompanyUpdate(BaseModel):
     registration_number: Optional[str] = None
     logo_url: Optional[str] = None
 
+class GiftCodeRequest(BaseModel):
+    code: str
+
+class CompanyGiftRegister(BaseModel):
+    company_name: str
+    company_email: EmailStr
+    company_website: Optional[str] = None
+    registration_number: Optional[str] = None
+    contact_person: str
+    contact_email: EmailStr
+    password: str
+    gift_code: str
+    contact_phone: Optional[str] = None
+    preferred_contact: Optional[str] = "whatsapp"
+
 # Auth Schemas
 class Token(BaseModel):
     access_token: str
