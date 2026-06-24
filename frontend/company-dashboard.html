@@ -4112,9 +4112,10 @@
         const fill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
         fill('job-modal-title-input', window._cdAIJobTitle    || '');
         fill('job-modal-desc',        job.job_brief);
-        fill('job-modal-skills',      job.required_skills);
-        fill('job-modal-nice',        job.nice_to_have);
-        fill('job-modal-behavioral',  job.behavioral_skills);
+        const toLines = v => (v||'').split(',').map(s=>s.trim()).filter(Boolean).join('\n');
+        fill('job-modal-skills',     toLines(job.required_skills));
+        fill('job-modal-nice',       toLines(job.nice_to_have));
+        fill('job-modal-behavioral', toLines(job.behavioral_skills));
         gotoJobStep_withFormToggle(1);
         showToast('AI filled Job Brief and Skills — complete the remaining fields and set scoring weights', 'success');
     }
@@ -4361,24 +4362,23 @@
                     </div>
 
                     <div style="margin-bottom:16px;">
-                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Required Skills (comma separated)</label>
-                        <input type="text" id="job-modal-skills" required placeholder="e.g. React, Python, Communication" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;" oninput="renderEssentialSkillChips()" onblur="renderEssentialSkillChips()">
-                        <div id="essential-skills-panel" style="display:none; margin-top:10px; padding:10px 12px; background:#FFF8F0; border:1px solid #F3D9B0; border-radius:8px;">
-                            <div style="font-size:11px; font-weight:600; color:#854F0B; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                                <span>★</span> Mark Essential Skills <span style="font-weight:400; color:#9CA3AF;">(gate: missing any = auto-Reject)</span>
-                            </div>
-                            <div id="essential-skills-chips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-                        </div>
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Required Skills <span style="font-size:11px; color:#9CA3AF;">(one per line)</span></label>
+                        <textarea id="job-modal-skills" required rows="4" placeholder="e.g.&#10;React&#10;Python&#10;Communication" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
                     </div>
 
                     <div style="margin-bottom:16px;">
-                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Nice to Have Skills <span style="font-size:11px; color:#9CA3AF;">(optional)</span></label>
-                        <input type="text" id="job-modal-nice" placeholder="e.g. Arabic fluency, SAP" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Nice to Have Skills <span style="font-size:11px; color:#9CA3AF;">(optional, one per line)</span></label>
+                        <textarea id="job-modal-nice" rows="3" placeholder="e.g.&#10;Arabic fluency&#10;SAP" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
                     </div>
 
                     <div style="margin-bottom:16px;">
-                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Behavioral Skills <span style="font-size:11px; color:#9CA3AF;">(optional)</span></label>
-                        <input type="text" id="job-modal-behavioral" placeholder="e.g. communication, teamwork, adaptability" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Behavioral Skills <span style="font-size:11px; color:#9CA3AF;">(optional, one per line)</span></label>
+                        <textarea id="job-modal-behavioral" rows="3" placeholder="e.g.&#10;Communication&#10;Teamwork&#10;Adaptability" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Education Level <span style="font-size:11px; color:#9CA3AF;">(optional)</span></label>
+                        <input type="text" id="job-modal-edu" placeholder="e.g. Bachelor's Degree" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
                     </div>
 
                     <div style="display:flex; justify-content:space-between;">
@@ -4662,7 +4662,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.13"></script>
+<script src="hunters-jobs.js?v=3.14"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies

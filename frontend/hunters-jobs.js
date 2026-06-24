@@ -679,11 +679,14 @@ function openEditJobModal(id) {
     document.getElementById('job-modal-salary-min').value = job.salary_min || '';
     document.getElementById('job-modal-salary-max').value = job.salary_max || '';
     document.getElementById('job-modal-desc').value = job.description || '';
-    document.getElementById('job-modal-skills').value = job.required_skills || '';
+    const toLines = v => (v||'').split(',').map(s=>s.trim()).filter(Boolean).join('\n');
+    document.getElementById('job-modal-skills').value = toLines(job.required_skills);
     const niceEl = document.getElementById('job-modal-nice');
-    if (niceEl) niceEl.value = job.nice_to_have_skills || '';
+    if (niceEl) niceEl.value = toLines(job.nice_to_have_skills);
     const behavEl = document.getElementById('job-modal-behavioral');
-    if (behavEl) behavEl.value = job.behavioral_skills || '';
+    if (behavEl) behavEl.value = toLines(job.behavioral_skills);
+    const eduEl = document.getElementById('job-modal-edu');
+    if (eduEl) eduEl.value = job.education_level || '';
     
     if (huntersIsAdmin) {
         document.getElementById('admin-company-selector-wrapper').style.display = 'block';
@@ -702,9 +705,6 @@ function openEditJobModal(id) {
             updateHuntersWeights();
         } catch(e) {}
     }
-    // Populate essential skills from saved job
-    _loadEssentialSkills(job.essential_skills || []);
-
     // Populate agent scoring weights (fall back to 25 if not set)
     const aw = job.agent_weights || {};
     const _setAw = (id, key) => { const el = document.getElementById(id); if (el) el.value = aw[key] ?? 25; };
@@ -772,49 +772,6 @@ function updateHuntersWeights() {
         badge.style.color = '#A32D2D';
         badge.innerText += ' ✗';
     }
-}
-
-// ── Essential Skills ──────────────────────────────────────────────────────────
-var _essentialSkillsSet = new Set();
-
-function renderEssentialSkillChips() {
-    var input  = document.getElementById('job-modal-skills');
-    var panel  = document.getElementById('essential-skills-panel');
-    var chips  = document.getElementById('essential-skills-chips');
-    if (!input || !panel || !chips) return;
-    var skills = (input.value || '').split(',').map(s => s.trim()).filter(Boolean);
-    if (!skills.length) { panel.style.display = 'none'; return; }
-    panel.style.display = 'block';
-    // Remove stale essential entries no longer in the skills list
-    _essentialSkillsSet.forEach(function(s) {
-        if (!skills.includes(s)) _essentialSkillsSet.delete(s);
-    });
-    chips.innerHTML = skills.map(function(s) {
-        var isEssential = _essentialSkillsSet.has(s);
-        return '<button type="button" onclick="toggleEssentialSkill(' + JSON.stringify(s) + ')" '
-            + 'style="border:1px solid ' + (isEssential ? '#CC2B2B' : '#E5E7EB') + ';'
-            + 'background:' + (isEssential ? '#FEF2F2' : '#F9FAFB') + ';'
-            + 'color:' + (isEssential ? '#CC2B2B' : '#6B7280') + ';'
-            + 'border-radius:20px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;'
-            + 'display:inline-flex;align-items:center;gap:4px;">'
-            + '<span>' + (isEssential ? '★' : '☆') + '</span>'
-            + escHtml(s) + '</button>';
-    }).join('');
-}
-
-function toggleEssentialSkill(skill) {
-    if (_essentialSkillsSet.has(skill)) _essentialSkillsSet.delete(skill);
-    else _essentialSkillsSet.add(skill);
-    renderEssentialSkillChips();
-}
-
-function _getEssentialSkills() {
-    return Array.from(_essentialSkillsSet);
-}
-
-function _loadEssentialSkills(list) {
-    _essentialSkillsSet = new Set(Array.isArray(list) ? list : []);
-    renderEssentialSkillChips();
 }
 
 function toggleAgentWeights() {
@@ -934,12 +891,12 @@ async function saveHuntersJob(e) {
         salary_min: parseInt(document.getElementById('job-modal-salary-min').value) || null,
         salary_max: parseInt(document.getElementById('job-modal-salary-max').value) || null,
         description: document.getElementById('job-modal-desc').value,
-        required_skills: document.getElementById('job-modal-skills').value,
-        nice_to_have_skills: (document.getElementById('job-modal-nice')?.value || '').trim() || null,
-        behavioral_skills: (document.getElementById('job-modal-behavioral')?.value || '').trim() || null,
+        required_skills: (document.getElementById('job-modal-skills').value||'').split('\n').map(s=>s.trim()).filter(Boolean).join(', '),
+        nice_to_have_skills: ((document.getElementById('job-modal-nice')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean).join(', '))||null,
+        behavioral_skills: ((document.getElementById('job-modal-behavioral')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean).join(', '))||null,
+        education_level: (document.getElementById('job-modal-edu')?.value||'').trim()||null,
         ai_weights: { experience: exp, skills: skills, education: edu, behavioral: behav },
         agent_weights: _getAgentWeights(),
-        essential_skills: _getEssentialSkills(),
         hide_salary: hideSal ? !!hideSal.checked : false,
     };
 
