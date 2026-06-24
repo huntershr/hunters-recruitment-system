@@ -1143,6 +1143,7 @@ def list_admin_applications(
             "gaps_ar": evaluation.gaps_ar if evaluation else None,
             "interview_questions_ar": evaluation.interview_questions_ar if evaluation else None,
             "quick_facts": evaluation.quick_facts if evaluation else None,
+            "dimension_scores": evaluation.dimension_scores if evaluation else None,
             "stage": app.stage or "Applied",
             "applied_at": app.created_at.isoformat() if app.created_at else None,
             "evaluation_id": evaluation.id if evaluation else None,

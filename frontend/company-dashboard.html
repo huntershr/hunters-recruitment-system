@@ -2966,6 +2966,7 @@
         const app = window._lastCoApp;
         if (!app) { showToast('Application data not found.', 'error'); return; }
 
+        const ds = (typeof app.dimension_scores === 'object' && app.dimension_scores) ? app.dimension_scores : {};
         const printPct = formatScore(app.score);
         const printStrengths = parseListField(app.strengths).map(s => '• ' + s).join('<br>') || (app.strengths || '—');
         const printWeaknesses = parseListField(app.weaknesses).map(s => '• ' + s).join('<br>') || (app.weaknesses || '—');
@@ -3006,10 +3007,11 @@
             '<div class="grid"><div class="label">Screening Date</div><div>' + new Date().toLocaleDateString() + '</div></div>' +
             '<div class="grid"><div class="label">Years of Experience</div><div>' + (app.experience_years != null ? app.experience_years : '—') + '</div></div>' +
             '<div class="section-title">COMPETENCY SCORING</div>' +
-            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Metric</div><div class="label">Notes / Details</div><div class="label">AI Score</div></div>' +
-            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Experience Weight: ' + (app.weight_experience != null ? app.weight_experience + '%' : '—') + '</div><div>Verified against JD requirements</div><div>' + (app.score_experience != null ? app.score_experience + '%' : '-') + '</div></div>' +
-            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Skills Weight: ' + (app.weight_skills != null ? app.weight_skills + '%' : '—') + '</div><div>AI analysis of core technologies</div><div>' + (app.score_skills != null ? app.score_skills + '%' : '-') + '</div></div>' +
-            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Education Weight: ' + (app.weight_education != null ? app.weight_education + '%' : '—') + '</div><div>Academic background alignment</div><div>' + (app.score_education != null ? app.score_education + '%' : '-') + '</div></div>' +
+            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Dimension</div><div class="label">Notes / Details</div><div class="label">AI Score</div></div>' +
+            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Experience</div><div>Years in role vs. job requirement</div><div>' + (ds.years_of_experience != null ? ds.years_of_experience + '%' : '-') + '</div></div>' +
+            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Skills</div><div>Core skills match</div><div>' + (ds.skills_match != null ? ds.skills_match + '%' : '-') + '</div></div>' +
+            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Industry</div><div>Sector / curriculum alignment</div><div>' + (ds.industry_match != null ? ds.industry_match + '%' : '-') + '</div></div>' +
+            '<div class="grid" style="grid-template-columns:1fr 1fr 100px;"><div class="label">Job Title Match</div><div>Title match vs. required role</div><div>' + (ds.job_title_match != null ? ds.job_title_match + '%' : '-') + '</div></div>' +
             '<div class="score-summary">SCORE SUMMARY</div>' +
             '<div class="grid"><div class="label">Weighted AI Score</div><div style="font-size:24px;font-weight:500;color:#1B2A4A;">' + (printPct != null ? printPct + '%' : '—') + '</div></div>' +
             '<div class="section-title">AUTO DECISION ENGINE</div>' +
@@ -4721,7 +4723,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.18"></script>
+<script src="hunters-jobs.js?v=3.19"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies

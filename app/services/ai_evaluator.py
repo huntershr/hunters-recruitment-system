@@ -105,6 +105,19 @@ def finalize_evaluation(parsed: dict) -> dict:
     elif "reject" in dl and pct >= 75:
         dec = _adjust("Maybe", "Reject score>=75", "Reject decision contradicts high score")
 
+    # Normalize dimension_scores → score_breakdown so all write paths populate the
+    # legacy score_experience/score_skills/score_education/score_behavioral columns.
+    # Mapping: years_of_experience→experience, skills_match→skills,
+    #          industry_match→education, job_title_match→behavioral.
+    # (Column names are legacy; labels in the UI are updated separately.)
+    ds = out.get("dimension_scores") or {}
+    out["score_breakdown"] = {
+        "experience": ds.get("years_of_experience"),
+        "skills":     ds.get("skills_match"),
+        "education":  ds.get("industry_match"),
+        "behavioral": ds.get("job_title_match"),
+    }
+
     return out
 
 def generate_job_details(job_title: str, industry_background: str, additional_context: str = "") -> dict:
