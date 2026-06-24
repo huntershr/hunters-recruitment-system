@@ -1743,7 +1743,7 @@
         </div>
     </div>
 </div>
-<script src="hunters-jobs.js?v=6"></script>
+<script src="hunters-jobs.js?v=7"></script>
 <script>
 /* ── Voice Screenings Admin Tab ── */
 var _vsAllData = [];
@@ -2027,6 +2027,22 @@ function _renderShadowTable(rows) {
             html += '<div><div style="font-size:12px;font-weight:700;color:#CC2B2B;letter-spacing:.02em;">GATE-REJECTED — essential skill missing</div>';
             html += '<div style="font-size:11px;color:#7F1D1D;margin-top:3px;">' + escHtml(r.gate_reason || '') + '</div>';
             html += '<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">Weighted score below is real — recommendation overridden by gate.</div></div>';
+            html += '</div>';
+        }
+
+        // Wording mismatch flag — amber notice when strong title/industry/exp but weak skills, and gate did not fire
+        if (!r.gate_triggered && dim.titleMatch >= 70 && dim.industryMatch >= 70 && dim.experienceMatch >= 70 && dim.skillsMatch < 40 && missedSkills.length) {
+            html += '<div style="background:#FEF9EC;border:1px solid #C9A84C;border-radius:8px;padding:12px 14px;margin-bottom:14px;">';
+            html += '<div style="display:flex;align-items:flex-start;gap:10px;">';
+            html += '<span style="font-size:16px;line-height:1.2;flex-shrink:0;">⚠️</span>';
+            html += '<div style="flex:1;">';
+            html += '<div style="font-size:12px;font-weight:700;color:#854F0B;letter-spacing:.02em;margin-bottom:5px;">POSSIBLE WORDING MISMATCH</div>';
+            html += '<div style="font-size:12px;color:#854F0B;line-height:1.5;margin-bottom:10px;">Possible wording mismatch — this candidate scores well on title, industry, and experience but has low skills match. Review their CV to check if they describe required skills using different terminology. If so, add the phrase to the synonym map.</div>';
+            html += '<div style="font-size:10px;font-weight:700;color:#854F0B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Skills to review:</div>';
+            missedSkills.forEach(function(s) {
+                html += '<div style="font-size:11px;color:#854F0B;padding:4px 0 4px 10px;border-left:2px solid #C9A84C;margin-bottom:4px;">Does the candidate\'s CV describe <strong>&ldquo;' + escHtml(s) + '&rdquo;</strong> using different words?</div>';
+            });
+            html += '</div></div>';
             html += '</div>';
         }
 
