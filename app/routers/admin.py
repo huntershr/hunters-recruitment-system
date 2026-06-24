@@ -759,7 +759,8 @@ def get_all_users(
                 defer(models.Candidate.cv_file_data)
             ),
         )
-        .limit(200)
+        .order_by(models.User.is_admin.desc(), models.User.company_id.isnot(None).desc(), models.User.id.asc())
+        .limit(2000)
         .all()
     )
     result = []
