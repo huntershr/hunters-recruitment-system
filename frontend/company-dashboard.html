@@ -1933,8 +1933,11 @@
             let scoreVal = formatScore(rawScore);
             // Treat 0 as failed evaluation, not a real score
             if (scoreVal === 0) scoreVal = null;
+            const _isPendingReview = (cand.decision || '').toLowerCase() === 'pending review';
             let scoreHTML;
-            if (scoreVal !== null) {
+            if (_isPendingReview) {
+                scoreHTML = `<span style="background:#FAEEDA;color:#854F0B;padding:4px 10px;border-radius:10px;font-size:11px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">⚠ Screening pending — review manually</span>`;
+            } else if (scoreVal !== null) {
                 const bg  = scoreVal >= 75 ? '#E1F5EE' : scoreVal >= 50 ? '#FAEEDA' : '#FCEBEB';
                 const col = scoreVal >= 75 ? '#0F6E56' : scoreVal >= 50 ? '#854F0B' : '#A32D2D';
                 scoreHTML = `<span style="background:${bg}; color:${col}; padding:5px 10px; border-radius:12px; font-size:12px; font-weight:600; white-space:nowrap;">${scoreVal}%</span>`;
@@ -4662,7 +4665,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.16"></script>
+<script src="hunters-jobs.js?v=3.17"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies

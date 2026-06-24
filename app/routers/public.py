@@ -6,6 +6,7 @@ import logging
 import json
 import secrets
 import string
+import time
 
 from .. import models, schemas, database
 from ..services.file_processor import extract_text_from_file
@@ -123,6 +124,7 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
                     logger.info(f"ATS fields written to candidate {application.candidate_id}")
             except Exception as _ats_err:
                 logger.error(f"ATS field write-back failed for candidate {application.candidate_id}: {_ats_err}")
+                db.rollback()
 
             # ── Agent candidate_profile save (additive, best-effort) ──────────────
             try:
@@ -160,6 +162,7 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
                         logger.info(f"Agent candidate_profile saved to candidate {application.candidate_id}")
             except Exception as _ap_err:
                 logger.error(f"Agent profile save failed for candidate {application.candidate_id}: {_ap_err}")
+                db.rollback()
 
         import types
         applicant = types.SimpleNamespace(
@@ -170,8 +173,21 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
             cv_text=cv_text,
         )
 
-        raw = evaluate_candidate(job, applicant)
-        result = finalize_evaluation(raw)
+        raw = None
+        for _attempt in range(3):
+            try:
+                raw = evaluate_candidate(job, applicant)
+                break
+            except Exception as _ev_err:
+                _es = str(_ev_err)
+                if ("429" in _es or "timeout" in _es.lower() or "deadline" in _es.lower()) and _attempt < 2:
+                    _wait = (_attempt + 1) * 10
+                    logger.warning(f"Gemini eval error (attempt {_attempt+1}/3), retrying in {_wait}s: {_ev_err}")
+                    time.sleep(_wait)
+                else:
+                    logger.error(f"Gemini eval non-retriable error (attempt {_attempt+1}/3): {_ev_err}")
+                    break
+        result = finalize_evaluation(raw or {})
 
         _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
 
@@ -205,6 +221,25 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
         logger.info(f"Finished evaluation for application {application_id}")
     except Exception as e:
         logger.error(f"Evaluation task failed for application {application_id}: {e}")
+        try:
+            db.rollback()
+            _app_fb = db.query(models.Application).filter(models.Application.id == application_id).first()
+            if _app_fb and not db.query(models.Evaluation).filter(models.Evaluation.application_id == application_id).first():
+                db.add(models.Evaluation(
+                    application_id=application_id,
+                    candidate_id=_app_fb.candidate_id,
+                    job_id=_app_fb.job_id,
+                    score=0.0,
+                    decision="Pending Review",
+                    reason="AI screening could not be completed automatically. Please screen this candidate manually.",
+                    strengths="",
+                    weaknesses="- Automatic screening failed — manual review required",
+                ))
+                db.commit()
+                logger.info(f"Fallback evaluation created for application {application_id}")
+        except Exception as _fb_err:
+            logger.error(f"Fallback eval creation failed for application {application_id}: {_fb_err}")
+            db.rollback()
     finally:
         db.close()
 

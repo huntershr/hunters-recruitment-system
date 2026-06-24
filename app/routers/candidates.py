@@ -10,6 +10,7 @@ import csv
 import json
 import os
 import httpx
+import time
 import uuid as uuid_lib
 
 from .. import models, schemas
@@ -114,7 +115,21 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
             logger.error(f"Evaluation failed: Candidate {candidate_id} or Job not found")
             return
 
-        eval_result = evaluate_candidate(job, candidate)
+        _raw_result = None
+        for _attempt in range(3):
+            try:
+                _raw_result = evaluate_candidate(job, candidate)
+                break
+            except Exception as _ev_err:
+                _es = str(_ev_err)
+                if ("429" in _es or "timeout" in _es.lower() or "deadline" in _es.lower()) and _attempt < 2:
+                    _wait = (_attempt + 1) * 10
+                    logger.warning(f"Gemini eval error (attempt {_attempt+1}/3), retrying in {_wait}s: {_ev_err}")
+                    time.sleep(_wait)
+                else:
+                    logger.error(f"Gemini eval non-retriable error (attempt {_attempt+1}/3): {_ev_err}")
+                    break
+        eval_result = _raw_result or finalize_evaluation({})
 
         def list_to_str(val):
             if isinstance(val, list):
@@ -149,6 +164,27 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
         update_candidate_row(candidate.email, eval_result)
     except Exception as e:
         logger.error(f"Evaluation task failed for candidate {candidate_id}: {e}")
+        try:
+            db.rollback()
+            _cand_fb = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
+            if _cand_fb and _cand_fb.job_applied:
+                _existing_fb = db.query(models.Evaluation).filter(models.Evaluation.candidate_id == candidate_id).first()
+                if not _existing_fb:
+                    db.add(models.Evaluation(
+                        candidate_id=candidate_id,
+                        application_id=application_id,
+                        job_id=_cand_fb.job_applied,
+                        score=0.0,
+                        decision="Pending Review",
+                        reason="AI screening could not be completed automatically. Please screen this candidate manually.",
+                        strengths="",
+                        weaknesses="- Automatic screening failed — manual review required",
+                    ))
+                    db.commit()
+                    logger.info(f"Fallback evaluation created for candidate {candidate_id}")
+        except Exception as _fb_err:
+            logger.error(f"Fallback eval creation failed for candidate {candidate_id}: {_fb_err}")
+            db.rollback()
     finally:
         db.close()
 
