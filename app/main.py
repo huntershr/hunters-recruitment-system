@@ -87,6 +87,26 @@ try:
 except Exception as _me3:
     print(f"Warning: cv_url column migration: {_me3}")
 
+# Unique indexes for duplicate application prevention (safe — IF NOT EXISTS)
+# Will fail gracefully if duplicate rows already exist — indexes are applied
+# once duplicates are cleaned up. Does not block startup.
+try:
+    with engine.connect() as _mc4:
+        _mc4.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_applications_email_job "
+            "ON applications (lower(applicant_email), job_id) "
+            "WHERE applicant_email IS NOT NULL"
+        ))
+        _mc4.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_applications_candidate_job "
+            "ON applications (candidate_id, job_id) "
+            "WHERE candidate_id IS NOT NULL"
+        ))
+        _mc4.commit()
+    print("Application unique indexes: OK")
+except Exception as _me4:
+    print(f"Warning: Application unique indexes skipped (duplicates exist — clean up first): {_me4}")
+
 app = FastAPI(
     title="AI Recruitment System",
     description="An AI-powered recruitment system using FastAPI and Google Gemini API.",

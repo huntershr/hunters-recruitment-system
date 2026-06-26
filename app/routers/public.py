@@ -377,13 +377,19 @@ async def public_apply(
     else:
         cv_mime = "application/octet-stream"
 
+    # Require email — prevents NULL-email duplicates and ensures contact data
+    if not email or not email.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="An email address is required to apply.",
+        )
+
     # Duplicate check: one Type B Application per (email, job) pair
     existing_app = (
         db.query(models.Application)
         .filter(
             models.Application.applicant_email.ilike(email),
             models.Application.job_id == job_id,
-            models.Application.candidate_id.is_(None),
         )
         .first()
     )
