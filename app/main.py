@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 import google.generativeai as genai
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, Response
+import datetime
 from pydantic import BaseModel
 from .database import engine, Base, SessionLocal, get_db
 from sqlalchemy.orm import Session
@@ -840,6 +841,39 @@ CV Text:
     except Exception as e:
         logging.error("extract_cv_ai error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap(db: Session = Depends(get_db)):
+    jobs = db.query(models.Job).filter(
+        models.Job.is_approved == True,
+        models.Job.is_archived == False
+    ).all()
+
+    today = datetime.date.today().isoformat()
+
+    urls = [f"""
+  <url>
+    <loc>https://app.hunters-egypt.com/apply.html?job_id={job.id}</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>""" for job in jobs]
+
+    urls.append(f"""
+  <url>
+    <loc>https://app.hunters-egypt.com/jobs.html</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>""")
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{''.join(urls)}
+</urlset>"""
+
+    return Response(content=xml, media_type="application/xml")
+
 
 @app.get("/health")
 def health_check():
