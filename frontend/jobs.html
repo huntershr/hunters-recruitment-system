@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- CACHE VERSION: v1.01 -->
+    <meta name="robots" content="index, follow">
     <title>Job Openings | Hunters for HR Solutions</title>
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <style>
@@ -167,6 +169,62 @@
                         </div>
                     `;
                 });
+                // ── Part 2: JSON-LD structured data for all jobs (Google Jobs / Indeed) ──
+                function _removeNulls(obj) {
+                    if (Array.isArray(obj)) return obj.map(_removeNulls).filter(v => v != null);
+                    if (obj !== null && typeof obj === 'object') {
+                        return Object.fromEntries(
+                            Object.entries(obj)
+                                .filter(([, v]) => v != null)
+                                .map(([k, v]) => [k, _removeNulls(v)])
+                        );
+                    }
+                    return obj;
+                }
+                const today = new Date().toISOString().split('T')[0];
+                const ldArray = jobs.map(job => _removeNulls({
+                    '@context': 'https://schema.org/',
+                    '@type': 'JobPosting',
+                    'title': job.job_title,
+                    'description': job.job_description || null,
+                    'hiringOrganization': {
+                        '@type': 'Organization',
+                        'name': job.company_name || 'Hunters for HR Transformation & Execution',
+                        'sameAs': 'https://hunters-egypt.com'
+                    },
+                    'jobLocation': {
+                        '@type': 'Place',
+                        'address': {
+                            '@type': 'PostalAddress',
+                            'addressLocality': job.job_location || 'Cairo',
+                            'addressCountry': 'EG'
+                        }
+                    },
+                    'datePosted': job.created_at ? job.created_at.split('T')[0] : today,
+                    'validThrough': job.expiry_date || null,
+                    'employmentType': job.job_type === 'full-time' ? 'FULL_TIME'
+                                    : job.job_type === 'part-time' ? 'PART_TIME'
+                                    : job.job_type === 'contract'  ? 'CONTRACTOR'
+                                    : 'FULL_TIME',
+                    'baseSalary': job.salary_range ? {
+                        '@type': 'MonetaryAmount',
+                        'currency': 'EGP',
+                        'value': { '@type': 'QuantitativeValue', 'value': job.salary_range, 'unitText': 'MONTH' }
+                    } : null,
+                    'educationRequirements': job.education_level || null,
+                    'experienceRequirements': job.min_experience ? job.min_experience + '+ years experience' : null,
+                    'skills': job.required_skills || null,
+                    'identifier': { '@type': 'PropertyValue', 'name': 'Hunters HR', 'value': job.id },
+                    'url': 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id
+                }));
+                let ldTag = document.querySelector('script[type="application/ld+json"]');
+                if (!ldTag) {
+                    ldTag = document.createElement('script');
+                    ldTag.type = 'application/ld+json';
+                    document.head.appendChild(ldTag);
+                }
+                ldTag.textContent = JSON.stringify(ldArray, null, 2);
+
             } catch (err) {
                 document.getElementById('jobs-list').innerHTML = '<div class="loader">Failed to load jobs. Please refresh the page.</div>';
             }

@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- CACHE VERSION: v1.01 -->
+    <meta name="robots" content="index, follow">
+    <meta name="description" content="Apply for a job at Hunters for HR Transformation &amp; Execution">
+    <link rel="canonical" href="https://app.hunters-egypt.com/apply.html">
     <title>Apply for Job | Hunters for HR Solutions</title>
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <script>
@@ -295,6 +299,20 @@
             document.getElementById('form-container').innerHTML = "<h1 style='font-weight:500'>Error: Invalid Job Link</h1>";
         }
 
+        // Strips null/undefined fields recursively before injecting JSON-LD
+        // (Google rejects structured data markup that contains null values)
+        function removeNulls(obj) {
+            if (Array.isArray(obj)) return obj.map(removeNulls).filter(v => v != null);
+            if (obj !== null && typeof obj === 'object') {
+                return Object.fromEntries(
+                    Object.entries(obj)
+                        .filter(([, v]) => v != null)
+                        .map(([k, v]) => [k, removeNulls(v)])
+                );
+            }
+            return obj;
+        }
+
         async function fetchJob() {
             try {
                 const res = await fetch(API_URL + '/public/job/' + jobId);
@@ -303,6 +321,73 @@
                 document.getElementById('job-title').innerText = job.job_title;
                 const cnEl = document.getElementById('company-name');
                 if (cnEl && job.company_name) { cnEl.textContent = job.company_name; cnEl.style.display = ''; }
+
+                // ── Part 3: <title>, <meta description>, <link canonical> ──
+                const company = job.company_name || 'Hunters for HR Transformation & Execution';
+                document.title = job.job_title + ' at ' + company + ' — Hunters HR';
+                const metaDesc = document.querySelector('meta[name="description"]');
+                if (metaDesc) metaDesc.setAttribute('content', (job.job_description || '').slice(0, 160));
+                const canonical = document.querySelector('link[rel="canonical"]');
+                if (canonical) canonical.setAttribute('href', 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id);
+
+                // ── Part 1: JSON-LD structured data for Google Jobs / Indeed ──
+                // To accelerate Google indexing, submit
+                // https://app.hunters-egypt.com/sitemap.xml to Google Search Console
+                // once a sitemap is built.
+                const empType = job.job_type === 'full-time' ? 'FULL_TIME'
+                              : job.job_type === 'part-time' ? 'PART_TIME'
+                              : job.job_type === 'contract'  ? 'CONTRACTOR'
+                              : 'FULL_TIME';
+                const datePosted = job.created_at ? job.created_at.split('T')[0]
+                                 : new Date().toISOString().split('T')[0];
+                const ldJson = removeNulls({
+                    '@context': 'https://schema.org/',
+                    '@type': 'JobPosting',
+                    'title': job.job_title,
+                    'description': job.job_description || null,
+                    'hiringOrganization': {
+                        '@type': 'Organization',
+                        'name': company,
+                        'sameAs': 'https://hunters-egypt.com'
+                    },
+                    'jobLocation': {
+                        '@type': 'Place',
+                        'address': {
+                            '@type': 'PostalAddress',
+                            'addressLocality': job.job_location || 'Cairo',
+                            'addressCountry': 'EG'
+                        }
+                    },
+                    'datePosted': datePosted,
+                    'validThrough': job.expiry_date || null,
+                    'employmentType': empType,
+                    'baseSalary': job.salary_range ? {
+                        '@type': 'MonetaryAmount',
+                        'currency': 'EGP',
+                        'value': {
+                            '@type': 'QuantitativeValue',
+                            'value': job.salary_range,
+                            'unitText': 'MONTH'
+                        }
+                    } : null,
+                    'educationRequirements': job.education_level || null,
+                    'experienceRequirements': job.min_experience ? job.min_experience + '+ years experience' : null,
+                    'skills': job.required_skills || null,
+                    'identifier': {
+                        '@type': 'PropertyValue',
+                        'name': 'Hunters HR',
+                        'value': job.id
+                    },
+                    'url': 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id
+                });
+                let ldTag = document.querySelector('script[type="application/ld+json"]');
+                if (!ldTag) {
+                    ldTag = document.createElement('script');
+                    ldTag.type = 'application/ld+json';
+                    document.head.appendChild(ldTag);
+                }
+                ldTag.textContent = JSON.stringify(ldJson, null, 2);
+
             } catch (err) {
                 document.getElementById('job-title').innerText = "Job Not Found";
             }
