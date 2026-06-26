@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
+from fastapi.responses import Response
+import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from typing import List
@@ -557,6 +559,39 @@ def get_public_company_jobs(company_id: int, db: Session = Depends(get_db)):
         models.Job.is_approved == True
     ).all()
     return jobs
+
+@router.get("/sitemap.xml", include_in_schema=False)
+def sitemap(db: Session = Depends(get_db)):
+    jobs = db.query(models.Job).filter(
+        models.Job.is_approved == True,
+        models.Job.is_archived == False
+    ).all()
+
+    today = datetime.date.today().isoformat()
+
+    urls = [f"""
+  <url>
+    <loc>https://app.hunters-egypt.com/apply.html?job_id={job.id}</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>""" for job in jobs]
+
+    urls.append(f"""
+  <url>
+    <loc>https://app.hunters-egypt.com/jobs.html</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>""")
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{''.join(urls)}
+</urlset>"""
+
+    return Response(content=xml, media_type="application/xml")
+
 
 @router.get("/jobs")
 def get_public_jobs(department: str = None, db: Session = Depends(get_db)):
