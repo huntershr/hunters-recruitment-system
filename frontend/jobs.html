@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- CACHE VERSION: v1.01 -->
+    <!-- CACHE VERSION: v1.02 -->
     <meta name="robots" content="index, follow">
     <title>Job Openings | Hunters for HR Solutions</title>
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
@@ -196,7 +196,10 @@
                         '@type': 'Place',
                         'address': {
                             '@type': 'PostalAddress',
+                            'streetAddress': job.job_location || '',
                             'addressLocality': job.job_location || 'Cairo',
+                            'addressRegion': 'Cairo Governorate',
+                            'postalCode': '11511',
                             'addressCountry': 'EG'
                         }
                     },
@@ -211,8 +214,8 @@
                         'currency': 'EGP',
                         'value': { '@type': 'QuantitativeValue', 'value': job.salary_range, 'unitText': 'MONTH' }
                     } : null,
-                    'educationRequirements': job.education_level || null,
-                    'experienceRequirements': job.min_experience ? job.min_experience + '+ years experience' : null,
+                    'educationRequirements': job.education_level ? { '@type': 'EducationalOccupationalCredential', 'credentialCategory': 'bachelor degree' } : null,
+                    'experienceRequirements': (job.min_experience && job.min_experience > 0) ? { '@type': 'OccupationalExperienceRequirements', 'monthsOfExperience': job.min_experience * 12 } : null,
                     'skills': job.required_skills || null,
                     'identifier': { '@type': 'PropertyValue', 'name': 'Hunters HR', 'value': job.id },
                     'url': 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id

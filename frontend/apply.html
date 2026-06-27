@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- CACHE VERSION: v1.04 -->
+    <!-- CACHE VERSION: v1.05 -->
     <meta name="robots" content="index, follow">
     <meta name="description" content="Apply for a job at Hunters for HR Transformation &amp; Execution">
     <link rel="canonical" href="https://app.hunters-egypt.com/apply.html">
@@ -540,13 +540,13 @@
                 'title': job.job_title,
                 'description': job.job_description || null,
                 'hiringOrganization': { '@type': 'Organization', 'name': company, 'sameAs': 'https://hunters-egypt.com' },
-                'jobLocation': { '@type': 'Place', 'address': { '@type': 'PostalAddress', 'addressLocality': job.job_location || 'Cairo', 'addressCountry': 'EG' } },
+                'jobLocation': { '@type': 'Place', 'address': { '@type': 'PostalAddress', 'streetAddress': job.job_location || '', 'addressLocality': job.job_location || 'Cairo', 'addressRegion': 'Cairo Governorate', 'postalCode': '11511', 'addressCountry': 'EG' } },
                 'datePosted': datePosted,
                 'validThrough': job.expiry_date || null,
                 'employmentType': empType,
                 'baseSalary': job.salary_range ? { '@type': 'MonetaryAmount', 'currency': 'EGP', 'value': { '@type': 'QuantitativeValue', 'value': job.salary_range, 'unitText': 'MONTH' } } : null,
-                'educationRequirements': job.education_level || null,
-                'experienceRequirements': job.min_experience ? job.min_experience + '+ years experience' : null,
+                'educationRequirements': job.education_level ? { '@type': 'EducationalOccupationalCredential', 'credentialCategory': 'bachelor degree' } : null,
+                'experienceRequirements': (job.min_experience && job.min_experience > 0) ? { '@type': 'OccupationalExperienceRequirements', 'monthsOfExperience': job.min_experience * 12 } : null,
                 'skills': job.required_skills || null,
                 'identifier': { '@type': 'PropertyValue', 'name': 'Hunters HR', 'value': job.id },
                 'url': 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id
