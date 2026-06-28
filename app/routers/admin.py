@@ -1311,7 +1311,36 @@ def rescreen_pending(
 
             _ar = call_agent_screener(candidate.cv_text or "", job, candidate.id)
             if _ar is not None:
-                _ar.pop("_candidate_profile", None)
+                _cp = _ar.pop("_candidate_profile", None) or {}
+                if _cp and candidate:
+                    if not candidate.name or candidate.name.lower().startswith("resume"):
+                        v = (_cp.get("name") or "").strip()
+                        if v: candidate.name = v
+                    if not candidate.last_title:
+                        v = (_cp.get("current_title") or "").strip()
+                        if v: candidate.last_title = v
+                    if not candidate.last_employer:
+                        v = (_cp.get("last_employer") or "").strip()
+                        if v: candidate.last_employer = v
+                    if not (candidate.experience_years or 0):
+                        v = _cp.get("years_experience")
+                        if v:
+                            try: candidate.experience_years = int(v)
+                            except: pass
+                    if not candidate.education:
+                        v = (_cp.get("education") or "").strip()
+                        if v: candidate.education = v
+                    if not candidate.skills:
+                        v = _cp.get("skills")
+                        if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                        if v: candidate.skills = str(v).strip()
+                    if not candidate.languages:
+                        v = _cp.get("languages")
+                        if isinstance(v, list) and v: candidate.languages = v
+                    if not candidate.certifications:
+                        v = _cp.get("certifications")
+                        if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                        if v: candidate.certifications = str(v).strip()
                 result = _ar
             else:
                 result = finalize_evaluation(evaluate_candidate(job, candidate))
@@ -1358,7 +1387,36 @@ def rescreen_pending(
 
             _ar = call_agent_screener(candidate.cv_text or "", job, candidate.id)
             if _ar is not None:
-                _ar.pop("_candidate_profile", None)
+                _cp = _ar.pop("_candidate_profile", None) or {}
+                if _cp and candidate:
+                    if not candidate.name or candidate.name.lower().startswith("resume"):
+                        v = (_cp.get("name") or "").strip()
+                        if v: candidate.name = v
+                    if not candidate.last_title:
+                        v = (_cp.get("current_title") or "").strip()
+                        if v: candidate.last_title = v
+                    if not candidate.last_employer:
+                        v = (_cp.get("last_employer") or "").strip()
+                        if v: candidate.last_employer = v
+                    if not (candidate.experience_years or 0):
+                        v = _cp.get("years_experience")
+                        if v:
+                            try: candidate.experience_years = int(v)
+                            except: pass
+                    if not candidate.education:
+                        v = (_cp.get("education") or "").strip()
+                        if v: candidate.education = v
+                    if not candidate.skills:
+                        v = _cp.get("skills")
+                        if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                        if v: candidate.skills = str(v).strip()
+                    if not candidate.languages:
+                        v = _cp.get("languages")
+                        if isinstance(v, list) and v: candidate.languages = v
+                    if not candidate.certifications:
+                        v = _cp.get("certifications")
+                        if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                        if v: candidate.certifications = str(v).strip()
                 result = _ar
             else:
                 result = finalize_evaluation(evaluate_candidate(job, candidate))
