@@ -1315,17 +1315,24 @@ def rescreen_pending(
                 if _cp and candidate:
                     if not candidate.name or candidate.name.lower().startswith("resume"):
                         v = (_cp.get("name") or "").strip()
-                        if v: candidate.name = v
+                        # Reject if contains non-printable chars or no letters (icon/symbol fallback)
+                        if v and v.isprintable() and any(c.isalpha() for c in v) and len(v) <= 80:
+                            candidate.name = v
                     if not candidate.last_title:
                         v = (_cp.get("current_title") or "").strip()
-                        if v: candidate.last_title = v
+                        # Reject if longer than 80 chars — it's a paragraph, not a title
+                        if v and len(v) <= 80:
+                            candidate.last_title = v
                     if not candidate.last_employer:
                         v = (_cp.get("last_employer") or "").strip()
-                        if v: candidate.last_employer = v
+                        if v and len(v) <= 100: candidate.last_employer = v
                     if not (candidate.experience_years or 0):
                         v = _cp.get("years_experience")
                         if v:
-                            try: candidate.experience_years = int(v)
+                            try:
+                                yr = int(v)
+                                # Reject if implausible — likely extracted from birth year not work history
+                                if 1 <= yr <= 45: candidate.experience_years = yr
                             except: pass
                     if not candidate.education:
                         v = (_cp.get("education") or "").strip()
@@ -1391,17 +1398,24 @@ def rescreen_pending(
                 if _cp and candidate:
                     if not candidate.name or candidate.name.lower().startswith("resume"):
                         v = (_cp.get("name") or "").strip()
-                        if v: candidate.name = v
+                        # Reject if contains non-printable chars or no letters (icon/symbol fallback)
+                        if v and v.isprintable() and any(c.isalpha() for c in v) and len(v) <= 80:
+                            candidate.name = v
                     if not candidate.last_title:
                         v = (_cp.get("current_title") or "").strip()
-                        if v: candidate.last_title = v
+                        # Reject if longer than 80 chars — it's a paragraph, not a title
+                        if v and len(v) <= 80:
+                            candidate.last_title = v
                     if not candidate.last_employer:
                         v = (_cp.get("last_employer") or "").strip()
-                        if v: candidate.last_employer = v
+                        if v and len(v) <= 100: candidate.last_employer = v
                     if not (candidate.experience_years or 0):
                         v = _cp.get("years_experience")
                         if v:
-                            try: candidate.experience_years = int(v)
+                            try:
+                                yr = int(v)
+                                # Reject if implausible — likely extracted from birth year not work history
+                                if 1 <= yr <= 45: candidate.experience_years = yr
                             except: pass
                     if not candidate.education:
                         v = (_cp.get("education") or "").strip()
