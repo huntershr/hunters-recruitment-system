@@ -10,8 +10,7 @@ import time
 
 from .. import models, schemas, database
 from ..services.file_processor import extract_text_from_file
-from ..services.ai_evaluator import extract_candidate_info, evaluate_candidate, finalize_evaluation
-from ..services.agent_screener import call_agent_screen
+from ..services.ai_evaluator import extract_candidate_info, evaluate_candidate, finalize_evaluation, call_agent_screener
 from ..auth_utils import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -149,68 +148,73 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
                 logger.error(f"ATS field write-back failed for candidate {application.candidate_id}: {_ats_err}")
                 db.rollback()
 
-            # ── Agent candidate_profile save (additive, best-effort) ──────────────
-            try:
-                agent_resp = call_agent_screen(cv_text, job)
-                cp = (agent_resp or {}).get("candidate_profile") or {}
-                if cp:
+        # ── Agent-first screening (Node.js agent → Gemini fallback) ──────────
+        _agent_result = call_agent_screener(cv_text, job, application.candidate_id)
+        if _agent_result is not None:
+            logger.info(f"Agent screener succeeded for application {application_id}")
+            _cp = _agent_result.pop("_candidate_profile", None) or {}
+            if _cp and application.candidate_id:
+                try:
                     _cand = db.query(models.Candidate).filter(
                         models.Candidate.id == application.candidate_id
                     ).first()
                     if _cand:
                         if not _cand.last_title:
-                            v = (cp.get("current_title") or "").strip()
+                            v = (_cp.get("current_title") or "").strip()
                             if v: _cand.last_title = v
                         if not _cand.last_employer:
-                            v = (cp.get("last_employer") or "").strip()
+                            v = (_cp.get("last_employer") or "").strip()
                             if v: _cand.last_employer = v
                         if not (_cand.experience_years or 0):
-                            v = cp.get("years_experience")
+                            v = _cp.get("years_experience")
                             if v: _cand.experience_years = int(v)
                         if not _cand.education:
-                            v = (cp.get("education") or "").strip()
+                            v = (_cp.get("education") or "").strip()
                             if v: _cand.education = v
                         if not _cand.skills:
-                            v = cp.get("skills")
+                            v = _cp.get("skills")
                             if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
                             if v: _cand.skills = str(v).strip()
                         if not _cand.languages:
-                            v = cp.get("languages")
+                            v = _cp.get("languages")
                             if isinstance(v, list) and v: _cand.languages = v
                         if not _cand.certifications:
-                            v = cp.get("certifications")
+                            v = _cp.get("certifications")
                             if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
                             if v: _cand.certifications = str(v).strip()
                         db.commit()
-                        logger.info(f"Agent candidate_profile saved to candidate {application.candidate_id}")
-            except Exception as _ap_err:
-                logger.error(f"Agent profile save failed for candidate {application.candidate_id}: {_ap_err}")
-                db.rollback()
-
-        import types
-        applicant = types.SimpleNamespace(
-            name=application.applicant_name or "",
-            experience_years=int(info.get("experience_years") or 0),
-            skills=str(info.get("skills") or ""),
-            education=str(info.get("education") or ""),
-            cv_text=cv_text,
-        )
-
-        raw = None
-        for _attempt in range(3):
-            try:
-                raw = evaluate_candidate(job, applicant)
-                break
-            except Exception as _ev_err:
-                _es = str(_ev_err)
-                if ("429" in _es or "timeout" in _es.lower() or "deadline" in _es.lower()) and _attempt < 2:
-                    _wait = (_attempt + 1) * 10
-                    logger.warning(f"Gemini eval error (attempt {_attempt+1}/3), retrying in {_wait}s: {_ev_err}")
-                    time.sleep(_wait)
-                else:
-                    logger.error(f"Gemini eval non-retriable error (attempt {_attempt+1}/3): {_ev_err}")
+                        logger.info(f"Agent profile saved for candidate {application.candidate_id}")
+                except Exception as _ap_err:
+                    logger.error(f"Agent profile save failed for candidate {application.candidate_id}: {_ap_err}")
+                    db.rollback()
+            result = _agent_result
+        else:
+            logger.warning(
+                f"Agent screener unavailable for application {application_id}; falling back to Gemini"
+            )
+            import types
+            _applicant = types.SimpleNamespace(
+                name=application.applicant_name or "",
+                experience_years=int(info.get("experience_years") or 0),
+                skills=str(info.get("skills") or ""),
+                education=str(info.get("education") or ""),
+                cv_text=cv_text,
+            )
+            raw = None
+            for _attempt in range(3):
+                try:
+                    raw = evaluate_candidate(job, _applicant)
                     break
-        result = finalize_evaluation(raw or {})
+                except Exception as _ev_err:
+                    _es = str(_ev_err)
+                    if ("429" in _es or "timeout" in _es.lower() or "deadline" in _es.lower()) and _attempt < 2:
+                        _wait = (_attempt + 1) * 10
+                        logger.warning(f"Gemini eval error (attempt {_attempt+1}/3), retrying in {_wait}s: {_ev_err}")
+                        time.sleep(_wait)
+                    else:
+                        logger.error(f"Gemini eval non-retriable error (attempt {_attempt+1}/3): {_ev_err}")
+                        break
+            result = finalize_evaluation(raw or {})
 
         _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
 

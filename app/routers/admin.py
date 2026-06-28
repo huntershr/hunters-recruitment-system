@@ -11,7 +11,7 @@ import logging
 
 from .. import models, database
 from ..routers.auth import get_current_user
-from ..services.ai_evaluator import evaluate_candidate, finalize_evaluation, extract_candidate_info
+from ..services.ai_evaluator import evaluate_candidate, finalize_evaluation, extract_candidate_info, call_agent_screener
 
 _logger = logging.getLogger(__name__)
 
@@ -1309,7 +1309,12 @@ def rescreen_pending(
                 failed += 1
                 continue
 
-            result = finalize_evaluation(evaluate_candidate(job, candidate))
+            _ar = call_agent_screener(candidate.cv_text or "", job, candidate.id)
+            if _ar is not None:
+                _ar.pop("_candidate_profile", None)
+                result = _ar
+            else:
+                result = finalize_evaluation(evaluate_candidate(job, candidate))
             db_eval = models.Evaluation(
                 application_id=app.id,
                 candidate_id=app.candidate_id,
@@ -1324,13 +1329,17 @@ def rescreen_pending(
             _logger.error(f"Create eval failed for application {app.id}: {e}")
             failed += 1
 
-    # ── Pass 2: UPDATE existing evaluations with NULL/pending decision ────────
+    # ── Pass 2: UPDATE evaluations with no score yet (never touches completed evals) ────
+    # Guard: score IS NULL means the row exists but was never actually scored.
+    # Evaluations with score > 0 are complete — do not re-screen them.
     pending_evals = (
         db.query(models.Evaluation)
         .filter(
+            models.Evaluation.score.is_(None),
             or_(
                 models.Evaluation.decision == None,
                 models.Evaluation.decision == "pending",
+                models.Evaluation.decision == "Pending Review",
             )
         )
         .all()
@@ -1347,7 +1356,12 @@ def rescreen_pending(
                 failed += 1
                 continue
 
-            result = finalize_evaluation(evaluate_candidate(job, candidate))
+            _ar = call_agent_screener(candidate.cv_text or "", job, candidate.id)
+            if _ar is not None:
+                _ar.pop("_candidate_profile", None)
+                result = _ar
+            else:
+                result = finalize_evaluation(evaluate_candidate(job, candidate))
             _save_result(result, ev)
             db.commit()
             rescreened += 1

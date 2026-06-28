@@ -21,6 +21,79 @@ _gemini_eval_model = genai.GenerativeModel(
 logger = logging.getLogger(__name__)
 
 
+def call_agent_screener(cv_text: str, job, candidate_id=None) -> "dict | None":
+    """
+    Call the Node.js screening agent and map its response to the same dict
+    shape returned by evaluate_candidate(). Returns None on any error/timeout.
+    Never raises — callers must handle None as a signal to fall back to Gemini.
+    """
+    try:
+        from .agent_screener import call_agent_screen
+        raw = call_agent_screen(cv_text, job)
+        if not raw:
+            return None
+
+        overall = float(raw.get("overall_score") or 0)
+        rec = str(raw.get("recommendation") or "").strip()
+        _REC_MAP = {
+            "Highly Recommended": "Shortlist",
+            "Recommended":        "Shortlist",
+            "Consider":           "Maybe",
+            "Not Recommended":    "Reject",
+        }
+        decision = _REC_MAP.get(rec, "Reject")
+
+        ds_raw = raw.get("dimension_scores") or {}
+        tm = int(ds_raw.get("titleMatch") or 0)
+        im = int(ds_raw.get("industryMatch") or 0)
+        em = int(ds_raw.get("experienceMatch") or 0)
+        sm = int(ds_raw.get("skillsMatch") or 0)
+
+        # Remap to Gemini key names so finalize_evaluation() populates score_breakdown correctly
+        dimension_scores_mapped = {
+            "job_title_match":     tm,
+            "industry_match":      im,
+            "years_of_experience": em,
+            "skills_match":        sm,
+        }
+
+        strengths = raw.get("strengths") or []
+        concerns  = raw.get("concerns")  or []
+
+        mapped = {
+            "overall_score": overall,
+            "score":         overall,
+            "decision":      decision,
+            "reason":        f"Title: {tm}% | Industry: {im}% | Experience: {em}% | Skills: {sm}%",
+            "strengths":     strengths if isinstance(strengths, list) else [strengths],
+            "weaknesses":    concerns  if isinstance(concerns,  list) else [concerns],
+            "suggested_interview_questions": [],
+            "dimension_scores": dimension_scores_mapped,
+        }
+
+        result = finalize_evaluation(mapped)
+
+        # Stamp source=agent in the dimension_scores JSON column (no schema change needed)
+        if isinstance(result.get("dimension_scores"), dict):
+            result["dimension_scores"]["source"] = "agent"
+        else:
+            result["dimension_scores"] = {"source": "agent"}
+
+        # Carry candidate_profile for callers that do profile back-fill; must be popped before DB write
+        result["_candidate_profile"] = raw.get("candidate_profile") or {}
+
+        logger.info(
+            "Agent screener OK: score=%.1f decision=%s "
+            "(title=%d%% industry=%d%% exp=%d%% skills=%d%%)",
+            overall, decision, tm, im, em, sm,
+        )
+        return result
+
+    except Exception as exc:
+        logger.error("call_agent_screener failed: %s", exc)
+        return None
+
+
 def _coerce_percent_from_keys(parsed: dict) -> float:
     """
     Derive unified 0–100 percentage from Gemini output.

@@ -15,7 +15,7 @@ import uuid as uuid_lib
 
 from .. import models, schemas
 from ..database import get_db, SessionLocal
-from ..services.ai_evaluator import evaluate_candidate, extract_candidate_info, finalize_evaluation
+from ..services.ai_evaluator import evaluate_candidate, extract_candidate_info, finalize_evaluation, call_agent_screener
 from ..services.file_processor import extract_text_from_pdf, extract_text_from_docx, process_excel_candidates
 from .auth import get_current_user
 
@@ -115,21 +115,28 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
             logger.error(f"Evaluation failed: Candidate {candidate_id} or Job not found")
             return
 
-        _raw_result = None
-        for _attempt in range(3):
-            try:
-                _raw_result = evaluate_candidate(job, candidate)
-                break
-            except Exception as _ev_err:
-                _es = str(_ev_err)
-                if ("429" in _es or "timeout" in _es.lower() or "deadline" in _es.lower()) and _attempt < 2:
-                    _wait = (_attempt + 1) * 10
-                    logger.warning(f"Gemini eval error (attempt {_attempt+1}/3), retrying in {_wait}s: {_ev_err}")
-                    time.sleep(_wait)
-                else:
-                    logger.error(f"Gemini eval non-retriable error (attempt {_attempt+1}/3): {_ev_err}")
+        _agent_result = call_agent_screener(candidate.cv_text or "", job, candidate.id)
+        if _agent_result is not None:
+            logger.info(f"Agent screener succeeded for candidate {candidate_id}")
+            _agent_result.pop("_candidate_profile", None)
+            eval_result = _agent_result
+        else:
+            logger.warning(f"Agent screener unavailable for candidate {candidate_id}; falling back to Gemini")
+            _raw_result = None
+            for _attempt in range(3):
+                try:
+                    _raw_result = evaluate_candidate(job, candidate)
                     break
-        eval_result = _raw_result or finalize_evaluation({})
+                except Exception as _ev_err:
+                    _es = str(_ev_err)
+                    if ("429" in _es or "timeout" in _es.lower() or "deadline" in _es.lower()) and _attempt < 2:
+                        _wait = (_attempt + 1) * 10
+                        logger.warning(f"Gemini eval error (attempt {_attempt+1}/3), retrying in {_wait}s: {_ev_err}")
+                        time.sleep(_wait)
+                    else:
+                        logger.error(f"Gemini eval non-retriable error (attempt {_attempt+1}/3): {_ev_err}")
+                        break
+            eval_result = _raw_result or finalize_evaluation({})
 
         def list_to_str(val):
             if isinstance(val, list):
@@ -450,11 +457,20 @@ async def screen_cv(
     db.commit()
     db.refresh(application)
 
-    # Synchronous AI evaluation — gives immediate result; fallback to pending on any failure
+    # Synchronous AI evaluation — agent-first, Gemini fallback, pending on any failure
     result = {}
     try:
-        raw = await asyncio.get_event_loop().run_in_executor(None, evaluate_candidate, job, candidate)
-        result = finalize_evaluation(raw)
+        def _do_screen():
+            return call_agent_screener(candidate.cv_text or "", job, candidate.id)
+        _agent_res = await asyncio.get_event_loop().run_in_executor(None, _do_screen)
+        if _agent_res is not None:
+            logger.info(f"Agent screener succeeded for portal candidate {candidate.id}")
+            _agent_res.pop("_candidate_profile", None)
+            result = _agent_res
+        else:
+            logger.warning(f"Agent screener unavailable for portal candidate {candidate.id}; falling back to Gemini")
+            raw = await asyncio.get_event_loop().run_in_executor(None, evaluate_candidate, job, candidate)
+            result = finalize_evaluation(raw)
         _bd3 = result.get("score_breakdown") or {}
         _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
         # Phase 2: always create a new Evaluation linked to the new Application.
