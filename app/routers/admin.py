@@ -1325,14 +1325,16 @@ def rescreen_pending(
                             candidate.last_title = v
                     if not candidate.last_employer:
                         v = (_cp.get("last_employer") or "").strip()
-                        if v and len(v) <= 100: candidate.last_employer = v
+                        # Reject if starts with digits (date bleed) or too long
+                        if v and len(v) <= 100 and not v[0].isdigit():
+                            candidate.last_employer = v
                     if not (candidate.experience_years or 0):
                         v = _cp.get("years_experience")
                         if v:
                             try:
                                 yr = int(v)
-                                # Reject if implausible — likely extracted from birth year not work history
-                                if 1 <= yr <= 45: candidate.experience_years = yr
+                                # Cap at 30 — anything higher is likely a birth-year calculation
+                                if 1 <= yr <= 30: candidate.experience_years = yr
                             except: pass
                     if not candidate.education:
                         v = (_cp.get("education") or "").strip()
@@ -1408,14 +1410,16 @@ def rescreen_pending(
                             candidate.last_title = v
                     if not candidate.last_employer:
                         v = (_cp.get("last_employer") or "").strip()
-                        if v and len(v) <= 100: candidate.last_employer = v
+                        # Reject if starts with digits (date bleed) or too long
+                        if v and len(v) <= 100 and not v[0].isdigit():
+                            candidate.last_employer = v
                     if not (candidate.experience_years or 0):
                         v = _cp.get("years_experience")
                         if v:
                             try:
                                 yr = int(v)
-                                # Reject if implausible — likely extracted from birth year not work history
-                                if 1 <= yr <= 45: candidate.experience_years = yr
+                                # Cap at 30 — anything higher is likely a birth-year calculation
+                                if 1 <= yr <= 30: candidate.experience_years = yr
                             except: pass
                     if not candidate.education:
                         v = (_cp.get("education") or "").strip()
