@@ -242,6 +242,7 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
             gaps_ar=_lstr(result.get("gaps_ar") or []),
             interview_questions_ar=result.get("interview_questions_ar"),
             quick_facts=result.get("quick_facts"),
+            dimension_scores=result.get("dimension_scores"),
         )
         db.add(db_eval)
         db.commit()
