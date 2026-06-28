@@ -1334,7 +1334,7 @@ def rescreen_pending(
                             try:
                                 yr = int(v)
                                 # Cap at 30 — anything higher is likely a birth-year calculation
-                                if 1 <= yr <= 30: candidate.experience_years = yr
+                                if 1 <= yr <= 25: candidate.experience_years = yr
                             except: pass
                     if not candidate.education:
                         v = (_cp.get("education") or "").strip()
@@ -1419,7 +1419,7 @@ def rescreen_pending(
                             try:
                                 yr = int(v)
                                 # Cap at 30 — anything higher is likely a birth-year calculation
-                                if 1 <= yr <= 30: candidate.experience_years = yr
+                                if 1 <= yr <= 25: candidate.experience_years = yr
                             except: pass
                     if not candidate.education:
                         v = (_cp.get("education") or "").strip()
