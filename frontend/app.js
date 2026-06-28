@@ -1,5 +1,21 @@
 const API_URL = ""; // Use relative paths
 
+async function deleteCandidate(candidateId, name) {
+    if (!confirm(`Delete "${name}" and all their evaluations?\nThis cannot be undone.`)) return;
+    try {
+        const token = localStorage.getItem('token');
+        const r = await fetch(`/api/admin/candidates/${candidateId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+        showToast(`"${name}" deleted`);
+        await fetchData();
+    } catch (e) {
+        showToast('Delete failed: ' + e.message, 'error');
+    }
+}
+
 function showToast(message, type = 'success') {
     const colors = {
         success: { bg: '#E1F5EE', text: '#0F6E56', border: '#9FE1CB' },
@@ -786,6 +802,9 @@ function renderCandidateList(filter) {
                             ${app.candidate_type === 'registered' && app.candidate_id
                                 ? `<button class="btn-action" style="font-size:10px;padding:4px 8px;color:#1A6FC4;border-color:#1A6FC4;" onclick="viewBasicProfile(${app.application_id})">Profile</button>`
                                 : ''}
+                            ${app.candidate_id
+                                ? `<button class="btn-action" style="font-size:10px;padding:4px 8px;color:#A32D2D;border-color:#A32D2D;" onclick="deleteCandidate(${app.candidate_id},'${(app.name||'').replace(/'/g,"\\'")}')">Delete</button>`
+                                : ''}
                         </div>
                     </td>
                 </tr>
@@ -844,7 +863,10 @@ function renderCandidateList(filter) {
                         ${hasCV ? `<a href="#" onclick="downloadAdminCV(${c.id},'${safeName}');return false;" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;cursor:pointer;">↓ CV</a>` : '<span style="color:#9CA3AF;">—</span>'}
                     </td>
                     <td>
-                        <button class="btn-action" style="font-size:10px;padding:4px 8px;" onclick="viewCandidate(${c.id})">View</button>
+                        <div style="display:flex;gap:5px;">
+                            <button class="btn-action" style="font-size:10px;padding:4px 8px;" onclick="viewCandidate(${c.id})">View</button>
+                            <button class="btn-action" style="font-size:10px;padding:4px 8px;color:#A32D2D;border-color:#A32D2D;" onclick="deleteCandidate(${c.id},'${(c.name||'').replace(/'/g,"\\'")}')">Delete</button>
+                        </div>
                     </td>
                 </tr>
             `;
