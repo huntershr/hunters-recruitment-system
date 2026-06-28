@@ -58,7 +58,12 @@ def call_agent_screener(cv_text: str, job, candidate_id=None) -> "dict | None":
         }
 
         strengths = raw.get("strengths") or []
-        concerns  = raw.get("concerns")  or []
+        concerns  = raw.get("concerns", [])
+        missed    = raw.get("missed_skills", [])
+        if missed:
+            weaknesses = f"Missing skills: {', '.join(missed)}"
+        else:
+            weaknesses = " | ".join(concerns) if concerns else ""
 
         mapped = {
             "overall_score": overall,
@@ -66,7 +71,7 @@ def call_agent_screener(cv_text: str, job, candidate_id=None) -> "dict | None":
             "decision":      decision,
             "reason":        f"Title: {tm}% | Industry: {im}% | Experience: {em}% | Skills: {sm}%",
             "strengths":     strengths if isinstance(strengths, list) else [strengths],
-            "weaknesses":    concerns  if isinstance(concerns,  list) else [concerns],
+            "weaknesses":    weaknesses,
             "suggested_interview_questions": [],
             "dimension_scores": dimension_scores_mapped,
         }
