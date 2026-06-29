@@ -1,20 +1,5 @@
 const API_URL = ""; // Use relative paths
 
-async function deleteCandidate(candidateId, name) {
-    if (!confirm(`Delete "${name}" and all their evaluations?\nThis cannot be undone.`)) return;
-    try {
-        const token = localStorage.getItem('token');
-        const r = await fetch(`/api/admin/candidates/${candidateId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
-        showToast(`"${name}" deleted`);
-        await fetchData();
-    } catch (e) {
-        showToast('Delete failed: ' + e.message, 'error');
-    }
-}
 
 function showToast(message, type = 'success') {
     const colors = {
@@ -1635,17 +1620,18 @@ async function handleJobUpload(event) {
     }
 }
 
-async function deleteCandidate(id) {
-    if (!confirm("Are you sure you want to delete this candidate?")) return;
-    
+async function deleteCandidate(id, name) {
+    if (!confirm(`Delete "${name || 'this candidate'}" and all their evaluations?\nThis cannot be undone.`)) return;
     try {
-        const response = await authFetch(`${API_URL}/candidates/${id}`, {
-            method: "DELETE"
-        });
-        const result = await response.json();
-        fetchData(); // Refresh list
+        const r = await authFetch(`/api/admin/candidates/${id}`, { method: 'DELETE' });
+        if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            throw new Error(err.detail || r.statusText);
+        }
+        showToast(`"${name || 'Candidate'}" deleted`);
+        await fetchData();
     } catch (err) {
-        showToast('Failed to delete candidate.', 'error');
+        showToast('Delete failed: ' + err.message, 'error');
     }
 }
 
