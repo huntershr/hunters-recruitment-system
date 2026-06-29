@@ -199,57 +199,50 @@ def finalize_evaluation(parsed: dict) -> dict:
     return out
 
 def generate_job_details(job_title: str, industry_background: str, additional_context: str = "") -> dict:
-    ctx = additional_context.strip() or "None"
-    prompt = f"""You are a senior HR specialist at Hunters for HR Transformation & Execution.
+    import httpx
 
-Generate professional job posting details for the role below.
+    engine_url = os.getenv("AI_ENGINE_URL", "https://hunters-ai-engine-production.up.railway.app")
+    api_key    = os.getenv("AI_ENGINE_KEY", "hunters-ai-engine-key")
 
-Job Title: {job_title}
-Industry Background: {industry_background}
-Additional Context: {ctx}
+    payload = {
+        "skill": "generate-job-post",
+        "inputs": {
+            "title":    job_title,
+            "industry": industry_background,
+        },
+        "context": {
+            "additionalContext": additional_context or "",
+        },
+    }
 
-Return ONLY a valid JSON object (no markdown, no code blocks) with exactly these keys:
-{{
-  "job_brief": "3-4 sentence professional description of the role and its responsibilities in the {industry_background} sector",
-  "required_skills": "comma-separated list of 6-8 must-have skills for {job_title} in {industry_background}",
-  "nice_to_have": "comma-separated list of 4-5 bonus skills for {job_title}",
-  "behavioral_skills": "comma-separated list of 4-5 behavioral competencies such as communication, teamwork, adaptability"
-}}"""
-
-    model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
-    max_retries = 3
-
-    for attempt in range(max_retries):
-        try:
-            model = _gemini_model
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.4,
-                    response_mime_type="application/json",
-                ),
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
+                f"{engine_url}/execute",
+                json=payload,
+                headers={"X-API-Key": api_key},
             )
+            response.raise_for_status()
+            result = response.json()
 
-            raw = response.text.strip()
-            if raw.startswith("```json"):
-                raw = raw[7:]
-            if raw.startswith("```"):
-                raw = raw[3:]
-            if raw.endswith("```"):
-                raw = raw[:-3]
+        if not result.get("success"):
+            raise RuntimeError(f"AI Engine error: {result.get('error', 'unknown')}")
 
-            return json.loads(raw.strip())
+        data         = result["data"]
+        requirements = data.get("requirements") or {}
+        skills_list  = requirements.get("skills") or []
+        comps_list   = data.get("competencies") or []
 
-        except Exception as e:
-            logger.error("generate_job_details attempt %d failed: %s", attempt + 1, e)
-            if "429" in str(e) and attempt < max_retries - 1:
-                wait = (2 ** attempt) * 2 + random.random()
-                time.sleep(wait)
-                continue
-            if attempt == max_retries - 1:
-                raise
+        return {
+            "job_brief":         data.get("summary", ""),
+            "required_skills":   ", ".join(skills_list) if isinstance(skills_list, list) else str(skills_list),
+            "nice_to_have":      data.get("qualifications", ""),
+            "behavioral_skills": ", ".join(comps_list) if isinstance(comps_list, list) else str(comps_list),
+        }
 
-    raise RuntimeError("generate_job_details failed after retries")
+    except Exception as e:
+        logger.error("generate_job_details failed: %s", e)
+        raise
 
 
 def extract_candidate_info(cv_text):
