@@ -1,8 +1,7 @@
 """
 Backfill ATS profile fields (last_title, last_employer, education, skills,
-languages, certifications) for existing Candidate rows that have cv_text
-but no last_title yet (i.e. were created before the agent extraction was
-wired into the submission flow).
+languages, certifications, summary, experiences, education_history) for
+existing Candidate rows that have cv_text but are missing these fields.
 
 Usage:
     DATABASE_URL=postgresql://... SCREEN_SERVICE_URL=https://... SCREEN_API_KEY=... \
@@ -33,6 +32,8 @@ SCREEN_URL = os.environ.get(
 )
 SCREEN_KEY = os.environ.get("SCREEN_API_KEY", "")
 DRY_RUN = os.environ.get("DRY_RUN", "").strip().lower() in ("1", "true", "yes")
+if not SCREEN_KEY and not DRY_RUN:
+    sys.exit("ERROR: SCREEN_API_KEY env var not set")
 
 _endpoint = (
     SCREEN_URL
@@ -70,25 +71,44 @@ def call_agent(cv_text: str) -> dict | None:
 
 
 def main():
+    # Pass 1 — fetch IDs only (no large text blobs) to avoid statement timeout
     db = Session()
     try:
-        rows = db.execute(text(
-            "SELECT id, cv_text FROM candidates "
-            "WHERE last_title IS NULL AND cv_text IS NOT NULL AND cv_text != '' "
+        id_rows = db.execute(text(
+            "SELECT id FROM candidates "
+            "WHERE (last_title IS NULL OR summary IS NULL OR experiences IS NULL) "
+            "AND cv_text IS NOT NULL AND cv_text != '' "
             "ORDER BY id"
         )).fetchall()
     finally:
         db.close()
 
-    total = len(rows)
+    cand_ids = [r[0] for r in id_rows]
+    total = len(cand_ids)
     log.info("Candidates qualifying for backfill: %d%s", total, " (DRY RUN)" if DRY_RUN else "")
     if total == 0:
         return
 
     updated = skipped = failed = 0
 
-    for i, (cand_id, cv_text) in enumerate(rows, 1):
+    for i, cand_id in enumerate(cand_ids, 1):
         log.info("[%d/%d] candidate_id=%d", i, total, cand_id)
+
+        # Pass 2 — fetch cv_text for this single candidate
+        db2 = Session()
+        try:
+            row = db2.execute(
+                text("SELECT cv_text FROM candidates WHERE id = :id"),
+                {"id": cand_id}
+            ).fetchone()
+            cv_text = row[0] if row else ""
+        finally:
+            db2.close()
+
+        if not cv_text:
+            log.warning("  -> cv_text empty for candidate %d; skipping", cand_id)
+            skipped += 1
+            continue
 
         resp = call_agent(cv_text)
         cp = (resp or {}).get("candidate_profile") or {}
@@ -124,8 +144,23 @@ def main():
         langs = cp.get("languages")
         if isinstance(langs, list) and langs:
             fields["_languages"] = langs
+        v = (cp.get("summary") or "").strip()
+        if v:
+            fields["summary"] = v
+        v = cp.get("experiences")
+        if isinstance(v, list) and v:
+            fields["_experiences"] = v
+        v = cp.get("education_history")
+        if isinstance(v, list) and v:
+            fields["_education_history"] = v
 
-        log.info("  -> fields to write: %s", {k: v for k, v in fields.items() if k != "_languages"})
+        log.info(
+            "  -> fields to write: %s | summary=%s experiences=%s education_history=%s",
+            {k: v for k, v in fields.items() if k not in ("_languages", "_experiences", "_education_history")},
+            bool(fields.get("summary")),
+            "yes(%d)" % len(fields["_experiences"]) if "_experiences" in fields else "no",
+            "yes(%d)" % len(fields["_education_history"]) if "_education_history" in fields else "no",
+        )
         if "_languages" in fields:
             log.info("  -> languages: %s", fields["_languages"])
 
@@ -137,7 +172,7 @@ def main():
         db2 = Session()
         try:
             row = db2.execute(
-                text("SELECT last_title, last_employer, experience_years, education, skills, certifications, languages "
+                text("SELECT last_title, last_employer, experience_years, education, skills, certifications, languages, summary, experiences, education_history "
                      "FROM candidates WHERE id = :id"),
                 {"id": cand_id}
             ).fetchone()
@@ -161,6 +196,7 @@ def main():
             _guard("education",       fields.get("education"),       row.education)
             _guard("skills",          fields.get("skills"),          row.skills)
             _guard("certifications",  fields.get("certifications"),  row.certifications)
+            _guard("summary",         fields.get("summary"),         row.summary)
 
             if not (row.experience_years or 0) and fields.get("experience_years"):
                 sets.append("experience_years = :experience_years")
@@ -170,6 +206,14 @@ def main():
                 import json as _json
                 sets.append("languages = :languages")
                 params["languages"] = _json.dumps(fields["_languages"])
+            if not row.experiences and "_experiences" in fields:
+                import json as _json
+                sets.append("experiences = :experiences")
+                params["experiences"] = _json.dumps(fields["_experiences"])
+            if not row.education_history and "_education_history" in fields:
+                import json as _json
+                sets.append("education_history = :education_history")
+                params["education_history"] = _json.dumps(fields["_education_history"])
 
             if sets:
                 db2.execute(
