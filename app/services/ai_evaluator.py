@@ -202,7 +202,7 @@ def generate_job_details(job_title: str, industry_background: str, additional_co
     import httpx
 
     engine_url = os.getenv("AI_ENGINE_URL", "https://hunters-ai-engine-production.up.railway.app")
-    api_key    = os.getenv("AI_ENGINE_KEY", "hunters-ai-engine-key")
+    api_key    = os.getenv("AI_ENGINE_KEY", "hunters-ai-engine-key-prod")
 
     payload = {
         "skill": "generate-job-post",
