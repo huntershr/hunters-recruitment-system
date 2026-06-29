@@ -182,6 +182,15 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
                             v = _cp.get("certifications")
                             if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
                             if v: _cand.certifications = str(v).strip()
+                        if not _cand.summary:
+                            v = (_cp.get("summary") or "").strip()
+                            if v: _cand.summary = v
+                        if not _cand.experiences:
+                            v = _cp.get("experiences")
+                            if isinstance(v, list) and v: _cand.experiences = v
+                        if not _cand.education_history:
+                            v = _cp.get("education_history")
+                            if isinstance(v, list) and v: _cand.education_history = v
                         db.commit()
                         logger.info(f"Agent profile saved for candidate {application.candidate_id}")
                 except Exception as _ap_err:
