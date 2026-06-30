@@ -1629,7 +1629,8 @@ async function deleteCandidate(id, name) {
             throw new Error(err.detail || r.statusText);
         }
         showToast(`"${name || 'Candidate'}" deleted`);
-        await fetchData();
+        applications = applications.filter(a => a.candidate_id !== id);
+        renderCandidates();
     } catch (err) {
         showToast('Delete failed: ' + err.message, 'error');
     }
