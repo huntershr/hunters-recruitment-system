@@ -1508,6 +1508,107 @@ def rescreen_pending(
     }
 
 
+@router.post("/rescreen/{application_id}")
+def rescreen_single(
+    application_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """SuperAdmin only. Re-run the agent screener for a single application."""
+    if not current_user.is_admin or current_user.email != SUPERADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="SuperAdmin only")
+
+    app = db.query(models.Application).filter(models.Application.id == application_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    candidate = db.query(models.Candidate).filter(models.Candidate.id == app.candidate_id).first()
+    job = db.query(models.Job).filter(models.Job.id == app.job_id).first()
+
+    if not candidate or not job:
+        raise HTTPException(status_code=404, detail="Candidate or job not found")
+    if not (candidate.cv_text or "").strip():
+        raise HTTPException(status_code=422, detail="No CV text available for this candidate")
+
+    _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
+
+    try:
+        _ar = call_agent_screener(candidate.cv_text, job, candidate.id)
+        if _ar is not None:
+            _cp = _ar.pop("_candidate_profile", None) or {}
+            if _cp:
+                if not candidate.name or candidate.name.lower().startswith("resume"):
+                    v = (_cp.get("name") or "").strip()
+                    if v and v.isprintable() and any(c.isalpha() for c in v) and len(v) <= 80:
+                        candidate.name = v
+                if not candidate.last_title:
+                    v = (_cp.get("current_title") or "").strip()
+                    if v and len(v) <= 80:
+                        candidate.last_title = v
+                if not candidate.last_employer:
+                    v = (_cp.get("last_employer") or "").strip()
+                    if v and len(v) <= 100 and not v[0].isdigit():
+                        candidate.last_employer = v
+                if not (candidate.experience_years or 0):
+                    v = _cp.get("years_experience")
+                    if v:
+                        try:
+                            yr = int(v)
+                            if 1 <= yr <= 25:
+                                candidate.experience_years = yr
+                        except Exception:
+                            pass
+            result = _ar
+        else:
+            result = finalize_evaluation(evaluate_candidate(job, candidate))
+
+        ev = db.query(models.Evaluation).filter(models.Evaluation.application_id == application_id).first()
+        if not ev:
+            ev = models.Evaluation(
+                application_id=application_id,
+                candidate_id=app.candidate_id,
+                job_id=app.job_id,
+            )
+            db.add(ev)
+
+        _bd3 = result.get("score_breakdown") or {}
+        ev.score = result.get("score", 0.0)
+        ev.score_experience = _bd3.get("experience")
+        ev.score_skills = _bd3.get("skills")
+        ev.score_education = _bd3.get("education")
+        ev.score_behavioral = _bd3.get("behavioral")
+        ev.decision = result.get("decision", "Reject")
+        ev.reason = result.get("summary_en") or result.get("reason", "")
+        ev.strengths = _lstr(result.get("strengths_en") or result.get("strengths") or [])
+        ev.weaknesses = _lstr(result.get("gaps_en") or result.get("weaknesses") or [])
+        ev.suggested_interview_questions = (
+            result.get("interview_questions_en") or result.get("suggested_interview_questions") or []
+        )
+        ev.summary_en = result.get("summary_en")
+        ev.summary_ar = result.get("summary_ar")
+        ev.strengths_ar = _lstr(result.get("strengths_ar") or [])
+        ev.gaps_en = _lstr(result.get("gaps_en") or [])
+        ev.gaps_ar = _lstr(result.get("gaps_ar") or [])
+        ev.interview_questions_ar = result.get("interview_questions_ar")
+        ev.quick_facts = result.get("quick_facts")
+        ev.dimension_scores = result.get("dimension_scores")
+        db.commit()
+
+        return {
+            "status": "rescreened",
+            "application_id": application_id,
+            "score": ev.score,
+            "decision": ev.decision,
+            "reason": ev.reason,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        _logger.error(f"rescreen_single failed for application {application_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Rescreen failed: {e}")
+
+
 @router.patch("/applications/{application_id}/stage")
 def update_application_stage(
     application_id: int,

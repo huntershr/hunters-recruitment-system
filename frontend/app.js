@@ -658,6 +658,7 @@ function _renderStageCard(app) {
                 ${(stg==='screening'||(app.voice_screening&&app.voice_screening.status==='completed'))?`<button onclick="openVoiceScreeningPanel(${app.application_id})" style="padding:5px 10px;border:none;border-radius:8px;background:#C9A84C;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;">${app.voice_screening&&app.voice_screening.status==='completed'?'View Screening':app.voice_screening&&app.voice_screening.status==='no_answer'?'Re-Call':'Start Screening'}</button>`:''}
                 ${app.email?`<button onclick="sendCandidateEmail('${(app.email||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}','${(app.company_name||'Hunters HR').replace(/'/g,"\\'")}')" style="padding:5px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F3F4F6;font-size:11px;font-weight:500;color:#6B7280;cursor:pointer;">Email</button>`:''}
                 ${app.phone?`<button onclick="sendCandidateWhatsApp('${(app.phone||'').replace(/'/g,"\\'")}','${(app.name||'').replace(/'/g,"\\'")}','${(app.job_title||'').replace(/'/g,"\\'")}')" style="padding:5px 10px;border:1px solid #25D366;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#25D366;cursor:pointer;">WhatsApp</button>`:''}
+                ${(currentUser&&currentUser.email==='hr@hunters-egypt.com'&&app.application_id)?`<button onclick="rescreenCandidate(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}');" style="padding:5px 10px;border:1px solid #6B21A8;border-radius:8px;background:#fff;font-size:11px;font-weight:500;color:#6B21A8;cursor:pointer;">Rescreen</button>`:''}
             </div>
             <div onclick="event.stopPropagation()" style="min-width:160px;">
                 <select onchange="changeAppStage(${app.application_id},this.value,this)" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:11px;color:#6B7280;background:#F9FAFB;cursor:pointer;min-height:44px;">
@@ -667,6 +668,27 @@ function _renderStageCard(app) {
             </div>
         </div>
     </div>`;
+}
+
+async function rescreenCandidate(applicationId, name) {
+    if (!confirm(`Rescreen "${name || 'this candidate'}"?\nThis will replace their current score with a fresh AI evaluation.`)) return;
+    try {
+        const r = await authFetch(`/api/admin/rescreen/${applicationId}`, { method: 'POST' });
+        if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            throw new Error(err.detail || r.statusText);
+        }
+        const data = await r.json();
+        const idx = applications.findIndex(a => a.application_id === applicationId);
+        if (idx >= 0) {
+            applications[idx].score    = data.score;
+            applications[idx].decision = data.decision;
+        }
+        showToast(`Rescreened: ${data.score}% — ${data.decision}`);
+        renderCandidates();
+    } catch (err) {
+        showToast('Rescreen failed: ' + err.message, 'error');
+    }
 }
 
 function switchStageTab(tabId) {
@@ -789,6 +811,9 @@ function renderCandidateList(filter) {
                                 : ''}
                             ${app.candidate_id
                                 ? `<button class="btn-action" style="font-size:10px;padding:4px 8px;color:#A32D2D;border-color:#A32D2D;" onclick="deleteCandidate(${app.candidate_id},'${(app.name||'').replace(/'/g,"\\'")}')">Delete</button>`
+                                : ''}
+                            ${(currentUser&&currentUser.email==='hr@hunters-egypt.com'&&app.application_id)
+                                ? `<button class="btn-action" style="font-size:10px;padding:4px 8px;color:#6B21A8;border-color:#6B21A8;" onclick="rescreenCandidate(${app.application_id},'${(app.name||'').replace(/'/g,"\\'")}')">Rescreen</button>`
                                 : ''}
                         </div>
                     </td>
