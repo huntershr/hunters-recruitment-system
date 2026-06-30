@@ -190,13 +190,12 @@ async function fetchData() {
     try { buildCompanyFilter(); } catch (_) {}
 }
 
-/** Stored score normalization: fractions (≤1), legacy 1–10 scale, or unified 0–100. */
+/** Stored score normalization: fractions (≤1) or unified 0–100 (backend normalizes legacy scales). */
 function evalScorePercent(raw) {
     if (raw === null || raw === undefined || raw === "") return null;
     const n = Number(raw);
     if (Number.isNaN(n) || n === 0) return null;  // 0 = failed evaluation
     if (n <= 1) return Math.round(n * 100);
-    if (n <= 10) return Math.round(n * 10);
     return Math.round(Math.min(100, n));
 }
 

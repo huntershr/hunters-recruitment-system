@@ -1088,10 +1088,15 @@ def list_admin_applications(
         phone = (candidate.phone if candidate else None) or app.applicant_phone or ""
 
         # Normalize score → 0-100 float or None
+        # Agent scores are already 0-100 (finalize_evaluation normalizes them before storage).
+        # Legacy Gemini scores (source=NULL) may be on a 0-10 scale and need ×10.
         score = None
         if evaluation and evaluation.score is not None:
             raw = float(evaluation.score)
-            if raw <= 1:
+            _ds = evaluation.dimension_scores if isinstance(evaluation.dimension_scores, dict) else {}
+            if _ds.get('source') == 'agent':
+                score = round(min(100.0, max(0.0, raw)), 1)
+            elif raw <= 1:
                 score = round(raw * 100, 1)
             elif raw <= 10:
                 score = round(raw * 10, 1)
