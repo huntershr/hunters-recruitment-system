@@ -337,7 +337,7 @@ async def screen_cv(
             candidate.name = name
             candidate.phone = phone or candidate.phone
             candidate.job_applied = job_id
-            candidate.experience_years = int(info.get("experience_years") or 0) or candidate.experience_years
+            candidate.experience_years = int(info.get("experience_years") or 0) or candidate.experience_years or None
             candidate.education = str(info.get("education") or "") or candidate.education
             candidate.skills = str(info.get("skills") or "") or candidate.skills
             candidate.last_title = str(info.get("last_title") or "") or candidate.last_title
@@ -350,7 +350,7 @@ async def screen_cv(
                 email=email,
                 phone=phone,
                 job_applied=job_id,
-                experience_years=int(info.get("experience_years") or 0),
+                experience_years=int(info.get("experience_years") or 0) or None,
                 expected_salary="",
                 education=str(info.get("education") or ""),
                 skills=str(info.get("skills") or ""),
@@ -381,7 +381,7 @@ async def screen_cv(
                 existing.cv_url = storage_path
             existing.name = name
             existing.phone = phone or existing.phone
-            existing.experience_years = int(info.get("experience_years") or 0) or existing.experience_years
+            existing.experience_years = int(info.get("experience_years") or 0) or existing.experience_years or None
             existing.education = str(info.get("education") or "") or existing.education
             existing.skills = str(info.get("skills") or "") or existing.skills
             existing.last_title = str(info.get("last_title") or "") or existing.last_title
@@ -395,7 +395,7 @@ async def screen_cv(
                 email=email,
                 phone=phone,
                 job_applied=job_id,
-                experience_years=int(info.get("experience_years") or 0),
+                experience_years=int(info.get("experience_years") or 0) or None,
                 expected_salary="",
                 education=str(info.get("education") or ""),
                 skills=str(info.get("skills") or ""),

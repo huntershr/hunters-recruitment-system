@@ -625,7 +625,7 @@ function _renderStageCard(app) {
     const [stgColor,stgBg] = _STAGE_BADGE_MAP[stg]||['#6B7280','#F3F4F6'];
     const _stageLabelMap = {applied:'Applied',screening:'AI Screening Call',shortlisted:'Shortlisted',interview:'Interview',offered:'Offered',hired:'Hired',rejected:'Rejected'};
     const stgLabel = _stageLabelMap[stg] || stg.charAt(0).toUpperCase()+stg.slice(1);
-    const expLine = [app.last_title, app.experience_years!=null?app.experience_years+' yrs':null].filter(Boolean).join(' · ');
+    const expLine = [app.last_title, app.experience_years>0?app.experience_years+' yrs':null].filter(Boolean).join(' · ');
     const safeName = (app.name||'').replace(/[^a-zA-Z0-9_-]/g,'_');
     const displayName = (app.name && app.name !== 'Unknown') ? app.name : (app.email ? app.email.split('@')[0].replace(/^bulk_/,'').replace(/[._]/g,' ').trim() || app.email : '—');
     const _stageLabels = {applied:'Applied',screening:'AI Screening Call',shortlisted:'Shortlisted',interview:'Interview',offered:'Offered',hired:'Hired',rejected:'Rejected'};
@@ -794,7 +794,7 @@ function renderCandidateList(filter) {
                         <span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:${stageCol}22;color:${stageCol};">${stage}</span>
                     </td>
                     <td style="font-size:11px;color:#6B7280;">
-                        ${app.experience_years != null ? app.experience_years + ' yrs' : '—'}
+                        ${app.experience_years > 0 ? app.experience_years + ' yrs' : '—'}
                         ${app.last_title ? `<div style="font-size:10px;color:#9CA3AF;">${escHtml(app.last_title)}</div>` : ''}
                     </td>
                     <td style="font-size:11px;">
