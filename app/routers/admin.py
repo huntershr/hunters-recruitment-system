@@ -735,9 +735,35 @@ def admin_delete_candidate(
     candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Collect application IDs before deletion so we can cascade their children
+    app_ids = [
+        a.id for a in db.query(models.Application.id)
+        .filter(models.Application.candidate_id == candidate_id).all()
+    ]
+
+    if app_ids:
+        db.query(models.Evaluation).filter(
+            models.Evaluation.application_id.in_(app_ids)
+        ).delete(synchronize_session=False)
+        db.query(models.Interview).filter(
+            models.Interview.application_id.in_(app_ids)
+        ).delete(synchronize_session=False)
+        db.query(models.VoiceScreening).filter(
+            models.VoiceScreening.application_id.in_(app_ids)
+        ).delete(synchronize_session=False)
+        db.query(models.Offer).filter(
+            models.Offer.application_id.in_(app_ids)
+        ).delete(synchronize_session=False)
+        db.query(models.Application).filter(
+            models.Application.candidate_id == candidate_id
+        ).delete(synchronize_session=False)
+
+    # Delete evaluations linked directly by candidate_id (no application row)
     db.query(models.Evaluation).filter(
         models.Evaluation.candidate_id == candidate_id
     ).delete(synchronize_session=False)
+
     db.delete(candidate)
     db.commit()
     return {"message": "Candidate deleted"}
