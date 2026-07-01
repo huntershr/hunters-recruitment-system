@@ -4177,6 +4177,11 @@
         fill('job-modal-skills',     toLines(job.required_skills));
         fill('job-modal-nice',       toLines(job.nice_to_have));
         fill('job-modal-behavioral', toLines(job.behavioral_skills));
+        // Populate essential skills only if AI returns them — never clear existing values
+        if (Array.isArray(job.essential_skills) && job.essential_skills.length) {
+            const essEl = document.getElementById('job-modal-essential-skills');
+            if (essEl) essEl.value = job.essential_skills.join('\n');
+        }
         gotoJobStep_withFormToggle(1);
         showToast('AI filled Job Brief and Skills — complete the remaining fields and set scoring weights', 'success');
     }
@@ -4274,7 +4279,7 @@
                 </button>
                 <button class="job-step-btn active" id="btn-step-1" onclick="gotoJobStep(1)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid #C9A84C; color:#1B2A4A; font-weight:500; cursor:pointer;">1. Basic Info</button>
                 <button class="job-step-btn" id="btn-step-2" onclick="gotoJobStep(2)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid transparent; color:#9CA3AF; font-weight:500; cursor:pointer;">2. Requirements</button>
-                <button class="job-step-btn" id="btn-step-3" onclick="gotoJobStep(3)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid transparent; color:#9CA3AF; font-weight:500; cursor:pointer;">3. AI Weights</button>
+                <button class="job-step-btn" id="btn-step-3" onclick="gotoJobStep(3)" style="flex:1; padding:12px; border:none; background:none; border-bottom:2px solid transparent; color:#9CA3AF; font-weight:500; cursor:pointer;">3. Scoring Weights</button>
             </div>
 
             <!-- ASK AI PANEL -->
@@ -4422,19 +4427,27 @@
                         <textarea id="job-modal-desc" rows="6" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
                     </div>
 
-                    <div style="margin-bottom:16px;">
+                    <div style="margin-bottom:4px;">
                         <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Required Skills <span style="font-size:11px; color:#9CA3AF;">(one per line)</span></label>
-                        <textarea id="job-modal-skills" required rows="4" placeholder="e.g.&#10;React&#10;Python&#10;Communication" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
+                        <textarea id="job-modal-skills" required rows="4" placeholder="British Curriculum&#10;Lesson Planning&#10;Classroom Management&#10;Formative Assessment" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
+                        <p style="font-size:11px; color:#9CA3AF; margin:4px 0 12px;">Enter one skill per line using plain keywords — the AI matches these against candidate CVs.</p>
                     </div>
 
-                    <div style="margin-bottom:16px;">
+                    <div style="margin-bottom:4px;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Essential Skills <span style="font-size:11px; color:#9CA3AF;">(optional, one per line)</span></label>
+                        <textarea id="job-modal-essential-skills" rows="3" placeholder="British Curriculum&#10;IGCSE Teaching" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
+                        <p style="font-size:11px; color:#9CA3AF; margin:4px 0 12px;">Skills marked essential will automatically reject candidates who don't have them, regardless of overall score.</p>
+                    </div>
+
+                    <div style="margin-bottom:4px;">
                         <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Nice to Have Skills <span style="font-size:11px; color:#9CA3AF;">(optional, one per line)</span></label>
-                        <textarea id="job-modal-nice" rows="3" placeholder="e.g.&#10;Arabic fluency&#10;SAP" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
+                        <textarea id="job-modal-nice" rows="3" placeholder="Arabic Fluency&#10;SAP&#10;Project Management" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
+                        <p style="font-size:11px; color:#9CA3AF; margin:4px 0 12px;">Enter one skill per line using plain keywords — the AI matches these against candidate CVs.</p>
                     </div>
 
                     <div style="margin-bottom:16px;">
                         <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Behavioral Skills <span style="font-size:11px; color:#9CA3AF;">(optional, one per line)</span></label>
-                        <textarea id="job-modal-behavioral" rows="3" placeholder="e.g.&#10;Communication&#10;Teamwork&#10;Adaptability" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
+                        <textarea id="job-modal-behavioral" rows="3" placeholder="Communication&#10;Teamwork&#10;Adaptability&#10;Problem Solving" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
                     </div>
 
                     <div style="margin-bottom:16px;">
@@ -4450,51 +4463,17 @@
 
                 <!-- STEP 3 -->
                 <div id="job-step-3" style="display:none;">
-                    <div style="background:#F4F5FA; border-radius:12px; padding:20px; margin-bottom:20px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                            <span style="font-size:14px; font-weight:500; color:#1B2A4A;">AI Evaluation Weights</span>
-                            <span id="modal-weights-total" style="font-size:12px; background:#E1F5EE; color:#0F6E56; padding:4px 10px; border-radius:20px; font-weight:500;">Total: 100%</span>
-                        </div>
-
-                        <div style="margin-bottom:16px;">
-                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
-                                <span>Experience Match</span>
-                                <span id="val-weight-exp">40%</span>
-                            </div>
-                            <input type="range" id="weight-exp" min="0" max="100" value="40" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
-                        </div>
-                        <div style="margin-bottom:16px;">
-                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
-                                <span>Skills Match</span>
-                                <span id="val-weight-skills">30%</span>
-                            </div>
-                            <input type="range" id="weight-skills" min="0" max="100" value="30" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
-                        </div>
-                        <div style="margin-bottom:16px;">
-                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
-                                <span>Education</span>
-                                <span id="val-weight-edu">20%</span>
-                            </div>
-                            <input type="range" id="weight-edu" min="0" max="100" value="20" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
-                        </div>
-                        <div style="margin-bottom:16px;">
-                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
-                                <span>Behavioral Fit</span>
-                                <span id="val-weight-behav">10%</span>
-                            </div>
-                            <input type="range" id="weight-behav" min="0" max="100" value="10" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
-                        </div>
+                    <div style="background:#F5F6F8;border-radius:7px;padding:8px 10px;font-size:11px;color:#9CA3AF;margin-bottom:16px;">
+                        These weights control how the AI agent scores candidates for this job. Must sum to 100. Default is 25/25/25/25.
                     </div>
 
-                    <!-- Agent Scoring Weights (collapsible) -->
                     <div style="border:1px solid #E5E7EB; border-radius:12px; margin-bottom:20px; overflow:hidden;">
-                        <button type="button" onclick="toggleAgentWeights()" style="width:100%; background:#F9FAFB; border:none; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-                            <span style="font-size:13px; font-weight:500; color:#1B2A4A;">Agent Scoring Weights <span style="font-size:11px; font-weight:400; color:#6B7280;">(optional — default 25/25/25/25)</span></span>
-                            <span id="agent-weights-chevron" style="color:#6B7280; font-size:16px; transition:transform 0.2s;">▼</span>
-                        </button>
-                        <div id="agent-weights-panel" style="display:none; padding:16px;">
-                            <p style="font-size:12px; color:#6B7280; margin:0 0 14px;">These weights control how the AI agent scores candidates for this specific job. They must sum to 100.</p>
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                        <div style="background:#F9FAFB; border-bottom:1px solid #E5E7EB; padding:14px 16px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:13px; font-weight:500; color:#1B2A4A;">AI Scoring Weights</span>
+                            <div id="aw-sum-display" style="font-size:12px; padding:4px 10px; border-radius:20px; background:#E1F5EE; color:#0F6E56; font-weight:500;">Total: 100%</div>
+                        </div>
+                        <div style="padding:16px;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:4px;">
                                 <div>
                                     <label style="font-size:12px; color:#374151; display:block; margin-bottom:4px;">Title Match %</label>
                                     <input type="number" id="aw-title" min="0" max="100" value="25" oninput="updateAgentWeights()" style="width:100%; border:1px solid #E5E7EB; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;">
@@ -4512,7 +4491,6 @@
                                     <input type="number" id="aw-skills" min="0" max="100" value="25" oninput="updateAgentWeights()" style="width:100%; border:1px solid #E5E7EB; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;">
                                 </div>
                             </div>
-                            <div id="aw-sum-display" style="text-align:center; font-size:12px; padding:6px 12px; border-radius:20px; background:#E1F5EE; color:#0F6E56; font-weight:500; display:inline-block;">Total: 100%</div>
                         </div>
                     </div>
 
@@ -4723,7 +4701,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.19"></script>
+<script src="hunters-jobs.js?v=3.20"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies
