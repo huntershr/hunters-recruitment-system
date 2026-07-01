@@ -935,65 +935,66 @@
                                           placeholder="Briefly describe the role..."></textarea>
                             </div>
                             <div class="form-group">
-                                <label class="field-label">Required Skills</label>
+                                <label class="field-label">Required Skills <span style="font-size:11px;color:#9CA3AF;">(one per line)</span></label>
                                 <textarea id="manual-job-skills" class="field-input field-textarea"
-                                          placeholder="e.g. HR Systems, Labour Law, Excel" required></textarea>
+                                          placeholder="British Curriculum&#10;Lesson Planning&#10;Classroom Management&#10;Formative Assessment" required></textarea>
+                                <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Enter one skill per line using plain keywords — the AI matches these against candidate CVs.</p>
                             </div>
                             <div class="form-group">
-                                <label class="field-label">Nice to Have Skills</label>
+                                <label class="field-label">Essential Skills <span style="font-size:11px;color:#9CA3AF;">(optional, one per line)</span></label>
+                                <textarea id="manual-job-essential-skills" class="field-input field-textarea" rows="3"
+                                          placeholder="British Curriculum&#10;IGCSE Teaching"></textarea>
+                                <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Skills marked essential will automatically reject candidates who don't have them, regardless of overall score.</p>
+                            </div>
+                            <div class="form-group">
+                                <label class="field-label">Nice to Have Skills <span style="font-size:11px;color:#9CA3AF;">(optional, one per line)</span></label>
                                 <textarea id="manual-job-nice" class="field-input field-textarea"
-                                          placeholder="e.g. SAP, Arabic fluency"></textarea>
+                                          placeholder="Arabic Fluency&#10;SAP&#10;Project Management"></textarea>
+                                <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Enter one skill per line using plain keywords — the AI matches these against candidate CVs.</p>
                             </div>
                             <div class="form-group">
-                                <label class="field-label">Behavioral Skills</label>
+                                <label class="field-label">Behavioral Skills <span style="font-size:11px;color:#9CA3AF;">(optional, one per line)</span></label>
                                 <textarea id="manual-job-behavioral" class="field-input field-textarea"
-                                          placeholder="creativity, communication, results-driven"></textarea>
+                                          placeholder="Communication&#10;Teamwork&#10;Adaptability&#10;Problem Solving"></textarea>
                             </div>
                         </div>
 
                         <!-- STEP 3: Scoring Weights -->
                         <div id="job-step-3" style="display:none;">
-                            <div style="background:#F5F6F8;border-radius:7px;padding:8px 10px;font-size:11px;color:#9CA3AF;margin-bottom:12px;">
-                                Step 3 of 3 — Set how much each factor weighs in AI scoring. Total must equal 100%.
-                            </div>
-                            <div id="weight-total-display" class="weight-total bad">Total: <span id="weight-total-val">100</span>% — must equal 100%</div>
-
-                            <div class="weight-row">
-                                <div class="weight-row-header">
-                                    <span class="weight-label">Experience</span>
-                                    <span class="weight-value" id="wv-exp">30%</span>
-                                </div>
-                                <input type="range" class="weight-slider" id="manual-job-w-exp"
-                                       min="0" max="100" value="30" oninput="updateWeights()">
-                            </div>
-                            <div class="weight-row">
-                                <div class="weight-row-header">
-                                    <span class="weight-label">Skills Match</span>
-                                    <span class="weight-value" id="wv-skills">40%</span>
-                                </div>
-                                <input type="range" class="weight-slider" id="manual-job-w-skills"
-                                       min="0" max="100" value="40" oninput="updateWeights()">
-                            </div>
-                            <div class="weight-row">
-                                <div class="weight-row-header">
-                                    <span class="weight-label">Education</span>
-                                    <span class="weight-value" id="wv-edu">20%</span>
-                                </div>
-                                <input type="range" class="weight-slider" id="manual-job-w-edu"
-                                       min="0" max="100" value="20" oninput="updateWeights()">
-                            </div>
-                            <div class="weight-row">
-                                <div class="weight-row-header">
-                                    <span class="weight-label">Behavioral Fit</span>
-                                    <span class="weight-value" id="wv-behavioral">10%</span>
-                                </div>
-                                <input type="range" class="weight-slider" id="manual-job-w-behavioral"
-                                       min="0" max="100" value="10" oninput="updateWeights()">
+                            <div style="background:#F5F6F8;border-radius:7px;padding:8px 10px;font-size:11px;color:#9CA3AF;margin-bottom:16px;">
+                                These weights control how the AI agent scores candidates for this job. Must sum to 100. Default is 25/25/25/25.
                             </div>
 
-                            <!-- hidden number inputs for backward compat with handleJobManualCreate -->
-                            <input type="hidden" id="manual-job-w-exp-val" value="0.3">
-                            <input type="hidden" id="manual-job-w-skills-val" value="0.4">
+                            <div style="border:1px solid #E5E7EB;border-radius:12px;margin-bottom:20px;overflow:hidden;">
+                                <div style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+                                    <span style="font-size:13px;font-weight:500;color:#1B2A4A;">AI Scoring Weights</span>
+                                    <div id="admin-aw-sum-display" style="font-size:12px;padding:4px 10px;border-radius:20px;background:#E1F5EE;color:#0F6E56;font-weight:500;">Total: 100%</div>
+                                </div>
+                                <div style="padding:16px;">
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">
+                                        <div>
+                                            <label style="font-size:12px;color:#374151;display:block;margin-bottom:4px;">Title Match %</label>
+                                            <input type="number" id="admin-aw-title" min="0" max="100" value="25" oninput="updateAdminAgentWeights()" style="width:100%;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;box-sizing:border-box;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size:12px;color:#374151;display:block;margin-bottom:4px;">Industry Match %</label>
+                                            <input type="number" id="admin-aw-industry" min="0" max="100" value="25" oninput="updateAdminAgentWeights()" style="width:100%;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;box-sizing:border-box;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size:12px;color:#374151;display:block;margin-bottom:4px;">Experience Match %</label>
+                                            <input type="number" id="admin-aw-experience" min="0" max="100" value="25" oninput="updateAdminAgentWeights()" style="width:100%;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;box-sizing:border-box;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size:12px;color:#374151;display:block;margin-bottom:4px;">Skills Match %</label>
+                                            <input type="number" id="admin-aw-skills" min="0" max="100" value="25" oninput="updateAdminAgentWeights()" style="width:100%;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;box-sizing:border-box;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- hidden inputs kept for backward compat — handleJobManualCreate still reads these for ai_weights -->
+                            <input type="hidden" id="manual-job-w-exp-val" value="0.4">
+                            <input type="hidden" id="manual-job-w-skills-val" value="0.3">
                             <input type="hidden" id="manual-job-w-edu-val" value="0.2">
                             <input type="hidden" id="manual-job-w-behavioral-val" value="0.1">
                         </div>

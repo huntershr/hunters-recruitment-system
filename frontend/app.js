@@ -1489,6 +1489,28 @@ function jobWizardBack() {
     if (currentJobStep > 1) jobWizardSetStep(currentJobStep - 1);
 }
 
+function updateAdminAgentWeights() {
+    const t = parseInt(document.getElementById('admin-aw-title')?.value)      || 0;
+    const i = parseInt(document.getElementById('admin-aw-industry')?.value)   || 0;
+    const e = parseInt(document.getElementById('admin-aw-experience')?.value) || 0;
+    const s = parseInt(document.getElementById('admin-aw-skills')?.value)     || 0;
+    const badge = document.getElementById('admin-aw-sum-display');
+    if (!badge) return;
+    const total = t + i + e + s;
+    badge.innerText = 'Total: ' + total + '%';
+    badge.style.background = total === 100 ? '#E1F5EE' : '#FCEBEB';
+    badge.style.color      = total === 100 ? '#0F6E56' : '#A32D2D';
+}
+
+function _getAdminAgentWeights() {
+    return {
+        title:      parseInt(document.getElementById('admin-aw-title')?.value)      || 25,
+        industry:   parseInt(document.getElementById('admin-aw-industry')?.value)   || 25,
+        experience: parseInt(document.getElementById('admin-aw-experience')?.value) || 25,
+        skills:     parseInt(document.getElementById('admin-aw-skills')?.value)     || 25,
+    };
+}
+
 function updateWeights() {
     const exp  = parseInt(document.getElementById("manual-job-w-exp")?.value || 30);
     const sk   = parseInt(document.getElementById("manual-job-w-skills")?.value || 40);
@@ -1596,6 +1618,11 @@ function acceptAIJob() {
     fill('manual-job-skills',   job.required_skills);
     fill('manual-job-nice',     job.nice_to_have);
     fill('manual-job-behavioral', job.behavioral_skills);
+    // Populate essential skills only if AI returns them — never clear existing values
+    if (Array.isArray(job.essential_skills) && job.essential_skills.length) {
+        const essEl = document.getElementById('manual-job-essential-skills');
+        if (essEl) essEl.value = job.essential_skills.join('\n');
+    }
 
     jobWizardGoTo(1);
     showToast('AI filled Job Brief and Skills — complete the remaining fields and set scoring weights', 'success');
@@ -1909,12 +1936,16 @@ function editJob(id) {
     document.getElementById("manual-job-salary").value = job.salary_range || '';
     document.getElementById("manual-job-behavioral").value = job.behavioral_skills || '';
     document.getElementById("manual-job-industry").value = job.industry_experience || '';
-    // Sliders expect 0-100; weights stored as 0-1 decimals
-    const toPercent = v => Math.round((parseFloat(v) || 0) * 100);
-    document.getElementById("manual-job-w-exp").value        = toPercent(job.weight_experience);
-    document.getElementById("manual-job-w-skills").value     = toPercent(job.weight_skills);
-    document.getElementById("manual-job-w-edu").value        = toPercent(job.weight_education);
-    document.getElementById("manual-job-w-behavioral").value = toPercent(job.weight_behavioral || 0.2);
+    // Populate essential skills
+    const essEl = document.getElementById('manual-job-essential-skills');
+    if (essEl) essEl.value = Array.isArray(job.essential_skills) && job.essential_skills.length ? job.essential_skills.join('\n') : '';
+    // Populate agent scoring weights
+    const _setAdminAw = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? 25; };
+    _setAdminAw('admin-aw-title',      job.agent_weight_title);
+    _setAdminAw('admin-aw-industry',   job.agent_weight_industry);
+    _setAdminAw('admin-aw-experience', job.agent_weight_experience);
+    _setAdminAw('admin-aw-skills',     job.agent_weight_skills);
+    updateAdminAgentWeights();
 
     // Show wizard UI and go to step 1
     const indicator = document.getElementById("job-step-indicator");
@@ -1958,12 +1989,9 @@ async function handleJobManualCreate(event) {
             salary_range: safeGet("manual-job-salary"),
             behavioral_skills: safeGet("manual-job-behavioral"),
             industry_experience: safeGet("manual-job-industry"),
-            ai_weights: {
-                experience: toPercent(getWeight("manual-job-w-exp-val",          "manual-job-w-exp",          0.3)),
-                skills:     toPercent(getWeight("manual-job-w-skills-val",        "manual-job-w-skills",       0.4)),
-                education:  toPercent(getWeight("manual-job-w-edu-val",           "manual-job-w-edu",          0.2)),
-                behavioral: toPercent(getWeight("manual-job-w-behavioral-val",    "manual-job-w-behavioral",   0.1))
-            }
+            essential_skills: (document.getElementById('manual-job-essential-skills')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean),
+            agent_weights: _getAdminAgentWeights(),
+            ai_weights: { experience: 40, skills: 30, education: 20, behavioral: 10 },
         };
 
         if (!payload.department || payload.department === '') {
