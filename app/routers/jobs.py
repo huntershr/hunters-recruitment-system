@@ -31,10 +31,12 @@ def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
     else:
         salary_range = job.salary_range or ""
 
-    # Parse * prefix from required_skills to derive essential_skills on save
-    _skill_items = [s.strip() for s in _re.split(r"[,\n]+", job.required_skills or "") if s.strip()]
-    _starred = [s.lstrip("*").strip() for s in _skill_items if s.startswith("*")]
-    essential_skills = _starred if _starred else (job.essential_skills or [])
+    # Prefer explicit deal_breakers from frontend; fall back to *-prefix parsing for legacy data
+    deal_breakers_ui = job.deal_breakers or []
+    if not deal_breakers_ui:
+        _items = [s.strip() for s in _re.split(r"[,\n]+", job.required_skills or "") if s.strip()]
+        deal_breakers_ui = [s.lstrip("*").strip() for s in _items if s.startswith("*")]
+    essential_skills = deal_breakers_ui if deal_breakers_ui else (job.essential_skills or [])
 
     return dict(
         job_title        = job.title,

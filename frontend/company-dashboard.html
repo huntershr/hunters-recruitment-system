@@ -1708,6 +1708,7 @@
                     created_at: j.created_at,
                     description: j.job_description || j.description,
                     required_skills: j.required_skills,
+                    deal_breakers: j.deal_breakers || [],
                     department: j.department || 'Other',
                     ai_score: aiScore,
                     company: currentCompany || null,
@@ -4177,10 +4178,13 @@
         const job = window._cdAIGeneratedJob;
         if (!job) return;
         const fill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-        fill('job-modal-title-input', window._cdAIJobTitle    || '');
+        fill('job-modal-title-input', window._cdAIJobTitle || '');
         fill('job-modal-desc',        job.job_brief);
         const toLines = v => (v||'').split(',').map(s=>s.trim()).filter(Boolean).join('\n');
-        fill('job-modal-skills',     toLines(job.required_skills));
+        // Populate skill rows from AI result (no deal breakers from AI)
+        _clearSkillRows('skills-row-list');
+        (job.required_skills || '').split(',').map(s => s.trim()).filter(Boolean)
+            .forEach(s => addSkillRow(s, false, 'skills-row-list'));
         fill('job-modal-nice',       toLines(job.nice_to_have));
         fill('job-modal-behavioral', toLines(job.behavioral_skills));
         gotoJobStep_withFormToggle(1);
@@ -4346,9 +4350,14 @@
                 <div id="job-step-1">
                     <div style="margin-bottom:16px;">
                         <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Industry <span style="color:#A32D2D;">*</span></label>
-                        <select id="job-modal-department" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                        <select id="job-modal-department" required onchange="onIndustryChange(this)" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
                             <option value="">Select Industry</option>
-                            <option value="Education">Education</option>
+                            <option value="British School">British School</option>
+                            <option value="American School">American School</option>
+                            <option value="IB School">IB School</option>
+                            <option value="Cambridge School">Cambridge School</option>
+                            <option value="Egyptian National School">Egyptian National School</option>
+                            <option value="Education">Education (General)</option>
                             <option value="Finance/Accounting">Finance / Accounting</option>
                             <option value="Healthcare">Healthcare</option>
                             <option value="Technology">Technology</option>
@@ -4428,10 +4437,14 @@
                         <textarea id="job-modal-desc" rows="6" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
                     </div>
 
-                    <div style="margin-bottom:4px;">
-                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Required Skills <span style="font-size:11px; color:#9CA3AF;">(one per line)</span></label>
-                        <textarea id="job-modal-skills" required rows="4" placeholder="*British Curriculum&#10;Lesson Planning&#10;Classroom Management" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
-                        <p style="font-size:11px; color:#9CA3AF; margin:4px 0 12px;">Enter one skill per line. Prefix with * to mark as essential (hard reject if missing).</p>
+                    <div data-skills-widget style="margin-bottom:4px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                            <label style="font-size:13px;font-weight:500;color:#1A1A2E;">Required Skills <span style="color:#A32D2D;">*</span></label>
+                            <span class="skills-counter" style="font-size:11px;color:#6B7280;background:#F3F4F6;padding:2px 8px;border-radius:10px;">0 / 6</span>
+                        </div>
+                        <div id="skills-row-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+                        <button type="button" onclick="addSkillRow('','',  'skills-row-list')" style="width:100%;padding:8px;border:1px dashed #E5E7EB;border-radius:8px;background:#FAFAFA;color:#6B7280;font-size:12px;cursor:pointer;">+ Add Skill</button>
+                        <p style="font-size:11px;color:#9CA3AF;margin:4px 0 12px;">Max 6 skills. Check "Deal Breaker" to hard-reject candidates missing that skill.</p>
                     </div>
 
                     <div style="margin-bottom:4px;">
@@ -4696,7 +4709,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.22"></script>
+<script src="hunters-jobs.js?v=3.23"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies

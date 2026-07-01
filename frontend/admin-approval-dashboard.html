@@ -1206,12 +1206,19 @@
                 created_at: j.created_at,
                 description: j.job_description || j.description,
                 required_skills: j.required_skills,
+                deal_breakers: j.deal_breakers || [],
                 department: j.department || 'Other',
                 ai_weights: {
                     experience: Math.round((j.weight_experience || 0) * 100),
                     skills: Math.round((j.weight_skills || 0) * 100),
                     education: Math.round((j.weight_education || 0) * 100),
                     behavioral: Math.round((j.weight_behavioral || 0) * 100)
+                },
+                agent_weights: {
+                    title:      j.agent_weight_title      ?? 25,
+                    industry:   j.agent_weight_industry   ?? 25,
+                    experience: j.agent_weight_experience ?? 25,
+                    skills:     j.agent_weight_skills     ?? 25,
                 }
             }));
             
@@ -1435,8 +1442,11 @@
     function acceptAIJobAdmin() {
         if (!_adminAIResult) return;
         const fill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-        fill('job-modal-desc',   _adminAIResult.job_brief);
-        fill('job-modal-skills', _adminAIResult.required_skills);
+        fill('job-modal-desc', _adminAIResult.job_brief);
+        // Populate skill rows from AI result (no deal breakers from AI)
+        _clearSkillRows('skills-row-list');
+        (_adminAIResult.required_skills || '').split(',').map(s => s.trim()).filter(Boolean)
+            .forEach(s => addSkillRow(s, false, 'skills-row-list'));
         const sec = document.getElementById('admin-ai-section');
         if (sec) sec.style.display = 'none';
         showAlert('AI filled Job Description and Skills', 'success', 'jobs-alert');
@@ -1685,10 +1695,14 @@
                         <textarea id="job-modal-desc" rows="6" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
                     </div>
 
-                    <div style="margin-bottom:4px;">
-                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Required Skills <span style="font-size:11px; color:#9CA3AF;">(one per line)</span></label>
-                        <textarea id="job-modal-skills" required rows="4" placeholder="*British Curriculum&#10;Lesson Planning&#10;Classroom Management" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
-                        <p style="font-size:11px; color:#9CA3AF; margin:4px 0 12px;">Enter one skill per line. Prefix with * to mark as essential (hard reject if missing).</p>
+                    <div data-skills-widget style="margin-bottom:4px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                            <label style="font-size:13px;font-weight:500;color:#1A1A2E;">Required Skills <span style="color:#A32D2D;">*</span></label>
+                            <span class="skills-counter" style="font-size:11px;color:#6B7280;background:#F3F4F6;padding:2px 8px;border-radius:10px;">0 / 6</span>
+                        </div>
+                        <div id="skills-row-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+                        <button type="button" onclick="addSkillRow('', false, 'skills-row-list')" style="width:100%;padding:8px;border:1px dashed #E5E7EB;border-radius:8px;background:#FAFAFA;color:#6B7280;font-size:12px;cursor:pointer;">+ Add Skill</button>
+                        <p style="font-size:11px;color:#9CA3AF;margin:4px 0 12px;">Max 6 skills. Check "Deal Breaker" to hard-reject candidates missing that skill.</p>
                     </div>
 
                     <div style="display:flex; justify-content:space-between;">
@@ -1744,7 +1758,7 @@
         </div>
     </div>
 </div>
-<script src="hunters-jobs.js?v=8"></script>
+<script src="hunters-jobs.js?v=3.23"></script>
 <script>
 /* ── Voice Screenings Admin Tab ── */
 var _vsAllData = [];

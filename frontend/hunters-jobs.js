@@ -646,16 +646,117 @@ function renderHuntersJobs(jobsData) {
     });
 }
 
+/* ── Industry weight defaults (mirrors matchingEngine.js) ─────────────────── */
+const INDUSTRY_WEIGHT_DEFAULTS = {
+  'british school':           { title: 15, industry: 15, experience: 25, skills: 45 },
+  'american school':          { title: 15, industry: 15, experience: 25, skills: 45 },
+  'ib school':                { title: 15, industry: 15, experience: 25, skills: 45 },
+  'cambridge school':         { title: 15, industry: 15, experience: 25, skills: 45 },
+  'egyptian national school': { title: 15, industry: 15, experience: 25, skills: 45 },
+  'education':                { title: 15, industry: 15, experience: 25, skills: 45 },
+  'finance':                  { title: 20, industry: 15, experience: 25, skills: 40 },
+  'finance & accounting':     { title: 20, industry: 15, experience: 25, skills: 40 },
+  'engineering':              { title: 15, industry: 15, experience: 30, skills: 40 },
+  'construction':             { title: 15, industry: 15, experience: 30, skills: 40 },
+  'procurement':              { title: 20, industry: 15, experience: 25, skills: 40 },
+  'business development':     { title: 25, industry: 15, experience: 30, skills: 30 },
+  'customer service':         { title: 20, industry: 20, experience: 30, skills: 30 },
+  'real estate':              { title: 20, industry: 20, experience: 25, skills: 35 },
+  'technology':               { title: 20, industry: 15, experience: 25, skills: 40 },
+  'manufacturing':            { title: 20, industry: 15, experience: 30, skills: 35 },
+  'hospitality':              { title: 20, industry: 20, experience: 30, skills: 30 },
+  'legal':                    { title: 25, industry: 20, experience: 30, skills: 25 },
+  'marketing':                { title: 20, industry: 15, experience: 25, skills: 40 },
+  'marketing & advertising':  { title: 20, industry: 15, experience: 25, skills: 40 },
+  'retail':                   { title: 20, industry: 20, experience: 30, skills: 30 },
+  'healthcare':               { title: 20, industry: 15, experience: 30, skills: 35 },
+};
+
+function onIndustryChange(selectEl) {
+    const key = (selectEl.value || '').toLowerCase().trim().replace(/\s*\/\s*/g, ' & ');
+    const defs = INDUSTRY_WEIGHT_DEFAULTS[key];
+    if (!defs) return;
+    const t = document.getElementById('aw-title');
+    const i = document.getElementById('aw-industry');
+    const e = document.getElementById('aw-experience');
+    const s = document.getElementById('aw-skills');
+    if (!t || !i || !e || !s) return;
+    if (parseInt(t.value) !== 25 || parseInt(i.value) !== 25 || parseInt(e.value) !== 25 || parseInt(s.value) !== 25) return;
+    t.value = defs.title; i.value = defs.industry; e.value = defs.experience; s.value = defs.skills;
+    if (typeof updateAgentWeights === 'function') updateAgentWeights();
+}
+
+/* ── Dynamic skill row builder ────────────────────────────────────────────── */
+function addSkillRow(skillName, isDealBreaker, containerId) {
+    skillName    = skillName    || '';
+    isDealBreaker = !!isDealBreaker;
+    containerId  = containerId  || 'skills-row-list';
+    const list = document.getElementById(containerId);
+    if (!list) return;
+    if (list.querySelectorAll('.skill-row').length >= 6) {
+        if (typeof showToast === 'function') showToast('Maximum 6 required skills', 'info');
+        return;
+    }
+    const safe = skillName.replace(/"/g, '&quot;');
+    const row = document.createElement('div');
+    row.className = 'skill-row';
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;';
+    row.innerHTML = `<input type="text" class="skill-name-input" value="${safe}" placeholder="e.g. British Curriculum" style="flex:1;padding:8px 10px;border:1px solid #E5E7EB;border-radius:6px;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">`
+        + `<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#374151;white-space:nowrap;cursor:pointer;"><input type="checkbox" class="deal-breaker-cb"${isDealBreaker ? ' checked' : ''} style="accent-color:#A32D2D;cursor:pointer;"> Deal Breaker</label>`
+        + `<button type="button" onclick="removeSkillRow(this)" style="background:none;border:none;color:#9CA3AF;font-size:18px;line-height:1;cursor:pointer;padding:0 4px;">×</button>`;
+    list.appendChild(row);
+    _updateSkillsCounter(containerId);
+}
+
+function removeSkillRow(btn) {
+    const row = btn.closest('.skill-row');
+    if (!row) return;
+    const list = row.parentElement;
+    const cid = list ? list.id : 'skills-row-list';
+    row.remove();
+    _updateSkillsCounter(cid);
+}
+
+function _updateSkillsCounter(containerId) {
+    containerId = containerId || 'skills-row-list';
+    const list = document.getElementById(containerId);
+    const ctrEl = list ? list.closest('[data-skills-widget]') : null;
+    const counter = ctrEl ? ctrEl.querySelector('.skills-counter') : document.getElementById('skills-counter');
+    if (!list || !counter) return;
+    counter.textContent = list.querySelectorAll('.skill-row').length + ' / 6';
+}
+
+function getSkillsPayload(containerId) {
+    containerId = containerId || 'skills-row-list';
+    const list = document.getElementById(containerId);
+    const required_skills = [], deal_breakers = [];
+    if (list) {
+        list.querySelectorAll('.skill-row').forEach(row => {
+            const name = (row.querySelector('.skill-name-input')?.value || '').trim();
+            if (!name) return;
+            required_skills.push(name);
+            if (row.querySelector('.deal-breaker-cb')?.checked) deal_breakers.push(name);
+        });
+    }
+    return { required_skills: required_skills.join(', '), deal_breakers };
+}
+
+function _clearSkillRows(containerId) {
+    const list = document.getElementById(containerId || 'skills-row-list');
+    if (list) { list.innerHTML = ''; _updateSkillsCounter(containerId || 'skills-row-list'); }
+}
+
 function openNewJobModal() {
     document.getElementById('job-modal-title').innerText = "Post New Job";
     document.getElementById('job-modal-form').reset();
     document.getElementById('job-modal-id').value = '';
-    
+    _clearSkillRows('skills-row-list');
+
     if (huntersIsAdmin) {
         document.getElementById('admin-company-selector-wrapper').style.display = 'block';
         loadAdminCompaniesForDropdown();
     }
-    
+
     gotoJobStep(1);
     document.getElementById('hunters-job-modal').style.display = 'flex';
 }
@@ -669,7 +770,7 @@ function openEditJobModal(id) {
     
     const deptEditEl = document.getElementById('job-modal-department');
     if (deptEditEl) {
-        const _knownInds = ['Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Other'];
+        const _knownInds = ['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Other'];
         deptEditEl.value = _knownInds.includes(job.department) ? job.department : 'Other';
     }
     document.getElementById('job-modal-title-input').value = job.title;
@@ -680,7 +781,15 @@ function openEditJobModal(id) {
     document.getElementById('job-modal-salary-max').value = job.salary_max || '';
     document.getElementById('job-modal-desc').value = job.description || '';
     const toLines = v => (v||'').split(',').map(s=>s.trim()).filter(Boolean).join('\n');
-    document.getElementById('job-modal-skills').value = toLines(job.required_skills);
+    // Populate dynamic skill rows
+    const _skillList = document.getElementById('skills-row-list');
+    if (_skillList) {
+        _skillList.innerHTML = '';
+        const _dbs = new Set((job.deal_breakers || []).map(s => (s||'').toLowerCase().trim()));
+        (job.required_skills || '').split(',').map(s => s.trim()).filter(Boolean)
+            .forEach(s => addSkillRow(s, _dbs.has(s.toLowerCase().trim()), 'skills-row-list'));
+        _updateSkillsCounter('skills-row-list');
+    }
     const niceEl = document.getElementById('job-modal-nice');
     if (niceEl) niceEl.value = toLines(job.nice_to_have_skills);
     const behavEl = document.getElementById('job-modal-behavioral');
@@ -861,6 +970,7 @@ async function saveHuntersJob(e) {
         gotoJobStep(1);
         return;
     }
+    const { required_skills: _rs, deal_breakers: _dbs } = getSkillsPayload('skills-row-list');
     const payload = {
         department: dept || 'Other',
         title: document.getElementById('job-modal-title-input').value,
@@ -870,7 +980,8 @@ async function saveHuntersJob(e) {
         salary_min: parseInt(document.getElementById('job-modal-salary-min').value) || null,
         salary_max: parseInt(document.getElementById('job-modal-salary-max').value) || null,
         description: document.getElementById('job-modal-desc').value,
-        required_skills: (document.getElementById('job-modal-skills').value||'').split('\n').map(s=>s.trim()).filter(Boolean).join(', '),
+        required_skills: _rs,
+        deal_breakers: _dbs,
         nice_to_have_skills: ((document.getElementById('job-modal-nice')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean).join(', '))||null,
         behavioral_skills: ((document.getElementById('job-modal-behavioral')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean).join(', '))||null,
         education_level: (document.getElementById('job-modal-edu')?.value||'').trim()||null,

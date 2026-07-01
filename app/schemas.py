@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, field_validator, AnyHttpUrl
+from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator, AnyHttpUrl
 from typing import Optional, List, Any, Union
 from datetime import datetime
 
@@ -122,6 +122,13 @@ class JobResponse(JobBase):
     agent_weight_skills:     Optional[int] = 25
     # Essential skills gate
     essential_skills: Optional[list] = None
+    deal_breakers: Optional[list] = None
+
+    @model_validator(mode='after')
+    def _populate_deal_breakers(self) -> 'JobResponse':
+        if self.deal_breakers is None and self.essential_skills is not None:
+            self.deal_breakers = self.essential_skills
+        return self
 
     class Config:
         from_attributes = True
@@ -217,6 +224,7 @@ class JobSavePayload(BaseModel):
     ai_weights: Optional[dict] = None
     agent_weights: Optional[dict] = None
     essential_skills: Optional[list] = None
+    deal_breakers: Optional[list] = None
     hide_salary: bool = False
     company_id: Optional[str] = None
 
