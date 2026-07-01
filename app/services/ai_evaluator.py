@@ -75,6 +75,12 @@ def call_agent_screener(cv_text: str, job, candidate_id=None) -> "dict | None":
             "suggested_interview_questions": [],
             "dimension_scores": dimension_scores_mapped,
         }
+        _str_list = strengths if isinstance(strengths, list) else ([strengths] if strengths else [])
+        mapped["summary_en"] = " ".join(filter(None, [
+            f"Candidate scored {overall:.0f}% overall ({decision}).",
+            " ".join(_str_list) if _str_list else "",
+            weaknesses or "",
+        ])).strip()
 
         result = finalize_evaluation(mapped)
 

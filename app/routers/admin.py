@@ -1381,6 +1381,15 @@ def rescreen_pending(
                         v = _cp.get("certifications")
                         if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
                         if v: candidate.certifications = str(v).strip()
+                    if not candidate.summary:
+                        v = (_cp.get("summary") or "").strip()
+                        if v: candidate.summary = v
+                    if not candidate.experiences:
+                        v = _cp.get("experiences")
+                        if isinstance(v, list) and v: candidate.experiences = v
+                    if not candidate.education_history:
+                        v = _cp.get("education_history")
+                        if isinstance(v, list) and v: candidate.education_history = v
                 result = _ar
             else:
                 result = finalize_evaluation(evaluate_candidate(job, candidate))
@@ -1466,6 +1475,15 @@ def rescreen_pending(
                         v = _cp.get("certifications")
                         if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
                         if v: candidate.certifications = str(v).strip()
+                    if not candidate.summary:
+                        v = (_cp.get("summary") or "").strip()
+                        if v: candidate.summary = v
+                    if not candidate.experiences:
+                        v = _cp.get("experiences")
+                        if isinstance(v, list) and v: candidate.experiences = v
+                    if not candidate.education_history:
+                        v = _cp.get("education_history")
+                        if isinstance(v, list) and v: candidate.education_history = v
                 result = _ar
             else:
                 result = finalize_evaluation(evaluate_candidate(job, candidate))
@@ -1589,6 +1607,29 @@ def rescreen_single(
                                 candidate.experience_years = yr
                         except Exception:
                             pass
+                if not candidate.education:
+                    v = (_cp.get("education") or "").strip()
+                    if v: candidate.education = v
+                if not candidate.skills:
+                    v = _cp.get("skills")
+                    if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                    if v: candidate.skills = str(v).strip()
+                if not candidate.languages:
+                    v = _cp.get("languages")
+                    if isinstance(v, list) and v: candidate.languages = v
+                if not candidate.certifications:
+                    v = _cp.get("certifications")
+                    if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                    if v: candidate.certifications = str(v).strip()
+                if not candidate.summary:
+                    v = (_cp.get("summary") or "").strip()
+                    if v: candidate.summary = v
+                if not candidate.experiences:
+                    v = _cp.get("experiences")
+                    if isinstance(v, list) and v: candidate.experiences = v
+                if not candidate.education_history:
+                    v = _cp.get("education_history")
+                    if isinstance(v, list) and v: candidate.education_history = v
             result = _ar
         else:
             result = finalize_evaluation(evaluate_candidate(job, candidate))

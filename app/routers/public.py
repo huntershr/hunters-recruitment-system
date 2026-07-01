@@ -159,15 +159,23 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
                         models.Candidate.id == application.candidate_id
                     ).first()
                     if _cand:
+                        if not _cand.name or _cand.name.lower().startswith("resume"):
+                            v = (_cp.get("name") or "").strip()
+                            if v and v.isprintable() and any(c.isalpha() for c in v) and len(v) <= 80:
+                                _cand.name = v
                         if not _cand.last_title:
                             v = (_cp.get("current_title") or "").strip()
-                            if v: _cand.last_title = v
+                            if v and len(v) <= 80: _cand.last_title = v
                         if not _cand.last_employer:
                             v = (_cp.get("last_employer") or "").strip()
                             if v: _cand.last_employer = v
                         if not (_cand.experience_years or 0):
                             v = _cp.get("years_experience")
-                            if v: _cand.experience_years = int(v)
+                            if v:
+                                try:
+                                    yr = int(v)
+                                    if 1 <= yr <= 25: _cand.experience_years = yr
+                                except Exception: pass
                         if not _cand.education:
                             v = (_cp.get("education") or "").strip()
                             if v: _cand.education = v
