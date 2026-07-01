@@ -1717,7 +1717,14 @@
                         skills: Math.round((j.weight_skills || 0) * 100),
                         education: Math.round((j.weight_education || 0) * 100),
                         behavioral: Math.round((j.weight_behavioral || 0) * 100)
-                    }
+                    },
+                    agent_weights: {
+                        title:      j.agent_weight_title      ?? 25,
+                        industry:   j.agent_weight_industry   ?? 25,
+                        experience: j.agent_weight_experience ?? 25,
+                        skills:     j.agent_weight_skills     ?? 25,
+                    },
+                    essential_skills: Array.isArray(j.essential_skills) ? j.essential_skills : [],
                 };
             });
 
@@ -4701,7 +4708,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.20"></script>
+<script src="hunters-jobs.js?v=3.21"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies

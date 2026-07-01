@@ -115,6 +115,13 @@ class JobResponse(JobBase):
     salary_max: Optional[int] = None
     employment_type: Optional[str] = None
     hide_salary: bool = False
+    # Agent scoring weight columns
+    agent_weight_title:      Optional[int] = 25
+    agent_weight_industry:   Optional[int] = 25
+    agent_weight_experience: Optional[int] = 25
+    agent_weight_skills:     Optional[int] = 25
+    # Essential skills gate
+    essential_skills: Optional[list] = None
 
     class Config:
         from_attributes = True
