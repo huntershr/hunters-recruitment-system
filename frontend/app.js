@@ -1618,11 +1618,6 @@ function acceptAIJob() {
     fill('manual-job-skills',   job.required_skills);
     fill('manual-job-nice',     job.nice_to_have);
     fill('manual-job-behavioral', job.behavioral_skills);
-    // Populate essential skills only if AI returns them — never clear existing values
-    if (Array.isArray(job.essential_skills) && job.essential_skills.length) {
-        const essEl = document.getElementById('manual-job-essential-skills');
-        if (essEl) essEl.value = job.essential_skills.join('\n');
-    }
 
     jobWizardGoTo(1);
     showToast('AI filled Job Brief and Skills — complete the remaining fields and set scoring weights', 'success');
@@ -1936,9 +1931,6 @@ function editJob(id) {
     document.getElementById("manual-job-salary").value = job.salary_range || '';
     document.getElementById("manual-job-behavioral").value = job.behavioral_skills || '';
     document.getElementById("manual-job-industry").value = job.industry_experience || '';
-    // Populate essential skills
-    const essEl = document.getElementById('manual-job-essential-skills');
-    if (essEl) essEl.value = Array.isArray(job.essential_skills) && job.essential_skills.length ? job.essential_skills.join('\n') : '';
     // Populate agent scoring weights
     const _setAdminAw = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? 25; };
     _setAdminAw('admin-aw-title',      job.agent_weight_title);
@@ -1989,7 +1981,6 @@ async function handleJobManualCreate(event) {
             salary_range: safeGet("manual-job-salary"),
             behavioral_skills: safeGet("manual-job-behavioral"),
             industry_experience: safeGet("manual-job-industry"),
-            essential_skills: (document.getElementById('manual-job-essential-skills')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean),
             agent_weights: _getAdminAgentWeights(),
             ai_weights: { experience: 40, skills: 30, education: 20, behavioral: 10 },
         };

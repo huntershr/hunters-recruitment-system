@@ -83,6 +83,9 @@ def call_agent_screener(cv_text: str, job, candidate_id=None) -> "dict | None":
         ])).strip()
 
         result = finalize_evaluation(mapped)
+        # Agent recommendation is authoritative — override finalize_evaluation's score-based guards
+        # (Guard B would flip Reject→Maybe when score>=75; gate-fired rejections must stay Rejected)
+        result["decision"] = decision
 
         # Stamp source=agent in the dimension_scores JSON column (no schema change needed)
         if isinstance(result.get("dimension_scores"), dict):

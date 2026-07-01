@@ -695,9 +695,6 @@ function openEditJobModal(id) {
         });
     }
 
-    // Populate essential skills
-    const essEl = document.getElementById('job-modal-essential-skills');
-    if (essEl) essEl.value = Array.isArray(job.essential_skills) && job.essential_skills.length ? job.essential_skills.join('\n') : '';
     // Populate agent scoring weights (fall back to 25 if not set)
     const aw = job.agent_weights || {};
     const _setAw = (id, key) => { const el = document.getElementById(id); if (el) el.value = aw[key] ?? 25; };
@@ -877,7 +874,6 @@ async function saveHuntersJob(e) {
         nice_to_have_skills: ((document.getElementById('job-modal-nice')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean).join(', '))||null,
         behavioral_skills: ((document.getElementById('job-modal-behavioral')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean).join(', '))||null,
         education_level: (document.getElementById('job-modal-edu')?.value||'').trim()||null,
-        essential_skills: (document.getElementById('job-modal-essential-skills')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean),
         ai_weights: { experience: 40, skills: 30, education: 20, behavioral: 10 },
         agent_weights: _getAgentWeights(),
         hide_salary: hideSal ? !!hideSal.checked : false,

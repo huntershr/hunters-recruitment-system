@@ -1724,7 +1724,6 @@
                         experience: j.agent_weight_experience ?? 25,
                         skills:     j.agent_weight_skills     ?? 25,
                     },
-                    essential_skills: Array.isArray(j.essential_skills) ? j.essential_skills : [],
                 };
             });
 
@@ -4184,11 +4183,6 @@
         fill('job-modal-skills',     toLines(job.required_skills));
         fill('job-modal-nice',       toLines(job.nice_to_have));
         fill('job-modal-behavioral', toLines(job.behavioral_skills));
-        // Populate essential skills only if AI returns them — never clear existing values
-        if (Array.isArray(job.essential_skills) && job.essential_skills.length) {
-            const essEl = document.getElementById('job-modal-essential-skills');
-            if (essEl) essEl.value = job.essential_skills.join('\n');
-        }
         gotoJobStep_withFormToggle(1);
         showToast('AI filled Job Brief and Skills — complete the remaining fields and set scoring weights', 'success');
     }
@@ -4436,14 +4430,8 @@
 
                     <div style="margin-bottom:4px;">
                         <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Required Skills <span style="font-size:11px; color:#9CA3AF;">(one per line)</span></label>
-                        <textarea id="job-modal-skills" required rows="4" placeholder="British Curriculum&#10;Lesson Planning&#10;Classroom Management&#10;Formative Assessment" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
-                        <p style="font-size:11px; color:#9CA3AF; margin:4px 0 12px;">Enter one skill per line using plain keywords — the AI matches these against candidate CVs.</p>
-                    </div>
-
-                    <div style="margin-bottom:4px;">
-                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Essential Skills <span style="font-size:11px; color:#9CA3AF;">(optional, one per line)</span></label>
-                        <textarea id="job-modal-essential-skills" rows="3" placeholder="British Curriculum&#10;IGCSE Teaching" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
-                        <p style="font-size:11px; color:#9CA3AF; margin:4px 0 12px;">Skills marked essential will automatically reject candidates who don't have them, regardless of overall score.</p>
+                        <textarea id="job-modal-skills" required rows="4" placeholder="*British Curriculum&#10;Lesson Planning&#10;Classroom Management" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; resize:vertical;"></textarea>
+                        <p style="font-size:11px; color:#9CA3AF; margin:4px 0 12px;">Enter one skill per line. Prefix with * to mark as essential (hard reject if missing).</p>
                     </div>
 
                     <div style="margin-bottom:4px;">
@@ -4708,7 +4696,7 @@
   </div>
 </div>
 
-<script src="hunters-jobs.js?v=3.21"></script>
+<script src="hunters-jobs.js?v=3.22"></script>
 <script>
 /* ══════════════════════════════════════════════
    UPLOAD MODULE — fully standalone, no dependencies

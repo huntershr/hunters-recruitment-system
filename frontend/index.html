@@ -937,14 +937,8 @@
                             <div class="form-group">
                                 <label class="field-label">Required Skills <span style="font-size:11px;color:#9CA3AF;">(one per line)</span></label>
                                 <textarea id="manual-job-skills" class="field-input field-textarea"
-                                          placeholder="British Curriculum&#10;Lesson Planning&#10;Classroom Management&#10;Formative Assessment" required></textarea>
-                                <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Enter one skill per line using plain keywords — the AI matches these against candidate CVs.</p>
-                            </div>
-                            <div class="form-group">
-                                <label class="field-label">Essential Skills <span style="font-size:11px;color:#9CA3AF;">(optional, one per line)</span></label>
-                                <textarea id="manual-job-essential-skills" class="field-input field-textarea" rows="3"
-                                          placeholder="British Curriculum&#10;IGCSE Teaching"></textarea>
-                                <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Skills marked essential will automatically reject candidates who don't have them, regardless of overall score.</p>
+                                          placeholder="*British Curriculum&#10;Lesson Planning&#10;Classroom Management" required></textarea>
+                                <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Enter one skill per line. Prefix with * to mark as essential (hard reject if missing).</p>
                             </div>
                             <div class="form-group">
                                 <label class="field-label">Nice to Have Skills <span style="font-size:11px;color:#9CA3AF;">(optional, one per line)</span></label>
@@ -1182,7 +1176,7 @@ function confirmResetPassword(){
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- CACHE VERSION: bump ?v= number on every app.js change -->
-<script src="app.js?v=1.60"></script>
+<script src="app.js?v=1.61"></script>
 
 <!-- ── SUPERADMIN BULK UPLOAD MODAL ── -->
 <div id="admin-bulk-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">

@@ -13,6 +13,7 @@ from .auth import get_current_user
 
 def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
     """Map frontend JobSavePayload fields to Job model column names."""
+    import re as _re
     weights = job.ai_weights or {}
     exp_w   = weights.get("experience", 30)
     skl_w   = weights.get("skills",     40)
@@ -29,6 +30,11 @@ def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
         salary_range = " - ".join(salary_parts) + " EGP" if salary_parts else ""
     else:
         salary_range = job.salary_range or ""
+
+    # Parse * prefix from required_skills to derive essential_skills on save
+    _skill_items = [s.strip() for s in _re.split(r"[,\n]+", job.required_skills or "") if s.strip()]
+    _starred = [s.lstrip("*").strip() for s in _skill_items if s.startswith("*")]
+    essential_skills = _starred if _starred else (job.essential_skills or [])
 
     return dict(
         job_title        = job.title,
@@ -51,7 +57,7 @@ def _payload_to_job_fields(job: schemas.JobSavePayload) -> dict:
         agent_weight_industry   = int(aw.get("industry",   25)),
         agent_weight_experience = int(aw.get("experience", 25)),
         agent_weight_skills     = int(aw.get("skills",     25)),
-        essential_skills        = job.essential_skills or [],
+        essential_skills        = essential_skills,
     )
 
 router = APIRouter(

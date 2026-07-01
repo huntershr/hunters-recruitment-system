@@ -17,8 +17,16 @@ def call_agent_screen(cv_text: str, job) -> dict | None:
     Returns the JSON response dict on success, None on any error.
     Never raises — callers must handle None gracefully.
     """
+    import re as _re
     skills_raw = job.required_skills or ""
-    skills_list = [s.strip() for s in skills_raw.split(",") if s.strip()] if skills_raw else []
+    # Handle both comma-separated (legacy) and newline-separated (current) formats
+    raw_items = [s.strip() for s in _re.split(r"[,\n]+", skills_raw) if s.strip()]
+    # Parse * prefix: starred skills become essential_skills; strip * from the skills list
+    essential_from_stars = [s.lstrip("*").strip() for s in raw_items if s.startswith("*")]
+    skills_list = [s.lstrip("*").strip() for s in raw_items]
+    # Prefer *-derived essentials; fall back to DB column for jobs saved before this change
+    db_essential = getattr(job, "essential_skills", None) or []
+    essential_skills = essential_from_stars if essential_from_stars else db_essential
 
     payload = {
         "cv_text": cv_text,
@@ -35,7 +43,7 @@ def call_agent_screen(cv_text: str, job) -> dict | None:
                 "experience": getattr(job, "agent_weight_experience", None) or 25,
                 "skills":     getattr(job, "agent_weight_skills",     None) or 25,
             },
-            "essential_skills": getattr(job, "essential_skills", None) or [],
+            "essential_skills": essential_skills,
         },
     }
     try:
