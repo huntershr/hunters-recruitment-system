@@ -2845,9 +2845,9 @@ function _coWsJobFormModal(job, companyId) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             <div style="grid-column:span 2;">
                 <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Industry *</label>
-                <select id="cj-department" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+                <select id="cj-department" onchange="_cjIndustryChange(this)" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
                     <option value="">Select Industry</option>
-                    ${[['Education','Education'],['Finance/Accounting','Finance / Accounting'],['Healthcare','Healthcare'],['Technology','Technology'],['Manufacturing','Manufacturing'],['Real Estate','Real Estate'],['Retail','Retail'],['Hospitality','Hospitality'],['Construction','Construction'],['Marketing/Advertising','Marketing / Advertising'],['Legal','Legal'],['Other','Other']].map(([v,l])=>`<option value="${v}"${(job?job.department===v||(!['Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal'].includes(job.department)&&v==='Other'):v==='Other')?'selected':''}>${l}</option>`).join('')}
+                    ${[['British School','British School'],['American School','American School'],['IB School','IB School'],['Cambridge School','Cambridge School'],['Egyptian National School','Egyptian National School'],['Education','Education (General)'],['Finance/Accounting','Finance / Accounting'],['Healthcare','Healthcare'],['Technology','Technology'],['Manufacturing','Manufacturing'],['Real Estate','Real Estate'],['Retail','Retail'],['Hospitality','Hospitality'],['Construction','Construction'],['Marketing/Advertising','Marketing / Advertising'],['Legal','Legal'],['Other','Other']].map(([val,lbl])=>`<option value="${val}"${(job?job.department===val||(!['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal'].includes(job.department)&&val==='Other'):val==='Other')?'selected':''}>${lbl}</option>`).join('')}
                 </select>
             </div>
             <div style="grid-column:span 2;">
@@ -2900,9 +2900,14 @@ function _coWsJobFormModal(job, companyId) {
                 <textarea id="cj-desc" rows="5" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;resize:vertical;">${v('job_description')}</textarea>
             </div>
 
-            <div style="grid-column:span 2;">
-                <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Required Skills</label>
-                <input id="cj-skills" value="${v('required_skills')}" placeholder="e.g. Excel, SAP, Financial Reporting" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+            <div style="grid-column:span 2;" data-skills-widget>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                    <label style="font-size:11px;font-weight:500;color:#374151;">Required Skills</label>
+                    <span class="skills-counter" style="font-size:11px;color:#6B7280;background:#F3F4F6;padding:2px 8px;border-radius:10px;">0 / 6</span>
+                </div>
+                <div id="cj-skills-row-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+                <button type="button" onclick="addSkillRow('', false, 'cj-skills-row-list')" style="width:100%;padding:8px;border:1px dashed #E5E7EB;border-radius:8px;background:#FAFAFA;color:#6B7280;font-size:12px;cursor:pointer;">+ Add Skill</button>
+                <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Max 6 skills. Check "Deal Breaker" to hard-reject candidates missing that skill.</p>
             </div>
             <div style="grid-column:span 2;">
                 <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Nice to Have</label>
@@ -2917,30 +2922,35 @@ function _coWsJobFormModal(job, companyId) {
                 <input id="cj-industry" value="${v('industry_experience')}" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
             </div>
 
-            <!-- AI Screening Weights -->
-            <div style="grid-column:span 2;background:#F4F5FA;border-radius:10px;padding:14px 16px;margin-top:4px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                    <span style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.06em;">⚖ AI Screening Weights</span>
-                    <span id="cj-weights-total" style="font-size:11px;font-weight:600;background:#E1F5EE;color:#0F6E56;padding:3px 10px;border-radius:20px;">Total: 100%</span>
+            <!-- Agent Scoring Weights -->
+            <div style="grid-column:span 2;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;margin-top:4px;">
+                <div style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.06em;">AI Scoring Weights</span>
+                    <span id="cj-aw-sum" style="font-size:11px;font-weight:600;background:#E1F5EE;color:#0F6E56;padding:3px 10px;border-radius:20px;">Total: 100%</span>
                 </div>
-                ${[
-                    ['cj-w-exp',  'Experience Match',  job ? Math.round((job.weight_experience||0.40)*100) : 40],
-                    ['cj-w-skl',  'Skills Match',      job ? Math.round((job.weight_skills||0.30)*100)    : 30],
-                    ['cj-w-edu',  'Education',         job ? Math.round((job.weight_education||0.20)*100)  : 20],
-                    ['cj-w-beh',  'Behavioral Fit',    job ? Math.round((job.weight_behavioral||0.10)*100) : 10],
-                ].map(([id, label, val]) => `
-                    <div style="margin-bottom:10px;">
-                        <div style="display:flex;justify-content:space-between;font-size:12px;color:#374151;margin-bottom:4px;">
-                            <span>${label}</span><span id="${id}-val" style="font-weight:600;">${val}%</span>
-                        </div>
-                        <input type="range" id="${id}" min="0" max="100" value="${val}"
-                               oninput="document.getElementById('${id}-val').textContent=this.value+'%';_cjUpdateWeightsTotal()"
-                               style="width:100%;accent-color:#1B2A4A;cursor:pointer;">
-                    </div>`).join('')}
+                <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div>
+                        <label style="font-size:11px;color:#374151;display:block;margin-bottom:3px;">Title Match %</label>
+                        <input type="number" id="cj-aw-title" min="0" max="100" value="${job ? (job.agent_weight_title ?? 25) : 25}" oninput="_cjUpdateAgentWeights()" style="width:100%;border:1px solid #E5E7EB;border-radius:6px;padding:7px 9px;font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#374151;display:block;margin-bottom:3px;">Industry Match %</label>
+                        <input type="number" id="cj-aw-industry" min="0" max="100" value="${job ? (job.agent_weight_industry ?? 25) : 25}" oninput="_cjUpdateAgentWeights()" style="width:100%;border:1px solid #E5E7EB;border-radius:6px;padding:7px 9px;font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#374151;display:block;margin-bottom:3px;">Experience Match %</label>
+                        <input type="number" id="cj-aw-experience" min="0" max="100" value="${job ? (job.agent_weight_experience ?? 25) : 25}" oninput="_cjUpdateAgentWeights()" style="width:100%;border:1px solid #E5E7EB;border-radius:6px;padding:7px 9px;font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#374151;display:block;margin-bottom:3px;">Skills Match %</label>
+                        <input type="number" id="cj-aw-skills" min="0" max="100" value="${job ? (job.agent_weight_skills ?? 25) : 25}" oninput="_cjUpdateAgentWeights()" style="width:100%;border:1px solid #E5E7EB;border-radius:6px;padding:7px 9px;font-size:13px;box-sizing:border-box;">
+                    </div>
+                </div>
             </div>
         </div>`;
 
     createAdminModal(title, html, async () => {
+        const _cjSkills = getSkillsPayload('cj-skills-row-list');
         const payload = {
             company_id: companyId,
             department: document.getElementById('cj-department')?.value || 'Other',
@@ -2949,19 +2959,20 @@ function _coWsJobFormModal(job, companyId) {
             experience_years: parseInt(document.getElementById('cj-exp')?.value) || 0,
             salary_range: document.getElementById('cj-salary')?.value || '',
             education_level: document.getElementById('cj-edu')?.value || '',
-            required_skills: document.getElementById('cj-skills')?.value || '',
+            required_skills: _cjSkills.required_skills,
+            essential_skills: _cjSkills.deal_breakers,
             nice_to_have_skills: document.getElementById('cj-nice')?.value || '',
             behavioral_skills: document.getElementById('cj-behav')?.value || '',
             industry_experience: document.getElementById('cj-industry')?.value || '',
             description: document.getElementById('cj-desc')?.value || '',
-            weight_experience: (parseInt(document.getElementById('cj-w-exp')?.value) || 40) / 100,
-            weight_skills:     (parseInt(document.getElementById('cj-w-skl')?.value) || 30) / 100,
-            weight_education:  (parseInt(document.getElementById('cj-w-edu')?.value) || 20) / 100,
-            weight_behavioral: (parseInt(document.getElementById('cj-w-beh')?.value) || 10) / 100,
+            agent_weight_title:      parseInt(document.getElementById('cj-aw-title')?.value)      || 25,
+            agent_weight_industry:   parseInt(document.getElementById('cj-aw-industry')?.value)   || 25,
+            agent_weight_experience: parseInt(document.getElementById('cj-aw-experience')?.value) || 25,
+            agent_weight_skills:     parseInt(document.getElementById('cj-aw-skills')?.value)     || 25,
         };
         if (!payload.title) { showToast('Job Title is required', 'error'); return; }
-        const total = Math.round((payload.weight_experience + payload.weight_skills + payload.weight_education + payload.weight_behavioral) * 100);
-        if (total !== 100) { showToast(`Weights must total 100% (currently ${total}%)`, 'error'); return; }
+        const _awTotal = payload.agent_weight_title + payload.agent_weight_industry + payload.agent_weight_experience + payload.agent_weight_skills;
+        if (_awTotal !== 100) { showToast(`AI weights must total 100% (currently ${_awTotal}%)`, 'error'); return; }
         const token = localStorage.getItem('token');
         const url = job ? `/api/admin/jobs/${job.id}` : '/api/admin/jobs';
         const method = job ? 'PUT' : 'POST';
@@ -2978,16 +2989,41 @@ function _coWsJobFormModal(job, companyId) {
             showToast('Failed: ' + (err.detail || 'Unknown error'), 'error');
         }
     });
+    // Populate skill rows now that modal DOM is ready
+    _clearSkillRows('cj-skills-row-list');
+    if (job) {
+        const skills = (job.required_skills || '').split(',').map(s => s.trim()).filter(Boolean);
+        const dbs = Array.isArray(job.essential_skills) ? job.essential_skills : [];
+        skills.forEach(sk => addSkillRow(sk, dbs.includes(sk), 'cj-skills-row-list'));
+    }
+    _cjUpdateAgentWeights();
 }
 
-function _cjUpdateWeightsTotal() {
-    const ids = ['cj-w-exp', 'cj-w-skl', 'cj-w-edu', 'cj-w-beh'];
-    const total = ids.reduce((s, id) => s + (parseInt(document.getElementById(id)?.value) || 0), 0);
-    const el = document.getElementById('cj-weights-total');
+function _cjUpdateAgentWeights() {
+    const t = parseInt(document.getElementById('cj-aw-title')?.value)      || 0;
+    const i = parseInt(document.getElementById('cj-aw-industry')?.value)   || 0;
+    const e = parseInt(document.getElementById('cj-aw-experience')?.value) || 0;
+    const s = parseInt(document.getElementById('cj-aw-skills')?.value)     || 0;
+    const total = t + i + e + s;
+    const el = document.getElementById('cj-aw-sum');
     if (!el) return;
     el.textContent = 'Total: ' + total + '%';
     el.style.background = total === 100 ? '#E1F5EE' : '#FCEBEB';
     el.style.color       = total === 100 ? '#0F6E56' : '#A32D2D';
+}
+
+function _cjIndustryChange(sel) {
+    const key = (sel.value || '').toLowerCase().trim().replace(/\s*\/\s*/g, ' & ');
+    const defs = _ADMIN_INDUSTRY_WEIGHT_DEFAULTS[key];
+    if (!defs) return;
+    const t = document.getElementById('cj-aw-title');
+    const i = document.getElementById('cj-aw-industry');
+    const e = document.getElementById('cj-aw-experience');
+    const s = document.getElementById('cj-aw-skills');
+    if (!t || !i || !e || !s) return;
+    if (parseInt(t.value) !== 25 || parseInt(i.value) !== 25 || parseInt(e.value) !== 25 || parseInt(s.value) !== 25) return;
+    t.value = defs.title; i.value = defs.industry; e.value = defs.experience; s.value = defs.skills;
+    _cjUpdateAgentWeights();
 }
 
 function _coWsToggleAISection() {
@@ -3016,7 +3052,10 @@ async function _coWsGenerateAI() {
         const data = await res.json();
         const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
         set('cj-desc',     data.job_brief);
-        set('cj-skills',   data.required_skills);
+        _clearSkillRows('cj-skills-row-list');
+        if (data.required_skills) {
+            data.required_skills.split(',').map(s => s.trim()).filter(Boolean).forEach(sk => addSkillRow(sk, false, 'cj-skills-row-list'));
+        }
         set('cj-nice',     data.nice_to_have);
         set('cj-behav',    data.behavioral_skills);
         const sec = document.getElementById('cj-ai-section');
