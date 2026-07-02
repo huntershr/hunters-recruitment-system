@@ -277,185 +277,193 @@ async def screen_cv(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # ── Usage enforcement (company users only; portal candidates are exempt) ──
-    if not is_portal_candidate and current_user.company_id:
-        from ..utils.plan_limits import get_plan_limits, reset_monthly_usage_if_needed, plan_limit_exceeded
-        _company = db.query(models.Company).filter(models.Company.id == current_user.company_id).first()
-        if _company:
-            _plan_key = (_company.plan or _company.selected_plan or "starter").lower()
-            _limits = get_plan_limits(_plan_key)
-            reset_monthly_usage_if_needed(_company, db)
+    try:
+        # ── Usage enforcement (company users only; portal candidates are exempt) ──
+        if not is_portal_candidate and current_user.company_id:
+            from ..utils.plan_limits import get_plan_limits, reset_monthly_usage_if_needed, plan_limit_exceeded
+            _company = db.query(models.Company).filter(models.Company.id == current_user.company_id).first()
+            if _company:
+                _plan_key = (_company.plan or _company.selected_plan or "starter").lower()
+                _limits = get_plan_limits(_plan_key)
+                reset_monthly_usage_if_needed(_company, db)
 
-            # Bulk screening limit
-            _used = _company.bulk_screening_used_this_month or 0
-            if _used >= _limits["bulk_screenings_per_month"]:
-                plan_limit_exceeded("bulk_screenings", _used, _limits["bulk_screenings_per_month"], _plan_key)
+                # Bulk screening limit
+                _used = _company.bulk_screening_used_this_month or 0
+                if _used >= _limits["bulk_screenings_per_month"]:
+                    plan_limit_exceeded("bulk_screenings", _used, _limits["bulk_screenings_per_month"], _plan_key)
 
-            # CVs/job limit — only applies when adding a NEW candidate (not re-screening)
-            _existing_for_job = db.query(models.Candidate).filter(
-                models.Candidate.email == email,
-                models.Candidate.job_applied == job_id,
-            ).first()
-            if not _existing_for_job:
-                _cv_count = db.query(func.count(models.Candidate.id)).filter(
+                # CVs/job limit — only applies when adding a NEW candidate (not re-screening)
+                _existing_for_job = db.query(models.Candidate).filter(
+                    models.Candidate.email == email,
                     models.Candidate.job_applied == job_id,
-                    models.Candidate.user_id == None,
-                ).scalar() or 0
-                if _cv_count >= _limits["cvs_per_job"]:
-                    plan_limit_exceeded("cvs_per_job", _cv_count, _limits["cvs_per_job"], _plan_key)
+                ).first()
+                if not _existing_for_job:
+                    _cv_count = db.query(func.count(models.Candidate.id)).filter(
+                        models.Candidate.job_applied == job_id,
+                        models.Candidate.user_id == None,
+                    ).scalar() or 0
+                    if _cv_count >= _limits["cvs_per_job"]:
+                        plan_limit_exceeded("cvs_per_job", _cv_count, _limits["cvs_per_job"], _plan_key)
 
-            # Increment bulk screening counter
-            _company.bulk_screening_used_this_month = _used + 1
-            db.commit()
+                # Increment bulk screening counter
+                _company.bulk_screening_used_this_month = _used + 1
+                db.commit()
 
-    # Try uploading the new file to Supabase Storage (no-op if env vars missing or no new file)
-    storage_path = None
-    if file is not None:
-        storage_path = await upload_cv_to_storage(content, file.filename or "upload.pdf", cv_mime)
+        # Try uploading the new file to Supabase Storage (no-op if env vars missing or no new file)
+        storage_path = None
+        if file is not None:
+            storage_path = await upload_cv_to_storage(content, file.filename or "upload.pdf", cv_mime)
 
-    # ── Phase 2: Candidate + Application creation ─────────────────────────────
-    #
-    # Portal (Type A): one Candidate per User (profile container), keyed by
-    # user_id.  Subsequent applies to ANY job update the same profile row and
-    # each creates a new Application row.
-    #
-    # Admin/company: legacy email+job lookup unchanged.  Also creates an
-    # Application row so every apply is represented in the applications table.
+        # ── Phase 2: Candidate + Application creation ─────────────────────────────
+        #
+        # Portal (Type A): one Candidate per User (profile container), keyed by
+        # user_id.  Subsequent applies to ANY job update the same profile row and
+        # each creates a new Application row.
+        #
+        # Admin/company: legacy email+job lookup unchanged.  Also creates an
+        # Application row so every apply is represented in the applications table.
 
-    if is_portal_candidate:
-        candidate = (
-            db.query(models.Candidate)
-            .filter(models.Candidate.user_id == current_user.id)
+        if is_portal_candidate:
+            candidate = (
+                db.query(models.Candidate)
+                .filter(models.Candidate.user_id == current_user.id)
+                .first()
+            )
+            if candidate:
+                candidate.cv_text = cv_text
+                candidate.cv_file_data = content
+                candidate.cv_file_mime = cv_mime
+                if storage_path:
+                    candidate.cv_url = storage_path
+                candidate.name = name
+                candidate.phone = phone or candidate.phone
+                candidate.job_applied = job_id
+                candidate.experience_years = int(info.get("experience_years") or 0) or candidate.experience_years or None
+                candidate.education = str(info.get("education") or "") or candidate.education
+                candidate.skills = str(info.get("skills") or "") or candidate.skills
+                candidate.last_title = str(info.get("last_title") or "") or candidate.last_title
+                candidate.last_employer = str(info.get("last_employer") or "") or candidate.last_employer
+                db.commit()
+                db.refresh(candidate)
+            else:
+                candidate = models.Candidate(
+                    name=name,
+                    email=email,
+                    phone=phone,
+                    job_applied=job_id,
+                    experience_years=int(info.get("experience_years") or 0) or None,
+                    expected_salary="",
+                    education=str(info.get("education") or ""),
+                    skills=str(info.get("skills") or ""),
+                    cv_text=cv_text,
+                    cv_file_data=content,
+                    cv_file_mime=cv_mime,
+                    cv_url=storage_path,
+                    last_title=str(info.get("last_title") or ""),
+                    last_employer=str(info.get("last_employer") or ""),
+                    owner_id=job.owner_id,
+                    user_id=current_user.id,
+                )
+                db.add(candidate)
+                db.commit()
+                db.refresh(candidate)
+        else:
+            # Admin/company: upsert by email+job (legacy behavior)
+            existing = (
+                db.query(models.Candidate)
+                .filter(models.Candidate.email == email, models.Candidate.job_applied == job_id)
+                .first()
+            )
+            if existing:
+                existing.cv_text = cv_text
+                existing.cv_file_data = content
+                existing.cv_file_mime = cv_mime
+                if storage_path:
+                    existing.cv_url = storage_path
+                existing.name = name
+                existing.phone = phone or existing.phone
+                existing.experience_years = int(info.get("experience_years") or 0) or existing.experience_years or None
+                existing.education = str(info.get("education") or "") or existing.education
+                existing.skills = str(info.get("skills") or "") or existing.skills
+                existing.last_title = str(info.get("last_title") or "") or existing.last_title
+                existing.last_employer = str(info.get("last_employer") or "") or existing.last_employer
+                db.commit()
+                db.refresh(existing)
+                candidate = existing
+            else:
+                candidate = models.Candidate(
+                    name=name,
+                    email=email,
+                    phone=phone,
+                    job_applied=job_id,
+                    experience_years=int(info.get("experience_years") or 0) or None,
+                    expected_salary="",
+                    education=str(info.get("education") or ""),
+                    skills=str(info.get("skills") or ""),
+                    cv_text=cv_text,
+                    cv_file_data=content,
+                    cv_file_mime=cv_mime,
+                    cv_url=storage_path,
+                    last_title=str(info.get("last_title") or ""),
+                    last_employer=str(info.get("last_employer") or ""),
+                    owner_id=job.owner_id,
+                    user_id=None,
+                )
+                db.add(candidate)
+                db.commit()
+                db.refresh(candidate)
+
+        # Write structured JSONB fields from AI extraction (additive — preserve any existing user-edited data)
+        _xp = info.get("experiences")
+        _edu_h = info.get("education_history")
+        _lang = info.get("languages")
+        _summ = info.get("summary")
+        if _xp:
+            candidate.experiences = _xp
+        if _edu_h:
+            candidate.education_history = _edu_h
+        if _lang:
+            candidate.languages = _lang
+        if _summ and not candidate.summary:
+            candidate.summary = _summ
+        db.commit()
+
+        # Duplicate check: one Application per (candidate, job) pair
+        existing_app = (
+            db.query(models.Application)
+            .filter(
+                models.Application.candidate_id == candidate.id,
+                models.Application.job_id == job_id,
+            )
             .first()
         )
-        if candidate:
-            candidate.cv_text = cv_text
-            candidate.cv_file_data = content
-            candidate.cv_file_mime = cv_mime
-            if storage_path:
-                candidate.cv_url = storage_path
-            candidate.name = name
-            candidate.phone = phone or candidate.phone
-            candidate.job_applied = job_id
-            candidate.experience_years = int(info.get("experience_years") or 0) or candidate.experience_years or None
-            candidate.education = str(info.get("education") or "") or candidate.education
-            candidate.skills = str(info.get("skills") or "") or candidate.skills
-            candidate.last_title = str(info.get("last_title") or "") or candidate.last_title
-            candidate.last_employer = str(info.get("last_employer") or "") or candidate.last_employer
-            db.commit()
-            db.refresh(candidate)
-        else:
-            candidate = models.Candidate(
-                name=name,
-                email=email,
-                phone=phone,
-                job_applied=job_id,
-                experience_years=int(info.get("experience_years") or 0) or None,
-                expected_salary="",
-                education=str(info.get("education") or ""),
-                skills=str(info.get("skills") or ""),
-                cv_text=cv_text,
-                cv_file_data=content,
-                cv_file_mime=cv_mime,
-                cv_url=storage_path,
-                last_title=str(info.get("last_title") or ""),
-                last_employer=str(info.get("last_employer") or ""),
-                owner_id=job.owner_id,
-                user_id=current_user.id,
+        if existing_app:
+            # Profile was already refreshed above — just block the new Application
+            raise HTTPException(
+                status_code=409,
+                detail="You have already applied to this job. Check My Applications for status.",
             )
-            db.add(candidate)
-            db.commit()
-            db.refresh(candidate)
-    else:
-        # Admin/company: upsert by email+job (legacy behavior)
-        existing = (
-            db.query(models.Candidate)
-            .filter(models.Candidate.email == email, models.Candidate.job_applied == job_id)
-            .first()
-        )
-        if existing:
-            existing.cv_text = cv_text
-            existing.cv_file_data = content
-            existing.cv_file_mime = cv_mime
-            if storage_path:
-                existing.cv_url = storage_path
-            existing.name = name
-            existing.phone = phone or existing.phone
-            existing.experience_years = int(info.get("experience_years") or 0) or existing.experience_years or None
-            existing.education = str(info.get("education") or "") or existing.education
-            existing.skills = str(info.get("skills") or "") or existing.skills
-            existing.last_title = str(info.get("last_title") or "") or existing.last_title
-            existing.last_employer = str(info.get("last_employer") or "") or existing.last_employer
-            db.commit()
-            db.refresh(existing)
-            candidate = existing
-        else:
-            candidate = models.Candidate(
-                name=name,
-                email=email,
-                phone=phone,
-                job_applied=job_id,
-                experience_years=int(info.get("experience_years") or 0) or None,
-                expected_salary="",
-                education=str(info.get("education") or ""),
-                skills=str(info.get("skills") or ""),
-                cv_text=cv_text,
-                cv_file_data=content,
-                cv_file_mime=cv_mime,
-                cv_url=storage_path,
-                last_title=str(info.get("last_title") or ""),
-                last_employer=str(info.get("last_employer") or ""),
-                owner_id=job.owner_id,
-                user_id=None,
-            )
-            db.add(candidate)
-            db.commit()
-            db.refresh(candidate)
 
-    # Write structured JSONB fields from AI extraction (additive — preserve any existing user-edited data)
-    _xp = info.get("experiences")
-    _edu_h = info.get("education_history")
-    _lang = info.get("languages")
-    _summ = info.get("summary")
-    if _xp:
-        candidate.experiences = _xp
-    if _edu_h:
-        candidate.education_history = _edu_h
-    if _lang:
-        candidate.languages = _lang
-    if _summ and not candidate.summary:
-        candidate.summary = _summ
-    db.commit()
-
-    # Duplicate check: one Application per (candidate, job) pair
-    existing_app = (
-        db.query(models.Application)
-        .filter(
-            models.Application.candidate_id == candidate.id,
-            models.Application.job_id == job_id,
+        # Create a new Application row for each apply event (Phase 2)
+        application = models.Application(
+            job_id=job_id,
+            candidate_id=candidate.id,
+            stage="Applied",
+            cv_file_data=candidate.cv_file_data,
+            cv_file_mime=candidate.cv_file_mime,
+            cv_text=candidate.cv_text,
+            cv_url=storage_path or candidate.cv_url,
         )
-        .first()
-    )
-    if existing_app:
-        # Profile was already refreshed above — just block the new Application
-        raise HTTPException(
-            status_code=409,
-            detail="You have already applied to this job. Check My Applications for status.",
-        )
+        db.add(application)
+        db.commit()
+        db.refresh(application)
 
-    # Create a new Application row for each apply event (Phase 2)
-    application = models.Application(
-        job_id=job_id,
-        candidate_id=candidate.id,
-        stage="Applied",
-        cv_file_data=candidate.cv_file_data,
-        cv_file_mime=candidate.cv_file_mime,
-        cv_text=candidate.cv_text,
-        cv_url=storage_path or candidate.cv_url,
-    )
-    db.add(application)
-    db.commit()
-    db.refresh(application)
+    except HTTPException:
+        raise
+    except Exception as _db_exc:
+        logger.error("CV screening DB error: %s", _db_exc, exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=422, detail=f"CV upload failed: {_db_exc}")
 
     # Synchronous AI evaluation — agent-first, Gemini fallback, pending on any failure
     result = {}
