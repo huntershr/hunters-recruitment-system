@@ -237,6 +237,8 @@ async def screen_cv(
         else:
             raise HTTPException(status_code=400, detail="Only PDF, DOCX, or DOC files are supported")
 
+        cv_text = (cv_text or "").replace("\x00", "")
+
         if not cv_text or not cv_text.strip():
             raise HTTPException(
                 status_code=422,
