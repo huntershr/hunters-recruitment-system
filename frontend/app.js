@@ -1639,6 +1639,7 @@ function updateWeights() {
 
 function openJobModal() {
     document.getElementById("job-manual-form").reset();
+    _clearSkillRows('skills-row-list');
     document.getElementById("job-add-modal").classList.add("active");
 }
 
@@ -2082,7 +2083,8 @@ async function handleJobManualCreate(event) {
             location: safeGet("manual-job-location"),
             description: safeGet("manual-job-desc"),
             experience_years: parseInt(safeGet("manual-job-exp")) || 0,
-            ...(() => { const { required_skills, deal_breakers } = getSkillsPayload('skills-row-list'); return { required_skills, deal_breakers }; })(),
+            required_skills: getSkillsPayload('skills-row-list').required_skills,
+            deal_breakers:   getSkillsPayload('skills-row-list').deal_breakers,
             nice_to_have_skills: safeGet("manual-job-nice"),
             education_level: safeGet("manual-job-edu"),
             salary_range: safeGet("manual-job-salary"),
