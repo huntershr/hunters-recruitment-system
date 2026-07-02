@@ -3223,8 +3223,11 @@ async function handleAdminPreviewUpload(file, jobId) {
             headers: { 'Authorization': 'Bearer ' + token },
             body: fd
         });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Screening failed');
+        }
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Screening failed');
         const score = data.score != null ? Math.round(data.score) : null;
         const scoreColor = score == null ? '#6B7280' : score >= 75 ? '#0F6E56' : score >= 50 ? '#854F0B' : '#A32D2D';
         showToast(`${data.name || 'Candidate'} screened — ${score != null ? score + '% · ' : ''}${data.decision || ''}`, 'success');
