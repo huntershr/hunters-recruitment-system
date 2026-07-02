@@ -4776,16 +4776,17 @@ async function runSingleScreening() {
       signal: _sc.signal
     });
     clearTimeout(_st);
-    var data = await res.json();
     if (!res.ok) {
-      if (res.status === 403 && data.detail && typeof data.detail === 'object' && data.detail.error === 'plan_limit_exceeded') {
-        showPlanLimitModal(data.detail);
+      var _errData = await res.json().catch(() => ({}));
+      if (res.status === 403 && _errData.detail && typeof _errData.detail === 'object' && _errData.detail.error === 'plan_limit_exceeded') {
+        showPlanLimitModal(_errData.detail);
         btn.textContent = 'Screen CV with AI';
         btn.disabled = false;
         return;
       }
-      throw new Error(typeof data.detail === 'string' ? data.detail : 'Screening failed');
+      throw new Error(typeof _errData.detail === 'string' ? _errData.detail : 'Screening failed');
     }
+    var data = await res.json();
 
     var score = data.score != null ? Math.round(data.score) : null;
     var scoreColor = score == null ? '#6B7280' : score >= 75 ? '#0F6E56' : score >= 50 ? '#854F0B' : '#A32D2D';
@@ -4895,15 +4896,16 @@ async function runBulkScreening() {
           signal: _bc.signal
         });
         clearTimeout(_bt);
-        var d = await res.json();
         if (!res.ok) {
-          if (res.status === 403 && d.detail && typeof d.detail === 'object' && d.detail.error === 'plan_limit_exceeded') {
+          var _bd = await res.json().catch(() => ({}));
+          if (res.status === 403 && _bd.detail && typeof _bd.detail === 'object' && _bd.detail.error === 'plan_limit_exceeded') {
             document.getElementById(rowId + '-status').innerHTML = '<span style="color:#854F0B;font-weight:600;">Limit reached</span>';
-            showPlanLimitModal(d.detail);
+            showPlanLimitModal(_bd.detail);
             break;
           }
-          throw new Error(typeof d.detail === 'string' ? d.detail : 'Failed');
+          throw new Error(typeof _bd.detail === 'string' ? _bd.detail : 'Screening failed');
         }
+        var d = await res.json();
         var s = d.score != null ? Math.round(d.score) : null;
         var col = s == null ? '#6B7280' : s >= 75 ? '#0F6E56' : s >= 50 ? '#854F0B' : '#A32D2D';
         document.getElementById(rowId + '-status').innerHTML =
