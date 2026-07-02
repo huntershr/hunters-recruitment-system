@@ -1589,31 +1589,25 @@
                 <div id="job-step-1">
                     <div style="margin-bottom:16px;">
                         <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Department <span style="color:#A32D2D;">*</span></label>
-                        <select id="job-modal-department" required style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
-                            <option value="">— Select Department —</option>
-                            <option>Education</option>
-                            <option>Human Resources</option>
-                            <option>Administration &amp; Operations</option>
-                            <option>Finance &amp; Accounting</option>
-                            <option>Marketing &amp; Communications</option>
-                            <option>Sales &amp; Business Development</option>
-                            <option>Technology &amp; IT</option>
-                            <option>Legal &amp; Compliance</option>
-                            <option>Healthcare &amp; Medical</option>
-                            <option>Engineering &amp; Technical</option>
-                            <option>Customer Service</option>
-                            <option>Media &amp; Production</option>
-                            <option>Hospitality &amp; Tourism</option>
-                            <option>Logistics &amp; Supply Chain</option>
-                            <option>Research &amp; Consulting</option>
-                            <option>Banking &amp; Insurance</option>
-                            <option>NGO &amp; Non-Profit</option>
-                            <option>Government &amp; Public Sector</option>
-                            <option>Pharmaceuticals &amp; Medical Devices</option>
-                            <option>Agriculture &amp; Food Production</option>
-                            <option>Manufacturing &amp; Textile</option>
-                            <option>Translation &amp; Interpretation</option>
-                            <option>Other</option>
+                        <select id="job-modal-department" required onchange="onIndustryChange(this)" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                            <option value="">Select Industry</option>
+                            <option value="British School">British School</option>
+                            <option value="American School">American School</option>
+                            <option value="IB School">IB School</option>
+                            <option value="Cambridge School">Cambridge School</option>
+                            <option value="Egyptian National School">Egyptian National School</option>
+                            <option value="Education">Education (General)</option>
+                            <option value="Finance/Accounting">Finance / Accounting</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Manufacturing">Manufacturing</option>
+                            <option value="Real Estate">Real Estate</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Hospitality">Hospitality</option>
+                            <option value="Construction">Construction</option>
+                            <option value="Marketing/Advertising">Marketing / Advertising</option>
+                            <option value="Legal">Legal</option>
+                            <option value="Other">Other</option>
                         </select>
                     </div>
                     <div style="display:flex; gap:16px; margin-bottom:16px;">
@@ -1713,39 +1707,34 @@
 
                 <!-- STEP 3 -->
                 <div id="job-step-3" style="display:none;">
-                    <div style="background:#F4F5FA; border-radius:12px; padding:20px; margin-bottom:20px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                            <span style="font-size:14px; font-weight:500; color:#1B2A4A;">AI Evaluation Weights</span>
-                            <span id="modal-weights-total" style="font-size:12px; background:#E1F5EE; color:#0F6E56; padding:4px 10px; border-radius:20px; font-weight:500;">Total: 100%</span>
-                        </div>
+                    <div style="background:#F5F6F8;border-radius:7px;padding:8px 10px;font-size:11px;color:#9CA3AF;margin-bottom:16px;">
+                        These weights control how the AI agent scores candidates for this job. Must sum to 100. Default is 25/25/25/25.
+                    </div>
 
-                        <div style="margin-bottom:16px;">
-                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
-                                <span>Experience Match</span>
-                                <span id="val-weight-exp">40%</span>
-                            </div>
-                            <input type="range" id="weight-exp" min="0" max="100" value="40" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
+                    <div style="border:1px solid #E5E7EB; border-radius:12px; margin-bottom:20px; overflow:hidden;">
+                        <div style="background:#F9FAFB; border-bottom:1px solid #E5E7EB; padding:14px 16px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:13px; font-weight:500; color:#1B2A4A;">AI Scoring Weights</span>
+                            <div id="aw-sum-display" style="font-size:12px; padding:4px 10px; border-radius:20px; background:#E1F5EE; color:#0F6E56; font-weight:500;">Total: 100%</div>
                         </div>
-                        <div style="margin-bottom:16px;">
-                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
-                                <span>Skills Match</span>
-                                <span id="val-weight-skills">30%</span>
+                        <div style="padding:16px;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:4px;">
+                                <div>
+                                    <label style="font-size:12px; color:#374151; display:block; margin-bottom:4px;">Title Match %</label>
+                                    <input type="number" id="aw-title" min="0" max="100" value="25" oninput="updateAgentWeights()" style="width:100%; border:1px solid #E5E7EB; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; color:#374151; display:block; margin-bottom:4px;">Industry Match %</label>
+                                    <input type="number" id="aw-industry" min="0" max="100" value="25" oninput="updateAgentWeights()" style="width:100%; border:1px solid #E5E7EB; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; color:#374151; display:block; margin-bottom:4px;">Experience Match %</label>
+                                    <input type="number" id="aw-experience" min="0" max="100" value="25" oninput="updateAgentWeights()" style="width:100%; border:1px solid #E5E7EB; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; color:#374151; display:block; margin-bottom:4px;">Skills Match %</label>
+                                    <input type="number" id="aw-skills" min="0" max="100" value="25" oninput="updateAgentWeights()" style="width:100%; border:1px solid #E5E7EB; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;">
+                                </div>
                             </div>
-                            <input type="range" id="weight-skills" min="0" max="100" value="30" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
-                        </div>
-                        <div style="margin-bottom:16px;">
-                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
-                                <span>Education</span>
-                                <span id="val-weight-edu">20%</span>
-                            </div>
-                            <input type="range" id="weight-edu" min="0" max="100" value="20" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
-                        </div>
-                        <div style="margin-bottom:16px;">
-                            <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A2E; margin-bottom:8px;">
-                                <span>Behavioral Fit</span>
-                                <span id="val-weight-behav">10%</span>
-                            </div>
-                            <input type="range" id="weight-behav" min="0" max="100" value="10" oninput="updateHuntersWeights()" style="width:100%; accent-color:#1B2A4A;">
                         </div>
                     </div>
 
@@ -1758,7 +1747,7 @@
         </div>
     </div>
 </div>
-<script src="hunters-jobs.js?v=3.23"></script>
+<script src="hunters-jobs.js?v=3.24"></script>
 <script>
 /* ── Voice Screenings Admin Tab ── */
 var _vsAllData = [];
