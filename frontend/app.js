@@ -295,8 +295,8 @@ function evalScorePercent(raw) {
     if (raw === null || raw === undefined || raw === "") return null;
     const n = Number(raw);
     if (Number.isNaN(n) || n === 0) return null;  // 0 = failed evaluation
-    if (n <= 1) return Math.round(n * 100);
-    return Math.round(Math.min(100, n));
+    if (n < 1) return Math.round(n * 100);   // legacy 0-1 fraction (e.g. 0.75 → 75)
+    return Math.round(Math.min(100, n));      // 0-100 scale: 1 → 1%, 75 → 75%, 100 → 100%
 }
 
 function scoreBadgeHtml(score) {
@@ -1408,7 +1408,7 @@ function viewAtsProfile(applicationId) {
                         <tr style="border-top:0.5px solid #F3F4F6;">
                             <td style="padding:6px 8px;color:#1B2A4A;">${escHtml(a.job_title || '—')}</td>
                             <td style="padding:6px 8px;color:#6B7280;">${escHtml(a.stage || '—')}</td>
-                            <td style="padding:6px 8px;text-align:center;color:#1B2A4A;">${a.score != null ? Math.round(a.score<=1?a.score*100:a.score<=10?a.score*10:a.score) + '%' : '—'}</td>
+                            <td style="padding:6px 8px;text-align:center;color:#1B2A4A;">${a.score != null ? Math.round(a.score<1?a.score*100:a.score<=10?a.score*10:a.score) + '%' : '—'}</td>
                             <td style="padding:6px 8px;text-align:center;">${escHtml(a.decision || '—')}</td>
                         </tr>`).join('')}
                     </tbody></table>`
