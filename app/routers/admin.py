@@ -1574,8 +1574,10 @@ def rescreen_single(
     candidate = db.query(models.Candidate).filter(models.Candidate.id == app.candidate_id).first()
     job = db.query(models.Job).filter(models.Job.id == app.job_id).first()
 
-    if not candidate or not job:
-        raise HTTPException(status_code=404, detail="Candidate or job not found")
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate record was deleted — cannot rescreen. Delete this application and re-upload the CV.")
+    if not job:
+        raise HTTPException(status_code=404, detail="The job this application was submitted to no longer exists.")
     if not (candidate.cv_text or "").strip():
         raise HTTPException(status_code=422, detail="No CV text available for this candidate")
 

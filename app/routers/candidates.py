@@ -942,10 +942,16 @@ def delete_candidate(candidate_id: int, db: Session = Depends(get_db), current_u
     candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id, models.Candidate.owner_id == current_user.id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
-    
-    # Also delete associated evaluations
-    db.query(models.Evaluation).filter(models.Evaluation.candidate_id == candidate_id).delete()
-    
+
+    from sqlalchemy import text as _text
+    app_ids = [r[0] for r in db.query(models.Application.id).filter(models.Application.candidate_id == candidate_id).all()]
+    if app_ids:
+        db.execute(_text("DELETE FROM agent_screenings WHERE application_id = ANY(:ids)"), {"ids": app_ids})
+        db.query(models.VoiceScreening).filter(models.VoiceScreening.application_id.in_(app_ids)).delete(synchronize_session=False)
+        db.query(models.Interview).filter(models.Interview.application_id.in_(app_ids)).delete(synchronize_session=False)
+        db.query(models.Offer).filter(models.Offer.application_id.in_(app_ids)).delete(synchronize_session=False)
+        db.query(models.Application).filter(models.Application.candidate_id == candidate_id).delete(synchronize_session=False)
+    db.query(models.Evaluation).filter(models.Evaluation.candidate_id == candidate_id).delete(synchronize_session=False)
     db.delete(candidate)
     db.commit()
     return {"message": "Candidate deleted successfully"}
@@ -955,8 +961,17 @@ def delete_all_candidates(db: Session = Depends(get_db), current_user: models.Us
     """
     Deletes all candidates and all evaluations for the current user.
     """
-    # Delete evaluations for candidates owned by current user
-    candidate_ids = [c.id for c in db.query(models.Candidate).filter(models.Candidate.owner_id == current_user.id).all()]
+    from sqlalchemy import text as _text
+    candidate_ids = [r[0] for r in db.query(models.Candidate.id).filter(models.Candidate.owner_id == current_user.id).all()]
+    if not candidate_ids:
+        return {"message": "No candidates to delete"}
+    app_ids = [r[0] for r in db.query(models.Application.id).filter(models.Application.candidate_id.in_(candidate_ids)).all()]
+    if app_ids:
+        db.execute(_text("DELETE FROM agent_screenings WHERE application_id = ANY(:ids)"), {"ids": app_ids})
+        db.query(models.VoiceScreening).filter(models.VoiceScreening.application_id.in_(app_ids)).delete(synchronize_session=False)
+        db.query(models.Interview).filter(models.Interview.application_id.in_(app_ids)).delete(synchronize_session=False)
+        db.query(models.Offer).filter(models.Offer.application_id.in_(app_ids)).delete(synchronize_session=False)
+        db.query(models.Application).filter(models.Application.candidate_id.in_(candidate_ids)).delete(synchronize_session=False)
     db.query(models.Evaluation).filter(models.Evaluation.candidate_id.in_(candidate_ids)).delete(synchronize_session=False)
     db.query(models.Candidate).filter(models.Candidate.owner_id == current_user.id).delete(synchronize_session=False)
     db.commit()
