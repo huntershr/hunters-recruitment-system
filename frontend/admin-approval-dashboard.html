@@ -1003,16 +1003,19 @@
     function setupNavigation() {
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', (e) => {
+                const page = e.target.closest('a')?.dataset.page;
+                if (!page) return; // no data-page = natural href navigation (e.g. Back to Dashboard)
                 e.preventDefault();
-                const page = e.target.closest('a').dataset.page;
                 navigateTo(page);
             });
         });
     }
 
     function navigateTo(page) {
+        const pageEl = document.getElementById(page);
+        if (!pageEl) return;
         document.querySelectorAll('.content-area').forEach(area => area.classList.remove('active'));
-        document.getElementById(page).classList.add('active');
+        pageEl.classList.add('active');
 
         document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
         document.querySelector(`[data-page="${page}"]`).classList.add('active');

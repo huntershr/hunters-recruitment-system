@@ -1535,9 +1535,27 @@ function renderHuntersPublicProfile(companyId) {
             wrap.style.transform = 'none';
             wrap.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)';
         };
-        wrap.innerHTML = huntersJobCardInner(job, { hideEdit: true, applyViaModal: true });
+        wrap.innerHTML = _renderPublicProfileJobCard(job);
         container.appendChild(wrap);
     });
+}
+
+// Lean card for public company profile — no logo, no status badge, no application count.
+function _renderPublicProfileJobCard(job) {
+    const expY = job.experience_years != null ? job.experience_years : job.min_experience;
+    return `
+        <div style="font-size:15px;font-weight:600;color:#1B2A4A;line-height:1.35;max-height:2.7em;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${huntersEsc(job.title || '')}</div>
+        ${job.department ? `<span style="display:inline-block;margin-top:6px;background:#F3F4F6;color:#6B7280;border:0.5px solid #E5E7EB;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:500;">${huntersEsc(job.department.replace('/', ' / '))}</span>` : ''}
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:12px;color:#6B7280;">
+            ${job.location ? `<span style="display:inline-flex;align-items:center;gap:3px;"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${huntersEsc(job.location)}</span>` : ''}
+            <span>${huntersEsc(job.employment_type || 'Full-time')}</span>
+            ${expY != null ? `<span>${huntersEsc(String(expY))} yrs exp</span>` : ''}
+        </div>
+        <div style="margin-top:8px;">${huntersSalaryDisplay(job)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:0.5px solid #F3F4F6;">
+            <span style="font-size:11px;color:#9CA3AF;">${huntersRelativePosted(job.created_at)}</span>
+            <button type="button" onclick="event.stopPropagation();huntersOpenApplyModal(${job.id})" style="background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:500;cursor:pointer;">Apply</button>
+        </div>`;
 }
 
 // ==========================================
