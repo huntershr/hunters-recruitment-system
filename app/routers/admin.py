@@ -230,7 +230,8 @@ def get_admin_stats(
             (SELECT COUNT(*) FROM jobs WHERE (status IS NULL OR status != 'rejected')) AS total_jobs,
             (SELECT COUNT(*) FROM jobs WHERE is_approved = false AND (status IS NULL OR status != 'rejected')) AS pending_jobs,
             (SELECT COUNT(*) FROM jobs WHERE is_approved = true AND (status IS NULL OR status != 'rejected')) AS approved_jobs,
-            (SELECT COUNT(*) FROM candidates) AS total_candidates,
+            (SELECT COUNT(DISTINCT COALESCE(user_id::text, email)) FROM candidates) AS total_candidates,
+            (SELECT COUNT(*) FROM applications WHERE created_at::date = CURRENT_DATE) AS screenings_today,
             (SELECT COUNT(*) FROM users) AS total_users,
             (SELECT COUNT(*) FROM users WHERE is_active = true) AS active_users
     """)).fetchone()
@@ -242,7 +243,7 @@ def get_admin_stats(
         "pending_jobs":      row.pending_jobs,
         "approved_jobs":     row.approved_jobs,
         "total_candidates":  row.total_candidates,
-        "screenings_today":  0,
+        "screenings_today":  row.screenings_today,
         "total_users":       row.total_users,
         "active_users":      row.active_users,
     }
@@ -893,30 +894,48 @@ def get_candidate_users(
         models.User.company_id == None,
     ).all()
 
+    if not users:
+        return []
+
+    user_ids  = [u.id    for u in users]
+    user_emails = [u.email for u in users]
+
+    # Bulk fetch candidates by user_id (primary link)
+    cands_by_uid: dict = {}
+    for c in db.query(models.Candidate).filter(models.Candidate.user_id.in_(user_ids)).all():
+        cands_by_uid.setdefault(c.user_id, c)
+
+    # Email fallback for users without a user_id-linked candidate
+    linked_emails = {c.email for c in cands_by_uid.values()}
+    fallback_emails = [e for e in user_emails if e not in linked_emails]
+    cands_by_email: dict = {}
+    if fallback_emails:
+        for c in (db.query(models.Candidate)
+                    .filter(models.Candidate.email.in_(fallback_emails))
+                    .order_by(models.Candidate.id.desc())
+                    .all()):
+            cands_by_email.setdefault(c.email, c)
+
+    user_cand = {u.id: cands_by_uid.get(u.id) or cands_by_email.get(u.email) for u in users}
+
+    # Bulk fetch evaluations
+    cand_ids = [c.id for c in user_cand.values() if c]
+    evals_by_cand: dict = {}
+    if cand_ids:
+        for ev in db.query(models.Evaluation).filter(models.Evaluation.candidate_id.in_(cand_ids)).all():
+            evals_by_cand.setdefault(ev.candidate_id, ev)
+
+    # Bulk fetch jobs
+    job_ids = list({c.job_applied for c in user_cand.values() if c and c.job_applied})
+    jobs_by_id: dict = {}
+    if job_ids:
+        jobs_by_id = {j.id: j for j in db.query(models.Job).filter(models.Job.id.in_(job_ids)).all()}
+
     result = []
     for u in users:
-        # Prefer Candidate linked by user_id (portal profile); fall back to email match
-        cand = (
-            db.query(models.Candidate)
-            .filter(models.Candidate.user_id == u.id)
-            .order_by(models.Candidate.id.desc())
-            .first()
-        ) or (
-            db.query(models.Candidate)
-            .filter(models.Candidate.email == u.email)
-            .order_by(models.Candidate.id.desc())
-            .first()
-        )
-        ev = (
-            db.query(models.Evaluation)
-            .filter(models.Evaluation.candidate_id == cand.id)
-            .first()
-            if cand else None
-        )
-        job = (
-            db.query(models.Job).filter(models.Job.id == cand.job_applied).first()
-            if cand else None
-        )
+        cand = user_cand.get(u.id)
+        ev   = evals_by_cand.get(cand.id) if cand else None
+        job  = jobs_by_id.get(cand.job_applied) if cand and cand.job_applied else None
         result.append({
             "user_id": u.id,
             "candidate_id": cand.id if cand else None,

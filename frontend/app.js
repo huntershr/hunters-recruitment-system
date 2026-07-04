@@ -248,11 +248,12 @@ async function fetchData() {
     candidates = [];
     evaluations = [];
 
-    // Three parallel calls — allSettled means one failure never aborts the others
-    const [jobsRes, candsRes, evalsRes] = await Promise.allSettled([
+    // Four parallel calls — allSettled means one failure never aborts the others
+    const [jobsRes, candsRes, evalsRes, appRes] = await Promise.allSettled([
         authFetch(`${API_URL}/jobs`),
         authFetch(`${API_URL}/candidates`),
-        authFetch(`${API_URL}/results`)
+        authFetch(`${API_URL}/results`),
+        authFetch('/api/admin/applications?limit=500')
     ]);
 
     try { jobs        = await jobsRes.value?.json()  ?? []; } catch (_) {}
@@ -263,31 +264,37 @@ async function fetchData() {
     if (!Array.isArray(candidates))  candidates = [];
     if (!Array.isArray(evaluations)) evaluations = [];
 
-    // Applications call — individually wrapped, failure leaves applications = []
-    console.log('[fetchData] Fetching /api/admin/applications…');
     try {
-        const appRes = await authFetch('/api/admin/applications?limit=500');
-        console.log('[fetchData] /api/admin/applications status:', appRes.status);
-        if (appRes.ok) {
-            const appData = await appRes.json();
+        if (appRes.status === 'fulfilled' && appRes.value?.ok) {
+            const appData = await appRes.value.json();
             applications = Array.isArray(appData.applications) ? appData.applications : [];
-            console.log('[fetchData] applications loaded:', applications.length, 'items');
-            // If SA job-pipeline is active, filter to that job so the view isn't reset
             if (typeof _saActiveJobId !== 'undefined' && _saActiveJobId) {
                 applications = applications.filter(a => String(a.job_id) === String(_saActiveJobId));
             }
-        } else {
-            console.warn('[fetchData] /api/admin/applications returned non-OK status:', appRes.status);
         }
-    } catch (e) {
-        console.error('[fetchData] /api/admin/applications fetch failed:', e);
-    }
+    } catch (e) {}
 
     // Render always runs — empty arrays are valid, a crash above is not fatal
     try { updateDashboard(); }    catch (e) { console.error('[fetchData] updateDashboard crash:', e); }
     try { renderJobs(); }         catch (e) { console.error('[fetchData] renderJobs crash:', e); }
     try { renderCandidates(); }   catch (e) { console.error('[fetchData] renderCandidates crash:', e); }
     try { buildCompanyFilter(); } catch (_) {}
+}
+
+// Lightweight refresh: re-fetches only applications and re-renders candidates.
+// Use instead of fetchData() after CRUD actions that don't add or remove jobs.
+async function _refreshApplicationsOnly() {
+    try {
+        const appRes = await authFetch('/api/admin/applications?limit=500');
+        if (appRes.ok) {
+            const appData = await appRes.json();
+            applications = Array.isArray(appData.applications) ? appData.applications : [];
+            if (typeof _saActiveJobId !== 'undefined' && _saActiveJobId) {
+                applications = applications.filter(a => String(a.job_id) === String(_saActiveJobId));
+            }
+        }
+    } catch (e) {}
+    try { renderCandidates(); } catch (e) {}
 }
 
 /** Stored score normalization: fractions (≤1) or unified 0–100 (backend normalizes legacy scales). */
@@ -443,7 +450,13 @@ function renderJobs() {
     if (listTbody) listTbody.innerHTML = "";
 
     const deptFilter = (document.getElementById('jobs-dept-filter') || {}).value || '';
-    const filtered = deptFilter ? jobs.filter(j => (j.department || 'Other') === deptFilter) : jobs;
+    const searchQuery = ((document.getElementById('jobs-search') || {}).value || '').toLowerCase().trim();
+    let filtered = deptFilter ? jobs.filter(j => (j.department || 'Other') === deptFilter) : jobs;
+    if (searchQuery) filtered = filtered.filter(j =>
+        (j.job_title || '').toLowerCase().includes(searchQuery) ||
+        (j.job_location || '').toLowerCase().includes(searchQuery) ||
+        (j.department || '').toLowerCase().includes(searchQuery)
+    );
 
     if (filtered.length === 0) {
         cardView.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-muted);'>No jobs found. Create one to get started!</p>";
@@ -899,7 +912,7 @@ function renderCandidateList(filter) {
                     </td>
                     <td style="font-size:11px;">
                         ${app.cv_available
-                            ? `<a href="#" onclick="downloadAppCV(${app.application_id},'${safeName}');return false;" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;cursor:pointer;">↓ CV</a>`
+                            ? `<a href="#" onclick="downloadAppCV(${app.application_id},'${safeName}');return false;" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;cursor:pointer;">CV</a>`
                             : '<span style="color:#9CA3AF;">—</span>'}
                     </td>
                     <td>
@@ -969,7 +982,7 @@ function renderCandidateList(filter) {
                     <td><span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:${stageCol}22;color:${stageCol};">${stage}</span></td>
                     <td style="font-size:11px;color:#6B7280;">${c.experience_years != null ? c.experience_years + ' yrs' : '—'}</td>
                     <td style="font-size:11px;">
-                        ${hasCV ? `<a href="#" onclick="downloadAdminCV(${c.id},'${safeName}');return false;" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;cursor:pointer;">↓ CV</a>` : '<span style="color:#9CA3AF;">—</span>'}
+                        ${hasCV ? `<a href="#" onclick="downloadAdminCV(${c.id},'${safeName}');return false;" style="color:#0F6E56;font-weight:500;font-size:11px;text-decoration:none;cursor:pointer;">CV</a>` : '<span style="color:#9CA3AF;">—</span>'}
                     </td>
                     <td>
                         <div style="display:flex;gap:5px;">
@@ -1100,7 +1113,7 @@ async function adminReEvaluate(candidateId, btn) {
         if (!resp.ok) throw new Error();
         const data = await resp.json();
         showToast(`Re-evaluation complete — score: ${Math.round(data.score)}%`, 'success');
-        fetchData();
+        _refreshApplicationsOnly();
     } catch {
         showToast('Re-evaluation failed.', 'error');
         if (btn) { btn.disabled = false; btn.textContent = '↻ Re-eval'; }
@@ -1257,7 +1270,7 @@ function buildAdminReportCard(app) {
         ${iqAr.length ? `<div>${sectionTitle('أسئلة المقابلة', '#1B2A4A')}${orderedList(iqAr)}</div>` : ''}` : '<div style="color:#9CA3AF;font-size:13px;text-align:center;padding:20px 0;">Arabic content not yet available for this evaluation.</div>';
 
     const cvBtnHtml = app.cv_available
-        ? `<button onclick="downloadAppCV(${app.application_id},'${safeName}')" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:500;cursor:pointer;">↓ Download CV</button>`
+        ? `<button onclick="downloadAppCV(${app.application_id},'${safeName}')" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:500;cursor:pointer;">Download CV</button>`
         : '';
 
     return `
@@ -1415,9 +1428,9 @@ function viewAtsProfile(applicationId) {
                 : '<div style="color:#9CA3AF;font-size:12px;">No applications on record</div>';
 
             const metaLine = [
-                p.location ? `📍 ${escHtml(p.location)}` : '',
-                p.email    ? `✉ ${escHtml(p.email)}`    : '',
-                p.phone    ? `📞 ${escHtml(p.phone)}`   : '',
+                p.location ? escHtml(p.location) : '',
+                p.email    ? escHtml(p.email)    : '',
+                p.phone    ? escHtml(p.phone)   : '',
             ].filter(Boolean).join('  ·  ');
 
             const bodyHTML = `<div>
@@ -1472,7 +1485,7 @@ function viewCandidate(id) {
     }
     if (hasRealCV) {
         cvBtn.style.display = 'block';
-        cvBtn.textContent = '↓ Download CV PDF';
+        cvBtn.textContent = 'Download CV';
         cvBtn.onclick = () => downloadAdminCV(id, safeName);
     } else {
         cvBtn.style.display = 'none';
@@ -2210,11 +2223,6 @@ function buildCompanyFilter() {
     });
 }
 
-function filterCompany(val) {
-    companyFilter = val;
-    renderCandidateList(pipelineFilter);
-}
-
 let isEditMode = false;
 function toggleEditEvaluation() {
     isEditMode = !isEditMode;
@@ -2279,7 +2287,7 @@ async function saveManualEvaluation() {
         if (response.ok) {
             showToast('Report updated successfully!', 'success');
             closeModals();
-            fetchData();
+            _refreshApplicationsOnly();
         } else {
             showToast('Failed to update report.', 'error');
         }
@@ -2341,7 +2349,7 @@ async function loadAdminStats() {
         set('stat-pending-companies-label', s.pending_companies + ' pending');
         set('stat-active-users', s.active_users);
         set('stat-total-users-label', s.total_users + ' total users');
-        set('total-jobs', s.total_jobs);
+        set('total-jobs', s.approved_jobs);
         set('total-candidates', s.total_candidates);
         set('jobs-trend', s.total_jobs + ' total');
         set('candidates-trend', s.total_candidates + ' total');
@@ -2464,7 +2472,7 @@ function renderAdminCompaniesTable(companies) {
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:14px;font-weight:600;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(c.name||'—')}</div>
                     <div style="font-size:11px;color:#9CA3AF;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(c.admin_email||c.email||'')}</div>
-                    ${c.phone?`<div style="font-size:11px;margin-top:2px;"><a href="https://wa.me/${c.phone.replace(/\D/g,'')}" target="_blank" style="color:#25D366;text-decoration:none;">📞 ${escHtml(c.phone)}</a></div>`:''}
+                    ${c.phone?`<div style="font-size:11px;margin-top:2px;"><a href="https://wa.me/${c.phone.replace(/\D/g,'')}" target="_blank" style="color:#25D366;text-decoration:none;">${escHtml(c.phone)}</a></div>`:''}
                     <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">${statusBadge(c.status)} ${planBadge(c.plan)}</div>
                 </div>
             </div>
@@ -2876,8 +2884,8 @@ function _coWsJobFormModal(job, companyId) {
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px;">
                     <label style="font-size:11px;font-weight:500;color:#374151;">Job Description</label>
                     <div style="display:flex;gap:6px;">
-                        <button type="button" onclick="_coWsToggleAISection()" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">✨ Write with AI</button>
-                        <button type="button" onclick="document.getElementById('cj-jd-file').click()" style="background:#F4F5FA;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;">📄 Upload JD</button>
+                        <button type="button" onclick="_coWsToggleAISection()" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">Write with AI</button>
+                        <button type="button" onclick="document.getElementById('cj-jd-file').click()" style="background:#F4F5FA;color:#1B2A4A;border:1px solid #E5E7EB;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;">Upload JD</button>
                         <input type="file" id="cj-jd-file" accept=".pdf,.docx" style="display:none;" onchange="_coWsUploadJD(this)">
                     </div>
                 </div>
@@ -3212,9 +3220,9 @@ async function openAdminJobPreview(jobId) {
       <div style="display:grid;grid-template-columns:1fr 280px;flex:1;overflow:hidden;min-height:0;">
         <div style="padding:24px 28px;overflow-y:auto;border-right:1px solid #f0f2f5;">
           <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
-            <span style="color:#555;font-size:13px;">📍 ${escHtml(job.job_location||'—')}</span>
-            <span style="color:#555;font-size:13px;">💼 ${escHtml(job.employment_type||'Full-time')}</span>
-            <span style="color:#555;font-size:13px;">⏱ ${job.min_experience||0}+ yrs exp</span>
+            <span style="color:#555;font-size:13px;">${escHtml(job.job_location||'—')}</span>
+            <span style="color:#555;font-size:13px;">${escHtml(job.employment_type||'Full-time')}</span>
+            <span style="color:#555;font-size:13px;">${job.min_experience||0}+ yrs exp</span>
           </div>
           ${salaryText}
           ${job.job_description ? `<div style="margin-bottom:20px;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#999;margin-bottom:10px;">ABOUT THE ROLE</div><p style="color:#333;font-size:14px;line-height:1.75;margin:0;white-space:pre-wrap;">${escHtml(job.job_description)}</p></div>` : ''}
@@ -3270,8 +3278,8 @@ async function handleAdminPreviewUpload(file, jobId) {
         const score = data.score != null ? Math.round(data.score) : null;
         const scoreColor = score == null ? '#6B7280' : score >= 75 ? '#0F6E56' : score >= 50 ? '#854F0B' : '#A32D2D';
         showToast(`${data.name || 'Candidate'} screened — ${score != null ? score + '% · ' : ''}${data.decision || ''}`, 'success');
-        if (typeof fetchData === 'function') fetchData();
-        if (typeof renderCandidates === 'function') renderCandidates();
+        if (typeof _refreshApplicationsOnly === 'function') _refreshApplicationsOnly();
+        else if (typeof renderCandidates === 'function') renderCandidates();
     } catch (err) {
         showToast('Screening failed: ' + err.message, 'error');
     }
@@ -3671,7 +3679,7 @@ function renderAdminUsersTable(users) {
                     <option value="candidate">Candidate</option>
                 </select>
                 <button onclick="exportAdminData('users')"
-                    style="background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:7px 14px;font-size:12px;color:#6B7280;cursor:pointer;">⬇ Export</button>
+                    style="background:#fff;border:0.5px solid #E5E7EB;border-radius:8px;padding:7px 14px;font-size:12px;color:#6B7280;cursor:pointer;">Export</button>
             </div>
         </div>
         <div style="background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,0.06);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
@@ -3776,7 +3784,7 @@ async function adminViewCandidateProfile(candidateId, name) {
                     <div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Applications (${(p.applications||[]).length})</div>
                     ${appRows}
                 </div>
-                ${p.has_cv !== false ? `<div style="padding-top:4px;"><button onclick="adminDownloadCandidateCv(${candidateId},'${escHtml(p.name||name).replace(/'/g,'&#39;')}')" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;">↓ Download CV</button></div>` : ''}
+                ${p.has_cv !== false ? `<div style="padding-top:4px;"><button onclick="adminDownloadCandidateCv(${candidateId},'${escHtml(p.name||name).replace(/'/g,'&#39;')}')" style="background:#1B2A4A;color:#C9A84C;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;">Download CV</button></div>` : ''}
             </div>`, null);
     } catch(e) {
         showToast('Could not load profile: ' + e.message, 'error');
@@ -4395,7 +4403,7 @@ function _showInterviewDispatchModal(data, mode) {
     ).join('');
 
     const icsBtns = ics.map(f =>
-        '<button onclick="downloadIcs(\'' + f.content + '\',\'' + escHtml(f.filename) + '\')" onmouseover="this.style.background=\'#1B2A4A\';this.style.color=\'#FAFAF8\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#1B2A4A\'" style="flex:1;padding:10px 16px;border:1px solid #1B2A4A;border-radius:8px;background:transparent;color:#1B2A4A;font-size:13px;font-weight:500;cursor:pointer;min-height:44px;transition:all 0.15s;">↓ ' + (f.for === 'candidate' ? 'Candidate' : 'Admin') + ' Calendar (.ics)</button>'
+        '<button onclick="downloadIcs(\'' + f.content + '\',\'' + escHtml(f.filename) + '\')" onmouseover="this.style.background=\'#1B2A4A\';this.style.color=\'#FAFAF8\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#1B2A4A\'" style="flex:1;padding:10px 16px;border:1px solid #1B2A4A;border-radius:8px;background:transparent;color:#1B2A4A;font-size:13px;font-weight:500;cursor:pointer;min-height:44px;transition:all 0.15s;">' + (f.for === 'candidate' ? 'Candidate' : 'Admin') + ' Calendar (.ics)</button>'
     ).join('');
 
     const waUrl    = _buildInterviewWhatsApp(iv, candName, jobTitle, company, phone);
@@ -4403,9 +4411,9 @@ function _showInterviewDispatchModal(data, mode) {
     const waOnClick = waActive ? 'window.open(\'' + waUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\',\'_blank\')' : "showToast('No phone number on file','info')";
     const waBtnStyle = 'flex:1;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;min-height:44px;transition:all 0.15s;' + (waActive ? 'border:1px solid #25D366;background:transparent;color:#25D366;cursor:pointer;' : 'border:1px solid #D1D5DB;background:transparent;color:#9CA3AF;cursor:not-allowed;');
     const waHoverAttr = waActive ? ' onmouseover="this.style.background=\'#25D366\';this.style.color=\'#fff\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#25D366\'"' : '';
-    const waBtn = '<button onclick="' + waOnClick + '" title="' + (waActive ? '' : 'No phone number on file') + '"' + waHoverAttr + ' style="' + waBtnStyle + '">💬 WhatsApp</button>';
+    const waBtn = '<button onclick="' + waOnClick + '" title="' + (waActive ? '' : 'No phone number on file') + '"' + waHoverAttr + ' style="' + waBtnStyle + '">WhatsApp</button>';
 
-    const modeLabel = mode === 'reschedule' ? 'Interview Rescheduled ↻' : mode === 'cancel' ? 'Interview Cancelled' : 'Interview Scheduled 🎯';
+    const modeLabel = mode === 'reschedule' ? 'Interview Rescheduled' : mode === 'cancel' ? 'Interview Cancelled' : 'Interview Scheduled';
 
     document.getElementById('interview-dispatch-modal')?.remove();
     const m = document.createElement('div');
@@ -4421,7 +4429,7 @@ function _showInterviewDispatchModal(data, mode) {
             (emailRows ? '<div style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Email Previews</div>' + emailRows : '') +
             (icsBtns ? '<div style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.6px;margin:16px 0 10px;">Calendar Invites</div><div style="display:flex;gap:8px;margin-bottom:8px;">' + icsBtns + '</div><div style="font-size:11px;color:#6B7280;text-align:center;margin-bottom:14px;">Download the .ics file, then open it to add the interview to Google Calendar, Outlook, or Apple Calendar automatically.</div>' : '') +
             '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
-                '<button onclick="_ivSendAllEmails(0)" style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:#1B2A4A;color:#FAFAF8;font-size:13px;font-weight:500;cursor:pointer;min-height:44px;">📧 Send Emails</button>' +
+                '<button onclick="_ivSendAllEmails(0)" style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:#1B2A4A;color:#FAFAF8;font-size:13px;font-weight:500;cursor:pointer;min-height:44px;">Send Emails</button>' +
                 waBtn +
             '</div>' +
             '<button onclick="document.getElementById(\'interview-dispatch-modal\').remove()" style="width:100%;padding:8px 16px;border:1px solid #E5E7EB;border-radius:8px;background:transparent;color:#6B7280;font-size:13px;cursor:pointer;">Done</button>' +
@@ -4575,7 +4583,7 @@ function renderInterviewsTable(rows) {
                 '<td style="padding:11px 14px;"><div style="display:flex;gap:5px;flex-wrap:wrap;">' +
                 (iv.status !== 'cancelled' ? '<button onclick="_openEditInterview(' + iv.id + ',' + iv.application_id + ')" style="font-size:11px;padding:5px 9px;background:#1B2A4A;color:#fff;border:none;border-radius:6px;cursor:pointer;">Edit</button>' : '') +
                 (iv.status !== 'cancelled' ? '<button onclick="cancelInterviewConfirm(' + iv.id + ')" style="font-size:11px;padding:5px 9px;background:#CC2B2B;color:#fff;border:none;border-radius:6px;cursor:pointer;">Cancel</button>' : '') +
-                '<button onclick="_downloadIvIcs(' + iv.id + ')" style="font-size:11px;padding:5px 9px;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:6px;cursor:pointer;">↓ .ics</button>' +
+                '<button onclick="_downloadIvIcs(' + iv.id + ')" style="font-size:11px;padding:5px 9px;background:#F4F5FA;color:#1B2A4A;border:none;border-radius:6px;cursor:pointer;">Calendar</button>' +
                 '</div></td></tr>';
         });
         tableHtml += '</tbody></table></div>';
@@ -4585,7 +4593,7 @@ function renderInterviewsTable(rows) {
         '<div style="background:#FFFFFF;border-radius:16px;border-left:4px solid #C9A84C;padding:22px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
             '<div><h1 style="margin:0 0 4px 0;font-size:22px;font-weight:500;color:#1B2A4A;">Interviews</h1>' +
             '<p style="margin:0;font-size:13px;color:#9CA3AF;">All scheduled and past interviews across all companies</p></div>' +
-            '<button onclick="exportInterviewsExcel()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">↓ Export Excel</button>' +
+            '<button onclick="exportInterviewsExcel()" style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">Export Excel</button>' +
         '</div>' +
         '<div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:16px;padding:14px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
             '<input type="text" id="iv-table-search" placeholder="Search by candidate, job, or company…" oninput="_ivFilterTable()" style="flex:1;padding:9px 14px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;min-width:200px;outline:none;color:#1B2A4A;">' +

@@ -1526,7 +1526,8 @@
                 application_id: app.application_id,
                 ...app
             }));
-            totalApps = coAppsData.length;
+            // Use server-reported total_count (not capped by 2000-row limit)
+            totalApps = _coAppsTotalCount || coAppsData.length;
 
             // Enrich with accurate stage from applications table
             if (typeof coAppsData !== 'undefined' && coAppsData.length) {
@@ -1544,9 +1545,6 @@
                     const fallback = stageMap.get(emailKey);
                     if (precise || fallback) c.stage = precise || fallback;
                 });
-                // Use coAppsData count as authoritative total when available
-                if (coAppsData.length > totalApps) totalApps = coAppsData.length;
-                // If per-job fetches returned nothing, use coAppsData for stage counts too
                 if (allCandidatesData.length === 0 && coAppsData.length > 0) allCandidatesData = coAppsData.slice();
             }
 
@@ -1618,7 +1616,10 @@
             'Shortlisted':'#0F6E56', 'Interview':'#185FA5', 'Hired':'#0A4A39',
             'Rejected':'#A32D2D', 'Offered':'#854F0B',
         };
-        const recent = candidates.slice(-5).reverse();
+        const recent = candidates
+            .slice()
+            .sort((a, b) => new Date(b.applied_at || b.created_at || 0) - new Date(a.applied_at || a.created_at || 0))
+            .slice(0, 5);
         wrap.innerHTML = recent.map(c => {
             const name = escHtml((c.name || c.full_name || c.applicant_name || c.email || 'Applicant').slice(0, 22));
             const job = escHtml((c.job_title || '').slice(0, 20));
@@ -1790,7 +1791,7 @@
 
             // Single call replaces N+1 per-job fetches + separate candidates call
             const _appsRaw = await fetch(
-                `${API_URL}/api/admin/applications?limit=200`,
+                `${API_URL}/api/admin/applications?limit=2000`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             ).then(r => r.ok ? r.json().then(d => Array.isArray(d.applications) ? d.applications : []) : []).catch(() => []);
 
@@ -3092,6 +3093,7 @@
     let _coJobStatusTab = 'active';
 
     let _coAppsReady = false; // true once coAppsData has been loaded for cards
+    let _coAppsTotalCount = 0; // server-reported total (may exceed 2000-row cache cap)
 
     async function loadJobsView() {
         // Show View 1
@@ -3107,10 +3109,9 @@
 
         const token = localStorage.getItem('token');
 
-        // Step 1: fetch jobs
+        // Step 1: fetch jobs (uses cache to avoid repeat fetches on every tab visit)
         try {
-            const jobsRes = await fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (jobsRes.ok) _coRawJobs = await jobsRes.json();
+            _coRawJobs = await fetchWithCache('jobs', `${API_URL}/jobs`, token);
         } catch(e) { console.warn('loadJobsView jobs:', e); }
 
         // Step 2: load applications so coAppsData is fully populated
@@ -3155,7 +3156,7 @@
         }
 
         grid.innerHTML = filtered.map(j => {
-            const count = _coAppsReady ? coAppsData.filter(a => String(a.job_id) === String(j.id)).length : null;
+            const count = _coAppsReady ? coAppsData.filter(a => String(a.job_id) === String(j.id) && !['rejected','hired'].includes((a.stage||'').toLowerCase())).length : null;
             const countHtml = count === null
                 ? `<span style="font-size:20px;font-weight:600;color:#D1D5DB;">—</span><span style="font-size:13px;color:#9CA3AF;margin-left:5px;">loading…</span>`
                 : `<span style="font-size:24px;font-weight:700;color:#C9A84C;">${count}</span><span style="font-size:13px;color:#6B7280;margin-left:5px;">Candidate${count!==1?'s':''}</span>`;
@@ -3245,7 +3246,7 @@
         if (!_coRawJobs.length) { showToast('No jobs to export', 'info'); return; }
         const headers = ['Job Title','Status','Approved','Candidates'];
         const rows = _coRawJobs.map(j => {
-            const count = coAppsData.filter(a => String(a.job_id) === String(j.id)).length;
+            const count = coAppsData.filter(a => String(a.job_id) === String(j.id) && !['rejected','hired'].includes((a.stage||'').toLowerCase())).length;
             const status = j.is_approved ? 'Active' : (j.status === 'rejected' ? 'Expired' : 'Pending');
             return [j.job_title||'',status,j.is_approved?'Yes':'No',count]
                 .map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',');
@@ -3295,11 +3296,20 @@
 
     async function loadCompanyApplications() {
         const token = localStorage.getItem('token');
+        if (coDataCache['co-apps']) {
+            const cached = coDataCache['co-apps'];
+            coAppsData = cached.applications;
+            _coAppsTotalCount = cached.total_count;
+            renderCoStageTabs();
+            return;
+        }
         try {
             const res = await fetch(`${API_URL}/api/admin/applications?limit=2000`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (!res.ok) return;
             const data = await res.json();
             coAppsData = Array.isArray(data.applications) ? data.applications : [];
+            _coAppsTotalCount = data.total_count || coAppsData.length;
+            coDataCache['co-apps'] = { applications: coAppsData, total_count: _coAppsTotalCount };
             renderCoStageTabs();
         } catch (e) { console.warn('loadCompanyApplications:', e); }
     }
@@ -5155,7 +5165,7 @@ function _updateOfferBadge(appId) {
 
 async function _loadOffersForTab(appIds) {
     const token = localStorage.getItem('token');
-    for (const appId of appIds) {
+    await Promise.all(appIds.map(async appId => {
         try {
             const res = await fetch(API_URL + '/api/admin/offers/application/' + appId, {
                 headers: { 'Authorization': 'Bearer ' + token }
@@ -5165,7 +5175,7 @@ async function _loadOffersForTab(appIds) {
                 if (offer) { coOffersMap[appId] = offer; _updateOfferBadge(appId); }
             }
         } catch (e) {}
-    }
+    }));
 }
 
 function openOfferModal(appId, candName, jobTitle) {

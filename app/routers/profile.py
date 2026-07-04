@@ -269,14 +269,14 @@ def get_application_summary(
 # ── GET /api/candidate/applications ───────────────────────────────────────────
 
 _STAGE_LABELS = {
-    "applied":     ("Under Review",      "#1B2A4A", "#EFF2F8"),
-    "new":         ("Under Review",      "#1B2A4A", "#EFF2F8"),
-    "screening":   ("Being Screened",    "#854F0B", "#FAEEDA"),
-    "shortlisted": ("Shortlisted ✓",     "#0F6E56", "#E1F5EE"),
-    "interview":   ("Interview Stage",   "#185FA5", "#E6F1FB"),
-    "offered":     ("Offer Extended 🎉", "#0F6E56", "#E1F5EE"),
-    "hired":       ("Hired ✓",           "#0F6E56", "#E1F5EE"),
-    "rejected":    ("Not Selected",      "#A32D2D", "#FCEBEB"),
+    "applied":     ("Under Review",    "#1B2A4A", "#EFF2F8"),
+    "new":         ("Under Review",    "#1B2A4A", "#EFF2F8"),
+    "screening":   ("Being Screened",  "#854F0B", "#FAEEDA"),
+    "shortlisted": ("Shortlisted",     "#0F6E56", "#E1F5EE"),
+    "interview":   ("Interview Stage", "#185FA5", "#E6F1FB"),
+    "offered":     ("Offer Extended",  "#0F6E56", "#E1F5EE"),
+    "hired":       ("Hired",           "#0F6E56", "#E1F5EE"),
+    "rejected":    ("Not Selected",    "#A32D2D", "#FCEBEB"),
 }
 
 
@@ -334,6 +334,12 @@ def get_candidate_applications(
             s = float(ev.score)
             score = round(s * 100 if s <= 1 else s * 10 if s <= 10 else min(100, s))
 
+        reason = None
+        decision = None
+        if ev:
+            reason = ev.reason or None
+            decision = ev.decision or None
+
         result.append({
             "application_id": app.id,
             "job_id": job_id,
@@ -344,6 +350,8 @@ def get_candidate_applications(
             "stage_color": color,
             "stage_bg": bg,
             "score": score,
+            "reason": reason,
+            "decision": decision,
             "applied_at": app.created_at.isoformat() if app.created_at else None,
         })
 

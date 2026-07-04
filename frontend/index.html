@@ -529,8 +529,9 @@
                 </div>
             </div>
 
-            <!-- Industry filter -->
+            <!-- Industry filter + search -->
             <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="jobs-search" placeholder="Search by job title or location…" oninput="renderJobs()" style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;color:#1B2A4A;background:#fff;min-width:200px;flex:1;outline:none;">
                 <select id="jobs-dept-filter" onchange="renderJobs()" style="padding:7px 10px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;color:#1B2A4A;background:#fff;min-width:180px;">
                     <option value="">All Industries</option>
                     <option value="Education">Education</option>

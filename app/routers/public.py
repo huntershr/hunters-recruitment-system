@@ -479,11 +479,7 @@ async def public_apply(
         email_lower = (email or "").strip().lower()
         existing_user = (
             db.query(models.User)
-            .filter(
-                func.lower(models.User.email) == email_lower,
-                models.User.is_admin == False,
-                models.User.company_id.is_(None),
-            )
+            .filter(func.lower(models.User.email) == email_lower)
             .first()
         )
         if not existing_user:
@@ -504,9 +500,13 @@ async def public_apply(
             db.commit()
 
             background_tasks.add_task(send_candidate_welcome_email, email, name, temp_password)
-        elif candidate_row.user_id is None:
-            candidate_row.user_id = existing_user.id
-            db.commit()
+        elif not existing_user.is_admin and existing_user.company_id is None:
+            # Existing portal candidate — safe to link
+            if candidate_row.user_id is None:
+                candidate_row.user_id = existing_user.id
+                db.commit()
+        # else: email belongs to admin/company account — skip without attempting
+        # a duplicate insert (prevents unique constraint violation)
     except Exception as e:
         logger.error(f"Auto-create candidate account failed for {email}: {e}")
 
