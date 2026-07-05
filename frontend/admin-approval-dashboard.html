@@ -1776,35 +1776,143 @@ async function loadVoiceScreenings() {
         if (wrap) wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#CC2B2B;">Error loading screenings</div>';
     }
 }
+
 function _vsStatusBadge(s) {
-    var map = { completed:['#0F6E56','#E1F5EE','✅ Completed'], no_answer:['#CC2B2B','#FCEBEB','📵 No Answer'], in_progress:['#854F0B','#FAEEDA','⏳ In Progress'], pending:['#6B7280','#F3F4F6','⏸ Pending'], failed:['#CC2B2B','#FCEBEB','❌ Failed'] };
+    var map = {
+        completed:   ['#0F6E56','#E1F5EE','Completed'],
+        no_answer:   ['#A32D2D','#FCEBEB','No Answer'],
+        in_progress: ['#854F0B','#FAEEDA','In Progress'],
+        pending:     ['#6B7280','#F3F4F6','Pending'],
+        failed:      ['#A32D2D','#FCEBEB','Failed']
+    };
     var c = map[s] || ['#6B7280','#F3F4F6', s];
-    return '<span style="padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;background:' + c[1] + ';color:' + c[0] + ';">' + c[2] + '</span>';
+    return '<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:'+c[1]+';color:'+c[0]+';">'+c[2]+'</span>';
 }
+
+function _vsEnglishPill(level) {
+    if (!level) return '';
+    var colMap = { 'Advanced':'#0F6E56','Upper Intermediate':'#185FA5','Intermediate':'#854F0B','Basic':'#6B7280','Elementary':'#A32D2D' };
+    var col = colMap[level] || '#6B7280';
+    return '<span style="padding:2px 9px;border-radius:12px;font-size:10px;font-weight:600;background:'+col+'12;color:'+col+';border:0.5px solid '+col+'30;">'+escHtml(level)+'</span>';
+}
+
+function _vsToggleExpand(id) {
+    var el = document.getElementById('vs-expand-'+id);
+    var btn = document.getElementById('vs-btn-'+id);
+    if (!el) return;
+    var isOpen = el.style.display !== 'none';
+    el.style.display = isOpen ? 'none' : 'block';
+    if (btn) { btn.textContent = isOpen ? 'Read Report' : 'Close'; btn.style.background = isOpen ? '#fff' : '#F3F4F6'; }
+}
+
 function _renderVsTable(rows) {
     var wrap = document.getElementById('vs-table-wrap');
     if (!wrap) return;
-    if (!rows.length) { wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">No screenings found</div>'; return; }
-    var html = '<table style="width:100%;border-collapse:collapse;">';
-    html += '<thead><tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;">';
-    ['Candidate','Job','Date','Attempt','Status','English Level','Interview Confirmed','AI Summary'].forEach(function(h) {
-        html += '<th style="padding:10px 14px;font-size:11px;font-weight:600;color:#6B7280;text-align:left;white-space:nowrap;">' + h + '</th>';
+    if (!rows.length) {
+        wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">No screenings found</div>';
+        return;
+    }
+
+    // Completed first, then by date descending
+    var sorted = rows.slice().sort(function(a,b) {
+        var ac = a.status==='completed'?0:1, bc = b.status==='completed'?0:1;
+        if (ac!==bc) return ac-bc;
+        return new Date(b.created_at||0)-new Date(a.created_at||0);
     });
-    html += '</tr></thead><tbody>';
-    rows.forEach(function(vs) {
-        var summary = (vs.ai_summary || '').split('\n').filter(Boolean)[0] || '—';
-        html += '<tr style="border-bottom:0.5px solid #F3F4F6;">';
-        html += '<td style="padding:10px 14px;font-size:12px;font-weight:500;color:#1B2A4A;">' + escHtml(vs.candidate_name||'—') + '</td>';
-        html += '<td style="padding:10px 14px;font-size:12px;color:#6B7280;">' + escHtml(vs.job_title_at_time||'—') + '</td>';
-        html += '<td style="padding:10px 14px;font-size:11px;color:#9CA3AF;white-space:nowrap;">' + (vs.created_at ? new Date(vs.created_at).toLocaleDateString() : '—') + '</td>';
-        html += '<td style="padding:10px 14px;font-size:12px;color:#6B7280;text-align:center;">#' + (vs.attempt_number||1) + '</td>';
-        html += '<td style="padding:10px 14px;">' + _vsStatusBadge(vs.status) + '</td>';
-        html += '<td style="padding:10px 14px;font-size:12px;color:#1B2A4A;">' + escHtml(vs.english_level||'—') + '</td>';
-        html += '<td style="padding:10px 14px;font-size:12px;color:#1B2A4A;">' + (vs.interview_confirmed ? escHtml(vs.interview_confirmed).slice(0,30) : '—') + '</td>';
-        html += '<td style="padding:10px 14px;font-size:11px;color:#6B7280;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(summary) + '</td>';
-        html += '</tr>';
-    });
-    html += '</tbody></table>';
+    var completed = sorted.filter(function(r){ return r.status==='completed'; });
+    var others    = sorted.filter(function(r){ return r.status!=='completed'; });
+
+    var html = '<div style="padding:16px;display:flex;flex-direction:column;gap:8px;">';
+
+    // ── Completed cards ──
+    if (completed.length) {
+        html += '<div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8px;padding:4px 2px 6px;">Completed · '+completed.length+' report'+(completed.length!==1?'s':'')+'</div>';
+        completed.forEach(function(vs) {
+            var date = vs.created_at ? new Date(vs.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}) : '—';
+            var initials = (vs.candidate_name||'?').trim().split(/\s+/).slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase();
+            var summaryLines = (vs.ai_summary||'').split('\n').filter(Boolean);
+            var hasReport = summaryLines.length > 0;
+
+            var metaItems = [];
+            if (vs.fluency_assessment)    metaItems.push(['Fluency',           vs.fluency_assessment]);
+            if (vs.clarity_assessment)    metaItems.push(['Clarity',           vs.clarity_assessment]);
+            if (vs.experience_match)      metaItems.push(['Experience Match',  vs.experience_match]);
+            if (vs.expected_salary)       metaItems.push(['Expected Salary',   vs.expected_salary]);
+            if (vs.availability_response) metaItems.push(['Availability',      vs.availability_response]);
+            if (vs.candidate_questions)   metaItems.push(['Candidate Questions', vs.candidate_questions]);
+
+            html += '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow=\'0 2px 12px rgba(0,0,0,0.07)\'" onmouseout="this.style.boxShadow=\'none\'">';
+
+            // ── Card header ──
+            html += '<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;flex-wrap:wrap;">';
+            // Avatar
+            html += '<div style="width:38px;height:38px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+escHtml(initials)+'</div>';
+            // Name + job/company
+            html += '<div style="flex:1;min-width:0;">';
+            html += '<div style="font-size:14px;font-weight:600;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(vs.candidate_name||'—')+'</div>';
+            var jobLine = escHtml(vs.job_title_at_time||'—') + (vs.company_name ? ' &nbsp;·&nbsp; <span style="color:#9CA3AF;">'+escHtml(vs.company_name)+'</span>' : '');
+            html += '<div style="font-size:12px;color:#6B7280;margin-top:1px;">'+jobLine+'</div>';
+            html += '</div>';
+            // Pills + date + button
+            html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">';
+            html += '<span style="font-size:11px;color:#9CA3AF;white-space:nowrap;">'+date+'</span>';
+            if ((vs.attempt_number||1)>1) html += '<span style="font-size:10px;background:#F3F4F6;color:#6B7280;border-radius:20px;padding:2px 8px;font-weight:600;">Attempt #'+vs.attempt_number+'</span>';
+            if (vs.english_level) html += _vsEnglishPill(vs.english_level);
+            if (vs.interview_confirmed) html += '<span style="font-size:10px;background:#E1F5EE;color:#0F6E56;border-radius:20px;padding:2px 9px;font-weight:600;white-space:nowrap;">Interview: '+escHtml(String(vs.interview_confirmed).slice(0,24))+'</span>';
+            html += _vsStatusBadge(vs.status);
+            if (hasReport || metaItems.length) {
+                html += '<button id="vs-btn-'+vs.id+'" onclick="_vsToggleExpand('+vs.id+')" style="padding:5px 13px;border:1px solid #1B2A4A;border-radius:7px;background:#fff;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Read Report</button>';
+            }
+            html += '</div></div>'; // pills + header
+
+            // ── Expandable report ──
+            if (hasReport || metaItems.length) {
+                html += '<div id="vs-expand-'+vs.id+'" style="display:none;border-top:1px solid #F3F4F6;padding:18px 20px 16px;background:#FAFBFF;">';
+
+                if (hasReport) {
+                    html += '<div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:10px;">AI Summary</div>';
+                    summaryLines.forEach(function(line) {
+                        var clean = line.replace(/^[\s•\-\*]+/,'');
+                        if (clean) html += '<p style="margin:0 0 8px;font-size:13px;color:#374151;line-height:1.75;">'+escHtml(clean)+'</p>';
+                    });
+                }
+
+                if (metaItems.length) {
+                    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:'+(hasReport?'14':'0')+'px;">';
+                    metaItems.forEach(function(item) {
+                        html += '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;">';
+                        html += '<div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;">'+escHtml(item[0])+'</div>';
+                        html += '<div style="font-size:12px;color:#1B2A4A;line-height:1.5;">'+escHtml(String(item[1]).slice(0,300))+'</div>';
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                }
+
+                html += '</div>'; // expand
+            }
+            html += '</div>'; // card
+        });
+    }
+
+    // ── Compact list for pending / in-progress / no-answer ──
+    if (others.length) {
+        html += '<div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8px;padding:12px 2px 6px;">Other Sessions · '+others.length+'</div>';
+        html += '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">';
+        others.forEach(function(vs,i) {
+            var date = vs.created_at ? new Date(vs.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short'}) : '—';
+            var border = i<others.length-1 ? 'border-bottom:0.5px solid #F3F4F6;' : '';
+            html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;'+border+'">';
+            html += '<div style="flex:1;font-size:13px;font-weight:500;color:#1B2A4A;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(vs.candidate_name||'—')+'</div>';
+            html += '<div style="font-size:12px;color:#6B7280;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(vs.job_title_at_time||'—')+(vs.company_name?'<span style="color:#C9C9C9;"> · </span>'+escHtml(vs.company_name):'')+'</div>';
+            html += '<span style="font-size:11px;color:#9CA3AF;white-space:nowrap;">'+date+'</span>';
+            if ((vs.attempt_number||1)>1) html += '<span style="font-size:10px;background:#F3F4F6;color:#6B7280;border-radius:20px;padding:2px 6px;font-weight:600;">#'+vs.attempt_number+'</span>';
+            html += _vsStatusBadge(vs.status);
+            html += '</div>';
+        });
+        html += '</div>';
+    }
+
+    html += '</div>';
     wrap.innerHTML = html;
 }
 function exportVoiceScreeningsCSV() {
