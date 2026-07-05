@@ -312,6 +312,41 @@ def get_application_screenings(
     return [_screening_dict(r) for r in rows]
 
 
+@router.get("/company")
+def get_company_screenings(
+    status: Optional[str] = Query(None),
+    limit: int = Query(200),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _require_company_or_admin(current_user)
+
+    job_ids = [
+        row[0]
+        for row in db.query(models.Job.id).filter(models.Job.owner_id == current_user.id).all()
+    ]
+    if not job_ids:
+        return {"total": 0, "screenings": []}
+
+    q = db.query(models.VoiceScreening).filter(models.VoiceScreening.job_id.in_(job_ids))
+    if status:
+        q = q.filter(models.VoiceScreening.status == status)
+
+    total = q.count()
+    rows = q.order_by(desc(models.VoiceScreening.created_at)).limit(limit).all()
+
+    result = []
+    for vs in rows:
+        d = _screening_dict(vs)
+        cand = vs.candidate
+        app  = vs.application
+        d["candidate_name"]  = (cand.name if cand else None) or (app.applicant_name if app else "—")
+        d["candidate_email"] = (cand.email if cand else None) or (app.applicant_email if app else "")
+        result.append(d)
+
+    return {"total": total, "screenings": result}
+
+
 @router.get("/all")
 def get_all_screenings(
     status: Optional[str] = Query(None),
@@ -352,6 +387,13 @@ def get_all_screenings(
         app  = vs.application
         d["candidate_name"]  = (cand.name if cand else None) or (app.applicant_name if app else "—")
         d["candidate_email"] = (cand.email if cand else None) or (app.applicant_email if app else "")
+        job = vs.job
+        company_name = None
+        if job and job.owner:
+            co = getattr(job.owner, "company", None)
+            if co:
+                company_name = getattr(co, "company_name", None)
+        d["company_name"] = company_name
         result.append(d)
 
     return {"total": total, "screenings": result}

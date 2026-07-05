@@ -631,6 +631,12 @@
             </svg>
             Interviews
         </button>
+        <button class="nav-item" data-page="screenings" onclick="navigateTo('screenings')">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+            Screenings
+        </button>
     </nav>
 
     <button class="sidebar-logout" onclick="handleLogout()">
@@ -1009,6 +1015,31 @@
             </select>
         </div>
         <div id="co-interviews-table-container" style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;min-height:120px;"></div>
+    </div>
+
+    <!-- ── Voice Screenings ── -->
+    <div id="screenings" class="content-area">
+        <div style="background:#FFFFFF;border-radius:16px;border-left:4px solid #1B2A4A;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+            <div>
+                <h1 style="margin:0 0 4px 0;font-size:22px;font-weight:500;color:#1B2A4A;">Voice Screenings</h1>
+                <p style="margin:0;font-size:13px;color:#9CA3AF;">AI screening reports for all your candidates</p>
+            </div>
+        </div>
+        <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:16px;padding:14px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <select id="co-vs-filter-status" onchange="loadCoScreenings()"
+                style="padding:9px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;background:#fff;outline:none;cursor:pointer;">
+                <option value="">All statuses</option>
+                <option value="completed">Completed</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="no_answer">No Answer</option>
+                <option value="failed">Failed</option>
+            </select>
+            <button onclick="loadCoScreenings()" style="padding:9px 14px;border:1px solid #E5E7EB;border-radius:8px;background:#F9FAFB;color:#1B2A4A;font-size:13px;font-weight:500;cursor:pointer;">Refresh</button>
+        </div>
+        <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:hidden;min-height:120px;">
+            <div id="co-vs-table-wrap"><div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div></div>
+        </div>
     </div>
 
     <!-- ── Profile ── -->
@@ -1481,6 +1512,7 @@
         if (page === 'talent-pool')   loadTalentPool();
         if (page === 'profile')       loadProfileData();
         if (page === 'interviews-co') loadCoInterviews();
+        if (page === 'screenings')    loadCoScreenings();
         if (page === 'public-profile') {
             window.__huntersCurrentCompany = currentCompany;
             if (typeof renderHuntersPublicProfile === 'function') {
@@ -2746,6 +2778,142 @@
         const iv = _coInterviewsData.find(i => i.id === ivId);
         if (!iv) return;
         _openEditInterview(iv.id, iv.application_id);
+    }
+
+    /* ── Company Voice Screenings ── */
+    var _coVsAllData = [];
+
+    async function loadCoScreenings() {
+        const token = localStorage.getItem('token');
+        const status = (document.getElementById('co-vs-filter-status') || {}).value || '';
+        const url = `${API_URL}/api/voice-screening/company?limit=200` + (status ? '&status=' + status : '');
+        const wrap = document.getElementById('co-vs-table-wrap');
+        if (wrap) wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">Loading…</div>';
+        try {
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) { if (wrap) wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#CC2B2B;">Failed to load screenings</div>'; return; }
+            const data = await res.json();
+            _coVsAllData = data.screenings || [];
+            _renderCoVsTable(_coVsAllData);
+        } catch(e) {
+            if (wrap) wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#CC2B2B;">Error loading screenings</div>';
+        }
+    }
+
+    function _coVsStatusBadge(s) {
+        const map = { completed:['#0F6E56','#E1F5EE','Completed'], no_answer:['#A32D2D','#FCEBEB','No Answer'], in_progress:['#854F0B','#FAEEDA','In Progress'], pending:['#6B7280','#F3F4F6','Pending'], failed:['#A32D2D','#FCEBEB','Failed'] };
+        const c = map[s] || ['#6B7280','#F3F4F6', s];
+        return `<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:${c[1]};color:${c[0]};">${c[2]}</span>`;
+    }
+
+    function _coVsEnglishPill(level) {
+        if (!level) return '';
+        const colMap = { 'Advanced':'#0F6E56','Upper Intermediate':'#185FA5','Intermediate':'#854F0B','Basic':'#6B7280','Elementary':'#A32D2D' };
+        const col = colMap[level] || '#6B7280';
+        return `<span style="padding:2px 9px;border-radius:12px;font-size:10px;font-weight:600;background:${col}12;color:${col};border:0.5px solid ${col}30;">${escHtml(level)}</span>`;
+    }
+
+    function _coVsToggleExpand(id) {
+        const el = document.getElementById('co-vs-expand-' + id);
+        const btn = document.getElementById('co-vs-btn-' + id);
+        if (!el) return;
+        const isOpen = el.style.display !== 'none';
+        el.style.display = isOpen ? 'none' : 'block';
+        if (btn) { btn.textContent = isOpen ? 'Read Report' : 'Close'; btn.style.background = isOpen ? '#fff' : '#F3F4F6'; }
+    }
+
+    function _renderCoVsTable(rows) {
+        const wrap = document.getElementById('co-vs-table-wrap');
+        if (!wrap) return;
+        if (!rows.length) { wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px;">No screenings found</div>'; return; }
+
+        const sorted = rows.slice().sort((a,b) => {
+            const ac = a.status==='completed'?0:1, bc = b.status==='completed'?0:1;
+            if (ac!==bc) return ac-bc;
+            return new Date(b.created_at||0)-new Date(a.created_at||0);
+        });
+        const completed = sorted.filter(r => r.status==='completed');
+        const others    = sorted.filter(r => r.status!=='completed');
+
+        let html = '<div style="padding:16px;display:flex;flex-direction:column;gap:8px;">';
+
+        if (completed.length) {
+            html += `<div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8px;padding:4px 2px 6px;">Completed &middot; ${completed.length} report${completed.length!==1?'s':''}</div>`;
+            completed.forEach(vs => {
+                const date = vs.created_at ? new Date(vs.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}) : '—';
+                const initials = (vs.candidate_name||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+                const summaryLines = (vs.ai_summary||'').split('\n').filter(Boolean);
+                const hasReport = summaryLines.length > 0;
+                const metaItems = [];
+                if (vs.fluency_assessment)    metaItems.push(['Fluency',             vs.fluency_assessment]);
+                if (vs.clarity_assessment)    metaItems.push(['Clarity',             vs.clarity_assessment]);
+                if (vs.experience_match)      metaItems.push(['Experience Match',    vs.experience_match]);
+                if (vs.expected_salary)       metaItems.push(['Expected Salary',     vs.expected_salary]);
+                if (vs.availability_response) metaItems.push(['Availability',        vs.availability_response]);
+                if (vs.candidate_questions)   metaItems.push(['Candidate Questions', vs.candidate_questions]);
+
+                html += `<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;" onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.07)'" onmouseout="this.style.boxShadow='none'">`;
+                html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;flex-wrap:wrap;">`;
+                html += `<div style="width:38px;height:38px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${escHtml(initials)}</div>`;
+                html += `<div style="flex:1;min-width:0;">`;
+                html += `<div style="font-size:14px;font-weight:600;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(vs.candidate_name||'—')}</div>`;
+                html += `<div style="font-size:12px;color:#6B7280;margin-top:1px;">${escHtml(vs.job_title_at_time||'—')}</div>`;
+                html += `</div>`;
+                html += `<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">`;
+                html += `<span style="font-size:11px;color:#9CA3AF;white-space:nowrap;">${date}</span>`;
+                if ((vs.attempt_number||1)>1) html += `<span style="font-size:10px;background:#F3F4F6;color:#6B7280;border-radius:20px;padding:2px 8px;font-weight:600;">Attempt #${vs.attempt_number}</span>`;
+                if (vs.english_level) html += _coVsEnglishPill(vs.english_level);
+                if (vs.interview_confirmed) html += `<span style="font-size:10px;background:#E1F5EE;color:#0F6E56;border-radius:20px;padding:2px 9px;font-weight:600;white-space:nowrap;">Interview: ${escHtml(String(vs.interview_confirmed).slice(0,24))}</span>`;
+                html += _coVsStatusBadge(vs.status);
+                if (hasReport || metaItems.length) {
+                    html += `<button id="co-vs-btn-${vs.id}" onclick="_coVsToggleExpand(${vs.id})" style="padding:5px 13px;border:1px solid #1B2A4A;border-radius:7px;background:#fff;color:#1B2A4A;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Read Report</button>`;
+                }
+                html += `</div></div>`;
+
+                if (hasReport || metaItems.length) {
+                    html += `<div id="co-vs-expand-${vs.id}" style="display:none;border-top:1px solid #F3F4F6;padding:18px 20px 16px;background:#FAFBFF;">`;
+                    if (hasReport) {
+                        html += `<div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:10px;">AI Summary</div>`;
+                        summaryLines.forEach(line => {
+                            const clean = line.replace(/^[\s•\-\*]+/,'');
+                            if (clean) html += `<p style="margin:0 0 8px;font-size:13px;color:#374151;line-height:1.75;">${escHtml(clean)}</p>`;
+                        });
+                    }
+                    if (metaItems.length) {
+                        html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:${hasReport?'14':'0'}px;">`;
+                        metaItems.forEach(item => {
+                            html += `<div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;">`;
+                            html += `<div style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;">${escHtml(item[0])}</div>`;
+                            html += `<div style="font-size:12px;color:#1B2A4A;line-height:1.5;">${escHtml(String(item[1]).slice(0,300))}</div>`;
+                            html += `</div>`;
+                        });
+                        html += `</div>`;
+                    }
+                    html += `</div>`;
+                }
+                html += `</div>`;
+            });
+        }
+
+        if (others.length) {
+            html += `<div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8px;padding:12px 2px 6px;">Other Sessions &middot; ${others.length}</div>`;
+            html += `<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">`;
+            others.forEach((vs,i) => {
+                const date = vs.created_at ? new Date(vs.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short'}) : '—';
+                const border = i<others.length-1 ? 'border-bottom:0.5px solid #F3F4F6;' : '';
+                html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;${border}">`;
+                html += `<div style="flex:1;font-size:13px;font-weight:500;color:#1B2A4A;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(vs.candidate_name||'—')}</div>`;
+                html += `<div style="font-size:12px;color:#6B7280;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(vs.job_title_at_time||'—')}</div>`;
+                html += `<span style="font-size:11px;color:#9CA3AF;white-space:nowrap;">${date}</span>`;
+                if ((vs.attempt_number||1)>1) html += `<span style="font-size:10px;background:#F3F4F6;color:#6B7280;border-radius:20px;padding:2px 6px;font-weight:600;">#${vs.attempt_number}</span>`;
+                html += _coVsStatusBadge(vs.status);
+                html += `</div>`;
+            });
+            html += `</div>`;
+        }
+
+        html += '</div>';
+        wrap.innerHTML = html;
     }
 
     /* ──────────────────────────────
