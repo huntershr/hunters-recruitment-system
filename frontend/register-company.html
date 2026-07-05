@@ -385,10 +385,25 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        function _parseApiError(detail) {
+            if (!detail) return 'Please try again';
+            if (typeof detail === 'string') return detail;
+            if (Array.isArray(detail)) return detail.map(e => e.msg || JSON.stringify(e)).join('; ');
+            return JSON.stringify(detail);
+        }
+
         async function submitRegistration() {
             const phone = (document.getElementById('f-phone').value || '').trim();
             if (!phone) { showAlert('Phone number is required', 'error'); return; }
             const contactEmail = (document.getElementById('f-contact-email2').value || '').trim();
+
+            // Validate contact email format before submitting
+            const emailToCheck = contactEmail || (document.getElementById('f-contact-email').value || '').trim();
+            if (emailToCheck && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToCheck)) {
+                showAlert('Contact email is not a valid email address. Please correct it before submitting.', 'error');
+                return;
+            }
+
             const contactMethod = document.querySelector('input[name="contact-method"]:checked')?.value || 'whatsapp';
             const billingPref = document.querySelector('input[name="billing-pref"]:checked')?.value || 'monthly';
 
@@ -437,7 +452,7 @@
                         setTimeout(() => { window.location.href = 'index.html'; }, 4000);
                     }
                 } else {
-                    showAlert('Registration failed: ' + (data.detail || 'Please try again'), 'error');
+                    showAlert('Registration failed: ' + _parseApiError(data.detail), 'error');
                     btn.disabled = false; btn.textContent = 'Complete Registration';
                 }
             } catch (e) {
