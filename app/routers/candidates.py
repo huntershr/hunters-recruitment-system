@@ -118,10 +118,97 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
         _agent_result = call_agent_screener(candidate.cv_text or "", job, candidate.id)
         if _agent_result is not None:
             logger.info(f"Agent screener succeeded for candidate {candidate_id}")
-            _agent_result.pop("_candidate_profile", None)
+            _cp = _agent_result.pop("_candidate_profile", None) or {}
+
+            # Write agent profile to Candidate row (additive — never overwrites existing values)
+            try:
+                if _cp:
+                    if not candidate.name or candidate.name.lower().startswith("resume"):
+                        v = (_cp.get("name") or "").strip()
+                        if v and v.isprintable() and any(c.isalpha() for c in v) and len(v) <= 80:
+                            candidate.name = v
+                    if not candidate.last_title:
+                        v = (_cp.get("current_title") or "").strip()
+                        if v and len(v) <= 80: candidate.last_title = v
+                    if not candidate.last_employer:
+                        v = (_cp.get("last_employer") or "").strip()
+                        if v: candidate.last_employer = v
+                    if not (candidate.experience_years or 0):
+                        v = _cp.get("years_experience")
+                        if v:
+                            try:
+                                yr = int(v)
+                                if 1 <= yr <= 25: candidate.experience_years = yr
+                            except Exception: pass
+                    if not candidate.education:
+                        v = (_cp.get("education") or "").strip()
+                        if v: candidate.education = v
+                    if not candidate.skills:
+                        v = _cp.get("skills")
+                        if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                        if v: candidate.skills = str(v).strip()
+                    if not candidate.languages:
+                        v = _cp.get("languages")
+                        if isinstance(v, list) and v: candidate.languages = v
+                    if not candidate.certifications:
+                        v = _cp.get("certifications")
+                        if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                        if v: candidate.certifications = str(v).strip()
+                    if not candidate.summary:
+                        v = (_cp.get("summary") or "").strip()
+                        if v: candidate.summary = v
+                    if not candidate.experiences:
+                        v = _cp.get("experiences")
+                        if isinstance(v, list) and v: candidate.experiences = v
+                    if not candidate.education_history:
+                        v = _cp.get("education_history")
+                        if isinstance(v, list) and v: candidate.education_history = v
+                    db.commit()
+                    logger.info(f"Agent profile saved for candidate {candidate_id}")
+                else:
+                    logger.warning(f"Agent succeeded but returned no _candidate_profile for candidate {candidate_id}")
+            except Exception as _ap_err:
+                logger.error(f"Agent profile save failed for candidate {candidate_id}: {_ap_err}")
+                db.rollback()
+
             eval_result = _agent_result
         else:
             logger.warning(f"Agent screener unavailable for candidate {candidate_id}; falling back to Gemini")
+
+            # Gemini fallback: extract profile fields and write additively
+            try:
+                _info = extract_candidate_info(candidate.cv_text or "")
+                if _info and (_info.get("last_title") or _info.get("skills") or _info.get("summary")):
+                    if not candidate.last_title:
+                        candidate.last_title = _info.get("last_title") or None
+                    if not candidate.last_employer:
+                        candidate.last_employer = _info.get("last_employer") or None
+                    if not candidate.skills:
+                        v = _info.get("skills")
+                        if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                        if v: candidate.skills = str(v).strip()
+                    if not candidate.education:
+                        candidate.education = _info.get("education") or None
+                    if not candidate.summary:
+                        v = (_info.get("summary") or "").strip()
+                        if v: candidate.summary = v
+                    if not candidate.experiences:
+                        v = _info.get("experiences")
+                        if isinstance(v, list) and v: candidate.experiences = v
+                    if not candidate.education_history:
+                        v = _info.get("education_history")
+                        if isinstance(v, list) and v: candidate.education_history = v
+                    if not candidate.languages:
+                        v = _info.get("languages")
+                        if isinstance(v, list) and v: candidate.languages = v
+                    if not (candidate.experience_years or 0):
+                        candidate.experience_years = int(_info.get("experience_years") or 0)
+                    db.commit()
+                    logger.info(f"Gemini ATS fields written to candidate {candidate_id}")
+            except Exception as _ext_err:
+                logger.error(f"Gemini ATS extraction failed for candidate {candidate_id}: {_ext_err}")
+                db.rollback()
+
             _raw_result = None
             for _attempt in range(3):
                 try:

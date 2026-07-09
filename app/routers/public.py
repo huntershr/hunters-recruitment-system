@@ -92,73 +92,23 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
             logger.error(f"Job {application.job_id} not found for application {application_id}")
             return
 
-        _info = None
-        for _ext_attempt in range(3):
-            try:
-                _result = extract_candidate_info(cv_text)
-                if _result and (
-                    _result.get("last_title") or _result.get("skills")
-                    or _result.get("summary") or _result.get("experiences")
-                ):
-                    _info = _result
-                    break
-            except Exception as _ext_err:
-                logger.warning(
-                    f"ATS extraction attempt {_ext_attempt + 1}/3 failed "
-                    f"for application {application_id}: {_ext_err}"
-                )
-            if _ext_attempt < 2:
-                time.sleep(5)
-
-        if _info is None:
-            logger.error(
-                f"ATS extraction produced empty profile for application {application_id} "
-                f"(candidate {application.candidate_id}) — will be picked up by rescreen-pending"
-            )
-        info = _info or {}
-
-        # Write extracted ATS fields back to the Candidate row (additive — never overwrites populated values)
-        if application.candidate_id:
-            try:
-                cand = db.query(models.Candidate).filter(
-                    models.Candidate.id == application.candidate_id
-                ).first()
-                if cand:
-                    if not cand.last_title:
-                        cand.last_title = info.get("last_title") or None
-                    if not cand.last_employer:
-                        cand.last_employer = info.get("last_employer") or None
-                    if not cand.skills:
-                        cand.skills = info.get("skills") or None
-                    if not cand.education:
-                        cand.education = info.get("education") or None
-                    if not cand.summary:
-                        cand.summary = info.get("summary") or None
-                    if not cand.experiences:
-                        cand.experiences = info.get("experiences") or None
-                    if not cand.education_history:
-                        cand.education_history = info.get("education_history") or None
-                    if not cand.languages:
-                        cand.languages = info.get("languages") or None
-                    if not cand.experience_years or cand.experience_years == 0:
-                        cand.experience_years = int(info.get("experience_years") or 0)
-                    db.commit()
-                    logger.info(f"ATS fields written to candidate {application.candidate_id}")
-            except Exception as _ats_err:
-                logger.error(f"ATS field write-back failed for candidate {application.candidate_id}: {_ats_err}")
-                db.rollback()
-
-        # ── Agent-first screening (Node.js agent → Gemini fallback) ──────────
+        # ── Step 1: Agent screener (primary) — profile + scoring ─────────────
         _agent_result = call_agent_screener(cv_text, job, application.candidate_id)
+
         if _agent_result is not None:
-            logger.info(f"Agent screener succeeded for application {application_id}")
+            logger.info(
+                f"Agent screener succeeded for application {application_id} "
+                f"— skipping Gemini extract_candidate_info (0 extra Gemini calls)"
+            )
             _cp = _agent_result.pop("_candidate_profile", None) or {}
-            if _cp and application.candidate_id:
+
+            # Write agent profile fields to Candidate row (additive — never overwrites)
+            if application.candidate_id:
                 try:
                     _cand = db.query(models.Candidate).filter(
                         models.Candidate.id == application.candidate_id
                     ).first()
-                    if _cand:
+                    if _cand and _cp:
                         if not _cand.name or _cand.name.lower().startswith("resume"):
                             v = (_cp.get("name") or "").strip()
                             if v and v.isprintable() and any(c.isalpha() for c in v) and len(v) <= 80:
@@ -201,14 +151,79 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
                             if isinstance(v, list) and v: _cand.education_history = v
                         db.commit()
                         logger.info(f"Agent profile saved for candidate {application.candidate_id}")
+                    elif _cand and not _cp:
+                        logger.warning(
+                            f"Agent succeeded but returned no _candidate_profile "
+                            f"for candidate {application.candidate_id}"
+                        )
                 except Exception as _ap_err:
                     logger.error(f"Agent profile save failed for candidate {application.candidate_id}: {_ap_err}")
                     db.rollback()
+
             result = _agent_result
+
         else:
+            # ── Step 2: Gemini fallback — profile extraction + scoring ────────
             logger.warning(
                 f"Agent screener unavailable for application {application_id}; falling back to Gemini"
             )
+
+            _info = None
+            for _ext_attempt in range(3):
+                try:
+                    _result = extract_candidate_info(cv_text)
+                    if _result and (
+                        _result.get("last_title") or _result.get("skills")
+                        or _result.get("summary") or _result.get("experiences")
+                    ):
+                        _info = _result
+                        break
+                except Exception as _ext_err:
+                    logger.warning(
+                        f"ATS extraction attempt {_ext_attempt + 1}/3 failed "
+                        f"for application {application_id}: {_ext_err}"
+                    )
+                if _ext_attempt < 2:
+                    time.sleep(5)
+
+            if _info is None:
+                logger.error(
+                    f"ATS extraction produced empty profile for application {application_id} "
+                    f"(candidate {application.candidate_id}) — will be picked up by rescreen-pending"
+                )
+            info = _info or {}
+
+            # Write Gemini-extracted ATS fields to Candidate row (additive)
+            if application.candidate_id:
+                try:
+                    cand = db.query(models.Candidate).filter(
+                        models.Candidate.id == application.candidate_id
+                    ).first()
+                    if cand:
+                        if not cand.last_title:
+                            cand.last_title = info.get("last_title") or None
+                        if not cand.last_employer:
+                            cand.last_employer = info.get("last_employer") or None
+                        if not cand.skills:
+                            cand.skills = info.get("skills") or None
+                        if not cand.education:
+                            cand.education = info.get("education") or None
+                        if not cand.summary:
+                            cand.summary = info.get("summary") or None
+                        if not cand.experiences:
+                            cand.experiences = info.get("experiences") or None
+                        if not cand.education_history:
+                            cand.education_history = info.get("education_history") or None
+                        if not cand.languages:
+                            cand.languages = info.get("languages") or None
+                        if not cand.experience_years or cand.experience_years == 0:
+                            cand.experience_years = int(info.get("experience_years") or 0)
+                        db.commit()
+                        logger.info(f"Gemini ATS fields written to candidate {application.candidate_id}")
+                except Exception as _ats_err:
+                    logger.error(f"Gemini ATS field write-back failed for candidate {application.candidate_id}: {_ats_err}")
+                    db.rollback()
+
             import types
             _applicant = types.SimpleNamespace(
                 name=application.applicant_name or "",
