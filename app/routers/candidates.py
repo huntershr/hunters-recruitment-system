@@ -332,24 +332,15 @@ async def screen_cv(
                 detail="Your CV appears to be a scanned image — AI cannot read image-based PDFs. Please save your CV as a text-based PDF or upload a DOCX file instead."
             )
 
-    # AI: extract candidate info from CV
-    info = await asyncio.get_event_loop().run_in_executor(None, extract_candidate_info, cv_text)
-
-    name  = info.get("name")  or (file.filename.rsplit(".", 1)[0].replace("_", " ").title() if file else "Candidate")
-    email = info.get("email") or (f"bulk_{file.filename}@noemail.hunters" if file else f"user_{current_user.id}@noemail.hunters")
-    phone = str(info.get("phone") or "")
-
-    # Portal candidates (non-admin, non-company): always use their account email
-    # and user_id so the Candidate record is reliably linked back to their User
-    # record. AI extraction may return a different email or fall back to a
-    # placeholder, breaking the User→Candidate lookup used by the pipeline,
-    # talent pool, and GET /api/candidate/profile (which queries WHERE user_id=…).
+    # ── Step 1: Bootstrap identity (no AI yet) ─────────────────────────────────
+    # Portal candidates always use their account email — avoids placeholder
+    # linking issues and Gemini email-extraction mismatches.
     is_portal_candidate = not current_user.is_admin and not current_user.company_id
-    if is_portal_candidate:
-        email = current_user.email
-        # Also fix name if AI returned nothing useful or an email string
-        if not name or "@" in name:
-            name = current_user.full_name or name
+    name  = (current_user.full_name if is_portal_candidate else None) or \
+            (file.filename.rsplit(".", 1)[0].replace("_", " ").title() if file else "Candidate")
+    email = current_user.email if is_portal_candidate else \
+            (f"bulk_{file.filename}@noemail.hunters" if file else f"user_{current_user.id}@noemail.hunters")
+    phone = ""
 
     if job_id is None:
         return {
@@ -365,6 +356,47 @@ async def screen_cv(
     job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+
+    # ── Step 2: Agent screener FIRST — profile + scoring ───────────────────────
+    # Runs before Candidate row creation so _candidate_profile wins uncontested.
+    # Gemini's extract_candidate_info() is only called if the agent fails (None).
+    _agent_result = await asyncio.get_event_loop().run_in_executor(
+        None, call_agent_screener, cv_text, job, None
+    )
+    _cp   = {}
+    _info = {}
+
+    if _agent_result is not None:
+        logger.info(
+            f"Agent screener succeeded for {current_user.email} job {job_id} "
+            f"— skipping Gemini extract_candidate_info (0 extra Gemini calls)"
+        )
+        _cp = _agent_result.pop("_candidate_profile", None) or {}
+        # Refine bootstrap name/phone from agent profile
+        if _cp.get("name"):
+            v = (_cp["name"] or "").strip()
+            if v and v.isprintable() and any(c.isalpha() for c in v) and len(v) <= 80:
+                if not is_portal_candidate:
+                    name = v
+                elif not current_user.full_name:
+                    name = v
+        if _cp.get("phone"):
+            phone = str(_cp["phone"])
+    else:
+        logger.warning(
+            f"Agent screener unavailable for {current_user.email} job {job_id}; "
+            f"falling back to Gemini extract_candidate_info"
+        )
+        _info = await asyncio.get_event_loop().run_in_executor(
+            None, extract_candidate_info, cv_text
+        )
+        if not is_portal_candidate:
+            name  = _info.get("name")  or name
+            email = _info.get("email") or email
+        else:
+            if not current_user.full_name:
+                name = _info.get("name") or name
+        phone = str(_info.get("phone") or "")
 
     try:
         # ── Usage enforcement (company users only; portal candidates are exempt) ──
@@ -403,7 +435,7 @@ async def screen_cv(
         if file is not None:
             storage_path = await upload_cv_to_storage(content, file.filename or "upload.pdf", cv_mime)
 
-        # ── Phase 2: Candidate + Application creation ─────────────────────────────
+        # ── Phase 2: Candidate + Application creation (bootstrap only) ───────────
         #
         # Portal (Type A): one Candidate per User (profile container), keyed by
         # user_id.  Subsequent applies to ANY job update the same profile row and
@@ -411,6 +443,10 @@ async def screen_cv(
         #
         # Admin/company: legacy email+job lookup unchanged.  Also creates an
         # Application row so every apply is represented in the applications table.
+        #
+        # Profile fields (experience_years, education, skills, last_title,
+        # last_employer, languages, etc.) are written in Step 3 below so the
+        # agent-vs-Gemini priority is consistent across all 12 fields.
 
         if is_portal_candidate:
             candidate = (
@@ -419,19 +455,14 @@ async def screen_cv(
                 .first()
             )
             if candidate:
-                candidate.cv_text = cv_text
+                candidate.cv_text      = cv_text
                 candidate.cv_file_data = content
                 candidate.cv_file_mime = cv_mime
                 if storage_path:
                     candidate.cv_url = storage_path
-                candidate.name = name
-                candidate.phone = phone or candidate.phone
+                candidate.name        = name
+                candidate.phone       = phone or candidate.phone
                 candidate.job_applied = job_id
-                candidate.experience_years = int(info.get("experience_years") or 0) or candidate.experience_years or None
-                candidate.education = str(info.get("education") or "") or candidate.education
-                candidate.skills = str(info.get("skills") or "") or candidate.skills
-                candidate.last_title = str(info.get("last_title") or "") or candidate.last_title
-                candidate.last_employer = str(info.get("last_employer") or "") or candidate.last_employer
                 db.commit()
                 db.refresh(candidate)
             else:
@@ -440,16 +471,11 @@ async def screen_cv(
                     email=email,
                     phone=phone,
                     job_applied=job_id,
-                    experience_years=int(info.get("experience_years") or 0) or None,
                     expected_salary="",
-                    education=str(info.get("education") or ""),
-                    skills=str(info.get("skills") or ""),
                     cv_text=cv_text,
                     cv_file_data=content,
                     cv_file_mime=cv_mime,
                     cv_url=storage_path,
-                    last_title=str(info.get("last_title") or ""),
-                    last_employer=str(info.get("last_employer") or ""),
                     owner_id=job.owner_id,
                     user_id=current_user.id,
                 )
@@ -464,18 +490,13 @@ async def screen_cv(
                 .first()
             )
             if existing:
-                existing.cv_text = cv_text
+                existing.cv_text      = cv_text
                 existing.cv_file_data = content
                 existing.cv_file_mime = cv_mime
                 if storage_path:
                     existing.cv_url = storage_path
-                existing.name = name
+                existing.name  = name
                 existing.phone = phone or existing.phone
-                existing.experience_years = int(info.get("experience_years") or 0) or existing.experience_years or None
-                existing.education = str(info.get("education") or "") or existing.education
-                existing.skills = str(info.get("skills") or "") or existing.skills
-                existing.last_title = str(info.get("last_title") or "") or existing.last_title
-                existing.last_employer = str(info.get("last_employer") or "") or existing.last_employer
                 db.commit()
                 db.refresh(existing)
                 candidate = existing
@@ -485,16 +506,11 @@ async def screen_cv(
                     email=email,
                     phone=phone,
                     job_applied=job_id,
-                    experience_years=int(info.get("experience_years") or 0) or None,
                     expected_salary="",
-                    education=str(info.get("education") or ""),
-                    skills=str(info.get("skills") or ""),
                     cv_text=cv_text,
                     cv_file_data=content,
                     cv_file_mime=cv_mime,
                     cv_url=storage_path,
-                    last_title=str(info.get("last_title") or ""),
-                    last_employer=str(info.get("last_employer") or ""),
                     owner_id=job.owner_id,
                     user_id=None,
                 )
@@ -502,20 +518,89 @@ async def screen_cv(
                 db.commit()
                 db.refresh(candidate)
 
-        # Write structured JSONB fields from AI extraction (additive — preserve any existing user-edited data)
-        _xp = info.get("experiences")
-        _edu_h = info.get("education_history")
-        _lang = info.get("languages")
-        _summ = info.get("summary")
-        if _xp:
-            candidate.experiences = _xp
-        if _edu_h:
-            candidate.education_history = _edu_h
-        if _lang:
-            candidate.languages = _lang
-        if _summ and not candidate.summary:
-            candidate.summary = _summ
-        db.commit()
+        # ── Step 3: Write profile fields — agent wins; Gemini only on agent fail ─
+        # Both branches use additive null-guard (never overwrites existing data).
+        # Agent branch: _cp from Step 2. Gemini branch: _info from Step 2.
+        try:
+            if _agent_result is not None and _cp:
+                if not candidate.last_title:
+                    v = (_cp.get("current_title") or "").strip()
+                    if v and len(v) <= 80: candidate.last_title = v
+                if not candidate.last_employer:
+                    v = (_cp.get("last_employer") or "").strip()
+                    if v: candidate.last_employer = v
+                if not (candidate.experience_years or 0):
+                    v = _cp.get("years_experience")
+                    if v:
+                        try:
+                            yr = int(v)
+                            if 1 <= yr <= 25: candidate.experience_years = yr
+                        except Exception: pass
+                if not candidate.education:
+                    v = (_cp.get("education") or "").strip()
+                    if v: candidate.education = v
+                if not candidate.skills:
+                    v = _cp.get("skills")
+                    if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                    if v: candidate.skills = str(v).strip()
+                if not candidate.languages:
+                    v = _cp.get("languages")
+                    if isinstance(v, list) and v: candidate.languages = v
+                if not candidate.certifications:
+                    v = _cp.get("certifications")
+                    if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                    if v: candidate.certifications = str(v).strip()
+                if not candidate.summary:
+                    v = (_cp.get("summary") or "").strip()
+                    if v: candidate.summary = v
+                if not candidate.experiences:
+                    v = _cp.get("experiences")
+                    if isinstance(v, list) and v: candidate.experiences = v
+                if not candidate.education_history:
+                    v = _cp.get("education_history")
+                    if isinstance(v, list) and v: candidate.education_history = v
+                db.commit()
+                logger.info(f"Agent profile saved for candidate {candidate.id}")
+            elif _agent_result is None and _info:
+                if not candidate.last_title:
+                    v = (_info.get("last_title") or "").strip()
+                    if v: candidate.last_title = v
+                if not candidate.last_employer:
+                    v = (_info.get("last_employer") or "").strip()
+                    if v: candidate.last_employer = v
+                if not (candidate.experience_years or 0):
+                    v = _info.get("experience_years")
+                    if v:
+                        try: candidate.experience_years = int(v)
+                        except Exception: pass
+                if not candidate.education:
+                    v = (_info.get("education") or "").strip()
+                    if v: candidate.education = v
+                if not candidate.skills:
+                    v = _info.get("skills")
+                    if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                    if v: candidate.skills = str(v).strip()
+                if not candidate.languages:
+                    v = _info.get("languages")
+                    if isinstance(v, list) and v: candidate.languages = v
+                if not candidate.certifications:
+                    v = _info.get("certifications")
+                    if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                    if v: candidate.certifications = str(v).strip()
+                if not candidate.summary:
+                    v = (_info.get("summary") or "").strip()
+                    if v: candidate.summary = v
+                if not candidate.experiences:
+                    v = _info.get("experiences")
+                    if isinstance(v, list) and v: candidate.experiences = v
+                if not candidate.education_history:
+                    v = _info.get("education_history")
+                    if isinstance(v, list) and v: candidate.education_history = v
+                db.commit()
+                logger.info(f"Gemini ATS profile written for candidate {candidate.id}")
+        except Exception as _pf_err:
+            logger.error(f"Profile write failed for candidate {getattr(candidate, 'id', '?')}: {_pf_err}")
+            db.rollback()
 
         # Duplicate check: one Application per (candidate, job) pair
         existing_app = (
@@ -527,7 +612,6 @@ async def screen_cv(
             .first()
         )
         if existing_app:
-            # Profile was already refreshed above — just block the new Application
             raise HTTPException(
                 status_code=409,
                 detail="You have already applied to this job. Check My Applications for status.",
@@ -554,18 +638,14 @@ async def screen_cv(
         db.rollback()
         raise HTTPException(status_code=422, detail=f"CV upload failed: {_db_exc}")
 
-    # Synchronous AI evaluation — agent-first, Gemini fallback, pending on any failure
+    # ── Step 4: Scoring result + Evaluation creation ────────────────────────────
+    # _agent_result already holds the scored dict from Step 2 (with _candidate_profile
+    # popped). If agent failed, fall back to Gemini evaluate_candidate().
     result = {}
     try:
-        def _do_screen():
-            return call_agent_screener(candidate.cv_text or "", job, candidate.id)
-        _agent_res = await asyncio.get_event_loop().run_in_executor(None, _do_screen)
-        if _agent_res is not None:
-            logger.info(f"Agent screener succeeded for portal candidate {candidate.id}")
-            _agent_res.pop("_candidate_profile", None)
-            result = _agent_res
+        if _agent_result is not None:
+            result = _agent_result  # scored in Step 2 — no second agent call
         else:
-            logger.warning(f"Agent screener unavailable for portal candidate {candidate.id}; falling back to Gemini")
             raw = await asyncio.get_event_loop().run_in_executor(None, evaluate_candidate, job, candidate)
             result = finalize_evaluation(raw)
         _bd3 = result.get("score_breakdown") or {}
