@@ -2133,8 +2133,8 @@ def generate_screening_report_pdf(candidate_data: dict, evaluation_data: dict, c
     metrics = [
         ('Experience', evaluation_data.get('weight_experience', 40), evaluation_data.get('score_experience', 0)),
         ('Skills',     evaluation_data.get('weight_skills',     30), evaluation_data.get('score_skills',     0)),
-        ('Education',  evaluation_data.get('weight_education',  20), evaluation_data.get('score_education',  0)),
-        ('Behavioral', evaluation_data.get('weight_behavioral', 10), evaluation_data.get('score_behavioral', 0)),
+        ('Industry Match', evaluation_data.get('weight_education',  20), evaluation_data.get('score_education',  0)),
+        ('Title Match',    evaluation_data.get('weight_behavioral', 10), evaluation_data.get('score_behavioral', 0)),
     ]
 
     for label, weight, raw_s in metrics:
