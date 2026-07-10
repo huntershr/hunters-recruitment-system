@@ -273,12 +273,13 @@ FIELDS TO EXTRACT:
 10. experiences - Array of work experience entries. Each entry: {{"title":"job title","employer":"company name","start":"year or Month YYYY","end":"year/Month YYYY or Present","description":"brief role description"}}
 11. education_history - Array of education entries. Each entry: {{"degree":"degree name","institution":"school name","year":"graduation year"}}
 12. languages - Array of language entries. Each entry: {{"language":"language name","proficiency":"Native/Fluent/Intermediate/Basic"}}
+13. certifications - Array of certification or license names found in the CV (e.g. ["PMP","AWS Solutions Architect"]). Use [] if none found.
 
 CV TEXT:
 {(cv_text or '')[:6000]}
 
-Return ONLY a valid JSON object with exactly these 12 keys. experience_years must always be an integer. Use null for missing scalar fields, [] for missing array fields.
-Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678","experience_years":5,"education":"BSc Engineering, AUC","skills":"Python, SQL, Power BI","last_title":"Data Analyst","last_employer":"Raya Holding","summary":"Experienced data analyst with 5 years in BI and reporting.","experiences":[{{"title":"Data Analyst","employer":"Raya Holding","start":"2019","end":"Present","description":"Led data analysis and BI dashboards."}}],"education_history":[{{"degree":"BSc Engineering","institution":"AUC","year":"2019"}}],"languages":[{{"language":"Arabic","proficiency":"Native"}},{{"language":"English","proficiency":"Fluent"}}]}}"""
+Return ONLY a valid JSON object with exactly these 13 keys. experience_years must always be an integer. Use null for missing scalar fields, [] for missing array fields.
+Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678","experience_years":5,"education":"BSc Engineering, AUC","skills":"Python, SQL, Power BI","last_title":"Data Analyst","last_employer":"Raya Holding","summary":"Experienced data analyst with 5 years in BI and reporting.","experiences":[{{"title":"Data Analyst","employer":"Raya Holding","start":"2019","end":"Present","description":"Led data analysis and BI dashboards."}}],"education_history":[{{"degree":"BSc Engineering","institution":"AUC","year":"2019"}}],"languages":[{{"language":"Arabic","proficiency":"Native"}},{{"language":"English","proficiency":"Fluent"}}],"certifications":["PMP","AWS Certified Solutions Architect"]}}"""
 
     model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
     max_retries = 3
@@ -329,6 +330,7 @@ Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678",
                     "experiences": [],
                     "education_history": [],
                     "languages": [],
+                    "certifications": [],
                 }
     return {}
 
