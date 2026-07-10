@@ -1531,35 +1531,101 @@ def rescreen_pending(
 
     for cand in candidates_empty:
         try:
-            info = extract_candidate_info(cand.cv_text)
-            if not (
-                info.get("last_title") or info.get("skills")
-                or info.get("summary") or info.get("experiences")
-            ):
-                _logger.warning(f"extract_candidate_info returned empty result for candidate {cand.id}")
-                profiles_failed += 1
-                continue
-            if not cand.last_title:
-                cand.last_title = info.get("last_title") or None
-            if not cand.last_employer:
-                cand.last_employer = info.get("last_employer") or None
-            if not cand.skills:
-                cand.skills = info.get("skills") or None
-            if not cand.education:
-                cand.education = info.get("education") or None
-            if not cand.summary:
-                cand.summary = info.get("summary") or None
-            if not cand.experiences:
-                cand.experiences = info.get("experiences") or None
-            if not cand.education_history:
-                cand.education_history = info.get("education_history") or None
-            if not cand.languages:
-                cand.languages = info.get("languages") or None
-            if not cand.experience_years or cand.experience_years == 0:
-                cand.experience_years = int(info.get("experience_years") or 0)
-            db.commit()
-            profiles_extracted += 1
-            _logger.info(f"ATS profile extracted for candidate {cand.id}")
+            # Agent-first: look up the candidate's job and try the screener first.
+            # _candidate_profile is CV-only so profile quality is unaffected by
+            # whether the job has a title/skills or not (only the score would be
+            # meaningless, and we discard the score here — we only need the profile).
+            _p3_job = (
+                db.query(models.Job).filter(models.Job.id == cand.job_applied).first()
+                if cand.job_applied else None
+            )
+            _p3_agent = None
+            _p3_cp = {}
+            if _p3_job:
+                try:
+                    _p3_ar = call_agent_screener(cand.cv_text, _p3_job, cand.id)
+                    if _p3_ar is not None:
+                        _p3_cp = _p3_ar.pop("_candidate_profile", None) or {}
+                        if _p3_cp and (
+                            _p3_cp.get("current_title") or _p3_cp.get("skills")
+                            or _p3_cp.get("summary") or _p3_cp.get("experiences")
+                        ):
+                            _p3_agent = _p3_ar  # mark agent as usable
+                except Exception as _p3_err:
+                    _logger.warning(f"Pass 3: agent call failed for candidate {cand.id}: {_p3_err}")
+
+            if _p3_agent is not None:
+                # Agent succeeded — write profile fields, skip Gemini entirely
+                if not cand.last_title:
+                    v = (_p3_cp.get("current_title") or "").strip()
+                    if v and len(v) <= 80: cand.last_title = v
+                if not cand.last_employer:
+                    v = (_p3_cp.get("last_employer") or "").strip()
+                    if v: cand.last_employer = v
+                if not cand.skills:
+                    v = _p3_cp.get("skills")
+                    if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                    if v: cand.skills = str(v).strip()
+                if not cand.education:
+                    v = (_p3_cp.get("education") or "").strip()
+                    if v: cand.education = v
+                if not cand.summary:
+                    v = (_p3_cp.get("summary") or "").strip()
+                    if v: cand.summary = v
+                if not cand.experiences:
+                    v = _p3_cp.get("experiences")
+                    if isinstance(v, list) and v: cand.experiences = v
+                if not cand.education_history:
+                    v = _p3_cp.get("education_history")
+                    if isinstance(v, list) and v: cand.education_history = v
+                if not cand.languages:
+                    v = _p3_cp.get("languages")
+                    if isinstance(v, list) and v: cand.languages = v
+                if not cand.certifications:
+                    v = _p3_cp.get("certifications")
+                    if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                    if v: cand.certifications = str(v).strip()
+                if not cand.experience_years or cand.experience_years == 0:
+                    v = _p3_cp.get("years_experience")
+                    if v:
+                        try:
+                            yr = int(v)
+                            if 1 <= yr <= 25: cand.experience_years = yr
+                        except Exception: pass
+                db.commit()
+                profiles_extracted += 1
+                _logger.info(f"Pass 3: agent profile saved for candidate {cand.id}, skipping Gemini")
+            else:
+                # Agent unavailable or returned no usable profile — Gemini fallback
+                info = extract_candidate_info(cand.cv_text)
+                if not (
+                    info.get("last_title") or info.get("skills")
+                    or info.get("summary") or info.get("experiences")
+                ):
+                    _logger.warning(f"extract_candidate_info returned empty result for candidate {cand.id}")
+                    profiles_failed += 1
+                    continue
+                if not cand.last_title:
+                    cand.last_title = info.get("last_title") or None
+                if not cand.last_employer:
+                    cand.last_employer = info.get("last_employer") or None
+                if not cand.skills:
+                    cand.skills = info.get("skills") or None
+                if not cand.education:
+                    cand.education = info.get("education") or None
+                if not cand.summary:
+                    cand.summary = info.get("summary") or None
+                if not cand.experiences:
+                    cand.experiences = info.get("experiences") or None
+                if not cand.education_history:
+                    cand.education_history = info.get("education_history") or None
+                if not cand.languages:
+                    cand.languages = info.get("languages") or None
+                if not cand.experience_years or cand.experience_years == 0:
+                    cand.experience_years = int(info.get("experience_years") or 0)
+                db.commit()
+                profiles_extracted += 1
+                _logger.info(f"ATS profile extracted for candidate {cand.id}")
         except Exception as e:
             db.rollback()
             _logger.error(f"ATS extraction failed for candidate {cand.id}: {e}")
