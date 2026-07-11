@@ -4,10 +4,20 @@ from datetime import datetime
 
 # Company Schemas
 class CompanyBase(BaseModel):
-    company_name: str = Field(..., max_length=200)
+    company_name: str
     company_email: EmailStr
     company_website: Optional[str] = None
     registration_number: Optional[str] = None
+
+class CompanyRegister(CompanyBase):
+    company_name: str = Field(..., max_length=200)
+    contact_person: str
+    contact_email: EmailStr
+    password: str
+    selected_plan: Optional[str] = "free"
+    billing_preference: Optional[str] = "monthly"
+    contact_phone: Optional[str] = None
+    preferred_contact: Optional[str] = "whatsapp"
 
     @field_validator('company_name')
     @classmethod
@@ -16,15 +26,6 @@ class CompanyBase(BaseModel):
         if '<' in v or '>' in v:
             raise ValueError('Company name must not contain < or > characters')
         return v
-
-class CompanyRegister(CompanyBase):
-    contact_person: str
-    contact_email: EmailStr
-    password: str
-    selected_plan: Optional[str] = "free"
-    billing_preference: Optional[str] = "monthly"
-    contact_phone: Optional[str] = None
-    preferred_contact: Optional[str] = "whatsapp"
 
 class CompanyResponse(CompanyBase):
     id: int
