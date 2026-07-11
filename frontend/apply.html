@@ -459,6 +459,15 @@
         return obj;
     }
 
+    /* ── Extract first numeric value from a salary_range string for JSON-LD baseSalary.
+         Returns a Number if found (e.g. 20000 from "20,000 – 35,000 EGP"),
+         or null if the string contains no digits (e.g. "Negotiable", "Competitive"). ── */
+    function parseSalaryNumber(s) {
+        if (!s) return null;
+        var m = s.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+        return m ? parseFloat(m[1]) : null;
+    }
+
     /* ── Populate left panel ── */
     function populateJobPanel(job) {
         var locEl  = document.getElementById('job-location-meta');
@@ -511,6 +520,12 @@
             if (!res.ok) throw new Error();
             var job = await res.json();
 
+            // Update canonical immediately — before any other rendering — so
+            // JS-capable crawlers read the correct job-specific URL as early as possible.
+            // TODO: move to server-side rendering for true crawler reliability.
+            var canonical = document.querySelector('link[rel="canonical"]');
+            if (canonical && job.id) canonical.setAttribute('href', 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id);
+
             document.getElementById('job-title').textContent = job.job_title;
             var cnEl = document.getElementById('company-name');
             if (cnEl && job.company_name) { cnEl.textContent = job.company_name; cnEl.style.display = 'block'; }
@@ -522,18 +537,13 @@
             document.title = job.job_title + ' at ' + company + ' — Hunters HR';
             var metaDesc = document.querySelector('meta[name="description"]');
             if (metaDesc) metaDesc.setAttribute('content', (job.job_description || '').slice(0, 160));
-            var canonical = document.querySelector('link[rel="canonical"]');
-            if (canonical) canonical.setAttribute('href', 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id);
 
-            // JSON-LD
-            // To accelerate Google indexing, submit
-            // https://app.hunters-egypt.com/sitemap.xml to Google Search Console.
-            var empType = job.job_type === 'full-time' ? 'FULL_TIME'
-                        : job.job_type === 'part-time' ? 'PART_TIME'
-                        : job.job_type === 'contract'  ? 'CONTRACTOR'
-                        : 'FULL_TIME';
+            // JSON-LD — submit https://app.hunters-egypt.com/sitemap.xml to Google Search Console.
+            // employmentType: hardcoded FULL_TIME (no job_type column in schema yet).
+            // TODO: add job_type field when part-time / contract roles are posted.
             var datePosted = job.created_at ? job.created_at.split('T')[0]
                            : new Date().toISOString().split('T')[0];
+            var salaryNum = job.salary_range ? parseSalaryNumber(job.salary_range) : null;
             var ldJson = removeNulls({
                 '@context': 'https://schema.org/',
                 '@type': 'JobPosting',
@@ -542,9 +552,9 @@
                 'hiringOrganization': { '@type': 'Organization', 'name': company, 'sameAs': 'https://hunters-egypt.com' },
                 'jobLocation': { '@type': 'Place', 'address': { '@type': 'PostalAddress', 'streetAddress': job.job_location || '', 'addressLocality': job.job_location || 'Cairo', 'addressRegion': 'Cairo Governorate', 'postalCode': '11511', 'addressCountry': 'EG' } },
                 'datePosted': datePosted,
-                'validThrough': job.expiry_date || null,
-                'employmentType': empType,
-                'baseSalary': job.salary_range ? { '@type': 'MonetaryAmount', 'currency': 'EGP', 'value': { '@type': 'QuantitativeValue', 'value': job.salary_range, 'unitText': 'MONTH' } } : null,
+                'validThrough': job.valid_through || null,
+                'employmentType': 'FULL_TIME',
+                'baseSalary': (salaryNum !== null) ? { '@type': 'MonetaryAmount', 'currency': 'EGP', 'value': { '@type': 'QuantitativeValue', 'value': salaryNum, 'unitText': 'MONTH' } } : null,
                 'educationRequirements': job.education_level ? { '@type': 'EducationalOccupationalCredential', 'credentialCategory': 'bachelor degree' } : null,
                 'experienceRequirements': (job.min_experience && job.min_experience > 0) ? { '@type': 'OccupationalExperienceRequirements', 'monthsOfExperience': job.min_experience * 12 } : null,
                 'skills': job.required_skills || null,

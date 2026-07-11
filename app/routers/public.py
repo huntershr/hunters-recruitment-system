@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, B
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from typing import List
+import datetime
 import logging
 import json
 import secrets
@@ -357,6 +358,9 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
         "weight_behavioral": job.weight_behavioral,
         "is_approved": job.is_approved,
         "created_at": job.created_at.isoformat() if job.created_at else None,
+        # validThrough: 90-day posting window from creation date (no expiry_date column exists).
+        # Adjust the timedelta if your typical posting duration differs.
+        "valid_through": (job.created_at + datetime.timedelta(days=90)).date().isoformat() if job.created_at else None,
         "salary_min": None,
         "salary_max": None,
         "employment_type": job.education_level,
