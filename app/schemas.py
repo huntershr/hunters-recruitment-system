@@ -4,10 +4,18 @@ from datetime import datetime
 
 # Company Schemas
 class CompanyBase(BaseModel):
-    company_name: str
+    company_name: str = Field(..., max_length=200)
     company_email: EmailStr
     company_website: Optional[str] = None
     registration_number: Optional[str] = None
+
+    @field_validator('company_name')
+    @classmethod
+    def validate_company_name(cls, v: str) -> str:
+        v = v.strip()
+        if '<' in v or '>' in v:
+            raise ValueError('Company name must not contain < or > characters')
+        return v
 
 class CompanyRegister(CompanyBase):
     contact_person: str
@@ -47,7 +55,7 @@ class GiftCodeRequest(BaseModel):
     code: str
 
 class CompanyGiftRegister(BaseModel):
-    company_name: str
+    company_name: str = Field(..., max_length=200)
     company_email: EmailStr
     company_website: Optional[str] = None
     registration_number: Optional[str] = None
@@ -57,6 +65,14 @@ class CompanyGiftRegister(BaseModel):
     gift_code: str
     contact_phone: Optional[str] = None
     preferred_contact: Optional[str] = "whatsapp"
+
+    @field_validator('company_name')
+    @classmethod
+    def validate_company_name(cls, v: str) -> str:
+        v = v.strip()
+        if '<' in v or '>' in v:
+            raise ValueError('Company name must not contain < or > characters')
+        return v
 
 # Auth Schemas
 class Token(BaseModel):

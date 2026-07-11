@@ -1077,14 +1077,14 @@
                     const createdDate = company.created_at ? new Date(company.created_at).toLocaleDateString() : 'N/A';
                     ch += `<div class="approval-item">
                         <div class="approval-item-left">
-                            <div class="approval-item-name">${company.company_name}</div>
-                            <div class="approval-item-email">${company.company_email}</div>
+                            <div class="approval-item-name">${escHtml(company.company_name)}</div>
+                            <div class="approval-item-email">${escHtml(company.company_email)}</div>
                             <div class="approval-item-date">Registered: ${createdDate}</div>
                         </div>
                         <div class="approval-item-right" style="flex-wrap:wrap;gap:6px;">
                             <button class="btn-approve" onclick="approveCompany(${company.id})">Approve</button>
                             <button class="btn-reject" onclick="showRejectCompanyForm(${company.id})">Reject</button>
-                            <button onclick="enterCompany(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;margin-right:4px">Enter</button><button onclick="openUsersModal(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Invite</button>
+                            <button onclick="enterCompany(${company.id},'${escHtml(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;margin-right:4px">Enter</button><button onclick="openUsersModal(${company.id},'${escHtml(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Invite</button>
                         </div>
                     </div>`;
                 });
@@ -1106,7 +1106,7 @@
                     jh += `<div class="approval-item" data-job-id="${job.id}">
                         <div class="approval-item-left">
                             <div class="approval-item-name">${job.job_title}</div>
-                            <div class="approval-item-email">${job.company_name || ''}</div>
+                            <div class="approval-item-email">${escHtml(job.company_name || '')}</div>
                             <div class="approval-item-date">Posted: ${createdDate}</div>
                         </div>
                         <div class="approval-item-right">
@@ -1168,18 +1168,18 @@
                     <div class="approval-item">
                         <div class="approval-item-left" style="flex:1;">
                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
-                                <div class="approval-item-name" style="margin:0;">${company.company_name}</div>
+                                <div class="approval-item-name" style="margin:0;">${escHtml(company.company_name)}</div>
                                 <span style="display:inline-flex;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;background:${badge.bg};color:${badge.color};">${badge.label}</span>
                                 <span style="font-size:10px;color:#9CA3AF;background:#F3F4F6;padding:2px 7px;border-radius:20px;">${billing}</span>
                             </div>
-                            <div class="approval-item-email">${company.company_email}</div>
-                            ${phone ? `<div style="margin-top:3px;font-size:12px;">${waLink ? `<a href="${waLink}" target="_blank" style="color:#0F6E56;text-decoration:none;font-weight:500;">${preferredIcon} ${phone}</a>` : `${preferredIcon} ${phone}`} <span style="color:#9CA3AF;margin-left:4px;">via ${company.preferred_contact || 'whatsapp'}</span></div>` : ''}
+                            <div class="approval-item-email">${escHtml(company.company_email)}</div>
+                            ${phone ? `<div style="margin-top:3px;font-size:12px;">${waLink ? `<a href="${waLink}" target="_blank" style="color:#0F6E56;text-decoration:none;font-weight:500;">${preferredIcon} ${escHtml(phone)}</a>` : `${preferredIcon} ${escHtml(phone)}`} <span style="color:#9CA3AF;margin-left:4px;">via ${escHtml(company.preferred_contact || 'whatsapp')}</span></div>` : ''}
                             <div class="approval-item-date">Registered: ${createdDate}</div>
                         </div>
                         <div class="approval-item-right" style="flex-wrap:wrap;gap:6px;">
                             <button class="btn-approve" onclick="approveCompany(${company.id})">Approve</button>
                             <button class="btn-reject"  onclick="showRejectCompanyForm(${company.id})">Reject</button>
-                            <button onclick="enterCompany(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;margin-right:4px">Enter</button><button onclick="openUsersModal(${company.id},'${(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Invite</button>
+                            <button onclick="enterCompany(${company.id},'${escHtml(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;margin-right:4px">Enter</button><button onclick="openUsersModal(${company.id},'${escHtml(company.company_name||'').replace(/'/g,"\\'")}') " style="background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Invite</button>
                         </div>
                     </div>
                 `;

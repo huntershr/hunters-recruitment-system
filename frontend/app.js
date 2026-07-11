@@ -510,7 +510,7 @@ function renderJobs() {
                         <div class="job-card-header" style="flex-wrap:wrap;gap:8px;">
                             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
                                 ${jobLogoHtml36}
-                                <h3 style="margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.job_title}</h3>
+                                <h3 style="margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(j.job_title)}</h3>
                             </div>
                             <div style="display:flex;gap:7px;align-items:center;flex-shrink:0;">
                                 ${statusPill}
@@ -523,14 +523,14 @@ function renderJobs() {
                             <span style="background:#FFF3D4;color:#8B6000;border:0.5px solid #C9A84C;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;">${(j.department || 'Other').replace('/', ' / ')}</span>
                         </div>
                         <div class="job-meta">
-                            <p><i class='bx bx-money'></i> ${salary}</p>
-                            <p><i class='bx bx-book'></i> ${j.education_level}</p>
+                            <p><i class='bx bx-money'></i> ${escHtml(salary)}</p>
+                            <p><i class='bx bx-book'></i> ${escHtml(j.education_level)}</p>
                             <p><i class='bx bx-time'></i> ${j.min_experience} yrs min</p>
-                            <p><i class='bx bx-map'></i> ${j.job_location || 'Remote/Any'}</p>
+                            <p><i class='bx bx-map'></i> ${escHtml(j.job_location || 'Remote/Any')}</p>
                         </div>
                         <div class="job-details-tags" style="margin-top:12px;font-size:11px;line-height:1.4;">
-                            <div style="margin-bottom:5px;"><strong><i class='bx bx-bolt-circle'></i> Skills:</strong> ${j.required_skills}</div>
-                            ${j.behavioral_skills ? `<div style="margin-bottom:5px;"><strong><i class='bx bx-smile'></i> Behavioral:</strong> ${j.behavioral_skills}</div>` : ''}
+                            <div style="margin-bottom:5px;"><strong><i class='bx bx-bolt-circle'></i> Skills:</strong> ${escHtml(j.required_skills)}</div>
+                            ${j.behavioral_skills ? `<div style="margin-bottom:5px;"><strong><i class='bx bx-smile'></i> Behavioral:</strong> ${escHtml(j.behavioral_skills)}</div>` : ''}
                         </div>
                         ${weightPills}
                         ${jobShareSectionHtml(j.id)}
@@ -547,12 +547,12 @@ function renderJobs() {
                         <td style="padding:10px 14px;">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 ${jobLogoHtml28}
-                                <span style="font-weight:500;font-size:13px;color:#1B2A4A;">${j.job_title}</span>
+                                <span style="font-weight:500;font-size:13px;color:#1B2A4A;">${escHtml(j.job_title)}</span>
                             </div>
                         </td>
-                        <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${j.job_location || '—'}</td>
+                        <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${escHtml(j.job_location || '—')}</td>
                         <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${j.min_experience} yrs</td>
-                        <td style="padding:10px 14px;font-size:12px;color:#1B2A4A;font-weight:500;">${salary}</td>
+                        <td style="padding:10px 14px;font-size:12px;color:#1B2A4A;font-weight:500;">${escHtml(salary)}</td>
                         <td style="padding:10px 14px;">${statusPill}</td>
                         <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${posted}</td>
                         <td style="padding:10px 14px;">
@@ -1750,7 +1750,7 @@ function openCandidateModal() {
     const select = document.getElementById("candidate-job-id");
     select.innerHTML = "";
     jobs.forEach(j => {
-        select.innerHTML += `<option value="${j.id}">${j.job_title}</option>`;
+        select.innerHTML += `<option value="${j.id}">${escHtml(j.job_title)}</option>`;
     });
     document.getElementById("candidate-add-modal").classList.add("active");
 }
@@ -2847,7 +2847,7 @@ function _coWsEditJobModal(jobId) {
 }
 
 function _coWsJobFormModal(job, companyId) {
-    const title = job ? 'Edit Job — ' + (job.job_title || '') : 'Post New Job';
+    const title = job ? 'Edit Job — ' + escHtml(job.job_title || '') : 'Post New Job';
     const v = f => escHtml(String(job && job[f] != null ? job[f] : ''));
     const html = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -3288,7 +3288,7 @@ async function handleAdminPreviewUpload(file, jobId) {
 function _coWsShareJob(jobId, jobTitle) {
     const url = window.location.origin + '/apply.html?job_id=' + jobId;
     const caption = encodeURIComponent(jobTitle + '\n' + url);
-    createAdminModal('Share Job — ' + jobTitle,
+    createAdminModal('Share Job — ' + escHtml(jobTitle),
         `<div style="display:flex;flex-direction:column;gap:10px;">
             <input value="${escHtml(url)}" readonly onclick="this.select()" style="width:100%;padding:9px 12px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;color:#1B2A4A;box-sizing:border-box;outline:none;">
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -3390,7 +3390,7 @@ function _coWsViewReport(appId) {
 async function editCompanyAdmin(companyId) {
     const c = (window._adminCompanies||[]).find(x => String(x.id) === String(companyId));
     if (!c) return;
-    createAdminModal('Edit Company — ' + c.name, `
+    createAdminModal('Edit Company — ' + escHtml(c.name), `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             ${[
                 {id:'ec-name',   label:'Company Name',     val: c.name},
@@ -3550,7 +3550,7 @@ async function _coAddUser(companyId) {
 function viewCompanyAdmin(companyId) {
     const c = (window._adminCompanies||[]).find(x => String(x.id) === String(companyId));
     if (!c) return;
-    createAdminModal('Company Details — ' + c.name, `
+    createAdminModal('Company Details — ' + escHtml(c.name), `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             ${[
                 ['Company Name', c.name], ['Email', c.email],
@@ -3561,7 +3561,7 @@ function viewCompanyAdmin(companyId) {
                 ['Registered', c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—'],
             ].map(([label,val]) => `<div>
                 <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">${label}</div>
-                <div style="font-size:13px;color:#1B2A4A;">${val||'—'}</div></div>`).join('')}
+                <div style="font-size:13px;color:#1B2A4A;">${escHtml(String(val||'—'))}</div></div>`).join('')}
         </div>`, null);
 }
 
@@ -3584,7 +3584,7 @@ async function editCandidateAdmin(candidateId) {
     const cands = window._adminCandidates || await loadAdminCandidates();
     const c = cands.find(x => String(x.id) === String(candidateId));
     if (!c) return;
-    createAdminModal('Edit Candidate — ' + c.name, `
+    createAdminModal('Edit Candidate — ' + escHtml(c.name), `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             ${[
                 {id:'ecand-name',   label:'Name',         val: c.name},
@@ -3700,10 +3700,10 @@ function renderAdminUsersTable(users) {
                         <tr style="background:${i%2===0?'#fff':'#fafbfc'};border-bottom:0.5px solid #F3F4F6;"
                             data-id="${u.id}" data-type="${u.user_type}"
                             data-search="${(u.full_name+u.email+(u.company_name||'')).toLowerCase()}">
-                            <td style="padding:10px 14px;font-weight:500;color:#1B2A4A;">${u.full_name||'—'}</td>
-                            <td style="padding:10px 14px;color:#6B7280;">${u.email}</td>
+                            <td style="padding:10px 14px;font-weight:500;color:#1B2A4A;">${escHtml(u.full_name||'—')}</td>
+                            <td style="padding:10px 14px;color:#6B7280;">${escHtml(u.email)}</td>
                             <td style="padding:10px 14px;">${_userTypeBadge(u.user_type)}</td>
-                            <td style="padding:10px 14px;color:#6B7280;">${u.company_name||'—'}</td>
+                            <td style="padding:10px 14px;color:#6B7280;">${escHtml(u.company_name||'—')}</td>
                             <td style="padding:10px 14px;text-align:center;">
                                 <span style="background:${u.is_active?'#E1F5EE':'#F3F4F6'};color:${u.is_active?'#0F6E56':'#9CA3AF'};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">${u.is_active?'Active':'Inactive'}</span>
                             </td>
@@ -3815,7 +3815,7 @@ async function adminDownloadCandidateCv(candidateId, name) {
 async function editUserAdmin(userId) {
     const u = (window._adminUsers||[]).find(x => String(x.id) === String(userId));
     if (!u) return;
-    createAdminModal('Edit User — ' + (u.full_name||u.email), `
+    createAdminModal('Edit User — ' + escHtml(u.full_name||u.email), `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             ${[
                 {id:'eu-name',  label:'Full Name', val: u.full_name},
@@ -3903,7 +3903,7 @@ function renderAdminAnalytics(d) {
 
     const topRows = (d.top_companies||[]).map((c,i) => `
         <tr style="background:${i%2===0?'#fff':'#fafbfc'};border-bottom:0.5px solid #F3F4F6;">
-            <td style="padding:10px 14px;font-weight:500;color:#1B2A4A;">${c.name}</td>
+            <td style="padding:10px 14px;font-weight:500;color:#1B2A4A;">${escHtml(c.name)}</td>
             <td style="padding:10px 14px;text-align:center;color:#1B2A4A;font-weight:500;">${c.job_count}</td>
             <td style="padding:10px 14px;text-align:center;color:#1B2A4A;font-weight:500;">${c.candidate_count}</td>
             <td style="padding:10px 14px;text-align:center;">
