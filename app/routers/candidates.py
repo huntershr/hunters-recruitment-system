@@ -878,6 +878,18 @@ def get_talent_pool(
     if not current_user.is_admin and not current_user.company_id:
         raise HTTPException(status_code=403, detail="Access denied")
     q = db.query(models.Candidate).options(defer(models.Candidate.cv_file_data)).filter(models.Candidate.user_id.isnot(None))
+    if not current_user.is_admin:
+        q = q.filter(
+            models.Candidate.id.in_(
+                db.query(models.Application.candidate_id)
+                .join(models.Job, models.Application.job_id == models.Job.id)
+                .join(models.User, models.Job.owner_id == models.User.id)
+                .filter(
+                    models.Application.candidate_id.isnot(None),
+                    models.User.company_id == current_user.company_id,
+                )
+            )
+        )
     if search.strip():
         s = f"%{search.strip()}%"
         q = q.filter(

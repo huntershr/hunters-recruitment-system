@@ -967,26 +967,43 @@ def get_talent_pool(
     current_user: models.User = Depends(get_current_user),
 ):
     """
-    All registered (Type A) candidates — user_id IS NOT NULL.
-    Accessible to both SuperAdmin and Company Admin.
-    No company scoping: the talent pool is intentionally shared.
+    Registered (Type A) candidates — user_id IS NOT NULL.
+    SuperAdmin: all candidates. Company Admin: scoped to their job applicants only.
     """
     if not current_user.is_admin and not current_user.company_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    candidates = (
+    q = (
         db.query(models.Candidate)
+        .options(defer(models.Candidate.cv_file_data))
         .filter(models.Candidate.user_id.isnot(None))
-        .order_by(models.Candidate.id.desc())
-        .all()
     )
+    if not current_user.is_admin:
+        q = q.filter(
+            models.Candidate.id.in_(
+                db.query(models.Application.candidate_id)
+                .join(models.Job, models.Application.job_id == models.Job.id)
+                .join(models.User, models.Job.owner_id == models.User.id)
+                .filter(
+                    models.Application.candidate_id.isnot(None),
+                    models.User.company_id == current_user.company_id,
+                )
+            )
+        )
+    candidates = q.order_by(models.Candidate.id.desc()).all()
+
+    # Batch-load user rows to avoid N+1 queries
+    user_ids = [c.user_id for c in candidates if c.user_id]
+    users_by_id = {}
+    if user_ids:
+        users_by_id = {
+            u.id: u
+            for u in db.query(models.User).filter(models.User.id.in_(user_ids)).all()
+        }
 
     result = []
     for cand in candidates:
-        user = (
-            db.query(models.User).filter(models.User.id == cand.user_id).first()
-            if cand.user_id else None
-        )
+        user = users_by_id.get(cand.user_id)
         result.append({
             "user_id": cand.user_id,
             "candidate_id": cand.id,
