@@ -147,6 +147,7 @@ class Application(Base):
     stage = Column(Text, default='New')
     stage_updated_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    status_token = Column(Text, nullable=True)
 
     job = relationship("Job", back_populates="applications")
     candidate = relationship("Candidate", back_populates="applications")

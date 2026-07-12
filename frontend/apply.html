@@ -773,7 +773,7 @@
                 document.getElementById('form-container').style.display = 'none';
                 var sc = document.getElementById('success-container');
                 sc.classList.add('active');
-                pollEvaluation(result.candidate_id);
+                pollEvaluation(result.application_id, result.status_token);
             } else {
                 var errData = await response.json().catch(function() { return {}; });
                 showToast(String(errData.detail || "Submission failed — check file size and try again."), 'error');
@@ -791,10 +791,10 @@
     var pollAttempts = 0;
     var maxAttempts = 30;
 
-    async function pollEvaluation(candidateId) {
+    async function pollEvaluation(applicationId, statusToken) {
         if (pollAttempts >= maxAttempts) { console.log("Polling timeout"); return; }
         try {
-            var response = await fetch(API_URL + '/public/evaluation/' + candidateId);
+            var response = await fetch(API_URL + '/public/application/' + applicationId + '/status?token=' + encodeURIComponent(statusToken));
             var result = await response.json();
             if (result.status === 'completed') {
                 document.getElementById('pending-message').style.display = 'none';
@@ -807,12 +807,12 @@
                 sd.innerHTML = buildResultCard(msg);
             } else {
                 pollAttempts++;
-                setTimeout(function() { pollEvaluation(candidateId); }, 2000);
+                setTimeout(function() { pollEvaluation(applicationId, statusToken); }, 2000);
             }
         } catch (err) {
             console.error("Polling error:", err);
             pollAttempts++;
-            setTimeout(function() { pollEvaluation(candidateId); }, 2000);
+            setTimeout(function() { pollEvaluation(applicationId, statusToken); }, 2000);
         }
     }
 </script>

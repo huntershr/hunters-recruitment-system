@@ -454,6 +454,7 @@ async def public_apply(
     # Phase 2 Type B: create Application directly — no Candidate row.
     # Email match to an existing User does NOT auto-link (T5); explicit
     # auth is required for Type A.
+    _status_token = secrets.token_urlsafe(32)
     application = models.Application(
         job_id=job_id,
         candidate_id=None,
@@ -465,6 +466,7 @@ async def public_apply(
         cv_text=cv_text,
         cv_file_data=content,
         cv_file_mime=cv_mime,
+        status_token=_status_token,
     )
     db.add(application)
     db.commit()
@@ -549,39 +551,44 @@ async def public_apply(
     return {
         "message": "Application submitted successfully",
         "application_id": application.id,
+        "status_token": _status_token,
         "job_id": job_id,
     }
 
-@router.get("/evaluation/{candidate_id}")
-def get_candidate_evaluation(candidate_id: int, db: Session = Depends(get_db)):
+@router.get("/application/{application_id}/status")
+def get_application_status(
+    application_id: int,
+    token: str,
+    db: Session = Depends(get_db),
+):
     """
-    Public endpoint to fetch candidate evaluation score.
-    Called by candidates to see their results after applying.
+    Opaque status poll for a submitted application.
+    Token is the value issued by POST /public/apply/{job_id} at submission time.
+    Returns 404 for both not-found and token-mismatch to prevent enumeration.
+    Queries by application_id so Phase 2 (Type B) evaluations are found correctly.
     """
-    candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
-    if not candidate:
-        raise HTTPException(status_code=404, detail="Candidate not found")
-    
-    evaluation = db.query(models.Evaluation).filter(models.Evaluation.candidate_id == candidate_id).first()
+    application = db.query(models.Application).filter(
+        models.Application.id == application_id
+    ).first()
+    if (
+        not application
+        or not application.status_token
+        or application.status_token != token
+    ):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    evaluation = db.query(models.Evaluation).filter(
+        models.Evaluation.application_id == application_id
+    ).first()
     if not evaluation:
-        return {
-            "candidate_id": candidate_id,
-            "name": candidate.name,
-            "status": "pending",
-            "message": "Your application is being evaluated. Please check back shortly."
-        }
-    
+        return {"status": "pending"}
+
     pct = float(evaluation.score or 0)
     return {
-        "candidate_id": candidate_id,
-        "name": candidate.name,
         "status": "completed",
         "score": pct,
         "overall_score": int(round(min(100.0, max(0.0, pct)))),
         "decision": evaluation.decision,
-        "reason": evaluation.reason,
-        "strengths": evaluation.strengths,
-        "weaknesses": evaluation.weaknesses,
     }
 
 @router.get("/company/{company_id}", response_model=schemas.CompanyResponse)

@@ -677,6 +677,15 @@ def startup_populate_db():
     except Exception as _e:
         logging.error(f"CASCADE FK migration failed: {_e}")
 
+    # ── Application status_token column ──────────────────────────────────────
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE applications ADD COLUMN IF NOT EXISTS status_token TEXT"))
+            conn.commit()
+            logging.info("Application status_token column: OK")
+    except Exception as _e:
+        logging.error(f"Application status_token migration failed: {_e}")
+
     # ── Admin user seed (always runs — fast single SELECT) ────────────────────
     db = SessionLocal()
     try:
