@@ -926,9 +926,6 @@ async def download_candidate_cv(candidate_id: int, db: Session = Depends(get_db)
                 .first()
             )
             allowed = has_company_app is not None
-        # Also allow talent pool: registered candidate (user_id set) visible to any company user
-        if not allowed and current_user.company_id and candidate.user_id:
-            allowed = True
         if not allowed:
             raise HTTPException(status_code=403, detail="Access denied")
 
