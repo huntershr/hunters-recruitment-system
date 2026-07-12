@@ -127,6 +127,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Security response headers ─────────────────────────────────────────────────
+# Applied to every response as defence-in-depth on top of output escaping.
+#
+# NOTE: script-src is intentionally absent from the CSP.
+# All pages embed JavaScript in <script> blocks and use onclick="..." attributes
+# (300+ handlers across admin-approval-dashboard, company-dashboard, candidates-
+# portal, index, etc.).  Adding script-src 'self' without 'unsafe-inline' would
+# break every page; adding 'unsafe-inline' defeats the XSS protection goal.
+# Closing that gap requires either (a) CSP nonces on every <script> block
+# (covers inline scripts but not onclick attributes) or (b) migrating all JS to
+# external .js files and converting onclick to addEventListener calls.
+# That refactor has been reported and is pending a decision.
+#
+# Current CSP covers the remaining attack surface:
+#   object-src 'none'      — blocks Flash/plugin-based XSS
+#   base-uri 'self'        — blocks <base href="…"> injection (base-tag hijack)
+#   frame-ancestors 'none' — blocks clickjacking (redundant with X-Frame-Options
+#                            but required for CSP-aware browsers)
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    )
+    return response
+
 @app.on_event("startup")
 def startup_populate_db():
     """
