@@ -316,6 +316,19 @@ def get_db():
     finally:
         db.close()
 
+def _parse_salary_range(salary_range_str: str):
+    """Parse free-text salary_range into (salary_min, salary_max) integers, or (None, None)."""
+    if not salary_range_str:
+        return None, None
+    import re
+    nums = [int(n.replace(',', '')) for n in re.findall(r'[\d,]+', salary_range_str) if n.replace(',', '').isdigit()]
+    if len(nums) >= 2:
+        return nums[0], nums[1]
+    if len(nums) == 1:
+        return nums[0], None
+    return None, None
+
+
 @router.get("/job/{job_id}")
 def get_public_job(job_id: int, db: Session = Depends(get_db)):
     job = db.query(models.Job).filter(models.Job.id == job_id).first()
@@ -358,11 +371,9 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
         "weight_behavioral": job.weight_behavioral,
         "is_approved": job.is_approved,
         "created_at": job.created_at.isoformat() if job.created_at else None,
-        # validThrough: 90-day posting window from creation date (no expiry_date column exists).
-        # Adjust the timedelta if your typical posting duration differs.
         "valid_through": (job.created_at + datetime.timedelta(days=90)).date().isoformat() if job.created_at else None,
-        "salary_min": None,
-        "salary_max": None,
+        "salary_min": _parse_salary_range("" if hide_salary else (job.salary_range or ""))[0],
+        "salary_max": _parse_salary_range("" if hide_salary else (job.salary_range or ""))[1],
         "employment_type": job.education_level,
         "hide_salary": hide_salary,
         "department": job.department or "Other",
@@ -668,12 +679,13 @@ def get_public_jobs(department: str = None, db: Session = Depends(get_db)):
                     "weight_behavioral": job.weight_behavioral,
                     "is_approved": job.is_approved,
                     "created_at": job.created_at.isoformat() if job.created_at else None,
+                    "valid_through": (job.created_at + datetime.timedelta(days=90)).date().isoformat() if job.created_at else None,
                     "company_name": company_name,
                     "company_id": company_id,
                     "company_logo_url": HUNTERS_LOGO if (owner and owner.is_admin) else (logo_map.get(company_id) if company_id else None),
                     "hide_salary": hide_salary,
-                    "salary_min": None,
-                    "salary_max": None,
+                    "salary_min": _parse_salary_range("" if hide_salary else (job.salary_range or ""))[0],
+                    "salary_max": _parse_salary_range("" if hide_salary else (job.salary_range or ""))[1],
                     "employment_type": job.education_level,
                     "department": job.department or "Other",
                 })

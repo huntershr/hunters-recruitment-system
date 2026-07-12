@@ -468,6 +468,32 @@
         return m ? parseFloat(m[1]) : null;
     }
 
+    /* ── Derive addressLocality and addressRegion from a free-text job_location string. ── */
+    function parseLocation(loc) {
+        if (!loc) return { locality: 'Cairo', region: 'Cairo' };
+        var govs = ['Alexandria', 'Sharqia', 'Dakahlia', 'Beheira', 'Monufia', 'Gharbia',
+                    'Kafr El Sheikh', 'Damietta', 'Port Said', 'Ismailia', 'Suez', 'Matrouh',
+                    'Luxor', 'Aswan', 'Qena', 'Sohag', 'Asyut', 'Minya', 'Beni Suef',
+                    'Fayoum', 'Giza', 'Cairo'];
+        var region = 'Cairo';
+        for (var i = 0; i < govs.length; i++) {
+            if (loc.toLowerCase().indexOf(govs[i].toLowerCase()) !== -1) { region = govs[i]; break; }
+        }
+        return { locality: loc, region: region };
+    }
+
+    /* ── Normalize required_skills (string or object-array) to a comma-joined string. ── */
+    function normalizeSkills(s) {
+        if (!s) return null;
+        if (Array.isArray(s)) {
+            var items = s.map(function(item) {
+                return typeof item === 'object' ? (item.skill || item.name || '') : String(item);
+            }).filter(Boolean);
+            return items.length ? items.join(', ') : null;
+        }
+        return s.trim() || null;
+    }
+
     /* ── Populate left panel ── */
     function populateJobPanel(job) {
         var locEl  = document.getElementById('job-location-meta');
@@ -543,21 +569,48 @@
             // TODO: add job_type field when part-time / contract roles are posted.
             var datePosted = job.created_at ? job.created_at.split('T')[0]
                            : new Date().toISOString().split('T')[0];
-            var salaryNum = job.salary_range ? parseSalaryNumber(job.salary_range) : null;
+
+            // validThrough: use server-provided expiry if available, else datePosted + 60 days.
+            var validThrough;
+            if (job.expiry_date) {
+                validThrough = job.expiry_date.split('T')[0];
+            } else {
+                var _vd = new Date(datePosted); _vd.setDate(_vd.getDate() + 60);
+                validThrough = _vd.toISOString().split('T')[0];
+            }
+
+            // baseSalary: prefer parsed min/max; fall back to single value from salary_range string.
+            var hideSal = job.hide_salary === true || job.hide_salary === 1;
+            var salaryBlock = null;
+            if (!hideSal) {
+                if (job.salary_min != null && job.salary_max != null) {
+                    salaryBlock = { '@type': 'MonetaryAmount', 'currency': 'EGP', 'value': { '@type': 'QuantitativeValue', 'minValue': job.salary_min, 'maxValue': job.salary_max, 'unitText': 'MONTH' } };
+                } else if (job.salary_min != null) {
+                    salaryBlock = { '@type': 'MonetaryAmount', 'currency': 'EGP', 'value': { '@type': 'QuantitativeValue', 'minValue': job.salary_min, 'unitText': 'MONTH' } };
+                } else if (job.salary_range) {
+                    var salaryNum = parseSalaryNumber(job.salary_range);
+                    if (salaryNum !== null) {
+                        salaryBlock = { '@type': 'MonetaryAmount', 'currency': 'EGP', 'value': { '@type': 'QuantitativeValue', 'value': salaryNum, 'unitText': 'MONTH' } };
+                    }
+                }
+            }
+
+            var addr = parseLocation(job.job_location);
             var ldJson = removeNulls({
                 '@context': 'https://schema.org/',
                 '@type': 'JobPosting',
                 'title': job.job_title,
                 'description': job.job_description || null,
                 'hiringOrganization': { '@type': 'Organization', 'name': company, 'sameAs': 'https://hunters-egypt.com' },
-                'jobLocation': { '@type': 'Place', 'address': { '@type': 'PostalAddress', 'streetAddress': job.job_location || '', 'addressLocality': job.job_location || 'Cairo', 'addressRegion': 'Cairo Governorate', 'postalCode': '11511', 'addressCountry': 'EG' } },
+                'jobLocation': { '@type': 'Place', 'address': { '@type': 'PostalAddress', 'streetAddress': job.job_location || '', 'addressLocality': addr.locality, 'addressRegion': addr.region, 'postalCode': '11511', 'addressCountry': 'EG' } },
                 'datePosted': datePosted,
-                'validThrough': job.valid_through || null,
+                'validThrough': validThrough,
                 'employmentType': 'FULL_TIME',
-                'baseSalary': (salaryNum !== null) ? { '@type': 'MonetaryAmount', 'currency': 'EGP', 'value': { '@type': 'QuantitativeValue', 'value': salaryNum, 'unitText': 'MONTH' } } : null,
+                'directApply': true,
+                'baseSalary': salaryBlock,
                 'educationRequirements': job.education_level ? { '@type': 'EducationalOccupationalCredential', 'credentialCategory': 'bachelor degree' } : null,
                 'experienceRequirements': (job.min_experience && job.min_experience > 0) ? { '@type': 'OccupationalExperienceRequirements', 'monthsOfExperience': job.min_experience * 12 } : null,
-                'skills': job.required_skills || null,
+                'skills': normalizeSkills(job.required_skills),
                 'identifier': { '@type': 'PropertyValue', 'name': 'Hunters HR', 'value': job.id },
                 'url': 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id
             });

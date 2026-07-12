@@ -181,45 +181,88 @@
                     }
                     return obj;
                 }
+                function _parseSalaryNum(s) {
+                    if (!s) return null;
+                    const m = s.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+                    return m ? parseFloat(m[1]) : null;
+                }
+                function _parseLocation(loc) {
+                    if (!loc) return { locality: 'Cairo', region: 'Cairo' };
+                    const govs = ['Alexandria', 'Sharqia', 'Dakahlia', 'Beheira', 'Monufia', 'Gharbia',
+                                  'Kafr El Sheikh', 'Damietta', 'Port Said', 'Ismailia', 'Suez', 'Matrouh',
+                                  'Luxor', 'Aswan', 'Qena', 'Sohag', 'Asyut', 'Minya', 'Beni Suef',
+                                  'Fayoum', 'Giza', 'Cairo'];
+                    const region = govs.find(g => loc.toLowerCase().includes(g.toLowerCase())) || 'Cairo';
+                    return { locality: loc, region };
+                }
+                function _normalizeSkills(s) {
+                    if (!s) return null;
+                    if (Array.isArray(s)) {
+                        const items = s.map(item => typeof item === 'object' ? (item.skill || item.name || '') : String(item)).filter(Boolean);
+                        return items.length ? items.join(', ') : null;
+                    }
+                    return s.trim() || null;
+                }
                 const today = new Date().toISOString().split('T')[0];
-                const ldArray = jobs.map(job => _removeNulls({
-                    '@context': 'https://schema.org/',
-                    '@type': 'JobPosting',
-                    'title': job.job_title,
-                    'description': job.job_description || null,
-                    'hiringOrganization': {
-                        '@type': 'Organization',
-                        'name': job.company_name || 'Hunters for HR Transformation & Execution',
-                        'sameAs': 'https://hunters-egypt.com'
-                    },
-                    'jobLocation': {
-                        '@type': 'Place',
-                        'address': {
-                            '@type': 'PostalAddress',
-                            'streetAddress': job.job_location || '',
-                            'addressLocality': job.job_location || 'Cairo',
-                            'addressRegion': 'Cairo Governorate',
-                            'postalCode': '11511',
-                            'addressCountry': 'EG'
+                const ldArray = jobs.map(job => {
+                    const datePosted = job.created_at ? job.created_at.split('T')[0] : today;
+                    // validThrough: use server-provided expiry if available, else datePosted + 60 days.
+                    let validThrough;
+                    if (job.expiry_date) {
+                        validThrough = job.expiry_date.split('T')[0];
+                    } else {
+                        const vd = new Date(datePosted); vd.setDate(vd.getDate() + 60);
+                        validThrough = vd.toISOString().split('T')[0];
+                    }
+                    // baseSalary: prefer parsed min/max; fall back to salary_range string.
+                    const hideSal = job.hide_salary === true || job.hide_salary === 1;
+                    let salaryBlock = null;
+                    if (!hideSal) {
+                        if (job.salary_min != null && job.salary_max != null) {
+                            salaryBlock = { '@type': 'MonetaryAmount', 'currency': 'EGP', 'value': { '@type': 'QuantitativeValue', 'minValue': job.salary_min, 'maxValue': job.salary_max, 'unitText': 'MONTH' } };
+                        } else if (job.salary_min != null) {
+                            salaryBlock = { '@type': 'MonetaryAmount', 'currency': 'EGP', 'value': { '@type': 'QuantitativeValue', 'minValue': job.salary_min, 'unitText': 'MONTH' } };
+                        } else if (job.salary_range) {
+                            const salaryNum = _parseSalaryNum(job.salary_range);
+                            if (salaryNum !== null) {
+                                salaryBlock = { '@type': 'MonetaryAmount', 'currency': 'EGP', 'value': { '@type': 'QuantitativeValue', 'value': salaryNum, 'unitText': 'MONTH' } };
+                            }
                         }
-                    },
-                    'datePosted': job.created_at ? job.created_at.split('T')[0] : today,
-                    'validThrough': job.expiry_date || null,
-                    'employmentType': job.job_type === 'full-time' ? 'FULL_TIME'
-                                    : job.job_type === 'part-time' ? 'PART_TIME'
-                                    : job.job_type === 'contract'  ? 'CONTRACTOR'
-                                    : 'FULL_TIME',
-                    'baseSalary': job.salary_range ? {
-                        '@type': 'MonetaryAmount',
-                        'currency': 'EGP',
-                        'value': { '@type': 'QuantitativeValue', 'value': job.salary_range, 'unitText': 'MONTH' }
-                    } : null,
-                    'educationRequirements': job.education_level ? { '@type': 'EducationalOccupationalCredential', 'credentialCategory': 'bachelor degree' } : null,
-                    'experienceRequirements': (job.min_experience && job.min_experience > 0) ? { '@type': 'OccupationalExperienceRequirements', 'monthsOfExperience': job.min_experience * 12 } : null,
-                    'skills': job.required_skills || null,
-                    'identifier': { '@type': 'PropertyValue', 'name': 'Hunters HR', 'value': job.id },
-                    'url': 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id
-                }));
+                    }
+                    const addr = _parseLocation(job.job_location);
+                    return _removeNulls({
+                        '@context': 'https://schema.org/',
+                        '@type': 'JobPosting',
+                        'title': job.job_title,
+                        'description': job.job_description || null,
+                        'hiringOrganization': {
+                            '@type': 'Organization',
+                            'name': job.company_name || 'Hunters for HR Transformation & Execution',
+                            'sameAs': 'https://hunters-egypt.com'
+                        },
+                        'jobLocation': {
+                            '@type': 'Place',
+                            'address': {
+                                '@type': 'PostalAddress',
+                                'streetAddress': job.job_location || '',
+                                'addressLocality': addr.locality,
+                                'addressRegion': addr.region,
+                                'postalCode': '11511',
+                                'addressCountry': 'EG'
+                            }
+                        },
+                        'datePosted': datePosted,
+                        'validThrough': validThrough,
+                        'employmentType': 'FULL_TIME',
+                        'directApply': true,
+                        'baseSalary': salaryBlock,
+                        'educationRequirements': job.education_level ? { '@type': 'EducationalOccupationalCredential', 'credentialCategory': 'bachelor degree' } : null,
+                        'experienceRequirements': (job.min_experience && job.min_experience > 0) ? { '@type': 'OccupationalExperienceRequirements', 'monthsOfExperience': job.min_experience * 12 } : null,
+                        'skills': _normalizeSkills(job.required_skills),
+                        'identifier': { '@type': 'PropertyValue', 'name': 'Hunters HR', 'value': job.id },
+                        'url': 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id
+                    });
+                });
                 let ldTag = document.querySelector('script[type="application/ld+json"]');
                 if (!ldTag) {
                     ldTag = document.createElement('script');
