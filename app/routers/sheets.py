@@ -7,10 +7,13 @@ import logging
 
 from .. import models, schemas
 from ..database import get_db
+from ..routers.auth import get_current_user
 from ..routers.candidates import run_evaluation_task
 from ..services.google_sheets import get_apps_script_url
 
 logger = logging.getLogger(__name__)
+
+SUPERADMIN_EMAIL = "hr@hunters-egypt.com"
 
 router = APIRouter(
     prefix="/sheets",
@@ -18,13 +21,21 @@ router = APIRouter(
 )
 
 @router.post("/export")
-def export_to_sheets(db: Session = Depends(get_db)):
+def export_to_sheets(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     """
     Exports all candidates and their evaluations to the Google Sheet via Webhook.
+    SuperAdmin only.
     """
+    if not current_user.is_admin or current_user.email != SUPERADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="SuperAdmin only")
+
     url = get_apps_script_url()
     if not url:
-        raise HTTPException(status_code=500, detail="GOOGLE_APPS_SCRIPT_URL is not configured in .env.")
+        logger.error("sheets/export: GOOGLE_APPS_SCRIPT_URL is not configured")
+        raise HTTPException(status_code=500, detail="Google Sheets integration is not configured.")
 
     try:
         candidates = db.query(models.Candidate).all()
@@ -61,13 +72,22 @@ def export_to_sheets(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/import")
-def import_from_sheets(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def import_from_sheets(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     """
     Imports candidates from Google Sheets via Webhook and triggers evaluation.
+    SuperAdmin only.
     """
+    if not current_user.is_admin or current_user.email != SUPERADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="SuperAdmin only")
+
     url = get_apps_script_url()
     if not url:
-        raise HTTPException(status_code=500, detail="GOOGLE_APPS_SCRIPT_URL is not configured in .env.")
+        logger.error("sheets/import: GOOGLE_APPS_SCRIPT_URL is not configured")
+        raise HTTPException(status_code=500, detail="Google Sheets integration is not configured.")
 
     try:
         response = requests.get(url)
