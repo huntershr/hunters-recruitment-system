@@ -1814,12 +1814,18 @@ async function deleteAllCandidates() {
     }
 }
 
-async function handleCandidateUpload(event) {
+async function handleCandidateUpload(event, forceContact = false) {
     event.preventDefault();
     const jobId = document.getElementById("candidate-job-id").value;
     const fileInput = document.getElementById("candidate-file");
+    const typedEmail = (document.getElementById("candidate-typed-email")?.value || "").trim();
+    const typedPhone = (document.getElementById("candidate-typed-phone")?.value || "").trim();
+
     const formData = new FormData();
     formData.append("file", fileInput.files[0]);
+    if (typedEmail) formData.append("typed_email", typedEmail);
+    if (typedPhone) formData.append("typed_phone", typedPhone);
+    if (forceContact) formData.append("force_contact", "true");
 
     const btn = event.submitter;
     const originalText = btn.innerHTML;
@@ -1832,14 +1838,33 @@ async function handleCandidateUpload(event) {
             body: formData
         });
         const result = await response.json();
+
+        if (response.status === 409 && result.detail?.type === "contact_mismatch") {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            const warnings = (result.detail.warnings || []).join("\n");
+            const proceed = confirm(`Contact info mismatch:\n\n${warnings}\n\nContinue saving this candidate anyway?`);
+            if (proceed) {
+                handleCandidateUpload(event, true);
+            }
+            return;
+        }
+
+        if (!response.ok) {
+            showToast(result.detail?.message || result.detail || 'Upload failed.', 'error');
+            return;
+        }
+
         showToast(result.message, 'success');
         closeModals();
         fetchData();
     } catch (err) {
         showToast('Failed to upload candidates.', 'error');
     } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        if (!forceContact) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }
 }
 

@@ -254,6 +254,47 @@ def generate_job_details(job_title: str, industry_background: str, additional_co
         raise
 
 
+# Section headers that Gemini sometimes returns as an experience entry's employer
+# when the CV uses the header as a visual divider above the job list.
+_EMPLOYER_HEADER_BLOCKLIST: frozenset[str] = frozenset({
+    "professional experience",
+    "work experience",
+    "employment history",
+    "experience",
+    "career history",
+    "work history",
+    "employment",
+    "career summary",
+    "career objective",
+    "professional background",
+    "relevant experience",
+    "industry experience",
+})
+
+
+def _clean_experiences(experiences: list) -> list:
+    """
+    Discard employer values that are section-header strings or obvious fragment sentences.
+    Mutates entries in-place and returns the list.
+    """
+    if not isinstance(experiences, list):
+        return experiences
+    for entry in experiences:
+        if not isinstance(entry, dict):
+            continue
+        emp = str(entry.get("employer", "") or "").strip()
+        if not emp:
+            continue
+        # Blocklist check (case-insensitive)
+        if emp.lower() in _EMPLOYER_HEADER_BLOCKLIST:
+            entry["employer"] = ""
+            continue
+        # Fragment heuristics: ends with period, or starts with lowercase letter
+        if emp.endswith(".") or (emp and emp[0].islower()):
+            entry["employer"] = ""
+    return experiences
+
+
 def extract_candidate_info(cv_text):
     """
     Extracts structured candidate information from CV text using Gemini.
@@ -308,6 +349,13 @@ Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678",
                     data["experience_years"] = 0
             except Exception:
                 data["experience_years"] = 0
+            # Discard section-header strings used as employer names
+            if isinstance(data.get("experiences"), list):
+                data["experiences"] = _clean_experiences(data["experiences"])
+            # Clear last_employer if it is a section header or sentence fragment
+            le = str(data.get("last_employer") or "").strip()
+            if le.lower() in _EMPLOYER_HEADER_BLOCKLIST or le.endswith(".") or (le and le[0].islower()):
+                data["last_employer"] = ""
             return data
         except Exception as e:
             if "429" in str(e) and attempt < max_retries - 1:

@@ -737,24 +737,72 @@ async def upload_candidates(
     background_tasks: BackgroundTasks,
     job_id: int = 1,
     file: UploadFile = File(...),
+    typed_email: Optional[str] = Form(None),
+    typed_phone: Optional[str] = Form(None),
+    force_contact: bool = Form(False),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    import re as _re
+
     content = await file.read()
     filename = file.filename.lower()
-    
+
     candidates_data = []
-    
+
     if filename.endswith(".pdf") or filename.endswith(".docx") or filename.endswith(".doc"):
         text = extract_text_from_pdf(content) if filename.endswith(".pdf") else extract_text_from_docx(content)
         if not text or not text.strip():
             raise HTTPException(status_code=400, detail="Could not extract text from CV — file may be a scanned image or protected PDF.")
+
+        # Contact mismatch check: if the recruiter typed an email/phone that doesn't
+        # appear anywhere in the CV text, warn before saving (can be bypassed with force_contact).
+        if not force_contact:
+            _warnings = []
+            te = (typed_email or "").strip().lower()
+            tp = (typed_phone or "").strip()
+            if te:
+                # Find all emails in the raw CV text
+                _cv_emails = [m.lower() for m in _re.findall(
+                    r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', text
+                )]
+                if _cv_emails and te not in _cv_emails:
+                    _warnings.append(
+                        f"The email you entered ({typed_email}) does not match any email "
+                        f"found in this CV ({', '.join(_cv_emails[:3])})."
+                    )
+                elif not _cv_emails and te:
+                    _warnings.append(
+                        f"No email address was found in the CV text — cannot confirm "
+                        f"that '{typed_email}' belongs to this candidate."
+                    )
+            if tp:
+                # Normalise phone to digits only for comparison
+                _tp_digits = _re.sub(r'\D', '', tp)
+                _cv_text_digits = _re.sub(r'\D', '', text)
+                if len(_tp_digits) >= 7 and _tp_digits not in _cv_text_digits:
+                    _warnings.append(
+                        f"The phone number you entered ({typed_phone}) was not found in this CV."
+                    )
+            if _warnings:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "type": "contact_mismatch",
+                        "warnings": _warnings,
+                        "message": " ".join(_warnings) + " Continue anyway?",
+                    },
+                )
+
         from ..services.ai_evaluator import extract_candidate_info
         ai_data = extract_candidate_info(text)
+        # If the recruiter typed an email/phone, prefer those over Gemini-extracted values
+        resolved_email = (typed_email or "").strip() or ai_data.get("email", "")
+        resolved_phone = (typed_phone or "").strip() or ai_data.get("phone", "")
         candidates_data.append({
             "name": ai_data.get("name", file.filename),
-            "email": ai_data.get("email", ""),
-            "phone": ai_data.get("phone", ""),
+            "email": resolved_email,
+            "phone": resolved_phone,
             "experience_years": ai_data.get("experience_years", 0),
             "education": ai_data.get("education", ""),
             "skills": ai_data.get("skills", ""),

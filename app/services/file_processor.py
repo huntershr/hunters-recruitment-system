@@ -6,14 +6,37 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def _is_chromium_pdf(reader):
+    """Return True for Chromium/Skia-rendered PDFs (Canva, Chrome print-to-PDF, etc.).
+
+    These renderers place each glyph in its own text object, so layout mode
+    re-orders them into garbled single-letter fragments.  The default extraction
+    mode reads the raw content stream order, which is already correct for these files.
+    """
+    try:
+        meta = reader.metadata or {}
+        producer = str(meta.get("/Producer") or "").lower()
+        creator  = str(meta.get("/Creator")  or "").lower()
+        for kw in ("chromium", "skia", "chrome", "canva"):
+            if kw in producer or kw in creator:
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def extract_text_from_pdf(file_content):
     try:
         reader = PdfReader(io.BytesIO(file_content))
+        use_layout = not _is_chromium_pdf(reader)
         text = ""
         for page in reader.pages:
             try:
-                # layout mode preserves reading order in multi-column CVs
-                page_text = page.extract_text(extraction_mode="layout")
+                page_text = (
+                    page.extract_text(extraction_mode="layout")
+                    if use_layout
+                    else page.extract_text()
+                )
             except TypeError:
                 page_text = page.extract_text()
             if page_text:
