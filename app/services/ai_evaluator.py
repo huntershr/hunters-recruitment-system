@@ -1,4 +1,5 @@
 import os
+import re
 import google.generativeai as genai
 import json
 import time
@@ -254,6 +255,31 @@ def generate_job_details(job_title: str, industry_background: str, additional_co
         raise
 
 
+def _repair_split_years(text: str) -> str:
+    """
+    Collapse PDF layout-mode word-split artifacts where a multi-digit number is
+    broken by a space immediately before a 'year(s)' phrase.
+
+    Examples:  "2 0 years" → "20 years"   |   "1 5 + years" → "15 + years"
+
+    Conservative: ONLY collapses when the digit cluster is followed by the word
+    'year' or 'years'.  Phone numbers, dates, and all other digit sequences in
+    the text are untouched because they are not followed by that word.
+    """
+    def _collapse(m: re.Match) -> str:
+        digits = re.sub(r'\s+', '', m.group(1))  # strip internal spaces from digit cluster
+        return digits + m.group(2)               # re-attach the "+ years" tail
+
+    # (\d(?:\s\d){1,3}) — one digit, then 1–3 more (each preceded by exactly one space)
+    # (\s*\+?\s*years?\b) — optional surrounding spaces, optional '+', then year/years
+    return re.sub(
+        r'(\d(?:\s\d){1,3})(\s*\+?\s*years?\b)',
+        _collapse,
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
 # Section headers that Gemini sometimes returns as an experience entry's employer
 # when the CV uses the header as a visual divider above the job list.
 _EMPLOYER_HEADER_BLOCKLIST: frozenset[str] = frozenset({
@@ -299,6 +325,12 @@ def extract_candidate_info(cv_text):
     """
     Extracts structured candidate information from CV text using Gemini.
     """
+    # Repair PDF word-split artifacts in the years-proximity before Gemini reads the text.
+    # Specifically fixes patterns like "2 0 years" → "20 years" that arise when a
+    # two-column CV is extracted in layout mode and a digit pair gets split by a space.
+    # Applied only to the slice that goes to Gemini; the stored cv_text is not modified.
+    _cv_slice = _repair_split_years((cv_text or '')[:6000])
+
     prompt = f"""You are an expert HR Data Analyst. Read the CV text below carefully and extract the following fields.
 
 FIELDS TO EXTRACT:
@@ -317,7 +349,7 @@ FIELDS TO EXTRACT:
 13. certifications - Array of certification or license names found in the CV (e.g. ["PMP","AWS Solutions Architect"]). Use [] if none found.
 
 CV TEXT:
-{(cv_text or '')[:6000]}
+{_cv_slice}
 
 Return ONLY a valid JSON object with exactly these 13 keys. experience_years must always be an integer. Use null for missing scalar fields, [] for missing array fields.
 Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678","experience_years":5,"education":"BSc Engineering, AUC","skills":"Python, SQL, Power BI","last_title":"Data Analyst","last_employer":"Raya Holding","summary":"Experienced data analyst with 5 years in BI and reporting.","experiences":[{{"title":"Data Analyst","employer":"Raya Holding","start":"2019","end":"Present","description":"Led data analysis and BI dashboards."}}],"education_history":[{{"degree":"BSc Engineering","institution":"AUC","year":"2019"}}],"languages":[{{"language":"Arabic","proficiency":"Native"}},{{"language":"English","proficiency":"Fluent"}}],"certifications":["PMP","AWS Certified Solutions Architect"]}}"""
@@ -338,17 +370,34 @@ Example: {{"name":"Ahmed Ali","email":"ahmed@example.com","phone":"01012345678",
             data = json.loads(response.text.strip())
             # Ensure experience_years is always an integer
             try:
-                import re as _re
                 raw_exp = data.get("experience_years")
                 if isinstance(raw_exp, (int, float)):
                     data["experience_years"] = int(raw_exp)
                 elif isinstance(raw_exp, str):
-                    nums = _re.findall(r'\d+', raw_exp)
+                    nums = re.findall(r'\d+', raw_exp)
                     data["experience_years"] = int(nums[0]) if nums else 0
                 else:
                     data["experience_years"] = 0
             except Exception:
                 data["experience_years"] = 0
+            # Fallback: if Gemini returned 0 but the (pre-repaired) text contains
+            # a clear self-reported years-of-experience claim, extract it directly.
+            # Only fires when experience_years is still 0 after the above coercion.
+            if not data.get("experience_years"):
+                _yoe_match = re.search(
+                    r'(?:over|more than|approximately|about|around)?\s*(\d{1,2})\s*\+?\s*years?\s+(?:of\s+)?(?:experience|work|professional)',
+                    _cv_slice,
+                    re.IGNORECASE,
+                )
+                if _yoe_match:
+                    _fallback_years = int(_yoe_match.group(1))
+                    if _fallback_years > 0:
+                        data["experience_years"] = _fallback_years
+                        logger.info(
+                            "experience_years fallback regex fired: Gemini returned 0, "
+                            "found %d years in cv_slice match %r",
+                            _fallback_years, _yoe_match.group(0),
+                        )
             # Discard section-header strings used as employer names
             if isinstance(data.get("experiences"), list):
                 data["experiences"] = _clean_experiences(data["experiences"])
