@@ -75,7 +75,7 @@ def _extract_all_pages(reader, use_layout):
             page_text = page.extract_text()
         if page_text:
             text += page_text + "\n"
-    return text.strip()
+    return text.strip().replace('\x00', '')
 
 
 def extract_text_from_pdf(file_content):
