@@ -12,6 +12,7 @@ import time
 from .. import models, schemas, database
 from ..services.file_processor import extract_text_from_file
 from ..services.ai_evaluator import extract_candidate_info, evaluate_candidate, finalize_evaluation, call_agent_screener
+from ..services.phone_filter import check_phone_region
 from ..auth_utils import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -403,6 +404,14 @@ async def public_apply(
             status_code=400,
             detail="Please upload your CV as a PDF or Word document (.pdf or .docx). Images and other file types are not accepted.",
         )
+
+    _phone_allowed, _ = check_phone_region(phone)
+    if not _phone_allowed:
+        raise HTTPException(
+            status_code=422,
+            detail="This service is not currently available in your region.",
+        )
+
     content = await file.read()
     cv_text = extract_text_from_file(file.filename, content)
     if not cv_text or not cv_text.strip():
