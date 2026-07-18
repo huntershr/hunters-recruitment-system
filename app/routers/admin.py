@@ -2452,12 +2452,15 @@ def get_admin_analytics(
 
 def _job_to_dict(j: models.Job) -> dict:
     company_name = ""
+    company_id = None
     if j.owner and j.owner.company:
         company_name = j.owner.company.company_name or ""
+        company_id = j.owner.company_id
     return {
         "id": j.id,
         "job_title": j.job_title or "",
         "company_name": company_name,
+        "company_id": company_id,
         "job_description": j.job_description or "",
         "job_location": j.job_location or "",
         "min_experience": j.min_experience or 0,
@@ -2470,13 +2473,20 @@ def _job_to_dict(j: models.Job) -> dict:
         "industry_experience": j.industry_experience or "",
         "department": j.department or "Other",
         "is_approved": bool(j.is_approved),
+        "status": j.status,
+        "is_archived": bool(j.is_archived),
         "created_at": j.created_at.isoformat() if j.created_at else "",
         "owner_id": j.owner_id,
+        "weight_experience": j.weight_experience or 0.3,
+        "weight_skills":     j.weight_skills or 0.4,
+        "weight_education":  j.weight_education or 0.1,
+        "weight_behavioral": j.weight_behavioral or 0.2,
         "agent_weight_title":      getattr(j, "agent_weight_title",      25) or 25,
         "agent_weight_industry":   getattr(j, "agent_weight_industry",   25) or 25,
         "agent_weight_experience": getattr(j, "agent_weight_experience", 25) or 25,
         "agent_weight_skills":     getattr(j, "agent_weight_skills",     25) or 25,
         "essential_skills":        getattr(j, "essential_skills",        None) or [],
+        "deal_breakers":           getattr(j, "essential_skills",        None) or [],
     }
 
 

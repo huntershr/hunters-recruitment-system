@@ -160,22 +160,30 @@ async def upload_jobs(
 
 @router.get("", response_model=List[schemas.JobResponse])
 def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return db.query(models.Job).filter(
-        models.Job.owner_id == current_user.id,
+    q = db.query(models.Job).filter(
         or_(models.Job.status == None, models.Job.status != 'rejected'),
         models.Job.is_archived == False,
-    ).offset(skip).limit(limit).all()
+    )
+    if not current_user.is_admin:
+        q = q.filter(models.Job.owner_id == current_user.id)
+    return q.offset(skip).limit(limit).all()
 
 @router.get("/{job_id}", response_model=schemas.JobResponse)
 def read_job(job_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
+    q = db.query(models.Job).filter(models.Job.id == job_id)
+    if not current_user.is_admin:
+        q = q.filter(models.Job.owner_id == current_user.id)
+    job = q.first()
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 @router.put("/{job_id}", response_model=schemas.JobResponse)
 def update_job(job_id: int, updated_job: schemas.JobSavePayload, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    db_job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
+    q = db.query(models.Job).filter(models.Job.id == job_id)
+    if not current_user.is_admin:
+        q = q.filter(models.Job.owner_id == current_user.id)
+    db_job = q.first()
     if not db_job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -185,9 +193,13 @@ def update_job(job_id: int, updated_job: schemas.JobSavePayload, db: Session = D
     db.commit()
     db.refresh(db_job)
     return db_job
+
 @router.patch("/{job_id}/archive")
 def archive_job(job_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    db_job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
+    q = db.query(models.Job).filter(models.Job.id == job_id)
+    if not current_user.is_admin:
+        q = q.filter(models.Job.owner_id == current_user.id)
+    db_job = q.first()
     if not db_job:
         raise HTTPException(status_code=404, detail="Job not found")
     db_job.is_archived = True
@@ -196,7 +208,10 @@ def archive_job(job_id: int, db: Session = Depends(get_db), current_user: models
 
 @router.delete("/{job_id}")
 def delete_job(job_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    db_job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
+    q = db.query(models.Job).filter(models.Job.id == job_id)
+    if not current_user.is_admin:
+        q = q.filter(models.Job.owner_id == current_user.id)
+    db_job = q.first()
     if not db_job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -235,7 +250,10 @@ def delete_job(job_id: int, db: Session = Depends(get_db), current_user: models.
 @router.get("/{job_id}/candidates")
 def get_job_candidates(job_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """Get all candidates for a specific job with evaluation data included"""
-    job = db.query(models.Job).filter(models.Job.id == job_id, models.Job.owner_id == current_user.id).first()
+    _q = db.query(models.Job).filter(models.Job.id == job_id)
+    if not current_user.is_admin:
+        _q = _q.filter(models.Job.owner_id == current_user.id)
+    job = _q.first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -280,15 +298,29 @@ def get_job_candidates(job_id: int, db: Session = Depends(get_db), current_user:
 # Admin endpoints for job approval
 @router.get("/admin/all")
 def get_all_jobs(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    """Get all jobs (Admin only)"""
+    """Get all jobs (Admin only) with company_name resolved from owner → company."""
     if not current_user or not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    all_jobs = db.query(models.Job).filter(
-        or_(models.Job.status == None, models.Job.status != 'rejected'),
-        models.Job.is_archived == False,
-    ).all()
-    return all_jobs
+
+    all_jobs = (
+        db.query(models.Job)
+        .filter(
+            or_(models.Job.status == None, models.Job.status != 'rejected'),
+            models.Job.is_archived == False,
+        )
+        .options(joinedload(models.Job.owner).joinedload(models.User.company))
+        .all()
+    )
+    result = []
+    for j in all_jobs:
+        d = {col.name: getattr(j, col.name) for col in j.__table__.columns}
+        d['company_name'] = (
+            j.owner.company.company_name
+            if j.owner and j.owner.company
+            else ''
+        )
+        result.append(d)
+    return result
 
 @router.get("/admin/pending")
 def get_pending_jobs(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

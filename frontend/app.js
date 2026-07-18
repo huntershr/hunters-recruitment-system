@@ -249,8 +249,10 @@ async function fetchData() {
     evaluations = [];
 
     // Four parallel calls — allSettled means one failure never aborts the others
+    const _isAdminUser = (localStorage.getItem('user_type') || '').toLowerCase() === 'admin';
+    const _jobsEndpoint = _isAdminUser ? `${API_URL}/api/admin/jobs` : `${API_URL}/jobs`;
     const [jobsRes, candsRes, evalsRes, appRes] = await Promise.allSettled([
-        authFetch(`${API_URL}/jobs`),
+        authFetch(_jobsEndpoint),
         authFetch(`${API_URL}/candidates`),
         authFetch(`${API_URL}/results`),
         authFetch('/api/admin/applications?limit=500')
@@ -485,13 +487,15 @@ function renderJobs() {
 
         group.forEach(j => {
             const initials = (j.job_title || '').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'J';
+            const _coInitials = (j.company_name || '').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || initials;
             const _isAdmin = currentUser && currentUser.is_admin;
-            const jobLogoHtml36 = _isAdmin
+            const _isHuntersJob = !j.company_name;
+            const jobLogoHtml36 = (_isAdmin && _isHuntersJob)
                 ? `<img src="/hunters-logo-card.jpeg" alt="Hunters" style="width:36px;height:36px;border-radius:50%;object-fit:contain;flex-shrink:0;background:#fff;border:0.5px solid rgba(0,0,0,0.08);">`
-                : `<div style="width:36px;height:36px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;">${initials}</div>`;
-            const jobLogoHtml28 = _isAdmin
+                : `<div style="width:36px;height:36px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;">${_isAdmin ? _coInitials : initials}</div>`;
+            const jobLogoHtml28 = (_isAdmin && _isHuntersJob)
                 ? `<img src="/hunters-logo-card.jpeg" alt="Hunters" style="width:28px;height:28px;border-radius:50%;object-fit:contain;flex-shrink:0;background:#fff;border:0.5px solid rgba(0,0,0,0.08);">`
-                : `<div style="width:28px;height:28px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${initials}</div>`;
+                : `<div style="width:28px;height:28px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${_isAdmin ? _coInitials : initials}</div>`;
             const salary   = j.salary_range || 'Negotiable';
             const statusPill = j.is_approved
                 ? `<span style="background:#E1F5EE;color:#0F6E56;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;display:inline-flex;align-items:center;gap:3px;"><span style="width:5px;height:5px;border-radius:50%;background:#0F6E56;flex-shrink:0;"></span>Approved</span>`
@@ -507,11 +511,8 @@ function renderJobs() {
             if (jobsView !== 'list') {
                 cardView.innerHTML += `
                     <div class="job-card" id="job-card-${j.id}">
-                        <div class="job-card-header" style="flex-wrap:wrap;gap:8px;">
-                            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-                                ${jobLogoHtml36}
-                                <h3 style="margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(j.job_title)}</h3>
-                            </div>
+                        <div class="job-card-header" style="margin-bottom:6px;">
+                            ${jobLogoHtml36}
                             <div style="display:flex;gap:7px;align-items:center;flex-shrink:0;">
                                 ${statusPill}
                                 <button class="btn-share edit-btn" onclick="editJob(${j.id})" title="Edit Job"><i class='bx bx-pencil'></i> Edit</button>
@@ -519,7 +520,9 @@ function renderJobs() {
                                 <button class="btn-share" style="color:#6B7280;border-color:#D1D5DB;" onclick="archiveJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"\\'")}')" title="Archive Job"><i class='bx bx-archive-in'></i> Archive</button>
                             </div>
                         </div>
-                        <div style="margin-top:6px;margin-bottom:2px;">
+                        <h3 style="margin:0 0 2px;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(j.job_title)}</h3>
+                        ${(_isAdmin && j.company_name) ? `<div style="font-size:11px;color:#6B7280;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(j.company_name)}</div>` : ''}
+                        <div style="margin-top:4px;margin-bottom:2px;">
                             <span style="background:#FFF3D4;color:#8B6000;border:0.5px solid #C9A84C;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;">${(j.department || 'Other').replace('/', ' / ')}</span>
                         </div>
                         <div class="job-meta">
@@ -547,7 +550,10 @@ function renderJobs() {
                         <td style="padding:10px 14px;">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 ${jobLogoHtml28}
-                                <span style="font-weight:500;font-size:13px;color:#1B2A4A;">${escHtml(j.job_title)}</span>
+                                <div>
+                                    <span style="font-weight:500;font-size:13px;color:#1B2A4A;">${escHtml(j.job_title)}</span>
+                                    ${(_isAdmin && j.company_name) ? `<div style="font-size:11px;color:#9CA3AF;">${escHtml(j.company_name)}</div>` : ''}
+                                </div>
                             </div>
                         </td>
                         <td style="padding:10px 14px;font-size:12px;color:#6B7280;">${escHtml(j.job_location || '—')}</td>
@@ -1104,21 +1110,6 @@ async function _doStageChange(appId, newStage) {
     }
 }
 
-
-async function adminReEvaluate(candidateId, btn) {
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ …'; }
-    showToast('Running AI evaluation…', 'info');
-    try {
-        const resp = await authFetch(`/re-evaluate/${candidateId}`, { method: 'POST' });
-        if (!resp.ok) throw new Error();
-        const data = await resp.json();
-        showToast(`Re-evaluation complete — score: ${Math.round(data.score)}%`, 'success');
-        _refreshApplicationsOnly();
-    } catch {
-        showToast('Re-evaluation failed.', 'error');
-        if (btn) { btn.disabled = false; btn.textContent = '↻ Re-eval'; }
-    }
-}
 
 function downloadAdminCV(id, safeName) {
     showToast('Generating PDF…', 'info');
@@ -2327,7 +2318,10 @@ async function archiveJob(id, title) {
         'This job will be hidden from candidates and your dashboard. Contact Hunters to restore it.',
         async () => {
             try {
-                const res = await authFetch(`/jobs/${id}/archive`, { method: 'PATCH' });
+                const _archiveUrl = (currentUser && currentUser.is_admin)
+                    ? `/api/admin/jobs/${id}/archive`
+                    : `/jobs/${id}/archive`;
+                const res = await authFetch(_archiveUrl, { method: 'PATCH' });
                 if (res.ok) {
                     showToast('Job archived — it is no longer visible to candidates or in your dashboard', 'success');
                     const card = document.getElementById('job-card-' + id);
