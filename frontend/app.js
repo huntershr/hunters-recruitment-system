@@ -580,6 +580,8 @@ function renderJobs() {
     }
 
     sortedDepts.forEach(d => renderGroup(groups[d], d.replace('/', ' / ')));
+    // Catch-all: render any department not in deptOrder (legacy/mismatched DB values)
+    Object.keys(groups).filter(d => !sortedDepts.includes(d)).sort().forEach(d => renderGroup(groups[d], d));
 }
 
 function copyPublicLink(id) {
