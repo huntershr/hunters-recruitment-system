@@ -15,7 +15,7 @@ import uuid as uuid_lib
 
 from .. import models, schemas
 from ..database import get_db, SessionLocal
-from ..services.ai_evaluator import evaluate_candidate, extract_candidate_info, finalize_evaluation, call_agent_screener
+from ..services.ai_evaluator import evaluate_candidate, extract_candidate_info, finalize_evaluation, call_agent_screener, _sanitize_experiences
 from ..services.file_processor import extract_text_from_pdf, extract_text_from_docx, process_excel_candidates
 from .auth import get_current_user
 
@@ -159,7 +159,7 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
                         if v: candidate.summary = v
                     if not candidate.experiences:
                         v = _cp.get("experiences")
-                        if isinstance(v, list) and v: candidate.experiences = v
+                        if isinstance(v, list) and v: candidate.experiences = _sanitize_experiences(v)
                     if not candidate.education_history:
                         v = _cp.get("education_history")
                         if isinstance(v, list) and v: candidate.education_history = v
@@ -194,7 +194,7 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
                         if v: candidate.summary = v
                     if not candidate.experiences:
                         v = _info.get("experiences")
-                        if isinstance(v, list) and v: candidate.experiences = v
+                        if isinstance(v, list) and v: candidate.experiences = _sanitize_experiences(v)
                     if not candidate.education_history:
                         v = _info.get("education_history")
                         if isinstance(v, list) and v: candidate.education_history = v
@@ -555,7 +555,7 @@ async def screen_cv(
                     if v: candidate.summary = v
                 if not candidate.experiences:
                     v = _cp.get("experiences")
-                    if isinstance(v, list) and v: candidate.experiences = v
+                    if isinstance(v, list) and v: candidate.experiences = _sanitize_experiences(v)
                 if not candidate.education_history:
                     v = _cp.get("education_history")
                     if isinstance(v, list) and v: candidate.education_history = v
@@ -592,7 +592,7 @@ async def screen_cv(
                     if v: candidate.summary = v
                 if not candidate.experiences:
                     v = _info.get("experiences")
-                    if isinstance(v, list) and v: candidate.experiences = v
+                    if isinstance(v, list) and v: candidate.experiences = _sanitize_experiences(v)
                 if not candidate.education_history:
                     v = _info.get("education_history")
                     if isinstance(v, list) and v: candidate.education_history = v

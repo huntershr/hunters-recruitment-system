@@ -298,6 +298,23 @@ _EMPLOYER_HEADER_BLOCKLIST: frozenset[str] = frozenset({
 })
 
 
+_EXPERIENCE_SENTINEL = "Not stated in the CV"
+
+def _sanitize_experiences(exp_list: list) -> list:
+    """Strip agent-repo sentinel strings from experience entries before DB write."""
+    if not isinstance(exp_list, list):
+        return exp_list
+    out = []
+    for e in exp_list:
+        if not isinstance(e, dict):
+            continue
+        e = dict(e)
+        if e.get("title")    == _EXPERIENCE_SENTINEL: e["title"]    = ""
+        if e.get("employer") == _EXPERIENCE_SENTINEL: e["employer"] = ""
+        out.append(e)
+    return out
+
+
 def _clean_experiences(experiences: list) -> list:
     """
     Discard employer values that are section-header strings or obvious fragment sentences.

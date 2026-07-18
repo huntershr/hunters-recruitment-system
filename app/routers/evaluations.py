@@ -6,7 +6,7 @@ import json
 
 from .. import models, schemas
 from ..database import get_db
-from ..services.ai_evaluator import call_agent_screener, evaluate_candidate, finalize_evaluation
+from ..services.ai_evaluator import call_agent_screener, evaluate_candidate, finalize_evaluation, _sanitize_experiences
 from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -151,7 +151,7 @@ def re_evaluate_candidate(
             if v: candidate.summary = v
             if not candidate.experiences:
                 v = _cp.get("experiences")
-                if isinstance(v, list) and v: candidate.experiences = v
+                if isinstance(v, list) and v: candidate.experiences = _sanitize_experiences(v)
             if not candidate.education_history:
                 v = _cp.get("education_history")
                 if isinstance(v, list) and v: candidate.education_history = v

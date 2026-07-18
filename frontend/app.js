@@ -1372,12 +1372,13 @@ function viewAtsProfile(applicationId) {
             const skillTags = parseListField(p.skills).map(s => pill(s)).join('')
                 || '<span style="color:#9CA3AF;font-size:12px;">No skills listed</span>';
 
+            const _nsv = s => s === 'Not stated in the CV' ? '' : (s || '');
             const expHtml = (p.experiences || []).length
                 ? p.experiences.map(e => `
                     <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:0.5px solid #F3F4F6;">
-                        <div style="font-size:12px;font-weight:500;color:#1B2A4A;">${escHtml(e.title || e.role || '')}</div>
+                        <div style="font-size:12px;font-weight:500;color:#1B2A4A;">${escHtml(_nsv(e.title) || _nsv(e.role) || '')}</div>
                         <div style="font-size:11px;color:#0F6E56;margin-top:1px;">
-                            ${escHtml(e.employer || e.company || '')}${e.start ? ' · ' + escHtml(e.start) + (e.end ? ' – ' + escHtml(e.end) : ' – Present') : ''}
+                            ${escHtml(_nsv(e.employer) || _nsv(e.company) || '')}${e.start ? ' · ' + escHtml(e.start) + (e.end ? ' – ' + escHtml(e.end) : ' – Present') : ''}
                         </div>
                         ${e.description ? `<div style="font-size:11px;color:#6B7280;margin-top:4px;line-height:1.5;">${escHtml(e.description)}</div>` : ''}
                     </div>`).join('')

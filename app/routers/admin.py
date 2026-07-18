@@ -11,7 +11,7 @@ import logging
 
 from .. import models, database
 from ..routers.auth import get_current_user
-from ..services.ai_evaluator import evaluate_candidate, finalize_evaluation, extract_candidate_info, call_agent_screener
+from ..services.ai_evaluator import evaluate_candidate, finalize_evaluation, extract_candidate_info, call_agent_screener, _sanitize_experiences
 
 _logger = logging.getLogger(__name__)
 
@@ -1422,7 +1422,7 @@ def rescreen_pending(
                         if v: candidate.summary = v
                     if not candidate.experiences:
                         v = _cp.get("experiences")
-                        if isinstance(v, list) and v: candidate.experiences = v
+                        if isinstance(v, list) and v: candidate.experiences = _sanitize_experiences(v)
                     if not candidate.education_history:
                         v = _cp.get("education_history")
                         if isinstance(v, list) and v: candidate.education_history = v
@@ -1516,7 +1516,7 @@ def rescreen_pending(
                         if v: candidate.summary = v
                     if not candidate.experiences:
                         v = _cp.get("experiences")
-                        if isinstance(v, list) and v: candidate.experiences = v
+                        if isinstance(v, list) and v: candidate.experiences = _sanitize_experiences(v)
                     if not candidate.education_history:
                         v = _cp.get("education_history")
                         if isinstance(v, list) and v: candidate.education_history = v
@@ -1591,7 +1591,7 @@ def rescreen_pending(
                     if v: cand.summary = v
                 if not cand.experiences:
                     v = _p3_cp.get("experiences")
-                    if isinstance(v, list) and v: cand.experiences = v
+                    if isinstance(v, list) and v: cand.experiences = _sanitize_experiences(v)
                 if not cand.education_history:
                     v = _p3_cp.get("education_history")
                     if isinstance(v, list) and v: cand.education_history = v
@@ -1724,7 +1724,7 @@ def rescreen_single(
                 if v: candidate.summary = v
                 if not candidate.experiences:
                     v = _cp.get("experiences")
-                    if isinstance(v, list) and v: candidate.experiences = v
+                    if isinstance(v, list) and v: candidate.experiences = _sanitize_experiences(v)
                 if not candidate.education_history:
                     v = _cp.get("education_history")
                     if isinstance(v, list) and v: candidate.education_history = v

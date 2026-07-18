@@ -11,7 +11,7 @@ import time
 
 from .. import models, schemas, database
 from ..services.file_processor import extract_text_from_file
-from ..services.ai_evaluator import extract_candidate_info, evaluate_candidate, finalize_evaluation, call_agent_screener
+from ..services.ai_evaluator import extract_candidate_info, evaluate_candidate, finalize_evaluation, call_agent_screener, _sanitize_experiences
 from ..services.phone_filter import check_phone_region
 from ..auth_utils import get_password_hash
 
@@ -147,7 +147,7 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
                             if v: _cand.summary = v
                         if not _cand.experiences:
                             v = _cp.get("experiences")
-                            if isinstance(v, list) and v: _cand.experiences = v
+                            if isinstance(v, list) and v: _cand.experiences = _sanitize_experiences(v)
                         if not _cand.education_history:
                             v = _cp.get("education_history")
                             if isinstance(v, list) and v: _cand.education_history = v
