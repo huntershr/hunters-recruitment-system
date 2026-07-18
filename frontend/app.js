@@ -803,6 +803,12 @@ async function rescreenCandidate(applicationId, name) {
         if (idx >= 0) {
             applications[idx].score    = data.score;
             applications[idx].decision = data.decision;
+            if (data.last_title      != null) applications[idx].last_title      = data.last_title;
+            if (data.last_employer   != null) applications[idx].last_employer   = data.last_employer;
+            if (data.experience_years != null) applications[idx].experience_years = data.experience_years;
+            if (data.education       != null) applications[idx].education       = data.education;
+            if (data.skills          != null) applications[idx].skills          = data.skills;
+            if (data.summary         != null) applications[idx].summary         = data.summary;
         }
         showToast(`Rescreened: ${data.score}% — ${data.decision}`);
         renderCandidates();

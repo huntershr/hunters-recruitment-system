@@ -1770,6 +1770,12 @@ def rescreen_single(
             "score": ev.score,
             "decision": ev.decision,
             "reason": ev.reason,
+            "last_title":       candidate.last_title,
+            "last_employer":    candidate.last_employer,
+            "experience_years": candidate.experience_years,
+            "education":        candidate.education,
+            "skills":           candidate.skills,
+            "summary":          candidate.summary,
         }
     except HTTPException:
         raise
