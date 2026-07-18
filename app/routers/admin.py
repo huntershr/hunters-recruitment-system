@@ -1694,14 +1694,12 @@ def rescreen_single(
                     v = (_cp.get("name") or "").strip()
                     if v and v.isprintable() and any(c.isalpha() for c in v) and len(v) <= 80:
                         candidate.name = v
-                if not candidate.last_title:
-                    v = (_cp.get("current_title") or "").strip()
-                    if v and len(v) <= 80:
-                        candidate.last_title = v
-                if not candidate.last_employer:
-                    v = (_cp.get("last_employer") or "").strip()
-                    if v and len(v) <= 100 and not v[0].isdigit():
-                        candidate.last_employer = v
+                v = (_cp.get("current_title") or "").strip()
+                if v and len(v) <= 80:
+                    candidate.last_title = v
+                v = (_cp.get("last_employer") or "").strip()
+                if v and len(v) <= 100 and not v[0].isdigit():
+                    candidate.last_employer = v
                 if not (candidate.experience_years or 0):
                     v = _cp.get("years_experience")
                     if v:
@@ -1711,23 +1709,19 @@ def rescreen_single(
                                 candidate.experience_years = yr
                         except Exception:
                             pass
-                if not candidate.education:
-                    v = (_cp.get("education") or "").strip()
-                    if v: candidate.education = v
-                if not candidate.skills:
-                    v = _cp.get("skills")
-                    if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
-                    if v: candidate.skills = str(v).strip()
+                v = (_cp.get("education") or "").strip()
+                if v: candidate.education = v
+                v = _cp.get("skills")
+                if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                if v: candidate.skills = str(v).strip()
                 if not candidate.languages:
                     v = _cp.get("languages")
                     if isinstance(v, list) and v: candidate.languages = v
-                if not candidate.certifications:
-                    v = _cp.get("certifications")
-                    if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
-                    if v: candidate.certifications = str(v).strip()
-                if not candidate.summary:
-                    v = (_cp.get("summary") or "").strip()
-                    if v: candidate.summary = v
+                v = _cp.get("certifications")
+                if isinstance(v, list): v = ", ".join(str(x) for x in v if x)
+                if v: candidate.certifications = str(v).strip()
+                v = (_cp.get("summary") or "").strip()
+                if v: candidate.summary = v
                 if not candidate.experiences:
                     v = _cp.get("experiences")
                     if isinstance(v, list) and v: candidate.experiences = v
