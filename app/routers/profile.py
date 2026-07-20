@@ -6,6 +6,7 @@ import ast
 from .. import models, schemas, database
 from ..routers.auth import get_current_user
 from ..services.file_processor import extract_text_from_file
+from ..services.phone_filter import check_phone_region
 
 router = APIRouter(tags=["Profile"])
 
@@ -91,6 +92,14 @@ def update_candidate_profile(
             raise HTTPException(
                 status_code=400,
                 detail=f"Field '{immutable}' cannot be changed via this endpoint.",
+            )
+
+    if "phone" in update_data and update_data["phone"]:
+        _allowed, _ = check_phone_region(update_data["phone"])
+        if not _allowed:
+            raise HTTPException(
+                status_code=422,
+                detail="This service is not currently available in your region.",
             )
 
     for field, value in update_data.items():
@@ -426,6 +435,14 @@ async def candidate_apply(
     ).first()
     if existing_app:
         raise HTTPException(status_code=409, detail="You have already applied to this job.")
+
+    if candidate.phone:
+        _phone_allowed, _ = check_phone_region(candidate.phone)
+        if not _phone_allowed:
+            raise HTTPException(
+                status_code=422,
+                detail="This service is not currently available in your region.",
+            )
 
     if file and file.filename:
         fname = file.filename.lower()

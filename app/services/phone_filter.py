@@ -17,10 +17,23 @@ def check_phone_region(phone_str: str) -> tuple[bool, str]:
     Returns (allowed, region_code).
     Fails open — unparseable or unknown region is treated as allowed
     to avoid false positives on local-format numbers.
-    Parses with EG as default region so Egyptian local numbers (010...)
-    resolve correctly without a +20 prefix.
+
+    Parsing strategy:
+    - Numbers starting with '+' or '0' are parsed as-is with EG default
+      (covers Egyptian local format 01X... and proper international format).
+    - Numbers starting with any other digit are tried first with a '+' prefix
+      so that bare country codes (e.g. "962...", "91...") are identified
+      correctly instead of being mis-tagged as Egyptian.
     """
     try:
+        if not phone_str.startswith(("+", "0")):
+            try:
+                parsed = phonenumbers.parse("+" + phone_str, None)
+                region = phonenumbers.region_code_for_number(parsed)
+                if region:
+                    return region in _ALLOWED_REGIONS, region
+            except Exception:
+                pass
         parsed = phonenumbers.parse(phone_str, "EG")
         region = phonenumbers.region_code_for_number(parsed)
         if not region:
