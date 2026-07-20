@@ -1124,18 +1124,20 @@ function downloadAdminCV(id, safeName) {
     authFetch(`/candidates/${id}/cv`)
         .then(res => {
             if (!res.ok) throw new Error('Not available');
-            return res.blob();
+            const mime = res.headers.get('content-type') || '';
+            return res.blob().then(blob => ({ blob, mime }));
         })
-        .then(blob => {
+        .then(({ blob, mime }) => {
+            const ext = mime.includes('wordprocessingml') ? '.docx' : '.pdf';
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `CV_${safeName || id}.pdf`;
+            a.download = `CV_${safeName || id}${ext}`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            showToast('CV PDF downloaded successfully.', 'success');
+            showToast('CV downloaded successfully.', 'success');
         })
         .catch(() => showToast('CV not available for this candidate.', 'error'));
 }
@@ -1159,7 +1161,7 @@ function sendCandidateWhatsApp(phone, name, jobTitle) {
 
 // Phase 3: download CV via application ID (handles both Type A and Type B)
 function downloadAppCV(applicationId, safeName) {
-    showToast('Generating PDF…', 'info');
+    showToast('Downloading CV…', 'info');
     authFetch(`/api/admin/applications/${applicationId}/cv`)
         .then(res => {
             if (!res.ok) return res.text().then(t => {
@@ -1167,18 +1169,20 @@ function downloadAppCV(applicationId, safeName) {
                 try { msg = JSON.parse(t).detail || msg; } catch (_) {}
                 throw new Error(msg);
             });
-            return res.blob();
+            const mime = res.headers.get('content-type') || '';
+            return res.blob().then(blob => ({ blob, mime }));
         })
-        .then(blob => {
+        .then(({ blob, mime }) => {
+            const ext = mime.includes('wordprocessingml') ? '.docx' : '.pdf';
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `CV_${safeName || applicationId}.pdf`;
+            a.download = `CV_${safeName || applicationId}${ext}`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            showToast('CV PDF downloaded successfully.', 'success');
+            showToast('CV downloaded successfully.', 'success');
         })
         .catch(err => showToast(err.message || 'CV not available for this application.', 'error'));
 }
@@ -3374,10 +3378,12 @@ async function _coWsViewCv(appId) {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         if (!res.ok) throw new Error('CV not available');
+        const mime = res.headers.get('content-type') || '';
+        const ext = mime.includes('wordprocessingml') ? '.docx' : '.pdf';
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = 'CV_' + appId + '.pdf';
+        a.href = url; a.download = 'CV_' + appId + ext;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
         showToast('CV downloaded', 'success');
@@ -3827,11 +3833,13 @@ async function adminDownloadCandidateCv(candidateId, name) {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         if (!res.ok) throw new Error('CV not available');
+        const mime = res.headers.get('content-type') || '';
+        const ext = mime.includes('wordprocessingml') ? '.docx' : '.pdf';
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         const safeName = (name || 'Candidate').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_');
-        a.href = url; a.download = safeName + '_CV.pdf';
+        a.href = url; a.download = safeName + '_CV' + ext;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
         showToast('CV downloaded', 'success');
