@@ -605,9 +605,10 @@ async def screen_cv(
 
         # If email is still a placeholder, extract real email from cv_text via regex
         if not is_portal_candidate and 'noemail.hunters' in (candidate.email or ''):
-            _em_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', cv_text or '')
+            # Allow single space around @ to handle PDF extraction artifacts (e.g. "user @gmail.com")
+            _em_match = re.search(r'[a-zA-Z0-9._%+\-]+ ?@ ?[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', cv_text or '')
             if _em_match:
-                _extracted_email = _em_match.group(0).lower().strip()
+                _extracted_email = _em_match.group(0).replace(' ', '').lower().strip()
                 if 'noemail.hunters' not in _extracted_email:
                     candidate.email = _extracted_email
                     db.commit()
