@@ -116,6 +116,7 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
             logger.error(f"Evaluation failed: Candidate {candidate_id} or Job not found")
             return
 
+        _sp = {}
         _agent_result = call_agent_screener(candidate.cv_text or "", job, candidate.id)
         if _agent_result is not None:
             logger.info(f"Agent screener succeeded for candidate {candidate_id}")
@@ -367,6 +368,7 @@ async def screen_cv(
     _agent_result = await asyncio.get_event_loop().run_in_executor(
         None, call_agent_screener, cv_text, job, None
     )
+    _sp   = {}
     _cp   = {}
     _info = {}
 
