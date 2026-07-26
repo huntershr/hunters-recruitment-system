@@ -281,6 +281,11 @@ def run_evaluation_task_for_application(application_id: int, cv_text: str, db: S
         db.add(db_eval)
         db.commit()
         logger.info(f"Finished evaluation for application {application_id}")
+
+        if result.get("decision") == "Reject" and (application.stage or "").lower() == "applied":
+            application.stage = "Rejected"
+            db.commit()
+
     except Exception as e:
         logger.error(f"Evaluation task failed for application {application_id}: {e}")
         try:
