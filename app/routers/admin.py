@@ -1815,6 +1815,7 @@ def rescreen_single(
     _lstr = lambda v: "\n".join(f"- {x}" for x in v if x) if isinstance(v, list) else str(v or "")
 
     try:
+        _sp = {}
         _ar = call_agent_screener(candidate.cv_text, job, candidate.id)
         if _ar is not None:
             _sp = _ar.pop("_screening_params", None) or {}
