@@ -773,7 +773,7 @@
 
 <!-- Add Job Modal -->
 <div class="modal" id="job-add-modal">
-    <div class="modal-content large">
+    <div class="modal-content large" style="display:flex;flex-direction:column;max-height:90vh;">
         <div class="modal-header-bar">
             <span class="modal-title">Add New Job</span>
             <span class="close-btn" onclick="closeModals()">&times;</span>
@@ -797,7 +797,7 @@
             </div>
         </div>
 
-        <div class="modal-body-area">
+        <div class="modal-body-area" style="overflow-y:auto;flex:1;min-height:0;">
             <div class="modal-tabs">
                 <button class="tab-btn active" onclick="switchJobTab(event, 'upload-tab')">Upload File</button>
                 <button class="tab-btn" onclick="switchJobTab(event, 'ai-tab')">&#10024; Ask AI</button>
