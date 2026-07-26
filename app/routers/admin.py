@@ -1897,6 +1897,10 @@ def rescreen_single(
         ev.required_industry_used = _sp.get("required_industry")
         db.commit()
 
+        if ev.decision == "Reject" and (app.stage or "").lower() == "applied":
+            app.stage = "Rejected"
+            db.commit()
+
         return {
             "status": "rescreened",
             "application_id": application_id,

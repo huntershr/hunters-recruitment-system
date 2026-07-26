@@ -257,7 +257,13 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
         db.add(db_eval)
         db.commit()
         logger.info(f"Finished evaluation for candidate {candidate_id}")
-        
+
+        if application_id and eval_result.get("decision") == "Reject":
+            _app = db.query(models.Application).filter(models.Application.id == application_id).first()
+            if _app and (_app.stage or "").lower() == "applied":
+                _app.stage = "Rejected"
+                db.commit()
+
         # Send results back to Google Sheets
         from ..services.google_sheets import update_candidate_row
         update_candidate_row(candidate.email, eval_result)
@@ -700,6 +706,11 @@ async def screen_cv(
         )
         db.add(db_eval)
         db.commit()
+
+        if result.get("decision") == "Reject" and (application.stage or "").lower() == "applied":
+            application.stage = "Rejected"
+            db.commit()
+
     except Exception as _eval_err:
         logger.error(f"AI screening failed for candidate {candidate.id}: {_eval_err}")
         try:
