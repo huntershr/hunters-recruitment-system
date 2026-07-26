@@ -257,36 +257,39 @@ def generate_job_details(job_title: str, industry_background: str, additional_co
         raise
 
 
-def simplify_skills_to_keywords(skills_text: str) -> list[str]:
+def simplify_skills_to_keywords(skills_list: list[str]) -> list[str]:
     """
-    Takes a comma-separated string of skill descriptions and returns a list of
-    short keyword phrases (≤3 words each) suitable for keyword-based CV matching.
+    Takes a list of skill description strings and returns a positionally-aligned
+    list of short keyword phrases via the AI Engine's simplify-skills skill.
     """
-    prompt = f"""You are converting job skill descriptions into short screening keywords for a CV screening system.
+    import httpx
 
-Rules:
-- Output ONLY a JSON array of strings, no explanation, no markdown.
-- Each keyword must be 3 words or fewer.
-- Preserve specific product names, certifications, curricula, and proper nouns exactly (e.g. "Cambridge IGCSE", "Microsoft Excel", "IB Diploma").
-- Remove filler words like "experience with", "proficiency in", "ability to", "knowledge of".
-- If a skill contains multiple distinct concepts, split into separate keywords.
-- Merge near-duplicates into one keyword.
+    engine_url = os.getenv("AI_ENGINE_URL", "https://hunters-ai-engine-production.up.railway.app")
+    api_key    = os.getenv("AI_ENGINE_KEY", "hunters-ai-engine-key-prod")
 
-Skills to convert (comma-separated):
-{skills_text}
-
-Return ONLY a JSON array. Example: ["Cambridge Curriculum","Classroom Management","Microsoft Excel"]"""
+    payload = {
+        "skill": "simplify-skills",
+        "inputs": {"skills": skills_list},
+    }
 
     try:
-        resp = _gemini_model.generate_content(prompt)
-        raw = resp.text.strip()
-        if raw.startswith("```"):
-            raw = re.sub(r"^```[a-z]*\n?", "", raw)
-            raw = re.sub(r"\n?```$", "", raw.strip())
-        parsed = json.loads(repair_json(raw))
-        if isinstance(parsed, list):
-            return [str(k).strip() for k in parsed if str(k).strip()]
-        return []
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
+                f"{engine_url}/execute",
+                json=payload,
+                headers={"X-API-Key": api_key},
+            )
+            response.raise_for_status()
+            result = response.json()
+
+        if not result.get("success"):
+            raise RuntimeError(f"AI Engine error: {result.get('error', 'unknown')}")
+
+        data = result["data"]
+        if not isinstance(data, list):
+            raise RuntimeError(f"AI Engine returned unexpected type: {type(data)}")
+        return [str(k).strip() for k in data if str(k).strip()]
+
     except Exception as e:
         logger.error("simplify_skills_to_keywords failed: %s", e)
         raise

@@ -805,12 +805,11 @@ async def simplify_skills_ai(
     request: SimplifySkillsRequest,
     current_user: models.User = Depends(get_current_user)
 ):
-    if not os.getenv("GEMINI_API_KEY", ""):
-        raise HTTPException(status_code=503, detail="AI service not configured")
     if not (request.skills or "").strip():
         raise HTTPException(status_code=400, detail="No skills provided")
     try:
-        keywords = simplify_skills_to_keywords(request.skills)
+        skills_list = [s.strip() for s in request.skills.split(",") if s.strip()]
+        keywords = simplify_skills_to_keywords(skills_list)
         return JSONResponse(content={"keywords": keywords})
     except Exception as e:
         logging.error("simplify_skills_ai error: %s", e)
