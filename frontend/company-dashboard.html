@@ -4354,8 +4354,9 @@
         const job = window._cdAIGeneratedJob;
         if (!job) return;
         const fill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-        fill('job-modal-title-input', window._cdAIJobTitle || '');
-        fill('job-modal-desc',        job.job_brief);
+        fill('job-modal-title-input',  window._cdAIJobTitle    || '');
+        fill('job-modal-industry-exp', window._cdAIJobIndustry || '');
+        fill('job-modal-desc',         job.job_brief);
         const toLines = v => (v||'').split(',').map(s=>s.trim()).filter(Boolean).join('\n');
         // Populate skill rows from AI result (no deal breakers from AI)
         _clearSkillRows('skills-row-list');
@@ -4547,6 +4548,11 @@
                             <option value="Other">Other</option>
                         </select>
                     </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Specific Industry Experience <span style="color:#6B7280; font-size:11px; font-weight:400;">— enforced as a screening gate</span></label>
+                        <input type="text" id="job-modal-industry-exp" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif; box-sizing:border-box;" placeholder="e.g. International School, Cambridge Curriculum, Real Estate">
+                    </div>
+
                     <div style="display:flex; gap:16px; margin-bottom:16px;">
                         <div style="flex:1;">
                             <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Job Title</label>

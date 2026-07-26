@@ -25,13 +25,21 @@ def call_agent_screen(cv_text: str, job) -> dict | None:
         # Parse * prefix: starred skills become essential_skills; strip * from the skills list
         essential_from_stars = [s.lstrip("*").strip() for s in raw_items if s.startswith("*")]
         skills_list = [s.lstrip("*").strip() for s in raw_items]
-        # Prefer explicit deal_breakers (new UI), then essential_skills DB column, then *-prefix parse
-        deal_breakers = (
-            getattr(job, "deal_breakers", None) or
+        # Build deal_breakers: essential_skills (from UI checkboxes) or *-prefixed skills
+        ind_exp = (getattr(job, "industry_experience", None) or "").strip()
+        deal_breakers_base = list(
             getattr(job, "essential_skills", None) or
             essential_from_stars or
             []
         )
+        # Always enforce industry_experience as a hard gate when set and not already covered
+        if ind_exp and not any(
+            ind_exp.lower() in str(db).lower() or str(db).lower() in ind_exp.lower()
+            for db in deal_breakers_base
+        ):
+            deal_breakers = deal_breakers_base + [ind_exp]
+        else:
+            deal_breakers = deal_breakers_base
 
         payload = {
             "cv_text": cv_text,
@@ -40,7 +48,7 @@ def call_agent_screen(cv_text: str, job) -> dict | None:
                 "description": getattr(job, "job_description", None) or "",
                 "required_skills": skills_list,
                 "required_experience": getattr(job, "min_experience", None) or 0,
-                "required_industry": getattr(job, "department", None) or getattr(job, "industry_experience", None) or "",
+                "required_industry": ind_exp or getattr(job, "department", None) or "",
                 "min_education": getattr(job, "education_level", None) or "",
                 "weights": {
                     "title":      getattr(job, "agent_weight_title",      None) or 25,

@@ -796,6 +796,8 @@ function openEditJobModal(id) {
     if (behavEl) behavEl.value = toLines(job.behavioral_skills);
     const eduEl = document.getElementById('job-modal-edu');
     if (eduEl) eduEl.value = job.education_level || '';
+    const indExpEl = document.getElementById('job-modal-industry-exp');
+    if (indExpEl) indExpEl.value = job.industry_experience || '';
     const _sqFill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
     _sqFill('job-modal-sq1', job.screening_q1);
     _sqFill('job-modal-sq2', job.screening_q2);
@@ -978,6 +980,7 @@ async function saveHuntersJob(e) {
     const { required_skills: _rs, deal_breakers: _dbs } = getSkillsPayload('skills-row-list');
     const payload = {
         department: dept || 'Other',
+        industry_experience: (document.getElementById('job-modal-industry-exp')?.value || '').trim() || null,
         title: document.getElementById('job-modal-title-input').value,
         location: document.getElementById('job-modal-location').value,
         employment_type: document.getElementById('job-modal-type').value,
