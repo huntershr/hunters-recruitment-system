@@ -242,6 +242,34 @@ function _clearSkillRows(containerId) {
     if (list) { list.innerHTML = ''; _updateSkillsCounter(containerId || 'skills-row-list'); }
 }
 
+async function simplifySkillRows(containerId, btnEl) {
+    const list = document.getElementById(containerId || 'skills-row-list');
+    if (!list) return;
+    const entries = Array.from(list.querySelectorAll('.skill-row')).map(row => ({
+        input: row.querySelector('.skill-name-input'),
+        value: (row.querySelector('.skill-name-input')?.value || '').trim()
+    })).filter(e => e.value);
+    if (entries.length === 0) { if (typeof showToast === 'function') showToast('No skills to convert', 'info'); return; }
+    if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Converting…'; }
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/ai/simplify-skills', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ skills: entries.map(e => e.value).join(',') })
+        });
+        if (!res.ok) throw new Error(((await res.json().catch(() => ({}))).detail) || 'Failed');
+        const data = await res.json();
+        const keywords = data.keywords || [];
+        if (keywords.length !== entries.length) throw new Error('Count mismatch — try again');
+        entries.forEach((e, i) => { e.input.value = keywords[i]; });
+        if (btnEl) { btnEl.textContent = 'Done'; btnEl.style.color = '#0F6E56'; btnEl.style.borderColor = '#0F6E56'; }
+    } catch (err) {
+        if (typeof showToast === 'function') showToast('Conversion failed: ' + (err.message || 'Try again'), 'error');
+        if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Turn to Keywords for Better Screening'; btnEl.style.color = ''; btnEl.style.borderColor = ''; }
+    }
+}
+
 async function fetchData() {
     // Reset to safe defaults so stale data never persists across calls
     jobs = [];
