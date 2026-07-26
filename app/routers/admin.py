@@ -46,6 +46,10 @@ class AdminJobPayload(BaseModel):
     agent_weight_experience: int = 25
     agent_weight_skills: int = 25
     essential_skills: Optional[list] = None
+    screening_q1: Optional[str] = None
+    screening_q2: Optional[str] = None
+    screening_q4: Optional[str] = None
+    screening_q5: Optional[str] = None
 
 
 class PlanUpdateRequest(BaseModel):
@@ -1192,6 +1196,8 @@ def list_admin_applications(
             "skills": candidate.skills if candidate else None,
             "experience_years": candidate.experience_years if candidate else None,
             "last_title": candidate.last_title if candidate else None,
+            "last_employer": candidate.last_employer if candidate else None,
+            "location": candidate.location if candidate else None,
             "photo_url": candidate.photo_url if candidate else None,
             "cv_available": bool(
                 (candidate and (candidate.cv_file_mime or candidate.cv_text)) or
@@ -1308,6 +1314,128 @@ def get_candidate_ats_profile(
         "education_history": candidate.education_history or [],
         "languages": candidate.languages or [],
         "applications": app_list,
+    }
+
+
+@router.post("/candidate/{candidate_id}/re-extract-profile")
+def re_extract_candidate_profile(
+    candidate_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Force re-extract ATS profile fields from cv_text (agent-first, Gemini fallback).
+    Never touches email, phone, cv_text, score, dimension_scores, or the evaluation table."""
+    if not current_user.is_admin or current_user.email.lower() != SUPERADMIN_EMAIL.lower():
+        raise HTTPException(status_code=403, detail="Superadmin only")
+
+    candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    if not candidate.cv_text:
+        raise HTTPException(status_code=422, detail="No CV text available — cannot re-extract profile")
+
+    job = db.query(models.Job).filter(models.Job.id == candidate.job_applied).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found for this candidate")
+
+    _logger.info(f"Re-extracting ATS profile for candidate {candidate_id}")
+
+    _cp = None
+    _source = "agent"
+
+    _ar = call_agent_screener(candidate.cv_text, job, candidate.id)
+    if _ar is not None:
+        _cp = _ar.pop("_candidate_profile", None) or {}
+    else:
+        _logger.warning(f"Agent unavailable for candidate {candidate_id}; falling back to Gemini profile extraction")
+        _source = "gemini"
+        try:
+            _cp = extract_candidate_info(candidate.cv_text) or {}
+        except Exception as exc:
+            _logger.error(f"Gemini profile extraction failed for candidate {candidate_id}: {exc}")
+            raise HTTPException(status_code=503, detail="AI service unavailable, please try again")
+
+    if not _cp:
+        raise HTTPException(status_code=422, detail="AI returned no profile data")
+
+    # Agent uses "current_title"/"years_experience"; Gemini uses "last_title"/"experience_years" — handle both
+    title_val = (_cp.get("current_title") or _cp.get("last_title") or "").strip()
+    years_raw = _cp.get("years_experience") if _cp.get("years_experience") is not None else _cp.get("experience_years")
+
+    name_val = (_cp.get("name") or "").strip()
+    if name_val and name_val.isprintable() and any(c.isalpha() for c in name_val) and len(name_val) <= 80:
+        if not candidate.name or candidate.name.lower().startswith("resume"):
+            candidate.name = name_val
+
+    if title_val and len(title_val) <= 80:
+        candidate.last_title = title_val
+
+    employer_val = (_cp.get("last_employer") or "").strip()
+    if employer_val:
+        candidate.last_employer = employer_val
+
+    if years_raw is not None:
+        try:
+            yr = int(years_raw)
+            if 0 <= yr <= 50:
+                candidate.experience_years = yr
+        except Exception:
+            pass
+
+    edu_val = (_cp.get("education") or "").strip()
+    if edu_val:
+        candidate.education = edu_val
+
+    skills_val = _cp.get("skills")
+    if isinstance(skills_val, list):
+        skills_val = ", ".join(str(x) for x in skills_val if x)
+    if skills_val:
+        candidate.skills = str(skills_val).strip()
+
+    certs_val = _cp.get("certifications")
+    if isinstance(certs_val, list):
+        certs_val = ", ".join(str(x) for x in certs_val if x)
+    if certs_val:
+        candidate.certifications = str(certs_val).strip()
+
+    summary_val = (_cp.get("summary") or "").strip()
+    if summary_val:
+        candidate.summary = summary_val
+
+    exp_val = _cp.get("experiences")
+    if isinstance(exp_val, list) and exp_val:
+        candidate.experiences = _sanitize_experiences(exp_val)
+
+    edu_hist_val = _cp.get("education_history")
+    if isinstance(edu_hist_val, list) and edu_hist_val:
+        candidate.education_history = edu_hist_val
+
+    lang_val = _cp.get("languages")
+    if isinstance(lang_val, list) and lang_val:
+        candidate.languages = lang_val
+
+    loc_val = (_cp.get("location") or "").strip()
+    if loc_val:
+        candidate.location = loc_val
+
+    db.commit()
+    db.refresh(candidate)
+
+    _logger.info(
+        f"Re-extract complete for candidate {candidate_id} (source={_source}): "
+        f"title={candidate.last_title!r} employer={candidate.last_employer!r} years={candidate.experience_years}"
+    )
+    return {
+        "success": True,
+        "candidate_id": candidate_id,
+        "source": _source,
+        "name": candidate.name,
+        "last_title": candidate.last_title,
+        "last_employer": candidate.last_employer,
+        "experience_years": candidate.experience_years,
+        "skills": candidate.skills,
+        "summary": candidate.summary,
     }
 
 
@@ -2487,6 +2615,10 @@ def _job_to_dict(j: models.Job) -> dict:
         "agent_weight_skills":     getattr(j, "agent_weight_skills",     25) or 25,
         "essential_skills":        getattr(j, "essential_skills",        None) or [],
         "deal_breakers":           getattr(j, "essential_skills",        None) or [],
+        "screening_q1":            getattr(j, "screening_q1",            None) or "",
+        "screening_q2":            getattr(j, "screening_q2",            None) or "",
+        "screening_q4":            getattr(j, "screening_q4",            None) or "",
+        "screening_q5":            getattr(j, "screening_q5",            None) or "",
     }
 
 
@@ -2552,6 +2684,10 @@ def admin_create_job(
         agent_weight_experience=payload.agent_weight_experience,
         agent_weight_skills=payload.agent_weight_skills,
         essential_skills=payload.essential_skills or [],
+        screening_q1=(payload.screening_q1 or "").strip() or None,
+        screening_q2=(payload.screening_q2 or "").strip() or None,
+        screening_q4=(payload.screening_q4 or "").strip() or None,
+        screening_q5=(payload.screening_q5 or "").strip() or None,
         is_approved=True,
     )
     db.add(job)
@@ -2593,6 +2729,10 @@ def admin_update_job(
     job.agent_weight_experience = payload.agent_weight_experience
     job.agent_weight_skills     = payload.agent_weight_skills
     job.essential_skills        = payload.essential_skills or []
+    job.screening_q1 = (payload.screening_q1 or "").strip() or None
+    job.screening_q2 = (payload.screening_q2 or "").strip() or None
+    job.screening_q4 = (payload.screening_q4 or "").strip() or None
+    job.screening_q5 = (payload.screening_q5 or "").strip() or None
     db.commit()
     db.refresh(job)
     return _job_to_dict(job)

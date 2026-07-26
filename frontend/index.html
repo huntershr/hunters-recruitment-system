@@ -966,6 +966,35 @@
                                 <textarea id="manual-job-behavioral" class="field-input field-textarea"
                                           placeholder="Communication&#10;Teamwork&#10;Adaptability&#10;Problem Solving"></textarea>
                             </div>
+                            <div class="form-group" style="border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;padding:0;">
+                                <div style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                                    <span style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.06em;">Screening Questions</span>
+                                    <span style="font-size:11px;color:#9CA3AF;">Customize what candidates are asked</span>
+                                </div>
+                                <div id="admin-sq-body" style="padding:14px;">
+                                    <p style="font-size:11px;color:#9CA3AF;margin:0 0 12px;line-height:1.5;">Leave blank to use the default question. Q3 (salary) is always locked.</p>
+                                    <div style="margin-bottom:10px;">
+                                        <label class="field-label" style="font-size:11px;">Q1 — Experience <span style="color:#9CA3AF;font-weight:400;">(Ask about experience relevant to this role)</span></label>
+                                        <input type="text" id="admin-sq1" class="field-input" style="padding:8px 10px;font-size:12px;" placeholder="Please describe your experience relevant to the [role] role.">
+                                    </div>
+                                    <div style="margin-bottom:10px;">
+                                        <label class="field-label" style="font-size:11px;">Q2 — Availability <span style="color:#9CA3AF;font-weight:400;">(Ask about start date / availability)</span></label>
+                                        <input type="text" id="admin-sq2" class="field-input" style="padding:8px 10px;font-size:12px;" placeholder="When are you available to start?">
+                                    </div>
+                                    <div style="margin-bottom:10px;opacity:0.6;">
+                                        <label class="field-label" style="font-size:11px;">Q3 — Salary (Locked)</label>
+                                        <div style="padding:8px 10px;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;color:#6B7280;">What is your expected monthly salary?</div>
+                                    </div>
+                                    <div style="margin-bottom:10px;">
+                                        <label class="field-label" style="font-size:11px;">Q4 — Candidate Questions <span style="color:#9CA3AF;font-weight:400;">(Must stay a question about experience or interest)</span></label>
+                                        <input type="text" id="admin-sq4" class="field-input" style="padding:8px 10px;font-size:12px;" placeholder="Do you have any questions for us?">
+                                    </div>
+                                    <div>
+                                        <label class="field-label" style="font-size:11px;">Q5 — Optional Extra Question <span style="color:#9CA3AF;font-weight:400;">(Leave blank to skip, English only)</span></label>
+                                        <input type="text" id="admin-sq5" class="field-input" style="padding:8px 10px;font-size:12px;" placeholder="e.g. What is your current notice period?">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- STEP 3: Scoring Weights -->

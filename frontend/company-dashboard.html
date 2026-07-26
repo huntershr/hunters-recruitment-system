@@ -2129,32 +2129,34 @@
 
     function exportCandidatesDataToCSV(candidates) {
         const headers = [
-            "Applicant","Phone","Email","Location","Stage",
-            "Last Title","Last Employer","Years of Exp.",
-            "Resume File","Interviewer","Score","HR Notes"
+            "Applicant","Phone","Email","Job Title",
+            "Score","Decision","Last Title","Last Employer",
+            "Years of Exp.","Resume","Interviewer","Applied Date"
         ];
-        
+
+        const cleanEmail = e => (e || '').includes('@noemail.hunters') ? '' : (e || '');
+
         const rows = candidates.map(c => [
             c.full_name || c.name || '',
             c.phone || '',
-            c.email || '',
-            c.location || '',
-            c.stage || c.status || 'Applied',
+            cleanEmail(c.email),
+            c.job_title || '',
+            formatScore(c.evaluation_score || c.score) ?? '',
+            c.decision || '',
             c.last_title || c.lastTitle || '',
             c.last_employer || c.lastEmployer || '',
             c.years_exp ?? c.yearsExp ?? c.experience_years ?? '',
-            c.has_cv ? `${API_URL}/candidates/${c.id}/cv` : '',
-            c.interviewer || '',
-            formatScore(c.evaluation_score || c.score) ?? '',
-            c.notes || c.hr_notes || ''
+            c.cv_available ? 'Yes' : 'No',
+            (c.interview && c.interview.interviewer_names) || '',
+            (c.applied_at || '').split('T')[0]
         ]);
-        
+
         const esc = v => `"${String(v).replace(/"/g,'""')}"`;
         const csv = '\uFEFF' + [headers,...rows].map(r=>r.map(esc).join(',')).join('\r\n');
         const uri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
         const a = document.createElement('a');
-        a.href = uri; 
-        a.download = `candidates_export_${new Date().toISOString().slice(0,10)}.csv`; 
+        a.href = uri;
+        a.download = `candidates_export_${new Date().toISOString().slice(0,10)}.csv`;
         a.click();
     }
 
@@ -2851,6 +2853,7 @@
                 if (vs.expected_salary)       metaItems.push(['Expected Salary',     vs.expected_salary]);
                 if (vs.availability_response) metaItems.push(['Availability',        vs.availability_response]);
                 if (vs.candidate_questions)   metaItems.push(['Candidate Questions', vs.candidate_questions]);
+                if (vs.q5_response)           metaItems.push(['Q5',                  vs.q5_response]);
 
                 html += `<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;" onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.07)'" onmouseout="this.style.boxShadow='none'">`;
                 html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;flex-wrap:wrap;">`;
@@ -4634,6 +4637,37 @@
                     <div style="margin-bottom:16px;">
                         <label style="font-size:13px; font-weight:500; color:#1A1A2E; margin-bottom:6px; display:block;">Education Level <span style="font-size:11px; color:#9CA3AF;">(optional)</span></label>
                         <input type="text" id="job-modal-edu" placeholder="e.g. Bachelor's Degree" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; font-family:'Segoe UI', Arial, sans-serif;">
+                    </div>
+
+                    <!-- Screening Questions -->
+                    <div style="border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;margin-bottom:16px;">
+                        <div style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.06em;">Screening Questions</span>
+                            <span style="font-size:11px;color:#9CA3AF;">Customize what candidates are asked</span>
+                        </div>
+                        <div style="padding:14px;">
+                            <p style="font-size:11px;color:#9CA3AF;margin:0 0 12px;line-height:1.5;">Leave blank to use the default question. Q3 (salary) is always locked.</p>
+                            <div style="margin-bottom:10px;">
+                                <label style="font-size:12px;font-weight:500;color:#374151;display:block;margin-bottom:3px;">Q1 — Experience <span style="color:#9CA3AF;font-weight:400;">(Ask about experience relevant to this role)</span></label>
+                                <input type="text" id="job-modal-sq1" placeholder="Please describe your experience relevant to the [role] role." style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;outline:none;box-sizing:border-box;">
+                            </div>
+                            <div style="margin-bottom:10px;">
+                                <label style="font-size:12px;font-weight:500;color:#374151;display:block;margin-bottom:3px;">Q2 — Availability <span style="color:#9CA3AF;font-weight:400;">(Ask about start date / availability)</span></label>
+                                <input type="text" id="job-modal-sq2" placeholder="When are you available to start?" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;outline:none;box-sizing:border-box;">
+                            </div>
+                            <div style="margin-bottom:10px;opacity:0.6;">
+                                <label style="font-size:12px;font-weight:500;color:#374151;display:block;margin-bottom:3px;">Q3 — Salary <span style="color:#9CA3AF;font-weight:400;">(Locked)</span></label>
+                                <div style="padding:8px 10px;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;color:#6B7280;">What is your expected monthly salary?</div>
+                            </div>
+                            <div style="margin-bottom:10px;">
+                                <label style="font-size:12px;font-weight:500;color:#374151;display:block;margin-bottom:3px;">Q4 — Candidate Questions <span style="color:#9CA3AF;font-weight:400;">(Must stay a question about experience or interest)</span></label>
+                                <input type="text" id="job-modal-sq4" placeholder="Do you have any questions for us?" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;outline:none;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px;font-weight:500;color:#374151;display:block;margin-bottom:3px;">Q5 — Optional Extra Question <span style="color:#9CA3AF;font-weight:400;">(Leave blank to skip, English only)</span></label>
+                                <input type="text" id="job-modal-sq5" placeholder="e.g. What is your current notice period?" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;outline:none;box-sizing:border-box;">
+                            </div>
+                        </div>
                     </div>
 
                     <div style="display:flex; justify-content:space-between;">

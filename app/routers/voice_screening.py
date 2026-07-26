@@ -42,6 +42,8 @@ def _screening_dict(vs: models.VoiceScreening) -> dict:
         "expected_salary": vs.expected_salary,
         "candidate_questions": vs.candidate_questions,
         "has_candidate_questions": vs.has_candidate_questions,
+        "q5_response": vs.q5_response,
+        "questions_json": vs.questions_json,
         "english_level": vs.english_level,
         "fluency_assessment": vs.fluency_assessment,
         "clarity_assessment": vs.clarity_assessment,
@@ -60,13 +62,17 @@ def _screening_dict(vs: models.VoiceScreening) -> dict:
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
-def _build_questions(job_title, job_type=None, interview_date=None, interview_time=None):
-    return [
-        f"Please describe your experience relevant to the {job_title} role.",
-        "When are you available to start?",
-        "What is your expected monthly salary?",
-        "Do you have any questions for us?",
-    ]
+def _build_questions(job_title="the role", job_type=None, interview_date=None, interview_time=None, job=None):
+    q1 = (job.screening_q1.strip() if job and job.screening_q1 else None) or f"Please describe your experience relevant to the {job_title} role."
+    q2 = (job.screening_q2.strip() if job and job.screening_q2 else None) or "When are you available to start?"
+    q3 = "What is your expected monthly salary?"
+    q4 = (job.screening_q4.strip() if job and job.screening_q4 else None) or "Do you have any questions for us?"
+    questions = [q1, q2, q3, q4]
+    if job and job.screening_q5:
+        q5 = job.screening_q5.strip()
+        if q5:
+            questions.append(q5)
+    return questions
 
 
 def _lookup_by_token(token: str, db: Session) -> models.VoiceScreening:
@@ -148,6 +154,8 @@ def start_screening(
 
         token = secrets.token_urlsafe(32)
 
+        questions = _build_questions(job_title, job_type, interview_date, interview_time, job=job)
+
         vs = models.VoiceScreening(
             candidate_id=candidate.id if candidate else None,
             application_id=data.application_id,
@@ -161,12 +169,11 @@ def start_screening(
             job_type_at_time=job_type,
             interview_date_at_time=interview_date,
             interview_time_at_time=interview_time,
+            questions_json=questions,
         )
         db.add(vs)
         db.commit()
         db.refresh(vs)
-
-        questions = _build_questions(job_title, job_type, interview_date, interview_time)
 
         return {
             "screening_id": vs.id,
@@ -205,10 +212,11 @@ def save_answer(
         2: "availability_response",
         3: "expected_salary",
         4: "candidate_questions",
+        5: "q5_response",
     }
     field = field_map.get(data.question_number)
     if not field:
-        raise HTTPException(status_code=400, detail="question_number must be 1-4")
+        raise HTTPException(status_code=400, detail="question_number must be 1-5")
 
     setattr(vs, field, data.transcript)
     if data.question_number == 4 and data.transcript.strip():
@@ -230,18 +238,16 @@ def complete_screening(
         raise HTTPException(status_code=404, detail="Screening not found")
 
     # Assemble full transcript with question text
-    questions = _build_questions(
+    _qs = vs.questions_json if vs.questions_json else _build_questions(
         vs.job_title_at_time or "the role",
         vs.job_type_at_time or "Full-time",
         vs.interview_date_at_time,
         vs.interview_time_at_time,
     )
-    qa_pairs = [
-        (vs.experience_response,   questions[0]),
-        (vs.availability_response, questions[1]),
-        (vs.expected_salary,       questions[2]),
-        (vs.candidate_questions,   questions[3]),
-    ]
+    _responses = [vs.experience_response, vs.availability_response, vs.expected_salary, vs.candidate_questions]
+    if len(_qs) > 4:
+        _responses.append(vs.q5_response)
+    qa_pairs = list(zip(_responses, _qs))
     parts = []
     for i, (answer, question) in enumerate(qa_pairs, start=1):
         if answer is not None:
@@ -421,7 +427,7 @@ def get_session(token: str, db: Session = Depends(get_db)):
     vs = _lookup_by_token(token, db)
     if vs.token_used or vs.status == "completed":
         return {"error": "This screening session has already been completed"}
-    questions = _build_questions(
+    questions = vs.questions_json if vs.questions_json else _build_questions(
         vs.job_title_at_time or "the role",
         vs.job_type_at_time or "Full-time",
         vs.interview_date_at_time,
@@ -458,10 +464,11 @@ def session_save_answer(token: str, data: SaveAnswerIn, db: Session = Depends(ge
         2: "availability_response",
         3: "expected_salary",
         4: "candidate_questions",
+        5: "q5_response",
     }
     field = field_map.get(data.question_number)
     if not field:
-        raise HTTPException(status_code=400, detail="question_number must be 1-4")
+        raise HTTPException(status_code=400, detail="question_number must be 1-5")
     setattr(vs, field, data.transcript)
     if data.question_number == 4 and data.transcript.strip():
         vs.has_candidate_questions = True
@@ -476,18 +483,16 @@ def session_complete(token: str, db: Session = Depends(get_db)):
     if vs.token_used or vs.status == "completed":
         raise HTTPException(status_code=410, detail="Screening already completed")
 
-    _qs = _build_questions(
+    _qs = vs.questions_json if vs.questions_json else _build_questions(
         vs.job_title_at_time or "the role",
         vs.job_type_at_time or "Full-time",
         vs.interview_date_at_time,
         vs.interview_time_at_time,
     )
-    _qa = [
-        (vs.experience_response,   _qs[0]),
-        (vs.availability_response, _qs[1]),
-        (vs.expected_salary,       _qs[2]),
-        (vs.candidate_questions,   _qs[3]),
-    ]
+    _responses = [vs.experience_response, vs.availability_response, vs.expected_salary, vs.candidate_questions]
+    if len(_qs) > 4:
+        _responses.append(vs.q5_response)
+    _qa = list(zip(_responses, _qs))
     parts = []
     for i, (ans, q) in enumerate(_qa, start=1):
         if ans is not None:

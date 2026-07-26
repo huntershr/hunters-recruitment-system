@@ -469,6 +469,23 @@ def startup_populate_db():
     except Exception as _e:
         logging.error(f"voice_screenings column migrations failed: {_e}")
 
+    # ── custom screening questions columns ───────────────────────────────────
+    try:
+        with engine.connect() as conn:
+            for _stmt in [
+                "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS screening_q1 TEXT",
+                "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS screening_q2 TEXT",
+                "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS screening_q4 TEXT",
+                "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS screening_q5 TEXT",
+                "ALTER TABLE voice_screenings ADD COLUMN IF NOT EXISTS q5_response TEXT",
+                "ALTER TABLE voice_screenings ADD COLUMN IF NOT EXISTS questions_json JSONB",
+            ]:
+                conn.execute(text(_stmt))
+            conn.commit()
+            logging.info("custom screening questions columns ensured")
+    except Exception as _e:
+        logging.error(f"custom screening questions column migrations failed: {_e}")
+
     # ── agent_screenings table — always run, isolated shadow table ──
     try:
         with engine.connect() as conn:

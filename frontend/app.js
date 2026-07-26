@@ -1438,6 +1438,7 @@ function viewAtsProfile(applicationId) {
             ].filter(Boolean).join('  ·  ');
 
             const bodyHTML = `<div>
+                ${(currentUser&&currentUser.email==='hr@hunters-egypt.com')?`<div style="display:flex;justify-content:flex-end;margin-bottom:10px;"><button onclick="reExtractCandidateProfile(${p.id},this)" style="padding:5px 12px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;">Re-extract Profile</button></div>`:''}
                 <div style="display:flex;align-items:flex-start;gap:16px;padding-bottom:16px;border-bottom:0.5px solid #F3F4F6;">
                     ${p.photo_url ? `<img src="${escHtml(p.photo_url)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
                     <div style="flex:1;min-width:0;">
@@ -1461,6 +1462,25 @@ function viewAtsProfile(applicationId) {
             createAdminModal(`${escHtml(p.name)} — ATS Profile`, bodyHTML, null);
         })
         .catch(err => showToast(err.message || 'Failed to load candidate profile', 'error'));
+}
+
+async function reExtractCandidateProfile(candidateId, btn) {
+    if (!confirm('Re-extract profile from CV text?\n\nThis will overwrite Last Title, Employer, Years of Exp., Skills, Summary, and other profile fields with fresh AI-extracted data.')) return;
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Extracting...';
+    try {
+        const res = await authFetch(`/api/admin/candidate/${candidateId}/re-extract-profile`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Re-extract failed');
+        const label = [data.last_title, data.last_employer].filter(Boolean).join(' at ');
+        showToast('Profile updated' + (label ? ': ' + label : ''), 'success');
+        closeAdminModal();
+    } catch (err) {
+        showToast(err.message || 'Re-extract failed', 'error');
+        btn.disabled = false;
+        btn.textContent = origText;
+    }
 }
 
 function viewCandidate(id) {
@@ -1908,23 +1928,28 @@ function exportToCSV() {
     if (rows.length === 0) { showToast('No applications match the current filter.', 'info'); return; }
 
     const esc = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-    const headers = ['Name', 'Email', 'Job Title', 'Company', 'Score', 'Decision', 'Stage', 'Type', 'Applied Date'];
+    const cleanEmail = e => (e || '').includes('@noemail.hunters') ? '' : (e || '');
+    const headers = ['Name', 'Phone', 'Email', 'Job Title', 'Company', 'Score', 'Decision', 'Type', 'Applied Date', 'Last Title', 'Last Employer', 'Years of Exp.', 'Resume'];
     const csvRows = [
         headers.map(esc).join(','),
         ...rows.map(app => [
             app.name || '',
-            app.email || '',
+            app.phone || '',
+            cleanEmail(app.email),
             app.job_title || '',
             app.company_name || '',
             evalScorePercent(app.score) ?? '',
             app.decision || 'Pending',
-            _decisionToStage(app.decision),
             app.candidate_type === 'registered' ? 'Registered' : 'External',
-            app.applied_at ? app.applied_at.split('T')[0] : ''
+            app.applied_at ? app.applied_at.split('T')[0] : '',
+            app.last_title || '',
+            app.last_employer || '',
+            app.experience_years ?? '',
+            app.cv_available ? 'Yes' : 'No'
         ].map(esc).join(','))
     ];
 
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -2088,6 +2113,12 @@ function editJob(id) {
     _setAdminAw('admin-aw-experience', job.agent_weight_experience);
     _setAdminAw('admin-aw-skills',     job.agent_weight_skills);
     updateAdminAgentWeights();
+    // Populate screening questions
+    const _setSq = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    _setSq('admin-sq1', job.screening_q1);
+    _setSq('admin-sq2', job.screening_q2);
+    _setSq('admin-sq4', job.screening_q4);
+    _setSq('admin-sq5', job.screening_q5);
 
     // Show wizard UI and go to step 1
     const indicator = document.getElementById("job-step-indicator");
@@ -2134,6 +2165,10 @@ async function handleJobManualCreate(event) {
             industry_experience: safeGet("manual-job-industry"),
             agent_weights: _getAdminAgentWeights(),
             ai_weights: { experience: 40, skills: 30, education: 20, behavioral: 10 },
+            screening_q1: (document.getElementById('admin-sq1')?.value || '').trim(),
+            screening_q2: (document.getElementById('admin-sq2')?.value || '').trim(),
+            screening_q4: (document.getElementById('admin-sq4')?.value || '').trim(),
+            screening_q5: (document.getElementById('admin-sq5')?.value || '').trim(),
         };
 
         if (!payload.department || payload.department === '') {
@@ -2962,6 +2997,37 @@ function _coWsJobFormModal(job, companyId) {
                 <input id="cj-industry" value="${v('industry_experience')}" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
             </div>
 
+            <!-- Screening Questions -->
+            <div style="grid-column:span 2;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;margin-top:4px;">
+                <div style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:11px;font-weight:600;color:#1B2A4A;text-transform:uppercase;letter-spacing:0.06em;">Screening Questions</span>
+                    <span style="font-size:11px;color:#9CA3AF;">Customize what candidates are asked</span>
+                </div>
+                <div style="padding:14px;">
+                    <div style="font-size:11px;color:#9CA3AF;margin-bottom:12px;line-height:1.5;">Leave blank to use the default question. Q3 (salary) is always locked.</div>
+                    <div style="margin-bottom:10px;">
+                        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:3px;">Q1 — Experience <span style="color:#9CA3AF;font-weight:400;">(Ask about experience relevant to this role)</span></label>
+                        <input id="cj-sq1" value="${v('screening_q1')}" placeholder="Please describe your experience relevant to the [role] role." style="width:100%;padding:7px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:3px;">Q2 — Availability <span style="color:#9CA3AF;font-weight:400;">(Ask about start date / availability)</span></label>
+                        <input id="cj-sq2" value="${v('screening_q2')}" placeholder="When are you available to start?" style="width:100%;padding:7px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:10px;opacity:0.6;">
+                        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:3px;">Q3 — Salary <span style="color:#9CA3AF;font-weight:400;">(Locked)</span></label>
+                        <div style="padding:7px 10px;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;color:#6B7280;">What is your expected monthly salary?</div>
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:3px;">Q4 — Candidate Questions <span style="color:#9CA3AF;font-weight:400;">(Must stay a question about experience or interest)</span></label>
+                        <input id="cj-sq4" value="${v('screening_q4')}" placeholder="Do you have any questions for us?" style="width:100%;padding:7px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:3px;">Q5 — Optional Extra Question <span style="color:#9CA3AF;font-weight:400;">(Leave blank to skip, English only)</span></label>
+                        <input id="cj-sq5" value="${v('screening_q5')}" placeholder="e.g. What is your current notice period?" style="width:100%;padding:7px 10px;border:1px solid #E5E7EB;border-radius:7px;font-size:12px;color:#1B2A4A;outline:none;box-sizing:border-box;">
+                    </div>
+                </div>
+            </div>
+
             <!-- Agent Scoring Weights -->
             <div style="grid-column:span 2;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;margin-top:4px;">
                 <div style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
@@ -3009,6 +3075,10 @@ function _coWsJobFormModal(job, companyId) {
             agent_weight_industry:   parseInt(document.getElementById('cj-aw-industry')?.value)   || 25,
             agent_weight_experience: parseInt(document.getElementById('cj-aw-experience')?.value) || 25,
             agent_weight_skills:     parseInt(document.getElementById('cj-aw-skills')?.value)     || 25,
+            screening_q1: (document.getElementById('cj-sq1')?.value || '').trim(),
+            screening_q2: (document.getElementById('cj-sq2')?.value || '').trim(),
+            screening_q4: (document.getElementById('cj-sq4')?.value || '').trim(),
+            screening_q5: (document.getElementById('cj-sq5')?.value || '').trim(),
         };
         if (!payload.title) { showToast('Job Title is required', 'error'); return; }
         const _awTotal = payload.agent_weight_title + payload.agent_weight_industry + payload.agent_weight_experience + payload.agent_weight_skills;

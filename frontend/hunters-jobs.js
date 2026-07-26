@@ -796,7 +796,12 @@ function openEditJobModal(id) {
     if (behavEl) behavEl.value = toLines(job.behavioral_skills);
     const eduEl = document.getElementById('job-modal-edu');
     if (eduEl) eduEl.value = job.education_level || '';
-    
+    const _sqFill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    _sqFill('job-modal-sq1', job.screening_q1);
+    _sqFill('job-modal-sq2', job.screening_q2);
+    _sqFill('job-modal-sq4', job.screening_q4);
+    _sqFill('job-modal-sq5', job.screening_q5);
+
     if (huntersIsAdmin) {
         document.getElementById('admin-company-selector-wrapper').style.display = 'block';
         loadAdminCompaniesForDropdown().then(() => {
@@ -988,6 +993,10 @@ async function saveHuntersJob(e) {
         ai_weights: { experience: 40, skills: 30, education: 20, behavioral: 10 },
         agent_weights: _getAgentWeights(),
         hide_salary: hideSal ? !!hideSal.checked : false,
+        screening_q1: (document.getElementById('job-modal-sq1')?.value||'').trim()||null,
+        screening_q2: (document.getElementById('job-modal-sq2')?.value||'').trim()||null,
+        screening_q4: (document.getElementById('job-modal-sq4')?.value||'').trim()||null,
+        screening_q5: (document.getElementById('job-modal-sq5')?.value||'').trim()||null,
     };
 
     if (huntersIsAdmin) {

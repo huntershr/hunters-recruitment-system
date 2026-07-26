@@ -140,6 +140,11 @@ class JobResponse(JobBase):
     # Essential skills gate
     essential_skills: Optional[list] = None
     deal_breakers: Optional[list] = None
+    # Custom screening question text
+    screening_q1: Optional[str] = None
+    screening_q2: Optional[str] = None
+    screening_q4: Optional[str] = None
+    screening_q5: Optional[str] = None
 
     @model_validator(mode='after')
     def _populate_deal_breakers(self) -> 'JobResponse':
@@ -244,6 +249,10 @@ class JobSavePayload(BaseModel):
     deal_breakers: Optional[list] = None
     hide_salary: bool = False
     company_id: Optional[str] = None
+    screening_q1: Optional[str] = None
+    screening_q2: Optional[str] = None
+    screening_q4: Optional[str] = None
+    screening_q5: Optional[str] = None
 
 # Approval/Rejection Schemas
 class ApprovalData(BaseModel):

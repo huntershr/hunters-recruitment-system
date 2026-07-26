@@ -87,6 +87,11 @@ class Job(Base):
     is_archived = Column(Boolean, default=False, nullable=False)
     department = Column(String, nullable=True, default="Other")
     created_at = Column(DateTime, default=datetime.utcnow)
+    # Custom screening question text per job (Q3 salary is always locked)
+    screening_q1 = Column(Text, nullable=True)
+    screening_q2 = Column(Text, nullable=True)
+    screening_q4 = Column(Text, nullable=True)
+    screening_q5 = Column(Text, nullable=True)
 
     owner = relationship("User", back_populates="jobs")
     candidates = relationship("Candidate", back_populates="job")
@@ -230,6 +235,8 @@ class VoiceScreening(Base):
     expected_salary       = Column(Text, nullable=True)
     candidate_questions   = Column(Text, nullable=True)
     has_candidate_questions = Column(Boolean, default=False)
+    q5_response           = Column(Text, nullable=True)
+    questions_json        = Column(JSON, nullable=True)
 
     # AI analysis
     english_level       = Column(String, nullable=True)

@@ -126,7 +126,14 @@
       <button class="btn-gold" id="record-btn" onclick="startListening()" style="display:none;">Record Answer</button>
       <button class="btn-ghost" id="next-btn" onclick="nextQuestion()" style="display:none;">Next Question</button>
       <button class="btn-outline" id="skip-btn" onclick="skipQ4()" style="display:none;">Skip — I have no questions</button>
-      <div id="salary-warn" class="warn-box">Please record your expected salary before continuing.</div>
+      <div id="salary-text-wrap" style="display:none;margin-top:10px;">
+        <div style="font-size:12px;color:rgba(250,250,248,0.55);margin-bottom:6px;">Or type your expected salary:</div>
+        <input type="text" id="salary-text-input"
+          style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#FAFAF8;font-size:13px;outline:none;box-sizing:border-box;"
+          placeholder="e.g. 15,000 EGP / Negotiable"
+          onkeydown="if(event.key==='Enter')submitSalaryText()" />
+        <button onclick="submitSalaryText()" class="btn-ghost" style="margin-top:6px;">Submit Salary</button>
+      </div>
       <button class="btn-outline" id="repeat-btn" onclick="repeatQuestion()" style="display:none;">Re-record answer</button>
       <button class="btn-outline" id="prev-btn" onclick="prevQuestion()" style="display:none;">Previous question</button>
     </div>
@@ -235,7 +242,9 @@ function setPageLang(lang) {
   document.getElementById('stt-ar-btn').classList.toggle('stt-active', lang === 'ar');
 
   const skipBtn = document.getElementById('skip-btn');
-  if (skipBtn) skipBtn.textContent = lang === 'ar' ? 'تخطى — ليس لدي أسئلة' : 'Skip — I have no questions';
+  if (skipBtn) skipBtn.textContent = _currentQ === 3
+    ? (lang === 'ar' ? 'تخطى — ليس لدي أسئلة' : 'Skip — I have no questions')
+    : (lang === 'ar' ? 'تخطى هذا السؤال' : 'Skip this question');
 
   _renderGreeting();
 
@@ -333,10 +342,14 @@ function showQuestion(idx) {
   document.getElementById('stt-ar-btn').classList.toggle('stt-active', _sttLang === 'ar');
   document.getElementById('stt-en-btn').classList.toggle('stt-active', _sttLang === 'en');
   document.getElementById('next-btn').style.display        = 'none';
-  document.getElementById('skip-btn').style.display        = idx === 3 ? 'block' : 'none';
+  document.getElementById('skip-btn').style.display        = idx >= 3 ? 'block' : 'none';
+  document.getElementById('skip-btn').textContent          = idx === 3
+    ? (_sttLang === 'ar' ? 'تخطى — ليس لدي أسئلة' : 'Skip — I have no questions')
+    : (_sttLang === 'ar' ? 'تخطى هذا السؤال' : 'Skip this question');
   document.getElementById('repeat-btn').style.display      = 'none';
   document.getElementById('prev-btn').style.display        = 'none';
-  document.getElementById('salary-warn').style.display     = 'none';
+  document.getElementById('salary-text-wrap').style.display = 'none';
+  document.getElementById('salary-text-input').value       = '';
   document.getElementById('record-btn').style.display      = 'block';
   document.getElementById('pulse-icon').innerHTML          = _MIC_SVG;
   document.getElementById('status-label').textContent      =
@@ -361,6 +374,7 @@ function startListening() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     document.getElementById('status-label').textContent = 'Microphone not supported — click Next to continue';
+    if (_currentQ === 2) document.getElementById('salary-text-wrap').style.display = 'block';
     return;
   }
 
@@ -388,7 +402,9 @@ function startListening() {
   _recognition.onend = () => {
     clearTimeout(silTimer);
     if (_langSwitch) { _langSwitch = false; startListening(); return; }
-    _currentTranscript = document.getElementById('transcript-box').textContent.trim();
+    // Only update transcript from box if box has content — don't erase a value captured by onerror
+    const boxText = document.getElementById('transcript-box').textContent.trim();
+    if (boxText) _currentTranscript = boxText;
     document.getElementById('status-label').textContent =
       _currentTranscript
         ? (_pageLang === 'ar' ? 'تم تسجيل الإجابة' : 'Answer recorded')
@@ -403,8 +419,32 @@ function startListening() {
     clearTimeout(silTimer);
     if (_langSwitch) { _langSwitch = false; startListening(); return; }
     if (ev.error === 'no-speech') { _recognition.stop(); return; }
-    document.getElementById('status-label').textContent = 'Mic error — click Next to continue';
+
+    const partial = document.getElementById('transcript-box').textContent.trim();
+    if (partial) _currentTranscript = partial;
+    document.getElementById('pulse-ring').style.animationPlayState = 'paused';
+    document.getElementById('repeat-btn').style.display = 'block';
     _recognition = null;
+
+    if (ev.error === 'not-allowed') {
+      document.getElementById('status-label').textContent =
+        'Microphone access denied — allow mic in your browser settings then refresh';
+      if (_currentQ === 2) document.getElementById('salary-text-wrap').style.display = 'block';
+      return;
+    }
+    if (ev.error === 'audio-capture') {
+      document.getElementById('status-label').textContent =
+        'Cannot access mic — close other apps using it, then tap Record again';
+      if (_currentQ === 2 && !partial) document.getElementById('salary-text-wrap').style.display = 'block';
+      return;
+    }
+    // All other errors
+    document.getElementById('status-label').textContent = partial
+      ? 'Mic error — answer captured, click Next to continue'
+      : (_currentQ === 2
+          ? 'Mic error — tap Record to try again, or type your salary below'
+          : 'Mic error — click Next to continue');
+    if (_currentQ === 2 && !partial) document.getElementById('salary-text-wrap').style.display = 'block';
   };
 
   _recognition.start();
@@ -416,25 +456,20 @@ async function nextQuestion() {
   if (_recognition) { _nextClicked = true; _recognition.stop(); return; }
   _nextClicked = false;
 
-  // Salary (Q3 = index 2) is required
-  if (_currentQ === 2 && !_currentTranscript.trim()) {
-    document.getElementById('salary-warn').style.display = 'block';
-    return;
-  }
-  document.getElementById('salary-warn').style.display     = 'none';
-  document.getElementById('next-btn').style.display        = 'none';
-  document.getElementById('skip-btn').style.display        = 'none';
-  document.getElementById('repeat-btn').style.display      = 'none';
-  document.getElementById('prev-btn').style.display        = 'none';
-  document.getElementById('stt-lang-toggle').style.display = 'none';
-  document.getElementById('status-label').textContent      = _pageLang === 'ar' ? 'جاري الحفظ…' : 'Saving…';
+  document.getElementById('salary-text-wrap').style.display = 'none';
+  document.getElementById('next-btn').style.display         = 'none';
+  document.getElementById('skip-btn').style.display         = 'none';
+  document.getElementById('repeat-btn').style.display       = 'none';
+  document.getElementById('prev-btn').style.display         = 'none';
+  document.getElementById('stt-lang-toggle').style.display  = 'none';
+  document.getElementById('status-label').textContent       = _pageLang === 'ar' ? 'جاري الحفظ…' : 'Saving…';
 
   await saveAnswer(_currentQ + 1, _currentTranscript);
   _currentQ++;
   if (_currentQ >= _questions.length) { finishScreening(); } else { showQuestion(_currentQ); }
 }
 
-// ── Skip Q4 ───────────────────────────────────────────────────────────────
+// ── Skip Q4 / Q5 ─────────────────────────────────────────────────────────
 async function skipQ4() {
   if (_recognition) { _recognition.stop(); _recognition = null; }
   _currentTranscript = '';
@@ -443,10 +478,10 @@ async function skipQ4() {
   document.getElementById('repeat-btn').style.display      = 'none';
   document.getElementById('prev-btn').style.display        = 'none';
   document.getElementById('stt-lang-toggle').style.display = 'none';
-  document.getElementById('salary-warn').style.display     = 'none';
   document.getElementById('status-label').textContent      = _pageLang === 'ar' ? 'جاري الحفظ…' : 'Saving…';
-  await saveAnswer(4, '');
-  finishScreening();
+  await saveAnswer(_currentQ + 1, '');
+  _currentQ++;
+  if (_currentQ >= _questions.length) { finishScreening(); } else { showQuestion(_currentQ); }
 }
 
 // ── API ───────────────────────────────────────────────────────────────────
@@ -490,19 +525,31 @@ function setSttLang(lang) {
 function repeatQuestion() {
   if (_recognition) { _recognition.stop(); _recognition = null; }
   _currentTranscript = '';
-  document.getElementById('transcript-box').textContent    = '';
-  document.getElementById('transcript-box').style.display  = 'none';
-  document.getElementById('next-btn').style.display        = 'none';
-  document.getElementById('skip-btn').style.display        = _currentQ === 3 ? 'block' : 'none';
-  document.getElementById('repeat-btn').style.display      = 'none';
-  document.getElementById('prev-btn').style.display        = 'none';
-  document.getElementById('stt-lang-toggle').style.display = 'none';
-  document.getElementById('salary-warn').style.display     = 'none';
-  document.getElementById('record-btn').style.display      = 'block';
+  document.getElementById('transcript-box').textContent     = '';
+  document.getElementById('transcript-box').style.display   = 'none';
+  document.getElementById('next-btn').style.display         = 'none';
+  document.getElementById('skip-btn').style.display         = _currentQ === 3 ? 'block' : 'none';
+  document.getElementById('repeat-btn').style.display       = 'none';
+  document.getElementById('prev-btn').style.display         = 'none';
+  document.getElementById('stt-lang-toggle').style.display  = 'none';
+  document.getElementById('salary-text-wrap').style.display = 'none';
+  document.getElementById('record-btn').style.display       = 'block';
   document.getElementById('pulse-icon').innerHTML          = _MIC_SVG;
   document.getElementById('status-label').textContent      =
     _pageLang === 'ar' ? 'اضغط تسجيل للإجابة' : 'Tap Record to answer';
   document.getElementById('pulse-ring').style.animationPlayState = 'paused';
+}
+
+// ── Salary text fallback ──────────────────────────────────────────────────
+function submitSalaryText() {
+  const val = (document.getElementById('salary-text-input').value || '').trim();
+  if (!val) { document.getElementById('salary-text-input').focus(); return; }
+  _currentTranscript = val;
+  document.getElementById('salary-text-wrap').style.display = 'none';
+  document.getElementById('transcript-box').textContent     = val;
+  document.getElementById('transcript-box').style.display   = 'block';
+  document.getElementById('status-label').textContent       = 'Answer recorded';
+  document.getElementById('next-btn').style.display         = 'block';
 }
 
 // ── Previous question ─────────────────────────────────────────────────────
