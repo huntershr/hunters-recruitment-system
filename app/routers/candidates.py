@@ -119,6 +119,7 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
         _agent_result = call_agent_screener(candidate.cv_text or "", job, candidate.id)
         if _agent_result is not None:
             logger.info(f"Agent screener succeeded for candidate {candidate_id}")
+            _sp = _agent_result.pop("_screening_params", None) or {}
             _cp = _agent_result.pop("_candidate_profile", None) or {}
 
             # Write agent profile to Candidate row (additive — never overwrites existing values)
@@ -248,6 +249,8 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
             weaknesses=list_to_str(eval_result.get("weaknesses", "")),
             suggested_interview_questions=json.dumps(eval_result.get("suggested_interview_questions", [])),
             dimension_scores=eval_result.get("dimension_scores"),
+            deal_breakers_used=_sp.get("deal_breakers") if _sp else None,
+            required_industry_used=_sp.get("required_industry") if _sp else None,
         )
 
         db.add(db_eval)
@@ -372,6 +375,7 @@ async def screen_cv(
             f"Agent screener succeeded for {current_user.email} job {job_id} "
             f"— skipping Gemini extract_candidate_info (0 extra Gemini calls)"
         )
+        _sp = _agent_result.pop("_screening_params", None) or {}
         _cp = _agent_result.pop("_candidate_profile", None) or {}
         # Refine bootstrap name/phone from agent profile
         if _cp.get("name"):
@@ -689,6 +693,8 @@ async def screen_cv(
             interview_questions_ar=result.get("interview_questions_ar"),
             quick_facts=result.get("quick_facts"),
             dimension_scores=result.get("dimension_scores"),
+            deal_breakers_used=_sp.get("deal_breakers") if _sp else None,
+            required_industry_used=_sp.get("required_industry") if _sp else None,
         )
         db.add(db_eval)
         db.commit()

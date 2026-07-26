@@ -187,6 +187,8 @@ class Evaluation(Base):
     interview_questions_ar = Column(JSON, nullable=True)
     quick_facts = Column(JSON, nullable=True)
     dimension_scores = Column(JSON, nullable=True)
+    deal_breakers_used = Column(JSON, nullable=True)
+    required_industry_used = Column(Text, nullable=True)
 
     candidate = relationship("Candidate", back_populates="evaluations")
     application = relationship("Application", back_populates="evaluation")

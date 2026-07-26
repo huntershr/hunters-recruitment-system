@@ -146,6 +146,8 @@ async def upload_jobs(
 
     imported_count = 0
     for data in jobs_data:
+        _raw_dbs = str(data.get("deal_breakers", data.get("Deal Breakers", data.get("essential_skills", ""))) or "")
+        _essential = [s.strip() for s in _raw_dbs.split(",") if s.strip()]
         new_job = models.Job(
             job_title=str(data.get("job_title", data.get("Title", "New Job"))),
             job_description=str(data.get("job_description", data.get("Description", ""))),
@@ -153,6 +155,9 @@ async def upload_jobs(
             min_experience=int(data.get("min_experience", data.get("Experience", 0)) or 0),
             education_level=str(data.get("education_level", data.get("Education", ""))),
             salary_range=str(data.get("salary_range", data.get("Salary Range", ""))),
+            department=str(data.get("department", data.get("Department", "Other")) or "Other"),
+            industry_experience=str(data.get("industry_experience", data.get("Industry Experience", "")) or "") or None,
+            essential_skills=_essential,
             owner_id=current_user.id
         )
         db.add(new_job)

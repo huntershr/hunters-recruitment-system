@@ -67,7 +67,13 @@ def call_agent_screen(cv_text: str, job) -> dict | None:
                 headers={"X-API-Key": _SCREEN_KEY},
             )
         if resp.status_code == 200:
-            return resp.json()
+            data = resp.json()
+            # Stamp the exact params sent so callers can store them for audit
+            data["_screening_params"] = {
+                "deal_breakers": deal_breakers,
+                "required_industry": payload["job"]["required_industry"],
+            }
+            return data
         _logger.warning(
             "Agent screen returned HTTP %d: %s", resp.status_code, resp.text[:300]
         )

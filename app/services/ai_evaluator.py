@@ -96,6 +96,8 @@ def call_agent_screener(cv_text: str, job, candidate_id=None) -> "dict | None":
 
         # Carry candidate_profile for callers that do profile back-fill; must be popped before DB write
         result["_candidate_profile"] = raw.get("candidate_profile") or {}
+        # Carry screening params for audit trail; must be popped before DB write
+        result["_screening_params"] = raw.get("_screening_params") or {}
 
         logger.info(
             "Agent screener OK: score=%.1f decision=%s "

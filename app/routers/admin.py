@@ -46,6 +46,7 @@ class AdminJobPayload(BaseModel):
     agent_weight_experience: int = 25
     agent_weight_skills: int = 25
     essential_skills: Optional[list] = None
+    deal_breakers: Optional[list] = None
     screening_q1: Optional[str] = None
     screening_q2: Optional[str] = None
     screening_q4: Optional[str] = None
@@ -1816,6 +1817,7 @@ def rescreen_single(
     try:
         _ar = call_agent_screener(candidate.cv_text, job, candidate.id)
         if _ar is not None:
+            _sp = _ar.pop("_screening_params", None) or {}
             _cp = _ar.pop("_candidate_profile", None) or {}
             if _cp:
                 if not candidate.name or candidate.name.lower().startswith("resume"):
@@ -1890,6 +1892,8 @@ def rescreen_single(
         ev.interview_questions_ar = result.get("interview_questions_ar")
         ev.quick_facts = result.get("quick_facts")
         ev.dimension_scores = result.get("dimension_scores")
+        ev.deal_breakers_used = _sp.get("deal_breakers")
+        ev.required_industry_used = _sp.get("required_industry")
         db.commit()
 
         return {
@@ -2683,7 +2687,7 @@ def admin_create_job(
         agent_weight_industry=payload.agent_weight_industry,
         agent_weight_experience=payload.agent_weight_experience,
         agent_weight_skills=payload.agent_weight_skills,
-        essential_skills=payload.essential_skills or [],
+        essential_skills=payload.deal_breakers or payload.essential_skills or [],
         screening_q1=(payload.screening_q1 or "").strip() or None,
         screening_q2=(payload.screening_q2 or "").strip() or None,
         screening_q4=(payload.screening_q4 or "").strip() or None,
@@ -2728,7 +2732,7 @@ def admin_update_job(
     job.agent_weight_industry   = payload.agent_weight_industry
     job.agent_weight_experience = payload.agent_weight_experience
     job.agent_weight_skills     = payload.agent_weight_skills
-    job.essential_skills        = payload.essential_skills or []
+    job.essential_skills        = payload.deal_breakers or payload.essential_skills or []
     job.screening_q1 = (payload.screening_q1 or "").strip() or None
     job.screening_q2 = (payload.screening_q2 or "").strip() or None
     job.screening_q4 = (payload.screening_q4 or "").strip() or None
