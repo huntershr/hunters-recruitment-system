@@ -670,6 +670,7 @@ const INDUSTRY_WEIGHT_DEFAULTS = {
   'marketing & advertising':  { title: 20, industry: 15, experience: 25, skills: 40 },
   'retail':                   { title: 20, industry: 20, experience: 30, skills: 30 },
   'healthcare':               { title: 20, industry: 15, experience: 30, skills: 35 },
+  'human resources':          { title: 25, industry: 10, experience: 25, skills: 40 },
 };
 
 function onIndustryChange(selectEl) {
@@ -798,7 +799,7 @@ function openEditJobModal(id) {
     
     const deptEditEl = document.getElementById('job-modal-department');
     if (deptEditEl) {
-        const _knownInds = ['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Other'];
+        const _knownInds = ['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Human Resources','Other'];
         deptEditEl.value = _knownInds.includes(job.department) ? job.department : 'Other';
     }
     document.getElementById('job-modal-title-input').value = job.title;
