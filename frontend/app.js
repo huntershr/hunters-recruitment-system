@@ -166,6 +166,7 @@ const _ADMIN_INDUSTRY_WEIGHT_DEFAULTS = {
   'marketing & advertising':  { title: 20, industry: 15, experience: 25, skills: 40 },
   'retail':                   { title: 20, industry: 20, experience: 30, skills: 30 },
   'healthcare':               { title: 20, industry: 15, experience: 30, skills: 35 },
+  'human resources':          { title: 25, industry: 10, experience: 25, skills: 40 },
 };
 
 function onAdminIndustryChange(selectEl) {
@@ -1798,15 +1799,6 @@ function regenerateAIJob() {
     generateJobFromAI();
 }
 
-function openCandidateModal() {
-    const select = document.getElementById("candidate-job-id");
-    select.innerHTML = "";
-    jobs.forEach(j => {
-        select.innerHTML += `<option value="${j.id}">${escHtml(j.job_title)}</option>`;
-    });
-    document.getElementById("candidate-add-modal").classList.add("active");
-}
-
 async function handleJobUpload(event) {
     event.preventDefault();
     const fileInput = document.getElementById("job-file");
@@ -1863,79 +1855,6 @@ async function deleteAllCandidates() {
         fetchData(); // Refresh list
     } catch (err) {
         showToast('Failed to delete all candidates.', 'error');
-    }
-}
-
-async function handleCandidateUpload(event, forceContact = false) {
-    event.preventDefault();
-    const jobId = document.getElementById("candidate-job-id").value;
-    const fileInput = document.getElementById("candidate-file");
-    const typedEmail = (document.getElementById("candidate-typed-email")?.value || "").trim();
-    const typedPhone = (document.getElementById("candidate-typed-phone")?.value || "").trim();
-
-    const formData = new FormData();
-    formData.append("file", fileInput.files[0]);
-    if (typedEmail) formData.append("typed_email", typedEmail);
-    if (typedPhone) formData.append("typed_phone", typedPhone);
-    if (forceContact) formData.append("force_contact", "true");
-
-    const btn = event.submitter;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Screening...";
-    btn.disabled = true;
-
-    try {
-        const response = await authFetch(`${API_URL}/candidates/upload?job_id=${jobId}`, {
-            method: "POST",
-            body: formData
-        });
-        const result = await response.json();
-
-        if (response.status === 409 && result.detail?.type === "contact_mismatch") {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            const warnings = (result.detail.warnings || []).join("\n");
-            const proceed = confirm(`Contact info mismatch:\n\n${warnings}\n\nContinue saving this candidate anyway?`);
-            if (proceed) {
-                handleCandidateUpload(event, true);
-            }
-            return;
-        }
-
-        if (!response.ok) {
-            showToast(result.detail?.message || result.detail || 'Upload failed.', 'error');
-            return;
-        }
-
-        showToast(result.message, 'success');
-        closeModals();
-        fetchData();
-    } catch (err) {
-        showToast('Failed to upload candidates.', 'error');
-    } finally {
-        if (!forceContact) {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    }
-}
-
-async function importFromSheets() {
-    const btn = document.querySelector('button[onclick="importFromSheets()"]');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Importing...";
-    btn.disabled = true;
-    
-    try {
-        const response = await authFetch(`${API_URL}/sheets/import`, { method: "POST" });
-        const result = await response.json();
-        showToast(result.message || 'Import completed successfully!', 'success');
-        fetchData(); // Refresh UI
-    } catch (err) {
-        showToast('Import failed. Ensure GOOGLE_SHEET_URL is configured properly.', 'error');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
     }
 }
 
@@ -2117,7 +2036,7 @@ function editJob(id) {
     // Fill form
     const deptEl = document.getElementById("manual-job-department");
     if (deptEl) {
-        const _knownInds = ['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Other'];
+        const _knownInds = ['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Human Resources','Other'];
         deptEl.value = _knownInds.includes(job.department) ? job.department : 'Other';
     }
     document.getElementById("manual-job-title").value = job.job_title;
@@ -2950,7 +2869,7 @@ function _coWsJobFormModal(job, companyId) {
                 <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Industry *</label>
                 <select id="cj-department" onchange="_cjIndustryChange(this)" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
                     <option value="">Select Industry</option>
-                    ${[['British School','British School'],['American School','American School'],['IB School','IB School'],['Cambridge School','Cambridge School'],['Egyptian National School','Egyptian National School'],['Education','Education (General)'],['Finance/Accounting','Finance / Accounting'],['Healthcare','Healthcare'],['Technology','Technology'],['Manufacturing','Manufacturing'],['Real Estate','Real Estate'],['Retail','Retail'],['Hospitality','Hospitality'],['Construction','Construction'],['Marketing/Advertising','Marketing / Advertising'],['Legal','Legal'],['Other','Other']].map(([val,lbl])=>`<option value="${val}"${(job?job.department===val||(!['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal'].includes(job.department)&&val==='Other'):val==='Other')?'selected':''}>${lbl}</option>`).join('')}
+                    ${[['British School','British School'],['American School','American School'],['IB School','IB School'],['Cambridge School','Cambridge School'],['Egyptian National School','Egyptian National School'],['Education','Education (General)'],['Finance/Accounting','Finance / Accounting'],['Healthcare','Healthcare'],['Technology','Technology'],['Manufacturing','Manufacturing'],['Real Estate','Real Estate'],['Retail','Retail'],['Hospitality','Hospitality'],['Construction','Construction'],['Marketing/Advertising','Marketing / Advertising'],['Legal','Legal'],['Human Resources','Human Resources'],['Other','Other']].map(([val,lbl])=>`<option value="${val}"${(job?job.department===val||(!['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Human Resources'].includes(job.department)&&val==='Other'):val==='Other')?'selected':''}>${lbl}</option>`).join('')}
                 </select>
             </div>
             <div style="grid-column:span 2;">

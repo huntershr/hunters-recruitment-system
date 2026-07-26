@@ -476,10 +476,6 @@
 
             <div class="section-header">
                 <div class="section-title">Recent Candidates</div>
-                <button class="btn-primary" style="width:auto;font-size:11px;padding:6px 12px;" onclick="openCandidateModal()">
-                    <svg viewBox="0 0 16 16" fill="none" width="11" height="11" style="stroke:currentColor;fill:none;stroke-width:2.5;flex-shrink:0;"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
-                    Add candidate
-                </button>
             </div>
             <div class="table-wrap">
                 <table id="recent-candidates-table" class="data-table">
@@ -640,19 +636,12 @@
                             <svg viewBox="0 0 16 16" fill="none" width="12" height="12" style="stroke:currentColor;fill:none;stroke-width:1.5;"><path d="M8 2v8M5 7l3 3 3-3M2 13h12" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             Export
                         </button>
-                        <button class="btn-secondary" style="width:auto;" onclick="importFromSheets()">
-                            <i class='bx bx-import'></i> Import
-                        </button>
                         <button class="btn-secondary" style="color:#CC2B2B;border-color:#fbc9c9;width:auto;" onclick="deleteAllCandidates()">
                             <i class='bx bx-trash'></i> Delete All
                         </button>
                         <button class="btn-secondary" style="width:auto;" onclick="openAdminBulkUpload()">
                             <svg viewBox="0 0 16 16" fill="none" width="11" height="11" style="stroke:currentColor;fill:none;stroke-width:1.5;flex-shrink:0;"><path d="M8 2v8M5 5l3-3 3 3M2 13h12" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             Bulk Upload
-                        </button>
-                        <button class="btn-primary" style="width:auto;" onclick="openCandidateModal()">
-                            <svg viewBox="0 0 16 16" fill="none" width="11" height="11" style="stroke:currentColor;fill:none;stroke-width:2.5;flex-shrink:0;"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
-                            Add Candidate
                         </button>
                     </div>
                 </div>
@@ -900,6 +889,7 @@
                                         <option value="Construction">Construction</option>
                                         <option value="Marketing/Advertising">Marketing / Advertising</option>
                                         <option value="Legal">Legal</option>
+                                        <option value="Human Resources">Human Resources</option>
                                         <option value="Other">Other</option>
                                     </select>
                                 </div>
@@ -1049,57 +1039,6 @@
             <button class="btn-primary" id="job-step-next-btn" style="width:auto;" onclick="jobWizardNext()">
                 Next step →
             </button>
-        </div>
-    </div>
-</div>
-
-<!-- Add Candidate Modal -->
-<div class="modal" id="candidate-add-modal">
-    <div class="modal-content">
-        <div class="modal-header-bar">
-            <span class="modal-title">Add Candidate(s)</span>
-            <span class="close-btn" onclick="closeModals()">&times;</span>
-        </div>
-        <div class="modal-body-area">
-            <form id="candidate-add-form" onsubmit="handleCandidateUpload(event)">
-                <div class="form-group">
-                    <label class="field-label">Apply to Job</label>
-                    <select id="candidate-job-id" required
-                            style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px;background:#FAFBFC;color:#1B2A4A;outline:none;width:100%;">
-                    </select>
-                </div>
-                <div style="display:flex;gap:10px;margin-top:12px;">
-                    <div class="form-group" style="flex:1;margin-top:0;">
-                        <label class="field-label">Email <span style="font-weight:400;color:#9CA3AF;">(optional)</span></label>
-                        <input type="email" id="candidate-typed-email" placeholder="Auto-detected from CV"
-                               style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px;background:#FAFBFC;color:#1B2A4A;outline:none;width:100%;box-sizing:border-box;">
-                    </div>
-                    <div class="form-group" style="flex:1;margin-top:0;">
-                        <label class="field-label">Phone <span style="font-weight:400;color:#9CA3AF;">(optional)</span></label>
-                        <input type="tel" id="candidate-typed-phone" placeholder="Auto-detected from CV"
-                               style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px;background:#FAFBFC;color:#1B2A4A;outline:none;width:100%;box-sizing:border-box;">
-                    </div>
-                </div>
-                <div class="form-group" style="margin-top:12px;">
-                    <label class="field-label">Upload CV (PDF, Word) or Excel list</label>
-                    <div class="upload-zone" onclick="document.getElementById('candidate-file').click()">
-                        <svg viewBox="0 0 32 32" fill="none" width="30" height="30"
-                             style="width:30px;height:30px;margin:0 auto;display:block;stroke:#1B2A4A;opacity:.35;">
-                            <path d="M16 22V10M10 16l6-6 6 6"
-                                  stroke="currentColor" stroke-width="1.5"
-                                  stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M6 26h20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                        <div class="upload-title">Drop CV files here or click to upload</div>
-                        <div class="upload-sub">PDF or Word files supported</div>
-                        <input type="file" id="candidate-file"
-                               accept=".pdf,.docx,.xlsx,.xls" required style="display:none;">
-                    </div>
-                </div>
-                <button type="submit" class="btn-primary" style="margin-top:14px;">
-                    <i class='bx bx-upload'></i> Process &amp; Screen
-                </button>
-            </form>
         </div>
     </div>
 </div>
