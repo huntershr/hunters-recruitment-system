@@ -257,6 +257,41 @@ def generate_job_details(job_title: str, industry_background: str, additional_co
         raise
 
 
+def simplify_skills_to_keywords(skills_text: str) -> list[str]:
+    """
+    Takes a comma-separated string of skill descriptions and returns a list of
+    short keyword phrases (≤3 words each) suitable for keyword-based CV matching.
+    """
+    prompt = f"""You are converting job skill descriptions into short screening keywords for a CV screening system.
+
+Rules:
+- Output ONLY a JSON array of strings, no explanation, no markdown.
+- Each keyword must be 3 words or fewer.
+- Preserve specific product names, certifications, curricula, and proper nouns exactly (e.g. "Cambridge IGCSE", "Microsoft Excel", "IB Diploma").
+- Remove filler words like "experience with", "proficiency in", "ability to", "knowledge of".
+- If a skill contains multiple distinct concepts, split into separate keywords.
+- Merge near-duplicates into one keyword.
+
+Skills to convert (comma-separated):
+{skills_text}
+
+Return ONLY a JSON array. Example: ["Cambridge Curriculum","Classroom Management","Microsoft Excel"]"""
+
+    try:
+        resp = _gemini_model.generate_content(prompt)
+        raw = resp.text.strip()
+        if raw.startswith("```"):
+            raw = re.sub(r"^```[a-z]*\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw.strip())
+        parsed = json.loads(repair_json(raw))
+        if isinstance(parsed, list):
+            return [str(k).strip() for k in parsed if str(k).strip()]
+        return []
+    except Exception as e:
+        logger.error("simplify_skills_to_keywords failed: %s", e)
+        raise
+
+
 def _repair_split_years(text: str) -> str:
     """
     Collapse PDF layout-mode word-split artifacts where a multi-digit number is

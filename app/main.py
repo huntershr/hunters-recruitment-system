@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from .routers import jobs, candidates, evaluations, sheets, auth, public, companies, admin, profile, interviews, offers, voice_screening
 from .routers.auth import get_current_user
 from . import models, auth_utils
-from .services.ai_evaluator import generate_job_details
+from .services.ai_evaluator import generate_job_details, simplify_skills_to_keywords
 import logging
 import os
 import json
@@ -765,6 +765,9 @@ class GenerateJobRequest(BaseModel):
     industry_background: str
     additional_context: str = ""
 
+class SimplifySkillsRequest(BaseModel):
+    skills: str  # comma-separated skills text from AI preview
+
 class GenerateCVRequest(BaseModel):
     name: str
     email: str = ""
@@ -796,6 +799,22 @@ async def generate_job_ai(
     except Exception as e:
         logging.error("generate_job_ai endpoint error: %s", e)
         raise HTTPException(status_code=500, detail=f"AI generation failed: {e}")
+
+@app.post("/api/ai/simplify-skills")
+async def simplify_skills_ai(
+    request: SimplifySkillsRequest,
+    current_user: models.User = Depends(get_current_user)
+):
+    if not os.getenv("GEMINI_API_KEY", ""):
+        raise HTTPException(status_code=503, detail="AI service not configured")
+    if not (request.skills or "").strip():
+        raise HTTPException(status_code=400, detail="No skills provided")
+    try:
+        keywords = simplify_skills_to_keywords(request.skills)
+        return JSONResponse(content={"keywords": keywords})
+    except Exception as e:
+        logging.error("simplify_skills_ai error: %s", e)
+        raise HTTPException(status_code=500, detail=f"Simplification failed: {e}")
 
 @app.post("/api/ai/generate-cv")
 async def generate_cv_ai(

@@ -4374,6 +4374,31 @@
         generateJobFromAICD();
     }
 
+    async function simplifySkillsCD() {
+        const job = window._cdAIGeneratedJob;
+        if (!job || !job.required_skills) return;
+        const btn = document.getElementById('cd-simplify-skills-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Converting…'; }
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/ai/simplify-skills', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ skills: job.required_skills })
+            });
+            if (!res.ok) throw new Error((await res.json().catch(()=>({}))).detail || 'Failed');
+            const data = await res.json();
+            const keywords = (data.keywords || []).join(', ');
+            window._cdAIGeneratedJob.required_skills = keywords;
+            const el = document.getElementById('cd-ai-preview-skills');
+            if (el) el.textContent = keywords;
+            if (btn) { btn.textContent = 'Done'; btn.style.color = '#0F6E56'; btn.style.borderColor = '#0F6E56'; }
+        } catch (err) {
+            showToast('Simplification failed: ' + (err.message || 'Try again'), 'error');
+            if (btn) { btn.disabled = false; btn.textContent = 'Turn to Keywords for Better Screening'; }
+        }
+    }
+
     async function uploadJDFile(input) {
         const file = input.files[0];
         if (!file) return;
@@ -4504,6 +4529,10 @@
                     <div id="cd-ai-preview-brief" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
                     <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">REQUIRED SKILLS</span></div>
                     <div id="cd-ai-preview-skills" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
+                    <div style="padding:8px 14px;background:#F9FAFB;border-top:0.5px solid #E5E7EB;">
+                      <button type="button" id="cd-simplify-skills-btn" onclick="simplifySkillsCD()" style="font-size:11px;font-weight:500;color:#1B2A4A;background:#fff;border:0.5px solid #1B2A4A;border-radius:6px;padding:5px 12px;cursor:pointer;">Turn to Keywords for Better Screening</button>
+                      <span style="font-size:10px;color:#9CA3AF;margin-left:8px;">Converts sentences to short keywords the screener can match</span>
+                    </div>
                     <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">NICE TO HAVE</span></div>
                     <div id="cd-ai-preview-nice" style="padding:12px 14px;font-size:12px;color:#1B2A4A;line-height:1.6;background:#fff;"></div>
                     <div style="background:#1B2A4A;padding:8px 14px;"><span style="color:#C9A84C;font-size:11px;font-weight:500;letter-spacing:0.05em;">BEHAVIORAL SKILLS</span></div>
