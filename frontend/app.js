@@ -1467,7 +1467,10 @@ function viewAtsProfile(applicationId) {
             ].filter(Boolean).join('  ·  ');
 
             const bodyHTML = `<div>
-                ${(currentUser&&currentUser.email==='hr@hunters-egypt.com')?`<div style="display:flex;justify-content:flex-end;margin-bottom:10px;"><button onclick="reExtractCandidateProfile(${p.id},this)" style="padding:5px 12px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;">Re-extract Profile</button></div>`:''}
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;" class="no-print">
+                    ${(currentUser&&currentUser.email==='hr@hunters-egypt.com')?`<button onclick="reExtractCandidateProfile(${p.id},this)" style="padding:5px 12px;background:#1B2A4A;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;">Re-extract Profile</button>`:''}
+                    <button onclick="window.print()" style="padding:5px 12px;background:#fff;color:#1B2A4A;border:0.5px solid #1B2A4A;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;">Print / Save as PDF</button>
+                </div>
                 <div style="display:flex;align-items:flex-start;gap:16px;padding-bottom:16px;border-bottom:0.5px solid #F3F4F6;">
                     ${p.photo_url ? `<img src="${escHtml(p.photo_url)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
                     <div style="flex:1;min-width:0;">
@@ -1869,7 +1872,8 @@ function exportToCSV() {
             (app.email || '').toLowerCase().includes(lf) ||
             (app.job_title || '').toLowerCase().includes(lf);
         const matchCompany = !cf || (app.company_name || '').toLowerCase() === cf;
-        return matchSearch && matchCompany;
+        const notRejected = (app.stage || '').toLowerCase() !== 'rejected';
+        return matchSearch && matchCompany && notRejected;
     });
 
     if (rows.length === 0) { showToast('No applications match the current filter.', 'info'); return; }

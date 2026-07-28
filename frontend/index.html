@@ -199,6 +199,28 @@
         .share-copy-btn{background:none;border:none;color:#C4C9D4;font-size:11px;font-weight:400;cursor:pointer;padding:0 2px;transition:color 0.15s ease;}
         .share-copy-btn:hover{color:#9CA3AF;}
         .share-copy-btn.copied{color:#C9A84C;}
+
+        @media print {
+            body > *:not(#admin-crud-modal) { display:none !important; }
+            #admin-crud-modal {
+                position:static !important;
+                background:transparent !important;
+                padding:0 !important;
+                display:block !important;
+                overflow:visible !important;
+            }
+            #admin-crud-modal > div {
+                width:100% !important;
+                max-width:100% !important;
+                max-height:none !important;
+                box-shadow:none !important;
+                border-radius:0 !important;
+                overflow:visible !important;
+            }
+            #admin-crud-modal > div > div:first-child { position:static !important; }
+            #admin-crud-modal > div > div:last-child { display:none !important; }
+            .no-print { display:none !important; }
+        }
     </style>
 </head>
 <body>
