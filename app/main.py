@@ -4,6 +4,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 import google.generativeai as genai
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse, Response
+from fastapi.templating import Jinja2Templates
+from typing import Optional
 import datetime
 from pydantic import BaseModel
 from .database import engine, Base, SessionLocal, get_db
@@ -1000,6 +1002,56 @@ try:
         @app.get("/")
         async def root():
             return FileResponse(str(frontend_path / "landing.html"))
+
+        # Server-render apply.html so each job page has a unique canonical tag,
+        # title, and visible content before JS runs — fixes Google Soft 404.
+        _templates = Jinja2Templates(directory=str(frontend_path))
+        _BASE_URL = "https://app.hunters-egypt.com"
+
+        @app.get("/apply.html", include_in_schema=False)
+        async def apply_page(request: Request, job_id: Optional[int] = None, db: Session = Depends(get_db)):
+            _default = {
+                "request": request,
+                "canonical_url": f"{_BASE_URL}/apply.html",
+                "page_title": "Apply for Job | Hunters for HR Solutions",
+                "meta_description": "Apply for a job at Hunters for HR Transformation & Execution",
+                "job_title": "Loading...",
+                "job_description": "Loading job details...",
+            }
+            if job_id is None:
+                return _templates.TemplateResponse("apply.html", _default)
+
+            job = db.query(models.Job).filter(models.Job.id == job_id).first()
+            if not job or job.is_archived or job.status == "rejected":
+                return _templates.TemplateResponse("apply.html", {
+                    **_default,
+                    "canonical_url": f"{_BASE_URL}/apply.html?job_id={job_id}",
+                    "page_title": "Position No Longer Available | Hunters HR",
+                    "meta_description": "This position is no longer available or has been filled.",
+                    "job_title": "Position No Longer Available",
+                    "job_description": "This position has been filled or is no longer accepting applications.",
+                })
+
+            company_name = "Hunters for HR Solutions"
+            if job.owner:
+                if not job.owner.is_admin and job.owner.company_id:
+                    _co = db.query(models.Company).filter(models.Company.id == job.owner.company_id).first()
+                    if _co:
+                        company_name = _co.company_name
+
+            _desc = (job.job_description or "").replace("\n", " ").strip()
+            _meta = f"{job.job_title} at {company_name}. {_desc}"[:157]
+            if len(_meta) == 157:
+                _meta += "..."
+
+            return _templates.TemplateResponse("apply.html", {
+                "request": request,
+                "canonical_url": f"{_BASE_URL}/apply.html?job_id={job_id}",
+                "page_title": f"{job.job_title} at {company_name} — Hunters HR",
+                "meta_description": _meta,
+                "job_title": job.job_title,
+                "job_description": job.job_description or "",
+            })
 
         app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
         logging.info(f"Frontend mounted from: {frontend_path}")

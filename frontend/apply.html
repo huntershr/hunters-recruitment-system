@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- CACHE VERSION: v1.05 -->
     <meta name="robots" content="index, follow">
-    <meta name="description" content="Apply for a job at Hunters for HR Transformation &amp; Execution">
-    <link rel="canonical" href="https://app.hunters-egypt.com/apply.html">
-    <title>Apply for Job | Hunters for HR Solutions</title>
+    <meta name="description" content="{{ meta_description }}">
+    <link rel="canonical" href="{{ canonical_url }}">
+    <title>{{ page_title }}</title>
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <script>
         window.onerror = function(msg, url, lineNo) {
@@ -241,7 +241,7 @@
 <header id="page-header">
     <img src="hunters-logo-transparent.png" id="header-logo" alt="Hunters HR">
     <div id="header-job-info">
-        <div id="job-title">Loading...</div>
+        <div id="job-title">{{ job_title }}</div>
         <div id="company-name"></div>
     </div>
     <a href="/jobs.html" id="close-btn" title="Back to jobs">&#215;</a>
@@ -267,7 +267,7 @@
 
         <div class="job-section">
             <div class="section-label">About the Role</div>
-            <div id="job-description" class="job-description-text">Loading job details...</div>
+            <div id="job-description" class="job-description-text">{{ job_description }}</div>
         </div>
 
         <div class="job-section" id="skills-section" style="display:none">
