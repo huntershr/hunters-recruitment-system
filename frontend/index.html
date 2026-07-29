@@ -552,6 +552,11 @@
                 <input type="text" id="jobs-search" placeholder="Search by job title or location…" oninput="renderJobs()" style="padding:7px 12px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;color:#1B2A4A;background:#fff;min-width:200px;flex:1;outline:none;">
                 <select id="jobs-dept-filter" onchange="renderJobs()" style="padding:7px 10px;border:0.5px solid #E5E7EB;border-radius:8px;font-size:12px;color:#1B2A4A;background:#fff;min-width:180px;">
                     <option value="">All Industries</option>
+                    <option value="British School">British School</option>
+                    <option value="American School">American School</option>
+                    <option value="IB School">IB School</option>
+                    <option value="Cambridge School">Cambridge School</option>
+                    <option value="Egyptian National School">Egyptian National School</option>
                     <option value="Education">Education</option>
                     <option value="Finance/Accounting">Finance / Accounting</option>
                     <option value="Healthcare">Healthcare</option>
@@ -564,11 +569,10 @@
                     <option value="Marketing/Advertising">Marketing / Advertising</option>
                     <option value="Legal">Legal</option>
                     <option value="Customer Service">Customer Service</option>
-                    <option value="Engineering & Technical">Engineering & Technical</option>
-                    <option value="Finance & Accounting">Finance & Accounting</option>
+                    <option value="Engineering & Technical">Engineering &amp; Technical</option>
                     <option value="Human Resources">Human Resources</option>
-                    <option value="Marketing & Communications">Marketing & Communications</option>
-                    <option value="Sales & Business Development">Sales & Business Development</option>
+                    <option value="Marketing & Communications">Marketing &amp; Communications</option>
+                    <option value="Sales & Business Development">Sales &amp; Business Development</option>
                     <option value="Other">Other</option>
                 </select>
             </div>
@@ -911,7 +915,11 @@
                                         <option value="Construction">Construction</option>
                                         <option value="Marketing/Advertising">Marketing / Advertising</option>
                                         <option value="Legal">Legal</option>
+                                        <option value="Customer Service">Customer Service</option>
+                                        <option value="Engineering & Technical">Engineering &amp; Technical</option>
                                         <option value="Human Resources">Human Resources</option>
+                                        <option value="Marketing & Communications">Marketing &amp; Communications</option>
+                                        <option value="Sales & Business Development">Sales &amp; Business Development</option>
                                         <option value="Other">Other</option>
                                     </select>
                                 </div>

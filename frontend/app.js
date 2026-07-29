@@ -157,6 +157,9 @@ const _ADMIN_INDUSTRY_WEIGHT_DEFAULTS = {
   'procurement':              { title: 20, industry: 15, experience: 25, skills: 40 },
   'business development':     { title: 25, industry: 15, experience: 30, skills: 30 },
   'customer service':         { title: 20, industry: 20, experience: 30, skills: 30 },
+  'engineering & technical':  { title: 15, industry: 15, experience: 30, skills: 40 },
+  'marketing & communications':{ title: 20, industry: 15, experience: 25, skills: 40 },
+  'sales & business development':{ title: 25, industry: 15, experience: 30, skills: 30 },
   'real estate':              { title: 20, industry: 20, experience: 25, skills: 35 },
   'technology':               { title: 20, industry: 15, experience: 25, skills: 40 },
   'manufacturing':            { title: 20, industry: 15, experience: 30, skills: 35 },
@@ -2040,7 +2043,7 @@ function editJob(id) {
     // Fill form
     const deptEl = document.getElementById("manual-job-department");
     if (deptEl) {
-        const _knownInds = ['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Human Resources','Other'];
+        const _knownInds = ['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Customer Service','Engineering & Technical','Human Resources','Marketing & Communications','Sales & Business Development','Other'];
         deptEl.value = _knownInds.includes(job.department) ? job.department : 'Other';
     }
     document.getElementById("manual-job-title").value = job.job_title;
@@ -2873,7 +2876,7 @@ function _coWsJobFormModal(job, companyId) {
                 <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Industry *</label>
                 <select id="cj-department" onchange="_cjIndustryChange(this)" style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1B2A4A;outline:none;box-sizing:border-box;">
                     <option value="">Select Industry</option>
-                    ${[['British School','British School'],['American School','American School'],['IB School','IB School'],['Cambridge School','Cambridge School'],['Egyptian National School','Egyptian National School'],['Education','Education (General)'],['Finance/Accounting','Finance / Accounting'],['Healthcare','Healthcare'],['Technology','Technology'],['Manufacturing','Manufacturing'],['Real Estate','Real Estate'],['Retail','Retail'],['Hospitality','Hospitality'],['Construction','Construction'],['Marketing/Advertising','Marketing / Advertising'],['Legal','Legal'],['Human Resources','Human Resources'],['Other','Other']].map(([val,lbl])=>`<option value="${val}"${(job?job.department===val||(!['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Human Resources'].includes(job.department)&&val==='Other'):val==='Other')?'selected':''}>${lbl}</option>`).join('')}
+                    ${[['British School','British School'],['American School','American School'],['IB School','IB School'],['Cambridge School','Cambridge School'],['Egyptian National School','Egyptian National School'],['Education','Education (General)'],['Finance/Accounting','Finance / Accounting'],['Healthcare','Healthcare'],['Technology','Technology'],['Manufacturing','Manufacturing'],['Real Estate','Real Estate'],['Retail','Retail'],['Hospitality','Hospitality'],['Construction','Construction'],['Marketing/Advertising','Marketing / Advertising'],['Legal','Legal'],['Customer Service','Customer Service'],['Engineering & Technical','Engineering & Technical'],['Human Resources','Human Resources'],['Marketing & Communications','Marketing & Communications'],['Sales & Business Development','Sales & Business Development'],['Other','Other']].map(([val,lbl])=>`<option value="${val}"${(job?job.department===val||(!['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Customer Service','Engineering & Technical','Human Resources','Marketing & Communications','Sales & Business Development'].includes(job.department)&&val==='Other'):val==='Other')?'selected':''}>${lbl}</option>`).join('')}
                 </select>
             </div>
             <div style="grid-column:span 2;">

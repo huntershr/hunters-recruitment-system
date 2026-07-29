@@ -661,6 +661,9 @@ const INDUSTRY_WEIGHT_DEFAULTS = {
   'procurement':              { title: 20, industry: 15, experience: 25, skills: 40 },
   'business development':     { title: 25, industry: 15, experience: 30, skills: 30 },
   'customer service':         { title: 20, industry: 20, experience: 30, skills: 30 },
+  'engineering & technical':  { title: 15, industry: 15, experience: 30, skills: 40 },
+  'marketing & communications':{ title: 20, industry: 15, experience: 25, skills: 40 },
+  'sales & business development':{ title: 25, industry: 15, experience: 30, skills: 30 },
   'real estate':              { title: 20, industry: 20, experience: 25, skills: 35 },
   'technology':               { title: 20, industry: 15, experience: 25, skills: 40 },
   'manufacturing':            { title: 20, industry: 15, experience: 30, skills: 35 },
@@ -799,7 +802,7 @@ function openEditJobModal(id) {
     
     const deptEditEl = document.getElementById('job-modal-department');
     if (deptEditEl) {
-        const _knownInds = ['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Human Resources','Other'];
+        const _knownInds = ['British School','American School','IB School','Cambridge School','Egyptian National School','Education','Finance/Accounting','Healthcare','Technology','Manufacturing','Real Estate','Retail','Hospitality','Construction','Marketing/Advertising','Legal','Customer Service','Engineering & Technical','Human Resources','Marketing & Communications','Sales & Business Development','Other'];
         deptEditEl.value = _knownInds.includes(job.department) ? job.department : 'Other';
     }
     document.getElementById('job-modal-title-input').value = job.title;
