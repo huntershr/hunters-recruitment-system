@@ -771,8 +771,10 @@ function _renderStageCard(app) {
         ? `<img src="${escHtml(app.photo_url)}" style="width:44px;height:44px;min-width:44px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;width:44px;height:44px;min-width:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${escHtml(initials)}</div>`
         : `<div style="width:44px;height:44px;min-width:44px;border-radius:50%;background:#1B2A4A;color:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${escHtml(initials)}</div>`;
     const isReg = app.candidate_type==='registered';
-    const typePill = isReg
+    const typePill = app.candidate_type==='registered'
         ? `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#F3F4F6;color:#6B7280;">Registered</span>`
+        : app.candidate_type==='uploaded'
+        ? `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#EBF3FF;color:#1A6FC4;border:0.5px solid #BFDBFE;">Uploaded</span>`
         : `<span style="display:inline-flex;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:500;background:#FEF9EC;color:#854F0B;border:0.5px solid #F6D97A;">External</span>`;
     const stg = (app.stage||'applied').toLowerCase();
     const [stgColor,stgBg] = _STAGE_BADGE_MAP[stg]||['#6B7280','#F3F4F6'];
@@ -926,6 +928,8 @@ function renderCandidateList(filter) {
             const initials = (app.name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
             const typeBadge = app.candidate_type === 'registered'
                 ? `<span style="background:#F0F2F8;color:#6B7280;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:4px;">Reg</span>`
+                : app.candidate_type === 'uploaded'
+                ? `<span style="background:#EBF3FF;color:#1A6FC4;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:4px;">Upload</span>`
                 : `<span style="background:#FFF7E0;color:#9B6F00;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:4px;">Ext</span>`;
 
             tbody.innerHTML += `
@@ -948,7 +952,7 @@ function renderCandidateList(filter) {
                             ? `<span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:${sc.bg};color:${sc.text};">${pct}%</span>`
                             : '<span style="color:#9CA3AF;font-size:11px;">Pending</span>'}
                     </td>
-                    <td style="font-size:11px;color:#6B7280;">${app.candidate_type === 'registered' ? 'Registered' : 'External'}</td>
+                    <td style="font-size:11px;color:#6B7280;">${app.candidate_type === 'registered' ? 'Registered' : app.candidate_type === 'uploaded' ? 'Uploaded' : 'External'}</td>
                     <td>
                         <span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:${stageCol}22;color:${stageCol};">${stage}</span>
                     </td>
@@ -964,7 +968,7 @@ function renderCandidateList(filter) {
                     <td>
                         <div style="display:flex;gap:5px;">
                             <button class="btn-action" style="font-size:10px;padding:4px 8px;" onclick="viewApplication(${app.application_id})">View Report</button>
-                            ${app.candidate_type === 'registered' && app.candidate_id
+                            ${(app.candidate_type === 'registered' || app.candidate_type === 'uploaded') && app.candidate_id
                                 ? `<button class="btn-action" style="font-size:10px;padding:4px 8px;color:#1A6FC4;border-color:#1A6FC4;" onclick="viewBasicProfile(${app.application_id})">Profile</button>`
                                 : ''}
                             ${app.candidate_id
@@ -1894,7 +1898,7 @@ function exportToCSV() {
             app.company_name || '',
             evalScorePercent(app.score) ?? '',
             app.decision || 'Pending',
-            app.candidate_type === 'registered' ? 'Registered' : 'External',
+            app.candidate_type === 'registered' ? 'Registered' : app.candidate_type === 'uploaded' ? 'Uploaded' : 'External',
             app.applied_at ? app.applied_at.split('T')[0] : '',
             app.last_title || '',
             app.last_employer || '',
@@ -2317,7 +2321,7 @@ async function saveManualEvaluation() {
 async function archiveJob(id, title) {
     createConfirmModal(
         'Archive "' + (title || 'this job') + '"?',
-        'This job will be hidden from candidates and your dashboard. Contact Hunters to restore it.',
+        'This job will be hidden from candidates and your dashboard. You can restore it from Archived Jobs.',
         async () => {
             try {
                 const _archiveUrl = (currentUser && currentUser.is_admin)
@@ -3242,6 +3246,85 @@ async function _coWsLoadArchivedJobs(co) {
     } catch(e) {
         if (body) body.innerHTML = '<div style="padding:24px;color:#DC2626;font-size:13px;">Failed to load archived jobs: ' + escHtml(e.message) + '</div>';
     }
+}
+
+// ── Superadmin: archived jobs panel ──────────────────────────────────────────
+let _adminArchivedPanel = null;
+
+async function loadAdminArchivedJobs() {
+    if (_adminArchivedPanel) { _adminArchivedPanel.remove(); _adminArchivedPanel = null; return; }
+
+    const container = document.getElementById('jobs-card-view')?.parentElement;
+    if (!container) return;
+
+    const panel = document.createElement('div');
+    panel.id = 'admin-archived-panel';
+    _adminArchivedPanel = panel;
+    panel.style.cssText = 'background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:20px 22px;margin-bottom:18px;';
+    panel.innerHTML = '<div style="color:#9CA3AF;font-size:13px;padding:12px 0;">Loading archived jobs…</div>';
+
+    const jobsSection = document.getElementById('jobs-card-view');
+    container.insertBefore(panel, jobsSection);
+
+    try {
+        const res = await authFetch('/api/admin/jobs?archived=true');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const archivedJobs = await res.json();
+
+        const rows = archivedJobs.length
+            ? archivedJobs.map(j => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:0.5px solid #F3F4F6;gap:10px;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:13px;font-weight:500;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(j.job_title||'')}</div>
+                        <div style="font-size:11px;color:#9CA3AF;">${j.company_name ? escHtml(j.company_name)+' · ' : ''}${j.created_at ? new Date(j.created_at).toLocaleDateString('en-GB') : ''}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                        <span style="padding:2px 8px;border-radius:8px;font-size:10px;background:#F3F4F6;color:#6B7280;">Archived</span>
+                        <button onclick="_adminRestoreJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" style="background:#E1F5EE;color:#0F6E56;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-weight:500;">Restore</button>
+                        <button onclick="_adminDeleteArchivedJob(${j.id},'${escHtml(j.job_title||'').replace(/'/g,"&#39;")}')" style="background:#FEECEC;color:#DC2626;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-weight:500;">Delete</button>
+                    </div>
+                </div>`).join('')
+            : '<div style="padding:36px;text-align:center;color:#9CA3AF;font-size:13px;">No archived jobs.</div>';
+
+        panel.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div style="font-size:14px;font-weight:600;color:#1B2A4A;">Archived Jobs <span style="font-size:12px;font-weight:400;color:#9CA3AF;margin-left:6px;">${archivedJobs.length} job${archivedJobs.length!==1?'s':''}</span></div>
+                <button onclick="loadAdminArchivedJobs()" style="background:#F0F2F8;color:#6B7280;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;">Close</button>
+            </div>
+            <div style="background:#FAFAFA;border-radius:10px;border:1px solid #E5E7EB;overflow:hidden;">${rows}</div>`;
+    } catch(e) {
+        panel.innerHTML = `<div style="color:#DC2626;font-size:13px;">Failed to load archived jobs: ${escHtml(e.message)}</div>`;
+    }
+}
+
+async function _adminRestoreJob(jobId, jobTitle) {
+    const res = await authFetch('/api/admin/jobs/' + jobId + '/restore', { method: 'PATCH' });
+    if (res.ok) {
+        showToast('"' + jobTitle + '" restored — it is now active', 'success');
+        _adminArchivedPanel = null;
+        document.getElementById('admin-archived-panel')?.remove();
+        await loadAdminArchivedJobs();
+    } else {
+        showToast('Restore failed', 'error');
+    }
+}
+
+async function _adminDeleteArchivedJob(jobId, jobTitle) {
+    createConfirmModal(
+        'Delete "' + jobTitle + '"?',
+        'This permanently deletes the job and all its candidate data. This cannot be undone.',
+        async () => {
+            const res = await authFetch('/api/admin/jobs/' + jobId, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('"' + jobTitle + '" deleted', 'success');
+                _adminArchivedPanel = null;
+                document.getElementById('admin-archived-panel')?.remove();
+                await loadAdminArchivedJobs();
+            } else {
+                showToast('Delete failed', 'error');
+            }
+        }
+    );
 }
 
 async function openAdminJobPreview(jobId) {

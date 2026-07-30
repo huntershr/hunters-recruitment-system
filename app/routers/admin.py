@@ -1190,7 +1190,11 @@ def list_admin_applications(
             "job_title": job.job_title if job else "",
             "company_name": company_name,
             "candidate_id": candidate.id if candidate else None,
-            "candidate_type": "registered" if (candidate and candidate.user_id) else "external",
+            "candidate_type": (
+                "registered" if (candidate and candidate.user_id)
+                else "uploaded" if candidate
+                else "external"
+            ),
             "name": name,
             "email": email,
             "phone": phone,
