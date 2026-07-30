@@ -155,7 +155,7 @@ body{background:var(--bg);color:var(--navy);min-height:100vh;}
       <button onclick="showPortalSection('profile')" style="color:rgba(255,255,255,0.7);background:none;border:none;font-size:12px;cursor:pointer;">My Profile</button>
       <button onclick="openCVModal()" style="display:none;background:#C9A84C;color:#1B2A4A;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:500;cursor:pointer;">AI CV Writer</button>
     </div>
-    <button onclick="(portalUser&&(portalUser.is_admin||portalUser.company_id))?window.location.href='/':window.location.href='landing.html'" style="color:rgba(255,255,255,0.55);background:none;border:0.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;">← Home</button>
+    <button onclick="portalUser&&portalUser.is_admin?window.location.href='/index.html':portalUser&&portalUser.company_id?window.location.href='/company-dashboard.html':window.location.href='landing.html'" style="color:rgba(255,255,255,0.55);background:none;border:0.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;">← Home</button>
   </div>
 </div>
 
@@ -773,12 +773,10 @@ function filterByOccupation(key){
   });
   /* Filter the talent pool when in employer view */
   if(!_activeOccupation){renderTalentPool(_allCandidates);return;}
-  var cat=occupationCategories.find(function(c){return c.key===_activeOccupation;});
-  if(!cat){renderTalentPool(_allCandidates);return;}
-  var filtered=_allCandidates.filter(function(c){
-    var text=((c.name||'')+' '+(c.last_title||'')+' '+(c.last_employer||'')+' '+(c.skills||'')+' '+(c.education||'')).toLowerCase();
-    return cat.keywords.some(function(kw){return text.includes(kw);});
-  });
+  /* Use pre-categorized _occGroups so results match the card counts exactly */
+  if(!_occGroups||!_occGroups[_activeOccupation]){renderTalentPool(_allCandidates);return;}
+  var occIds=new Set(_occGroups[_activeOccupation].map(function(c){return c.id;}));
+  var filtered=_allCandidates.filter(function(c){return occIds.has(c.id);});
   renderTalentPool(filtered);
 }
 
