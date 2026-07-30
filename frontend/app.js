@@ -3317,6 +3317,7 @@ async function _adminDeleteArchivedJob(jobId, jobTitle) {
             const res = await authFetch('/api/admin/jobs/' + jobId, { method: 'DELETE' });
             if (res.ok) {
                 showToast('"' + jobTitle + '" deleted', 'success');
+                closeAdminModal();
                 _adminArchivedPanel = null;
                 document.getElementById('admin-archived-panel')?.remove();
                 await loadAdminArchivedJobs();

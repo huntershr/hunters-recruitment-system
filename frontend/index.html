@@ -1416,7 +1416,7 @@ async function startAdminBulkProcessing() {
 
         var token = localStorage.getItem('token') || '';
         try {
-            var res = await fetch('/jobs/admin/all', { headers: { 'Authorization': 'Bearer ' + token } });
+            var res = await fetch('/api/admin/jobs', { headers: { 'Authorization': 'Bearer ' + token } });
             if (res.ok) {
                 var data = await res.json();
                 _saRawJobs = Array.isArray(data) ? data : [];
