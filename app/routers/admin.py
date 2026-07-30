@@ -1019,9 +1019,11 @@ def get_talent_pool(
             "last_employer": cand.last_employer or "",
             "years_exp": cand.experience_years,
             "skills": cand.skills or "",
+            "education": cand.education or "",
             "photo_url": cand.photo_url or "",
             "summary": cand.summary or "",
             "location": cand.location or "",
+            "has_cv": bool(cand.cv_text and cand.cv_text.strip()),
         })
     return result
 
