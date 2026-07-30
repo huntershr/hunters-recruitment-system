@@ -1320,6 +1320,7 @@ def get_candidate_ats_profile(
         "experiences": candidate.experiences or [],
         "education_history": candidate.education_history or [],
         "languages": candidate.languages or [],
+        "has_cv": bool(candidate.cv_text and candidate.cv_text.strip()),
         "applications": app_list,
     }
 

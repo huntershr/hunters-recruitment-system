@@ -2631,10 +2631,15 @@
         const token = localStorage.getItem('token');
         try {
             const res = await fetch(`${API_URL}/jobs`, { headers: { 'Authorization': `Bearer ${token}` } });
-            const jobs = (await res.json()).filter(j => j.is_approved);
+            const jobs = (await res.json()).filter(j => j.is_approved && !j.is_archived);
             if (!jobs.length) { showToast('No approved jobs to invite to.', 'info'); return; }
             const options = jobs.map(j => `<option value="${j.id}">${escHtml(j.job_title)}</option>`).join('');
-            document.getElementById('talent-modal-title').textContent = `Invite to Apply — ${candidateName}`;
+            document.getElementById('talent-modal-hd').innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <div style="font-size:16px;font-weight:500;color:#fff;">Invite to Apply — ${escHtml(candidateName)}</div>
+                    <button onclick="closeTalentModal()" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:18px;cursor:pointer;flex-shrink:0;padding:0;line-height:1;">✕</button>
+                </div>`;
+            document.getElementById('talent-modal-footer').innerHTML = '';
             document.getElementById('talent-modal-body').innerHTML = `
                 <p style="font-size:13px;color:#374151;margin-bottom:16px;">Select a job to invite <strong>${escHtml(candidateName)}</strong> to apply for:</p>
                 <select id="invite-job-select" style="width:100%;padding:10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;color:#1B2A4A;margin-bottom:12px;">${options}</select>
@@ -2664,8 +2669,8 @@
         const ok = await _trackInvite();
         if (!ok) { closeTalentModal(); return; }
 
-        const portalUrl = window.location.origin + '/apply.html?job_id=' + jobId;
-        const body = 'Hi ' + name + ',\n\nWe\'d like to invite you to apply for ' + jobTitle + ' at Hunters HR.\n\nApply here: ' + portalUrl + (msg ? '\n\n' + msg : '') + '\n\nBest regards,\nHunters HR';
+        const portalUrl = window.location.origin + '/candidates-portal.html';
+        const body = 'Hi ' + name + ',\n\nWe\'d like to invite you to apply for ' + jobTitle + ' at Hunters HR.\n\nSign in to your portal and apply here: ' + portalUrl + (msg ? '\n\n' + msg : '') + '\n\nBest regards,\nHunters HR';
         window.location.href = 'mailto:' + toEmail + '?subject=' + encodeURIComponent('Invitation to Apply — ' + jobTitle + ' at Hunters HR') + '&body=' + encodeURIComponent(body);
         showToast('Email client opened for ' + toEmail, 'success');
         closeTalentModal();
