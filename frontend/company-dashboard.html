@@ -2475,11 +2475,17 @@
             const yrs = c.years_exp != null ? c.years_exp : (c.experience_years != null ? c.experience_years : null);
             const roleInfo = [c.last_title, c.last_employer].filter(Boolean).join(' at ');
             const avatarHtml = _candAvatar(c.photo_url, 46);
+            const appliedBadge = c.applied_to_company
+                ? `<span style="font-size:9px;font-weight:600;color:#0F6E56;background:#E1F5EE;border-radius:6px;padding:2px 6px;flex-shrink:0;">Applied</span>`
+                : '';
             return `<div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:10px;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.04)'">
                 <div style="display:flex;align-items:flex-start;gap:12px;">
                     ${avatarHtml}
                     <div style="flex:1;min-width:0;">
-                        <div style="font-size:14px;font-weight:600;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(c.name || '—')}</div>
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            <div style="font-size:14px;font-weight:600;color:#1B2A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(c.name || '—')}</div>
+                            ${appliedBadge}
+                        </div>
                         ${roleInfo ? `<div style="font-size:11px;color:#0F6E56;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(roleInfo)}</div>` : ''}
                     </div>
                     ${yrs != null ? `<div style="text-align:center;flex-shrink:0;background:#F9FAFB;border-radius:8px;padding:4px 8px;"><div style="font-size:16px;font-weight:700;color:#1B2A4A;line-height:1;">${yrs}</div><div style="font-size:9px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.04em;">yrs</div></div>` : ''}
@@ -2589,7 +2595,7 @@
             document.getElementById('talent-modal-body').innerHTML = summaryCard + skillsCard + expCard + eduCard + contactCard;
 
             // ── Footer ──
-            const cvBtn = p.has_cv
+            const cvBtn = (p.has_cv && p.applied_to_company)
                 ? `<button onclick="downloadCandidateCV(${candidateId},'${escHtml(p.name||'candidate').replace(/[^a-zA-Z0-9_-]/g,'_')}')" style="background:none;border:1px solid #1B2A4A;color:#1B2A4A;border-radius:7px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;">Download CV</button>`
                 : '';
             document.getElementById('talent-modal-footer').innerHTML = `${cvBtn}<button onclick="closeTalentModal()" style="background:none;border:none;color:#6B7280;font-size:12px;cursor:pointer;padding:8px 12px;">Close</button>`;

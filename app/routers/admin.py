@@ -973,29 +973,35 @@ def get_talent_pool(
 ):
     """
     Registered (Type A) candidates — user_id IS NOT NULL.
-    SuperAdmin: all candidates. Company Admin: scoped to their job applicants only.
+    SuperAdmin: all candidates with applied_to_company=True.
+    Company Admin: all registered candidates; applied_to_company=True only
+    for those who have applied to this company's jobs (gates CV download).
     """
     if not current_user.is_admin and not current_user.company_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    q = (
+    candidates = (
         db.query(models.Candidate)
         .options(defer(models.Candidate.cv_file_data))
         .filter(models.Candidate.user_id.isnot(None))
+        .order_by(models.Candidate.id.desc())
+        .all()
     )
-    if not current_user.is_admin:
-        q = q.filter(
-            models.Candidate.id.in_(
-                db.query(models.Application.candidate_id)
-                .join(models.Job, models.Application.job_id == models.Job.id)
-                .join(models.User, models.Job.owner_id == models.User.id)
-                .filter(
-                    models.Application.candidate_id.isnot(None),
-                    models.User.company_id == current_user.company_id,
-                )
+
+    # Build applicant set for company admins so the frontend can gate CV download
+    company_applicant_ids: set = set()
+    if current_user.company_id:
+        rows = (
+            db.query(models.Application.candidate_id)
+            .join(models.Job, models.Application.job_id == models.Job.id)
+            .join(models.User, models.Job.owner_id == models.User.id)
+            .filter(
+                models.Application.candidate_id.isnot(None),
+                models.User.company_id == current_user.company_id,
             )
+            .all()
         )
-    candidates = q.order_by(models.Candidate.id.desc()).all()
+        company_applicant_ids = {r[0] for r in rows}
 
     # Batch-load user rows to avoid N+1 queries
     user_ids = [c.user_id for c in candidates if c.user_id]
@@ -1009,6 +1015,7 @@ def get_talent_pool(
     result = []
     for cand in candidates:
         user = users_by_id.get(cand.user_id)
+        applied = current_user.is_admin or (cand.id in company_applicant_ids)
         result.append({
             "user_id": cand.user_id,
             "candidate_id": cand.id,
@@ -1024,6 +1031,7 @@ def get_talent_pool(
             "summary": cand.summary or "",
             "location": cand.location or "",
             "has_cv": bool(cand.cv_text and cand.cv_text.strip()),
+            "applied_to_company": applied,
         })
     return result
 
