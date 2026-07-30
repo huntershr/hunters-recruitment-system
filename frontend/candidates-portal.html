@@ -776,7 +776,7 @@ function filterByOccupation(key){
   var cat=occupationCategories.find(function(c){return c.key===_activeOccupation;});
   if(!cat){renderTalentPool(_allCandidates);return;}
   var filtered=_allCandidates.filter(function(c){
-    var text=((c.name||'')+' '+(c.skills||'')+' '+(c.education||'')).toLowerCase();
+    var text=((c.name||'')+' '+(c.last_title||'')+' '+(c.last_employer||'')+' '+(c.skills||'')+' '+(c.education||'')).toLowerCase();
     return cat.keywords.some(function(kw){return text.includes(kw);});
   });
   renderTalentPool(filtered);
@@ -792,15 +792,7 @@ async function loadTalentPool(){
   grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:#9CA3AF;">Loading candidates…</div>';
   try{
     var endpoint=API_BASE+(portalUser&&portalUser.is_admin?'/api/admin/talent-pool':'/candidates');
-    var results=await Promise.all([
-      fetch(endpoint,{headers:hdrs()}).then(function(r){return r.ok?r.json():[];}),
-      fetch(API_BASE+'/results',{headers:hdrs()}).then(function(r){return r.ok?r.json():[];}).catch(function(){return[];})
-    ]);
-    var rawCands=Array.isArray(results[0])?results[0]:[];
-    var evals=Array.isArray(results[1])?results[1]:[];
-
-    var evalMap={};
-    evals.forEach(function(ev){if(ev&&ev.candidate_id)evalMap[ev.candidate_id]=ev;});
+    var rawCands=await fetch(endpoint,{headers:hdrs()}).then(function(r){return r.ok?r.json():[];});
 
     if(portalUser&&portalUser.is_admin){
       /* /api/admin/talent-pool returns {candidate_id, user_id, years_exp, has_cv, …} */
@@ -816,13 +808,11 @@ async function loadTalentPool(){
           photo_url:u.photo_url||'',
           has_cv:u.has_cv||false,
           cv_text:u.has_cv?'has_cv':'',
-          evaluation:evalMap[u.candidate_id]||null,
           is_registered_user:true
         };
       });
     }else{
-      _allCandidates=rawCands;
-      _allCandidates.forEach(function(c){c.evaluation=evalMap[c.id]||null;});
+      _allCandidates=Array.isArray(rawCands)?rawCands:[];
     }
 
     renderTalentPool(_allCandidates);
@@ -835,7 +825,7 @@ function filterTalentPool(){
   var q=(document.getElementById('q-talent').value||'').toLowerCase();
   if(!q){renderTalentPool(_allCandidates);return;}
   renderTalentPool(_allCandidates.filter(function(c){
-    return ((c.name||'')+(c.skills||'')+(c.education||'')).toLowerCase().includes(q);
+    return ((c.name||'')+' '+(c.last_title||'')+' '+(c.last_employer||'')+' '+(c.skills||'')+' '+(c.education||'')).toLowerCase().includes(q);
   }));
 }
 function setTalentSort(v){_talentSort=v;filterTalentPool();}
@@ -864,10 +854,6 @@ function renderTalentPool(candidates){
   sorted.forEach(function(c){_storeTalentCand(c);});
   grid.innerHTML=sorted.map(function(c){
     var ev=c.evaluation||null;
-    var rawScore=ev&&ev.score!=null?ev.score:null;
-    var pct=rawScore!=null?(rawScore<=1?Math.round(rawScore*100):rawScore<=10?Math.round(rawScore*10):Math.round(rawScore)):null;
-    var decision=(ev&&ev.decision)||'';
-    var scoreColor=pct!=null?(pct>=80?'#0F6E56':pct>=60?'#185FA5':pct>=40?'#854F0B':'#A32D2D'):'#9CA3AF';
 
     // Initials avatar with deterministic color from name
     var nameParts=(c.name||'C').split(' ').filter(Boolean);
@@ -883,20 +869,7 @@ function renderTalentPool(candidates){
     var candidateId=c.real_candidate_id||c.id;
     var expLine=[c.last_title?c.last_title.slice(0,28):null,c.experience_years!=null&&c.experience_years>0?c.experience_years+' yrs exp':null].filter(Boolean).join(' · ');
 
-    // Decision pill
-    var decKey=decision.toLowerCase();
-    var decHtml='';
-    if(decKey==='accept'||decKey==='accepted'){
-      decHtml='<span style="font-size:10px;font-weight:500;background:#E1F5EE;color:#0F6E56;border-radius:10px;padding:2px 9px;border:0.5px solid #9FE1CB;">Accepted</span>';
-    }else if(decKey==='reject'||decKey==='rejected'){
-      decHtml='<span style="font-size:10px;font-weight:500;background:#FCEBEB;color:#A32D2D;border-radius:10px;padding:2px 9px;border:0.5px solid #F5A5A5;">Rejected</span>';
-    }else if(decKey==='review'){
-      decHtml='<span style="font-size:10px;font-weight:500;background:#FAEEDA;color:#854F0B;border-radius:10px;padding:2px 9px;border:0.5px solid #F5C97A;">Review</span>';
-    }else if(pct==null){
-      decHtml='<span style="font-size:10px;font-weight:500;background:#F3F4F6;color:#9CA3AF;border-radius:10px;padding:2px 9px;">Pending Screening</span>';
-    }
-
-    return '<div class="job-card" style="cursor:pointer;display:flex;flex-direction:column;min-height:220px;" onclick="talentOpenProfile('+candidateId+')">'
+    return '<div class="job-card" style="cursor:pointer;display:flex;flex-direction:column;min-height:200px;" onclick="talentOpenProfile('+candidateId+')">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
         +'<div style="width:42px;height:42px;border-radius:50%;background:'+avatarBg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="color:#fff;font-size:14px;font-weight:600;letter-spacing:0.5px;">'+initials+'</span></div>'
         +'<div style="flex:1;min-width:0;">'
@@ -904,19 +877,14 @@ function renderTalentPool(candidates){
           +(expLine?'<div style="font-size:11px;color:#9CA3AF;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(expLine)+'</div>'
             :(c.email?'<div style="font-size:11px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(c.email)+'</div>':''))
         +'</div>'
-        +(pct!=null?'<div style="font-size:14px;font-weight:600;color:'+scoreColor+';flex-shrink:0;text-align:right;">'+pct+'<span style="font-size:10px;font-weight:400;">%</span></div>':'')
       +'</div>'
-      +'<div style="display:flex;align-items:center;gap:6px;min-height:24px;margin-bottom:10px;">'
-        +decHtml
-        +(c.email&&expLine?'<span style="font-size:10px;color:#CBD5E1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">'+esc(c.email)+'</span>':'')
-      +'</div>'
+      +(c.email&&expLine?'<div style="font-size:10px;color:#9CA3AF;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(c.email)+'</div>':'')
       +'<div style="flex:1;min-height:28px;margin-bottom:14px;">'
         +(skillsList.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;">'+skillsList.map(function(s){return'<span style="background:#F0F4F8;color:#1B2A4A;font-size:10px;padding:2px 8px;border-radius:10px;">'+esc(s)+'</span>';}).join('')+'</div>':'')
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:6px;border-top:0.5px solid #F3F4F6;padding-top:10px;margin-top:auto;" onclick="event.stopPropagation();">'
         +'<button onclick="talentOpenProfile('+candidateId+')" style="flex:1;background:#1B2A4A;color:#fff;border:none;border-radius:7px;padding:7px 8px;font-size:11px;font-weight:500;cursor:pointer;">View Profile</button>'
         +(hasCV?'<button onclick="talentDownloadCV('+candidateId+',\''+safeName+'\')" title="Download CV" style="background:#F0F4FF;color:#1B2A4A;border:0.5px solid #CBD5E1;border-radius:7px;padding:7px 10px;font-size:11px;font-weight:500;cursor:pointer;">CV</button>':'')
-        +(ev&&ev.reason?'<button onclick="talentViewReport('+candidateId+')" title="AI Report" style="background:#FFFBF0;color:#854F0B;border:0.5px solid #F5D789;border-radius:7px;padding:7px 10px;font-size:11px;font-weight:500;cursor:pointer;">Report</button>':'')
         +(c.email?'<button onclick="talentInvite('+candidateId+',\''+esc(c.name||'')+'\',\''+esc(c.email||'')+'\')" title="Invite to apply" style="background:#E1F5EE;color:#0F6E56;border:0.5px solid #9FE1CB;border-radius:7px;padding:7px 10px;font-size:11px;font-weight:500;cursor:pointer;">Invite</button>':'')
       +'</div>'
     +'</div>';
