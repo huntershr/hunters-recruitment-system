@@ -95,9 +95,32 @@ def call_agent_screener(cv_text: str, job, candidate_id=None) -> "dict | None":
             result["dimension_scores"] = {"source": "agent"}
 
         # Carry candidate_profile for callers that do profile back-fill; must be popped before DB write
-        result["_candidate_profile"] = raw.get("candidate_profile") or {}
+        _cp_raw = raw.get("candidate_profile") or {}
+        result["_candidate_profile"] = _cp_raw
         # Carry screening params for audit trail; must be popped before DB write
         result["_screening_params"] = raw.get("_screening_params") or {}
+
+        # Build quick_facts from what the agent parsed out of the CV
+        _qf: dict = {}
+        _yrs = _cp_raw.get("years_experience")
+        if _yrs is not None:
+            try:
+                _yrs_int = int(_yrs)
+                if _yrs_int > 0:
+                    _qf["years_experience"] = _yrs_int
+            except (ValueError, TypeError):
+                pass
+        _ct = (_cp_raw.get("current_title") or "").strip()
+        if _ct:
+            _qf["current_title"] = _ct
+        _emp = (_cp_raw.get("last_employer") or "").strip()
+        if _emp:
+            _qf["current_employer"] = _emp
+        _sk = _cp_raw.get("skills") or []
+        if isinstance(_sk, list) and _sk:
+            _qf["key_skills_found"] = _sk[:8]
+        if _qf:
+            result["quick_facts"] = _qf
 
         logger.info(
             "Agent screener OK: score=%.1f decision=%s "

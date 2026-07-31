@@ -1541,7 +1541,7 @@ def rescreen_pending(
                             candidate.last_employer = v
                     if not (candidate.experience_years or 0):
                         v = _cp.get("years_experience")
-                        if v:
+                        if v is not None:
                             try:
                                 yr = int(v)
                                 # Cap at 30 — anything higher is likely a birth-year calculation
@@ -1635,7 +1635,7 @@ def rescreen_pending(
                             candidate.last_employer = v
                     if not (candidate.experience_years or 0):
                         v = _cp.get("years_experience")
-                        if v:
+                        if v is not None:
                             try:
                                 yr = int(v)
                                 # Cap at 30 — anything higher is likely a birth-year calculation
@@ -1748,7 +1748,7 @@ def rescreen_pending(
                     if v: cand.certifications = str(v).strip()
                 if not cand.experience_years or cand.experience_years == 0:
                     v = _p3_cp.get("years_experience")
-                    if v:
+                    if v is not None:
                         try:
                             yr = int(v)
                             if 1 <= yr <= 25: cand.experience_years = yr
@@ -1848,7 +1848,7 @@ def rescreen_single(
                     candidate.last_employer = v
                 if not (candidate.experience_years or 0):
                     v = _cp.get("years_experience")
-                    if v:
+                    if v is not None:
                         try:
                             yr = int(v)
                             if 1 <= yr <= 25:
