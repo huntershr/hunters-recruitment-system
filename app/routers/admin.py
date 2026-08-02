@@ -2484,12 +2484,36 @@ async def download_screening_report(
         or "Candidate"
     )
 
+    # 3-layer experience years: quick_facts → candidate field → JSONB date computation
+    _exp_yrs = 0
+    if candidate:
+        _qf_exp = 0
+        if evaluation and isinstance(getattr(evaluation, 'quick_facts', None), dict):
+            try: _qf_exp = int(evaluation.quick_facts.get('years_experience') or 0)
+            except (ValueError, TypeError): pass
+        if _qf_exp > 0:
+            _exp_yrs = _qf_exp
+        elif candidate.experience_years and candidate.experience_years > 0:
+            _exp_yrs = candidate.experience_years
+        elif candidate.experiences and isinstance(candidate.experiences, list):
+            import re as _re
+            _CY = 2026
+            def _parse_yr(s):
+                if not s: return None
+                if _re.search(r'present|current|now', str(s), _re.I): return _CY
+                m = _re.search(r'(\d{4})', str(s))
+                return int(m.group(1)) if m else None
+            _starts = [_parse_yr(e.get('start')) for e in candidate.experiences if isinstance(e, dict)]
+            _starts = [y for y in _starts if y and 1960 <= y <= _CY]
+            if _starts:
+                _exp_yrs = max(0, _CY - min(_starts))
+
     candidate_data = {
         'name':             display_name,
         'phone':            (candidate.phone if candidate else None) or application.applicant_phone or '—',
         'email':            (candidate.email if candidate else None) or application.applicant_email or '—',
         'job_title':        job.job_title if job else '—',
-        'experience_years': candidate.experience_years if candidate else 0,
+        'experience_years': _exp_yrs,
         'source':           'External Apply' if getattr(application, 'source', '') == 'external' else 'Portal Apply',
     }
 
