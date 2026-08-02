@@ -450,7 +450,8 @@ async def public_apply(
             detail="An email address is required to apply.",
         )
 
-    # Duplicate check: one Type B Application per (email, job) pair
+    # Duplicate check: one application per (email, job) pair.
+    # Check both Type B rows (applicant_email) and Type A rows linked via candidates table.
     existing_app = (
         db.query(models.Application)
         .filter(
@@ -459,6 +460,16 @@ async def public_apply(
         )
         .first()
     )
+    if not existing_app:
+        existing_app = (
+            db.query(models.Application)
+            .join(models.Candidate, models.Application.candidate_id == models.Candidate.id)
+            .filter(
+                models.Candidate.email.ilike(email),
+                models.Application.job_id == job_id,
+            )
+            .first()
+        )
     if existing_app:
         raise HTTPException(
             status_code=409,
