@@ -347,8 +347,14 @@ async def screen_cv(
     # Portal candidates always use their account email — avoids placeholder
     # linking issues and Gemini email-extraction mismatches.
     is_portal_candidate = not current_user.is_admin and not current_user.company_id
-    name  = (current_user.full_name if is_portal_candidate else None) or \
-            (file.filename.rsplit(".", 1)[0].replace("_", " ").title() if file else "Candidate")
+    _raw_filename_name = None
+    if file:
+        import re as _re
+        _fn = file.filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ")
+        _fn = _re.sub(r'^(resume|cv|curriculum vitae|curriculum)\s*', '', _fn, flags=_re.I).strip()
+        _fn = _re.sub(r'([a-z])([A-Z])', r'\1 \2', _fn)  # split CamelCase
+        _raw_filename_name = _fn.title() if _fn else "Candidate"
+    name  = (current_user.full_name if is_portal_candidate else None) or _raw_filename_name or "Candidate"
     email = current_user.email if is_portal_candidate else \
             (f"bulk_{file.filename}@noemail.hunters" if file else f"user_{current_user.id}@noemail.hunters")
     phone = ""
@@ -388,7 +394,15 @@ async def screen_cv(
         # Refine bootstrap name/phone from agent profile
         if _cp.get("name"):
             v = (_cp["name"] or "").strip()
-            if v and v.isprintable() and any(c.isalpha() for c in v) and len(v) <= 80:
+            _LOCATION_WORDS = {
+                "cairo", "alexandria", "giza", "suez", "luxor", "aswan", "mansoura",
+                "tanta", "ismailia", "port said", "portsaid", "hurghada", "sharm",
+                "dubai", "abudhabi", "riyadh", "jeddah", "kuwait", "doha", "muscat",
+                "amman", "beirut", "baghdad", "casablanca", "tunis", "tripoli",
+                "egypt", "ksa", "uae", "jordan", "qatar", "bahrain",
+            }
+            _is_location = " " not in v and v.lower() in _LOCATION_WORDS
+            if v and v.isprintable() and any(c.isalpha() for c in v) and len(v) <= 80 and not _is_location:
                 if not is_portal_candidate:
                     name = v
                 elif not current_user.full_name:
