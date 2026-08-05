@@ -2541,10 +2541,22 @@ async def download_screening_report(
             'score_skills':          evaluation.score_skills     or 0,
             'score_education':       evaluation.score_education  or 0,
             'score_behavioral':      evaluation.score_behavioral or 0,
-            'weight_experience':     round((job.weight_experience or 0) * 100) if job else 40,
-            'weight_skills':         round((job.weight_skills     or 0) * 100) if job else 30,
-            'weight_education':      round((job.weight_education  or 0) * 100) if job else 20,
-            'weight_behavioral':     round((job.weight_behavioral or 0) * 100) if job else 10,
+            # When scored by agent, use agent weights (title/industry/exp/skills)
+            # so the weight bars on the report match the actual calculation.
+            # score_education = industry_match, score_behavioral = title_match (re-purposed columns).
+            **({
+                'weight_experience': (job.agent_weight_experience or 25) if job else 25,
+                'weight_skills':     (job.agent_weight_skills     or 25) if job else 25,
+                'weight_education':  (job.agent_weight_industry   or 25) if job else 25,
+                'weight_behavioral': (job.agent_weight_title      or 25) if job else 25,
+            } if isinstance(getattr(evaluation, 'dimension_scores', None), dict)
+                and evaluation.dimension_scores.get('source') == 'agent'
+            else {
+                'weight_experience': round((job.weight_experience or 0) * 100) if job else 40,
+                'weight_skills':     round((job.weight_skills     or 0) * 100) if job else 30,
+                'weight_education':  round((job.weight_education  or 0) * 100) if job else 20,
+                'weight_behavioral': round((job.weight_behavioral or 0) * 100) if job else 10,
+            }),
             'interview_questions_en': iq_en,
             'interview_questions_ar': iq_ar,
         }
