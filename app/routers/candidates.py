@@ -141,7 +141,7 @@ def run_evaluation_task(candidate_id: int, db: Session, application_id: Optional
                         if v:
                             try:
                                 yr = int(v)
-                                if 1 <= yr <= 25: candidate.experience_years = yr
+                                if 1 <= yr <= 50: candidate.experience_years = yr
                             except Exception: pass
                     if not candidate.education:
                         v = (_cp.get("education") or "").strip()
@@ -356,7 +356,7 @@ async def screen_cv(
         _raw_filename_name = _fn.title() if _fn else "Candidate"
     name  = (current_user.full_name if is_portal_candidate else None) or _raw_filename_name or "Candidate"
     email = current_user.email if is_portal_candidate else \
-            (f"bulk_{file.filename}@noemail.hunters" if file else f"user_{current_user.id}@noemail.hunters")
+            (f"bulk_{re.sub(r'[^a-z0-9._-]', '_', file.filename.lower())}@noemail.hunters" if file else f"user_{current_user.id}@noemail.hunters")
     phone = ""
 
     if job_id is None:
@@ -561,7 +561,7 @@ async def screen_cv(
                     if v:
                         try:
                             yr = int(v)
-                            if 1 <= yr <= 25: candidate.experience_years = yr
+                            if 1 <= yr <= 50: candidate.experience_years = yr
                         except Exception: pass
                 if not candidate.education:
                     v = (_cp.get("education") or "").strip()

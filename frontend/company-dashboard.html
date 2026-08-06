@@ -4975,6 +4975,7 @@
    ══════════════════════════════════════════════ */
 
 var _bulkFiles = [];
+var _bulkResults = [];
 
 /* ── helpers ── */
 function _apiBase() {
@@ -5131,7 +5132,7 @@ async function runBulkScreening() {
   progressArea.style.flexDirection = 'column';
   progressArea.innerHTML = '';
 
-  var results = [];
+  _bulkResults = [];
   for (var i = 0; i < _bulkFiles.length; i++) {
     var f = _bulkFiles[i];
     var rowId = 'bpr-' + i;
@@ -5169,14 +5170,19 @@ async function runBulkScreening() {
         var col = s == null ? '#6B7280' : s >= 75 ? '#0F6E56' : s >= 50 ? '#854F0B' : '#A32D2D';
         document.getElementById(rowId + '-status').innerHTML =
           '<span style="color:' + col + ';font-weight:600;">' + (s != null ? s + '% · ' : '') + (d.decision || 'Done') + '</span>';
-        results.push({ name: d.name, score: s, decision: d.decision });
-      } else {
-        // Excel — use bulk upload endpoint
+        _bulkResults.push({ name: d.name || f.name, score: s, decision: d.decision || 'Done' });
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        if (!jobId) {
+          document.getElementById(rowId + '-status').innerHTML =
+            '<span style="color:#854F0B;font-weight:600;">Select a job first</span>';
+          _bulkResults.push({ name: f.name, score: null, decision: 'Error' });
+          continue;
+        }
         var fd2 = new FormData();
         fd2.append('file', f);
         var _ec = new AbortController();
         var _et = setTimeout(function() { _ec.abort(); }, 120000);
-        var res2 = await fetch(_apiBase() + '/candidates/upload?job_id=' + (jobId || '1'), {
+        var res2 = await fetch(_apiBase() + '/candidates/upload?job_id=' + jobId, {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + _token() },
           body: fd2,
@@ -5186,17 +5192,93 @@ async function runBulkScreening() {
         var d2 = await res2.json();
         document.getElementById(rowId + '-status').innerHTML =
           '<span style="color:#185FA5;font-weight:600;">' + (d2.message || 'Imported') + '</span>';
-        results.push({ name: f.name, score: null, decision: 'Imported' });
+        _bulkResults.push({ name: f.name, score: null, decision: 'Imported' });
+      } else {
+        throw new Error('Unsupported file type');
       }
     } catch(err) {
       document.getElementById(rowId + '-status').innerHTML =
         '<span style="color:#A32D2D;">Failed: ' + err.message + '</span>';
-      results.push({ name: f.name, score: null, decision: 'Error' });
+      _bulkResults.push({ name: f.name, score: null, decision: 'Error' });
     }
   }
 
+  // Populate results table
+  var tbody = document.getElementById('bulk-results-tbody');
+  if (tbody) {
+    tbody.innerHTML = '';
+    _bulkResults.forEach(function(r) {
+      var s = r.score;
+      var col = s == null ? '#6B7280' : s >= 75 ? '#0F6E56' : s >= 50 ? '#854F0B' : '#A32D2D';
+      tbody.innerHTML += '<tr style="border-bottom:1px solid #F0F1F3;">' +
+        '<td style="padding:9px 12px;font-size:12px;color:#1B2A4A;">' + (r.name || '—') + '</td>' +
+        '<td style="padding:9px 12px;font-size:12px;font-weight:600;color:' + col + ';">' + (s != null ? s + '%' : '—') + '</td>' +
+        '<td style="padding:9px 12px;font-size:12px;color:' + col + ';font-weight:500;">' + (r.decision || '—') + '</td>' +
+        '<td style="padding:9px 12px;"></td>' +
+        '</tr>';
+    });
+  }
+
+  // Update stat counters
+  var nQ = 0, nR = 0, nRej = 0, nErr = 0;
+  _bulkResults.forEach(function(r) {
+    var dec = (r.decision || '').toLowerCase();
+    if (dec === 'error' || dec === 'failed') nErr++;
+    else if (dec === 'shortlisted' || dec === 'qualified' || (r.score != null && r.score >= 75)) nQ++;
+    else if (dec === 'rejected' || dec === 'not qualified' || (r.score != null && r.score < 50 && r.score >= 0)) nRej++;
+    else nR++;
+  });
+  var _sc = document.getElementById('count-qualified');   if (_sc) _sc.textContent = nQ;
+  var _sr = document.getElementById('count-review');      if (_sr) _sr.textContent = nR;
+  var _sj = document.getElementById('count-rejected');    if (_sj) _sj.textContent = nRej;
+  var _se = document.getElementById('count-errors');      if (_se) _se.textContent = nErr;
+
   btn.textContent = 'Done ✓';
   if (typeof loadCandidatesList === 'function') loadCandidatesList();
+}
+
+function exportBulkResultsCSV() {
+  if (!_bulkResults.length) { alert('No results to export yet. Run screening first.'); return; }
+  var rows = [['Name', 'Score (%)', 'Decision']];
+  _bulkResults.forEach(function(r) {
+    rows.push([
+      '"' + (r.name || '').replace(/"/g, '""') + '"',
+      r.score != null ? r.score : '',
+      '"' + (r.decision || '').replace(/"/g, '""') + '"',
+    ]);
+  });
+  var csv = rows.map(function(r) { return r.join(','); }).join('\r\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'bulk_screening_results.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function saveBulkToPipeline() {
+  if (typeof loadCandidatesList === 'function') loadCandidatesList();
+  var modal = document.getElementById('bulk-upload-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function resetBulkUploadModal() {
+  _bulkFiles = [];
+  _bulkResults = [];
+  var progressArea = document.getElementById('bulk-progress-area');
+  if (progressArea) { progressArea.innerHTML = ''; progressArea.style.display = 'none'; }
+  var tbody = document.getElementById('bulk-results-tbody');
+  if (tbody) tbody.innerHTML = '';
+  ['count-qualified','count-review','count-rejected','count-errors'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.textContent = '0';
+  });
+  var btn = document.getElementById('bulk-screen-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Start AI Screening'; btn.style.opacity = '0.5'; }
+  var countEl = document.getElementById('bulk-file-count');
+  if (countEl) countEl.textContent = '0 file(s) selected';
 }
 
 // ═══════════════════════════════════════════════════════════════
