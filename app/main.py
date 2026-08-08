@@ -935,10 +935,11 @@ def robots_txt():
 
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap(db: Session = Depends(get_db)):
+    from sqlalchemy import or_
     jobs = db.query(models.Job).filter(
         models.Job.is_approved == True,
         models.Job.is_archived == False,
-        models.Job.status != "rejected",
+        or_(models.Job.status == None, models.Job.status != "rejected"),
     ).all()
 
     today = datetime.date.today().isoformat()
