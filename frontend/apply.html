@@ -552,6 +552,12 @@
             var canonical = document.querySelector('link[rel="canonical"]');
             if (canonical && job.id) canonical.setAttribute('href', 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id);
 
+            // Noindex unapproved jobs so they don't appear in search results
+            if (job.is_approved === false) {
+                var _ni2 = document.querySelector('meta[name="robots"]');
+                if (_ni2) _ni2.setAttribute('content', 'noindex, nofollow');
+            }
+
             document.getElementById('job-title').textContent = job.job_title;
             var cnEl = document.getElementById('company-name');
             if (cnEl && job.company_name) { cnEl.textContent = job.company_name; cnEl.style.display = 'block'; }
@@ -625,6 +631,9 @@
         } catch (err) {
             document.getElementById('job-title').textContent = 'Job Not Found';
             document.getElementById('job-description').textContent = 'This job posting could not be loaded.';
+            // Tell crawlers not to index unavailable job pages (prevents Soft 404 in Search Console)
+            var _ni = document.querySelector('meta[name="robots"]');
+            if (_ni) _ni.setAttribute('content', 'noindex, nofollow');
         }
     }
     fetchJob();
