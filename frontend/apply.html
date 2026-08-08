@@ -3,9 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- CACHE VERSION: v1.05 -->
-    <meta name="robots" content="index, follow">
+    <!-- CACHE VERSION: v1.06 -->
+    <meta name="robots" content="{{ robots_content }}">
     <meta name="description" content="{{ meta_description }}">
+    <meta property="og:type"        content="website">
+    <meta property="og:site_name"   content="Hunters for HR Solutions">
+    <meta property="og:title"       content="{{ page_title }}">
+    <meta property="og:description" content="{{ meta_description }}">
+    <meta property="og:url"         content="{{ canonical_url }}">
+    <meta property="og:image"       content="https://app.hunters-egypt.com/hunters-logo-blue.jpeg">
     <link rel="canonical" href="{{ canonical_url }}">
     <title>{{ page_title }}</title>
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
@@ -567,8 +573,18 @@
             // SEO meta
             var company = job.company_name || 'Hunters for HR Transformation & Execution';
             document.title = job.job_title + ' at ' + company + ' — Hunters HR';
+            var _desc160 = (job.job_description || '').slice(0, 160);
             var metaDesc = document.querySelector('meta[name="description"]');
-            if (metaDesc) metaDesc.setAttribute('content', (job.job_description || '').slice(0, 160));
+            if (metaDesc) metaDesc.setAttribute('content', _desc160);
+            var _pageTitle = job.job_title + ' at ' + company + ' — Hunters HR';
+            var _pageUrl   = 'https://app.hunters-egypt.com/apply.html?job_id=' + job.id;
+            var _setOg = function(prop, val) {
+                var el = document.querySelector('meta[property="' + prop + '"]');
+                if (el) el.setAttribute('content', val);
+            };
+            _setOg('og:title',       _pageTitle);
+            _setOg('og:description', _desc160);
+            _setOg('og:url',         _pageUrl);
 
             // JSON-LD — submit https://app.hunters-egypt.com/sitemap.xml to Google Search Console.
             // employmentType: hardcoded FULL_TIME (no job_type column in schema yet).

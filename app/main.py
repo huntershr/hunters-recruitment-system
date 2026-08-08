@@ -917,22 +917,44 @@ CV Text:
         logging.error("extract_cv_ai error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/robots.txt", include_in_schema=False)
+def robots_txt():
+    content = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /company-dashboard.html\n"
+        "Disallow: /candidates-portal.html\n"
+        "Disallow: /admin.html\n"
+        "Disallow: /admin-approval-dashboard.html\n"
+        "Disallow: /api/\n"
+        "\n"
+        "Sitemap: https://app.hunters-egypt.com/sitemap.xml\n"
+    )
+    return Response(content=content, media_type="text/plain")
+
+
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap(db: Session = Depends(get_db)):
     jobs = db.query(models.Job).filter(
         models.Job.is_approved == True,
-        models.Job.is_archived == False
+        models.Job.is_archived == False,
+        models.Job.status != "rejected",
     ).all()
 
     today = datetime.date.today().isoformat()
 
-    urls = [f"""
+    urls = []
+    for job in jobs:
+        lastmod = today
+        if job.created_at:
+            lastmod = job.created_at.date().isoformat()
+        urls.append(f"""
   <url>
     <loc>https://app.hunters-egypt.com/apply.html?job_id={job.id}</loc>
-    <lastmod>{today}</lastmod>
+    <lastmod>{lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-  </url>""" for job in jobs]
+  </url>""")
 
     urls.append(f"""
   <url>
@@ -1017,6 +1039,7 @@ try:
                 "meta_description": "Apply for a job at Hunters for HR Transformation & Execution",
                 "job_title": "Loading...",
                 "job_description": "Loading job details...",
+                "robots_content": "index, follow",
             }
             if job_id is None:
                 return _templates.TemplateResponse("apply.html", _default)
@@ -1030,6 +1053,7 @@ try:
                     "meta_description": "This position is no longer available or has been filled.",
                     "job_title": "Position No Longer Available",
                     "job_description": "This position has been filled or is no longer accepting applications.",
+                    "robots_content": "noindex, nofollow",
                 })
 
             company_name = "Hunters for HR Solutions"
@@ -1044,6 +1068,8 @@ try:
             if len(_meta) == 157:
                 _meta += "..."
 
+            _robots = "noindex, nofollow" if job.is_approved is False else "index, follow"
+
             return _templates.TemplateResponse("apply.html", {
                 "request": request,
                 "canonical_url": f"{_BASE_URL}/apply.html?job_id={job_id}",
@@ -1051,6 +1077,7 @@ try:
                 "meta_description": _meta,
                 "job_title": job.job_title,
                 "job_description": job.job_description or "",
+                "robots_content": _robots,
             })
 
         app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
